@@ -1,0 +1,6 @@
+{
+  "name": "MR. BOOKS — Bookstore & Stationery E-Commerce",
+  "description": "Complete Bookstore and Stationery E-Commerce with Firebase and Manual Payment Verification for Bangladesh",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

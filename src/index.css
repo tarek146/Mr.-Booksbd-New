@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', 'Hind Siliguri', system-ui, -apple-system, sans-serif;
+  --color-brand-red: #D71920;
+  --color-brand-red-hover: #C5161C;
+  --color-brand-red-soft: #FFF1F2;
+  --color-brand-black: #111827;
+  --color-brand-charcoal: #1F2937;
+  --color-brand-surface: #F9FAFB;
+  --color-brand-border: #E5E7EB;
+  --color-brand-divider: #F3F4F6;
+  --color-brand-text: #111827;
+  --color-brand-text-secondary: #4B5563;
+  --color-brand-text-muted: #9CA3AF;
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    background-color: #FFFFFF !important;
+    color: #111827 !important;
+  }
+
+  body {
+    background-color: #FFFFFF !important;
+    color: #111827 !important;
+    font-family: 'Plus Jakarta Sans', 'Hind Siliguri', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+  }
+}
+
+/* Custom smooth scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F9FAFB;
+}
+::-webkit-scrollbar-thumb {
+  background: #E5E7EB;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #D71920;
+}
+
+/* Continuous sliding announcement bar marquee */
+@keyframes marquee-slide {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee-continuous {
+  display: flex;
+  width: max-content;
+  animation: marquee-slide 32s linear infinite;
+}
+
+.animate-marquee-continuous:hover {
+  animation-play-state: paused;
+}
