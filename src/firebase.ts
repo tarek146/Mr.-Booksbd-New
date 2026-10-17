@@ -5,12 +5,12 @@ import { getStorage } from 'firebase/storage';
 import { PaymentMethodConfig, Product, Category, Author, Banner, StoreSettings } from './types';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAhU2ZK7PXw7nnqT2VTfYgSkv-rA97MUV4",
-  authDomain: "mr-books-44dbe.firebaseapp.com",
-  projectId: "mr-books-44dbe",
-  storageBucket: "mr-books-44dbe.firebasestorage.app",
-  messagingSenderId: "453809224495",
-  appId: "1:453809224495:web:c01e177663c1bbf1da3fda"
+  apiKey: "AIzaSyBtri4I2GZXlKuZTf_aOIV5TbmgV0VMQI0",
+  authDomain: "mr-book-new.firebaseapp.com",
+  projectId: "mr-book-new",
+  storageBucket: "mr-book-new.firebasestorage.app",
+  messagingSenderId: "358143706074",
+  appId: "1:358143706074:web:d4337f5a9cd8cf8d02b6e3"
 };
 
 export const app = initializeApp(firebaseConfig);
@@ -18,7 +18,7 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
-export const ADMIN_UID = 'h7yVUagCGfPVbjimlnGkybGO6sS2';
+export const ADMIN_UID = 'ytewGIOO2uhISkUfUUwktSvzdjy1';
 export const ADMIN_EMAIL = 'mr.booksbd700@gmail.com';
 
 export const DEFAULT_PAYMENT_METHODS: PaymentMethodConfig[] = [

@@ -25,7 +25,8 @@ import {
   doc, 
   setDoc, 
   deleteDoc, 
-  addDoc 
+  addDoc,
+  onSnapshot
 } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 
@@ -84,7 +85,6 @@ interface StoreContextType {
   updateOrderStatus: (orderId: string, orderStatus: Order['orderStatus']) => Promise<void>;
   reviewPaymentSubmission: (subId: string, status: 'approved' | 'rejected', reason?: string) => Promise<void>;
   
-  refreshData: () => void;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -136,52 +136,47 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const refreshData = async () => {
-    try {
-      await seedInitialDataIfNeeded();
-      
-      const prodSnap = await getDocs(collection(db, 'products'));
-      if (!prodSnap.empty) {
-        setProducts(prodSnap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
-      }
 
-      const catSnap = await getDocs(collection(db, 'categories'));
-      if (!catSnap.empty) {
-        setCategories(catSnap.docs.map(d => ({ id: d.id, ...d.data() } as Category)));
-      }
 
-      const authSnap = await getDocs(collection(db, 'authors'));
-      if (!authSnap.empty) {
-        setAuthors(authSnap.docs.map(d => ({ id: d.id, ...d.data() } as Author)));
-      }
-
-      const banSnap = await getDocs(collection(db, 'banners'));
-      if (!banSnap.empty) {
-        setBanners(banSnap.docs.map(d => ({ id: d.id, ...d.data() } as Banner)));
-      }
-
-      const pmSnap = await getDocs(collection(db, 'payment_methods'));
-      if (!pmSnap.empty) {
-        setPaymentMethods(pmSnap.docs.map(d => ({ id: d.id, ...d.data() } as PaymentMethodConfig)));
-      }
-
-      const ordSnap = await getDocs(collection(db, 'orders'));
-      if (!ordSnap.empty) {
-        setOrders(ordSnap.docs.map(d => ({ id: d.id, ...d.data() } as Order)));
-      }
-
-      const subSnap = await getDocs(collection(db, 'payment_submissions'));
-      if (!subSnap.empty) {
-        setPaymentSubmissions(subSnap.docs.map(d => ({ id: d.id, ...d.data() } as PaymentSubmission)));
-      }
-    } catch (err: any) {
-      console.warn('Using default store data due to Firestore permissions or offline state:', err?.message || err);
-    }
-  };
+// ... (inside StoreProvider)
 
   useEffect(() => {
-    refreshData();
+    // Seed initial data first
+    seedInitialDataIfNeeded();
+
+    const unsubProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
+      setProducts(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
+    });
+    const unsubCategories = onSnapshot(collection(db, 'categories'), (snapshot) => {
+      setCategories(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Category)));
+    });
+    const unsubOrders = onSnapshot(collection(db, 'orders'), (snapshot) => {
+      setOrders(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Order)));
+    });
+    const unsubAuthors = onSnapshot(collection(db, 'authors'), (snapshot) => {
+      setAuthors(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Author)));
+    });
+    const unsubBanners = onSnapshot(collection(db, 'banners'), (snapshot) => {
+      setBanners(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Banner)));
+    });
+    const unsubPayments = onSnapshot(collection(db, 'payment_methods'), (snapshot) => {
+      setPaymentMethods(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PaymentMethodConfig)));
+    });
+    const unsubSubs = onSnapshot(collection(db, 'payment_submissions'), (snapshot) => {
+      setPaymentSubmissions(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PaymentSubmission)));
+    });
+
+    return () => {
+      unsubProducts();
+      unsubCategories();
+      unsubOrders();
+      unsubAuthors();
+      unsubBanners();
+      unsubPayments();
+      unsubSubs();
+    };
   }, []);
+
 
   const addToCart = (product: Product, variantId: string, quantity: number) => {
     const variant = product.variants.find(v => v.id === variantId) || product.variants[0];
@@ -515,8 +510,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       updateCategory,
       deleteCategory,
       updateOrderStatus,
-      reviewPaymentSubmission,
-      refreshData
+      reviewPaymentSubmission
     }}>
       {children}
     </StoreContext.Provider>

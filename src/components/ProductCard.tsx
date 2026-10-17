@@ -96,10 +96,10 @@ export function ProductCard({ product }: ProductCardProps) {
             </span>
           </div>
 
-          {/* Bottom-Left: "অরিজিনাল বই" Badge (Fixed) */}
-          <div className="absolute bottom-1.5 left-1.5 z-10 pointer-events-none">
+          {/* Bottom-Right: "অরিজিনাল বই" Badge (Fixed) */}
+          <div className="absolute bottom-1.5 right-1.5 z-10 pointer-events-none">
             {product.isOriginalBadge !== false && (
-              <span className="bg-[#D71920]/95 backdrop-blur-xs text-white text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-md shadow-2xs border border-[#D71920] flex items-center gap-0.5 shrink-0">
+              <span className="bg-[#D71920] text-white text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-md shadow-sm border border-white/20 flex items-center gap-0.5 shrink-0">
                 <ShieldCheck size={10} className="text-white shrink-0" />
                 <span>অরিজিনাল বই</span>
               </span>

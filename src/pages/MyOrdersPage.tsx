@@ -212,7 +212,7 @@ export function MyOrdersPage() {
               <p className="text-xs text-[#5F6368] mt-0.5">
                 {activeTab === 'wishlist' 
                   ? 'Your saved books & stationery collections for quick checkout' 
-                  : 'Track delivery milestones and manual payment verification status in real time'}
+                  : ''}
               </p>
             </div>
           </div>
