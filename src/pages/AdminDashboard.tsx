@@ -31,7 +31,8 @@ import {
   X,
   Layers,
   ChevronRight,
-  Calendar
+  Calendar,
+  RefreshCw
 } from 'lucide-react';
 import { Author, Banner } from '../types';
 import { AdminAnalytics } from '../components/admin/AdminAnalytics';
@@ -1174,6 +1175,22 @@ export function AdminDashboard() {
                   <option value="cancelled">❌ Cancelled</option>
                 </select>
 
+                <select 
+                  className="px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-xs font-bold text-neutral-800 focus:outline-none focus:border-[#D71920]"
+                >
+                  <option value="all">📅 All Dates</option>
+                  <option value="today">Today</option>
+                  <option value="7days">Last 7 Days</option>
+                  <option value="30days">Last 30 Days</option>
+                </select>
+
+                <button 
+                  onClick={() => alert('Create Order modal / feature triggered.')}
+                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-emerald-600/20 cursor-pointer transition-all"
+                >
+                  <Plus size={14} /> <span>Create Order</span>
+                </button>
+
                 <button 
                   onClick={() => alert('Orders exported to CSV successfully.')}
                   className="px-4 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
@@ -1185,40 +1202,53 @@ export function AdminDashboard() {
                   onClick={() => window.location.reload()}
                   className="px-4 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer transition-colors"
                 >
-                  <span>Sync Orders</span>
+                  <RefreshCw size={14} /> <span>Sync</span>
                 </button>
               </div>
             </div>
 
-            {/* Filter Pills Row */}
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              {[
-                { id: 'all', label: `All Orders (${orders.length})` },
-                { id: 'pending', label: `Pending (${orders.filter(o => o.orderStatus === 'pending').length})` },
-                { id: 'processing', label: `Processing (${orders.filter(o => o.orderStatus === 'processing').length})` },
-                { id: 'shipped', label: `Shipped (${orders.filter(o => o.orderStatus === 'shipped').length})` },
-                { id: 'delivered', label: `Completed (${orders.filter(o => o.orderStatus === 'delivered').length})` },
-                { id: 'cancelled', label: `Cancelled (${orders.filter(o => o.orderStatus === 'cancelled').length})` }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setOrderStatusFilter(tab.id)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    orderStatusFilter === tab.id ? 'bg-[#171717] text-white shadow-xs' : 'bg-[#F7F7F8] text-neutral-700 hover:bg-neutral-200 border border-[#E5E5E5]'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+            {/* Filter Pills Row & Extra Dropdowns */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-1">
+              <div className="flex flex-wrap items-center gap-2">
+                {[
+                  { id: 'all', label: `All Orders (${orders.length})` },
+                  { id: 'pending', label: `Pending (${orders.filter(o => o.orderStatus === 'pending').length})` },
+                  { id: 'processing', label: `Processing (${orders.filter(o => o.orderStatus === 'processing').length})` },
+                  { id: 'shipped', label: `Shipped (${orders.filter(o => o.orderStatus === 'shipped').length})` },
+                  { id: 'delivered', label: `Completed (${orders.filter(o => o.orderStatus === 'delivered').length})` },
+                  { id: 'cancelled', label: `Cancelled (${orders.filter(o => o.orderStatus === 'cancelled').length})` }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setOrderStatusFilter(tab.id)}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      orderStatusFilter === tab.id ? 'bg-[#D71920] text-white shadow-xs' : 'bg-[#F7F7F8] text-neutral-700 hover:bg-neutral-200 border border-[#E5E5E5]'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
 
-            {/* Selection Bar */}
-            <div className="flex items-center justify-between bg-[#F7F7F8] px-4 py-2.5 rounded-xl border border-[#E5E5E5] text-xs font-bold text-neutral-700">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="accent-[#D71920] rounded" />
-                <span>Select All ({orders.length})</span>
-              </label>
-              <span className="text-[11px] text-neutral-500 font-mono">Real-time Firebase Orders Stream</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <select className="px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-xs font-bold text-neutral-700 focus:outline-none focus:border-[#D71920]">
+                  <option value="all">🌐 All Channels</option>
+                  <option value="web">Website Store</option>
+                  <option value="phone">Phone Order</option>
+                </select>
+
+                <select className="px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-xs font-bold text-neutral-700 focus:outline-none focus:border-[#D71920]">
+                  <option value="all">💳 All Payments</option>
+                  <option value="cod">Cash on Delivery</option>
+                  <option value="online">Online Payment</option>
+                </select>
+
+                <select className="px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-xs font-bold text-neutral-700 focus:outline-none focus:border-[#D71920]">
+                  <option value="all">🛡️ Verification (All)</option>
+                  <option value="verified">Verified</option>
+                  <option value="pending">Pending</option>
+                </select>
+              </div>
             </div>
 
             {/* Order Cards List */}
