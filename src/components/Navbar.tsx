@@ -35,7 +35,7 @@ export function Navbar() {
     products
   } = useStore();
   
-  const { currentUser, isAdmin, logout } = useAuth();
+  const { currentUser, logout } = useAuth();
   
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signup');
@@ -236,15 +236,6 @@ export function Navbar() {
                         >
                           <Package size={16} className="text-[#D71920]" /> My Orders & Payments
                         </button>
-
-                        {isAdmin && (
-                          <button 
-                            onClick={() => { setActivePage('admin'); setUserDropdownOpen(false); }}
-                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-[#D71920] hover:bg-[#FFF1F2] transition-colors cursor-pointer text-left"
-                          >
-                            <ShieldCheck size={16} /> Admin Dashboard
-                          </button>
-                        )}
 
                         <div className="border-t border-neutral-100 my-1"></div>
                         
@@ -481,17 +472,6 @@ export function Navbar() {
               </div>
             </div>
 
-            {/* Admin quick portal (if admin) */}
-            {isAdmin && (
-              <div className="shrink-0 pl-2">
-                <button 
-                  onClick={() => setActivePage('admin')}
-                  className="flex items-center gap-1.5 text-xs text-[#D71920] font-bold bg-[#FFF1F2] px-3.5 py-1.5 rounded-full border border-[#D71920]/25 hover:bg-[#D71920] hover:text-white transition-all cursor-pointer"
-                >
-                  <ShieldCheck size={14} /> Admin
-                </button>
-              </div>
-            )}
           </nav>
         </div>
 
@@ -691,18 +671,6 @@ export function Navbar() {
                       Track Orders & Payments
                     </button>
                   </div>
-
-                  {/* Admin Dashboard */}
-                  {isAdmin && (
-                    <div className="pt-1">
-                      <button 
-                        onClick={() => { setActivePage('admin'); setMobileMenuOpen(false); }} 
-                        className="block w-full text-left py-2.5 text-sm font-bold text-[#D71920] cursor-pointer"
-                      >
-                        Admin Dashboard
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
 

@@ -32,6 +32,7 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
+import { cleanForFirestore } from '../utils/imageCompressor';
 
 interface StoreContextType {
   products: Product[];
@@ -619,20 +620,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       createdAt: Date.now()
     };
     try {
-      await setDoc(doc(db, 'products', id), newProd);
+      const cleaned = cleanForFirestore(newProd);
+      await setDoc(doc(db, 'products', id), cleaned);
       await logAdminAction('product_created', id, `Added product: ${newProd.title} (Price: ৳${newProd.price})`);
     } catch (err) {
-      console.warn('Firestore add product warning:', err);
+      console.error('Firestore add product error:', err);
+      throw err;
     }
     setProducts(prev => [newProd, ...prev]);
   };
 
   const updateProduct = async (id: string, data: Partial<Product>) => {
     try {
-      await setDoc(doc(db, 'products', id), data, { merge: true });
+      const cleaned = cleanForFirestore(data);
+      await setDoc(doc(db, 'products', id), cleaned, { merge: true });
       await logAdminAction('product_updated', id, `Updated product fields: ${Object.keys(data).join(', ')}`);
     } catch (err) {
-      console.warn('Firestore update product warning:', err);
+      console.error('Firestore update product error:', err);
+      throw err;
     }
     setProducts(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
   };
@@ -642,27 +647,32 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       await deleteDoc(doc(db, 'products', id));
       await logAdminAction('product_deleted', id, `Deleted product id: ${id}`);
     } catch (err) {
-      console.warn('Firestore delete product warning:', err);
+      console.error('Firestore delete product error:', err);
+      throw err;
     }
     setProducts(prev => prev.filter(p => p.id !== id));
   };
 
   const addPaymentMethod = async (method: PaymentMethodConfig) => {
     try {
-      await setDoc(doc(db, 'payment_methods', method.id), method);
+      const cleaned = cleanForFirestore(method);
+      await setDoc(doc(db, 'payment_methods', method.id), cleaned);
       await logAdminAction('payment_method_created', method.id, `Added payment method: ${method.name}`);
     } catch (err) {
-      console.warn('Firestore add payment method warning:', err);
+      console.error('Firestore add payment method error:', err);
+      throw err;
     }
     setPaymentMethods(prev => [...prev.filter(m => m.id !== method.id), method]);
   };
 
   const updatePaymentMethod = async (id: string, data: Partial<PaymentMethodConfig>) => {
     try {
-      await setDoc(doc(db, 'payment_methods', id), data, { merge: true });
+      const cleaned = cleanForFirestore(data);
+      await setDoc(doc(db, 'payment_methods', id), cleaned, { merge: true });
       await logAdminAction('payment_method_updated', id, `Updated payment method: ${id}`);
     } catch (err) {
-      console.warn('Firestore update payment method warning:', err);
+      console.error('Firestore update payment method error:', err);
+      throw err;
     }
     setPaymentMethods(prev => prev.map(m => m.id === id ? { ...m, ...data } : m));
   };
@@ -672,27 +682,32 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       await deleteDoc(doc(db, 'payment_methods', id));
       await logAdminAction('payment_method_deleted', id, `Deleted payment method: ${id}`);
     } catch (err) {
-      console.warn('Firestore delete payment method warning:', err);
+      console.error('Firestore delete payment method error:', err);
+      throw err;
     }
     setPaymentMethods(prev => prev.filter(m => m.id !== id));
   };
 
   const addBanner = async (banner: Banner) => {
     try {
-      await setDoc(doc(db, 'banners', banner.id), banner);
-      await logAdminAction('banner_created', banner.id, `Added banner: ${banner.title}`);
+      const cleaned = cleanForFirestore(banner);
+      await setDoc(doc(db, 'banners', banner.id), cleaned);
+      await logAdminAction('banner_created', banner.id, `Added banner: ${banner.title || 'Untitled'}`);
     } catch (err) {
-      console.warn('Firestore add banner warning:', err);
+      console.error('Firestore add banner error:', err);
+      throw err;
     }
     setBanners(prev => [...prev.filter(b => b.id !== banner.id), banner]);
   };
 
   const updateBanner = async (id: string, data: Partial<Banner>) => {
     try {
-      await setDoc(doc(db, 'banners', id), data, { merge: true });
+      const cleaned = cleanForFirestore(data);
+      await setDoc(doc(db, 'banners', id), cleaned, { merge: true });
       await logAdminAction('banner_updated', id, `Updated banner: ${id}`);
     } catch (err) {
-      console.warn('Firestore update banner warning:', err);
+      console.error('Firestore update banner error:', err);
+      throw err;
     }
     setBanners(prev => prev.map(b => b.id === id ? { ...b, ...data } : b));
   };
@@ -702,27 +717,32 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       await deleteDoc(doc(db, 'banners', id));
       await logAdminAction('banner_deleted', id, `Deleted banner: ${id}`);
     } catch (err) {
-      console.warn('Firestore delete banner warning:', err);
+      console.error('Firestore delete banner error:', err);
+      throw err;
     }
     setBanners(prev => prev.filter(b => b.id !== id));
   };
 
   const addAuthor = async (author: Author) => {
     try {
-      await setDoc(doc(db, 'authors', author.id), author);
+      const cleaned = cleanForFirestore(author);
+      await setDoc(doc(db, 'authors', author.id), cleaned);
       await logAdminAction('author_created', author.id, `Added author: ${author.name}`);
     } catch (err) {
-      console.warn('Firestore add author warning:', err);
+      console.error('Firestore add author error:', err);
+      throw err;
     }
     setAuthors(prev => [...prev.filter(a => a.id !== author.id), author]);
   };
 
   const updateAuthor = async (id: string, data: Partial<Author>) => {
     try {
-      await setDoc(doc(db, 'authors', id), data, { merge: true });
+      const cleaned = cleanForFirestore(data);
+      await setDoc(doc(db, 'authors', id), cleaned, { merge: true });
       await logAdminAction('author_updated', id, `Updated author: ${id}`);
     } catch (err) {
-      console.warn('Firestore update author warning:', err);
+      console.error('Firestore update author error:', err);
+      throw err;
     }
     setAuthors(prev => prev.map(a => a.id === id ? { ...a, ...data } : a));
   };
@@ -732,27 +752,32 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       await deleteDoc(doc(db, 'authors', id));
       await logAdminAction('author_deleted', id, `Deleted author: ${id}`);
     } catch (err) {
-      console.warn('Firestore delete author warning:', err);
+      console.error('Firestore delete author error:', err);
+      throw err;
     }
     setAuthors(prev => prev.filter(a => a.id !== id));
   };
 
   const addCategory = async (cat: Category) => {
     try {
-      await setDoc(doc(db, 'categories', cat.id), cat);
+      const cleaned = cleanForFirestore(cat);
+      await setDoc(doc(db, 'categories', cat.id), cleaned);
       await logAdminAction('category_created', cat.id, `Added category: ${cat.name}`);
     } catch (err) {
-      console.warn('Firestore add category warning:', err);
+      console.error('Firestore add category error:', err);
+      throw err;
     }
     setCategories(prev => [...prev.filter(c => c.id !== cat.id), cat]);
   };
 
   const updateCategory = async (id: string, data: Partial<Category>) => {
     try {
-      await setDoc(doc(db, 'categories', id), data, { merge: true });
+      const cleaned = cleanForFirestore(data);
+      await setDoc(doc(db, 'categories', id), cleaned, { merge: true });
       await logAdminAction('category_updated', id, `Updated category: ${id}`);
     } catch (err) {
-      console.warn('Firestore update category warning:', err);
+      console.error('Firestore update category error:', err);
+      throw err;
     }
     setCategories(prev => prev.map(c => c.id === id ? { ...c, ...data } : c));
   };
@@ -762,17 +787,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       await deleteDoc(doc(db, 'categories', id));
       await logAdminAction('category_deleted', id, `Deleted category: ${id}`);
     } catch (err) {
-      console.warn('Firestore delete category warning:', err);
+      console.error('Firestore delete category error:', err);
+      throw err;
     }
     setCategories(prev => prev.filter(c => c.id !== id));
   };
 
   const updateOrderStatus = async (orderId: string, orderStatus: Order['orderStatus']) => {
     try {
-      await setDoc(doc(db, 'orders', orderId), { orderStatus, updatedAt: Date.now() }, { merge: true });
+      const cleaned = cleanForFirestore({ orderStatus, updatedAt: Date.now() });
+      await setDoc(doc(db, 'orders', orderId), cleaned, { merge: true });
       await logAdminAction('order_status_updated', orderId, `Changed status to: ${orderStatus}`);
     } catch (err) {
-      console.warn('Firestore update order status warning:', err);
+      console.error('Firestore update order status error:', err);
+      throw err;
     }
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, orderStatus, updatedAt: Date.now() } : o));
   };
@@ -789,16 +817,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     };
 
     try {
-      await setDoc(doc(db, 'payment_submissions', subId), subUpdate, { merge: true });
+      await setDoc(doc(db, 'payment_submissions', subId), cleanForFirestore(subUpdate), { merge: true });
 
       const newOrderStatus: Order['orderStatus'] = status === 'approved' ? 'confirmed' : 'awaiting_payment';
       const newPaymentStatus: Order['paymentStatus'] = status === 'approved' ? 'approved' : 'rejected';
 
-      await setDoc(doc(db, 'orders', sub.orderId), {
+      await setDoc(doc(db, 'orders', sub.orderId), cleanForFirestore({
         paymentStatus: newPaymentStatus,
         orderStatus: newOrderStatus,
         updatedAt: reviewedAt
-      }, { merge: true });
+      }), { merge: true });
 
       await logAdminAction(
         'payment_submission_reviewed', 
@@ -806,7 +834,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         `Payment ${status} for Order #${sub.orderId} (Amount: ৳${sub.claimedAmount}${reason ? `, Reason: ${reason}` : ''})`
       );
     } catch (err) {
-      console.warn('Firestore review payment warning:', err);
+      console.error('Firestore review payment error:', err);
+      throw err;
     }
 
     const newOrderStatus: Order['orderStatus'] = status === 'approved' ? 'confirmed' : 'awaiting_payment';
@@ -823,10 +852,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const updateSettings = async (newSettings: Partial<StoreSettings>) => {
     try {
-      await setDoc(doc(db, 'settings', 'general'), newSettings, { merge: true });
+      const cleaned = cleanForFirestore(newSettings);
+      await setDoc(doc(db, 'settings', 'general'), cleaned, { merge: true });
       await logAdminAction('settings_updated', 'general', `Updated settings fields: ${Object.keys(newSettings).join(', ')}`);
     } catch (err) {
-      console.warn('Firestore update settings warning:', err);
+      console.error('Firestore update settings error:', err);
+      throw err;
     }
     setSettings(prev => ({ ...prev, ...newSettings }));
   };

@@ -146,13 +146,6 @@ export function Footer() {
           <p>© {new Date().getFullYear()} MR. BOOKS Bangladesh. All rights reserved.</p>
           <div className="flex items-center gap-3 text-zinc-500 text-[11px]">
             <span>Designed for book lovers in Bangladesh.</span>
-            <span>•</span>
-            <button 
-              onClick={() => setActivePage('admin')} 
-              className="text-zinc-500 hover:text-white transition-colors cursor-pointer flex items-center gap-1"
-            >
-              Admin Portal (/admin)
-            </button>
           </div>
         </div>
 

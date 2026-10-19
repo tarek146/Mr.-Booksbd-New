@@ -29,6 +29,8 @@ import {
   Server
 } from 'lucide-react';
 import { Author, Banner } from '../types';
+import { AdminAnalytics } from '../components/admin/AdminAnalytics';
+import { compressImageFile } from '../utils/imageCompressor';
 
 export function AdminDashboard() {
   const { currentUser, isAdmin, loading: authLoading, signIn, logout } = useAuth();
@@ -138,6 +140,18 @@ export function AdminDashboard() {
   const totalRevenue = orders.filter(o => o.paymentStatus === 'approved').reduce((sum, o) => sum + o.total, 0);
   const pendingVerificationsCount = paymentSubmissions.filter(s => s.status === 'pending_verification').length;
 
+  // Real-time Save Toast Notification
+  const [toast, setToast] = useState<{ show: boolean; type: 'success' | 'error'; message: string } | null>(null);
+  const [bannerUploading, setBannerUploading] = useState(false);
+  const [bannerSaving, setBannerSaving] = useState(false);
+
+  useEffect(() => {
+    if (toast?.show) {
+      const timer = setTimeout(() => setToast(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
   const handleCreatePaymentMethod = async (e: React.FormEvent) => {
     e.preventDefault();
     const id = pmType + '-' + Date.now();
@@ -215,29 +229,32 @@ export function AdminDashboard() {
     setShowAddProdModal(false);
   };
 
-  const handleBannerFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBannerFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setBannerImage(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
+      try {
+        setBannerUploading(true);
+        const compressed = await compressImageFile(file, 1600, 900, 0.82);
+        setBannerImage(compressed);
+        setToast({ show: true, type: 'success', message: 'Banner image optimized for real-time Firestore sync!' });
+      } catch (err: any) {
+        setToast({ show: true, type: 'error', message: err.message || 'Failed to process banner image' });
+      } finally {
+        setBannerUploading(false);
+      }
     }
   };
 
-  const handleAuthorFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAuthorFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setAuthorPhoto(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImageFile(file, 600, 600, 0.82);
+        setAuthorPhoto(compressed);
+        setToast({ show: true, type: 'success', message: 'Author photo optimized successfully!' });
+      } catch (err: any) {
+        setToast({ show: true, type: 'error', message: err.message || 'Failed to process author photo' });
+      }
     }
   };
 
@@ -245,76 +262,91 @@ export function AdminDashboard() {
     e.preventDefault();
     if (!bannerImage) return;
 
-    if (editingBannerId) {
-      await updateBanner(editingBannerId, {
-        title: bannerTitle,
-        subtitle: bannerSubtitle,
-        imageUrl: bannerImage,
-        linkUrl: bannerLink,
-        buttonText: bannerBtnText,
-        showText: bannerShowText,
-        showButton: bannerShowButton,
-        buttonPosition: bannerBtnPos
-      });
-    } else {
-      await addBanner({
-        id: 'banner-' + Date.now(),
-        title: bannerTitle,
-        subtitle: bannerSubtitle,
-        imageUrl: bannerImage,
-        linkUrl: bannerLink,
-        buttonText: bannerBtnText,
-        showText: bannerShowText,
-        showButton: bannerShowButton,
-        buttonPosition: bannerBtnPos,
-        isActive: true,
-        displayOrder: banners.length + 1
-      });
-    }
+    try {
+      setBannerSaving(true);
+      if (editingBannerId) {
+        await updateBanner(editingBannerId, {
+          title: bannerTitle,
+          subtitle: bannerSubtitle,
+          imageUrl: bannerImage,
+          linkUrl: bannerLink,
+          buttonText: bannerBtnText,
+          showText: bannerShowText,
+          showButton: bannerShowButton,
+          buttonPosition: bannerBtnPos
+        });
+        setToast({ show: true, type: 'success', message: 'Hero banner updated and synced to Firebase in real-time!' });
+      } else {
+        await addBanner({
+          id: 'banner-' + Date.now(),
+          title: bannerTitle,
+          subtitle: bannerSubtitle,
+          imageUrl: bannerImage,
+          linkUrl: bannerLink,
+          buttonText: bannerBtnText,
+          showText: bannerShowText,
+          showButton: bannerShowButton,
+          buttonPosition: bannerBtnPos,
+          isActive: true,
+          displayOrder: banners.length + 1
+        });
+        setToast({ show: true, type: 'success', message: 'New hero banner created and saved directly to Firebase in real-time!' });
+      }
 
-    setShowAddBannerModal(false);
-    setEditingBannerId(null);
+      setShowAddBannerModal(false);
+      setEditingBannerId(null);
+    } catch (err: any) {
+      setToast({ show: true, type: 'error', message: 'Firebase Error: ' + (err.message || 'Failed to save banner') });
+    } finally {
+      setBannerSaving(false);
+    }
   };
 
   const handleSaveAuthor = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!authorName) return;
 
-    if (editingAuthorId) {
-      await updateAuthor(editingAuthorId, {
-        name: authorName,
-        bio: authorBio,
-        photoUrl: authorPhoto,
-        booksCount: authorBooksCount
-      });
-    } else {
-      await addAuthor({
-        id: 'author-' + Date.now(),
-        name: authorName,
-        bio: authorBio,
-        photoUrl: authorPhoto,
-        booksCount: authorBooksCount
-      });
-    }
+    try {
+      if (editingAuthorId) {
+        await updateAuthor(editingAuthorId, {
+          name: authorName,
+          bio: authorBio,
+          photoUrl: authorPhoto,
+          booksCount: authorBooksCount
+        });
+        setToast({ show: true, type: 'success', message: 'Author details updated and synced to Firebase in real-time!' });
+      } else {
+        await addAuthor({
+          id: 'author-' + Date.now(),
+          name: authorName,
+          bio: authorBio,
+          photoUrl: authorPhoto,
+          booksCount: authorBooksCount
+        });
+        setToast({ show: true, type: 'success', message: 'Author created and saved to Firebase in real-time!' });
+      }
 
-    setShowAddAuthorModal(false);
-    setEditingAuthorId(null);
-    setAuthorName('');
-    setAuthorBio('');
-    setAuthorPhoto('');
-    setAuthorBooksCount(20);
+      setShowAddAuthorModal(false);
+      setEditingAuthorId(null);
+      setAuthorName('');
+      setAuthorBio('');
+      setAuthorPhoto('');
+      setAuthorBooksCount(20);
+    } catch (err: any) {
+      setToast({ show: true, type: 'error', message: 'Firebase Error: ' + (err.message || 'Failed to save author') });
+    }
   };
 
-  const handleCategoryFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCategoryFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setCatImage(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImageFile(file, 800, 800, 0.8);
+        setCatImage(compressed);
+        setToast({ show: true, type: 'success', message: 'Category photo optimized successfully!' });
+      } catch (err: any) {
+        setToast({ show: true, type: 'error', message: err.message || 'Failed to process category photo' });
+      }
     }
   };
 
@@ -324,30 +356,36 @@ export function AdminDashboard() {
 
     const slug = catName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
-    if (editingCatId) {
-      await updateCategory(editingCatId, {
-        name: catName,
-        type: catType,
-        slug,
-        image: catImage,
-        showOnHome: catShowOnHome
-      });
-    } else {
-      await addCategory({
-        id: 'cat-' + Date.now(),
-        name: catName,
-        type: catType,
-        slug,
-        image: catImage,
-        showOnHome: catShowOnHome
-      });
-    }
+    try {
+      if (editingCatId) {
+        await updateCategory(editingCatId, {
+          name: catName,
+          type: catType,
+          slug,
+          image: catImage,
+          showOnHome: catShowOnHome
+        });
+        setToast({ show: true, type: 'success', message: 'Category updated and synced to Firebase in real-time!' });
+      } else {
+        await addCategory({
+          id: 'cat-' + Date.now(),
+          name: catName,
+          type: catType,
+          slug,
+          image: catImage,
+          showOnHome: catShowOnHome
+        });
+        setToast({ show: true, type: 'success', message: 'Category created and saved directly to Firebase in real-time!' });
+      }
 
-    setShowAddCatModal(false);
-    setEditingCatId(null);
-    setCatName('');
-    setCatImage('');
-    setCatShowOnHome(true);
+      setShowAddCatModal(false);
+      setEditingCatId(null);
+      setCatName('');
+      setCatImage('');
+      setCatShowOnHome(true);
+    } catch (err: any) {
+      setToast({ show: true, type: 'error', message: 'Firebase Error: ' + (err.message || 'Failed to save category') });
+    }
   };
 
   // 1. Loading State Check (Standalone Admin Portal Loader)
@@ -614,6 +652,28 @@ export function AdminDashboard() {
   return (
     <div className="min-h-screen bg-[#F4F6F8] text-[#171717] flex flex-col justify-between selection:bg-[#D71920] selection:text-white font-sans antialiased">
       <div>
+        {/* Real-time Save Floating Toast Notification */}
+        {toast?.show && (
+          <div className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-xs font-bold transition-all border animate-in slide-in-from-top-2 duration-200 ${
+            toast.type === 'success' 
+              ? 'bg-slate-900 text-white border-emerald-500/50 shadow-emerald-950/20' 
+              : 'bg-red-950 text-white border-red-500/50 shadow-red-950/20'
+          }`}>
+            {toast.type === 'success' ? (
+              <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+            ) : (
+              <AlertTriangle size={18} className="text-red-400 shrink-0" />
+            )}
+            <span>{toast.message}</span>
+            <button 
+              onClick={() => setToast(null)}
+              className="ml-2 text-slate-400 hover:text-white cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Dedicated Admin Standalone Navigation Bar */}
         <header className="bg-[#0E131F] border-b border-slate-800 text-white sticky top-0 z-40 px-4 sm:px-8 py-3 shadow-md flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -723,75 +783,14 @@ export function AdminDashboard() {
           })}
         </div>
 
-        {/* TAB 1: OVERVIEW */}
+        {/* TAB 1: OVERVIEW & COMPREHENSIVE BUSINESS ANALYTICS */}
         {activeTab === 'overview' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-              <div className="bg-white border border-[#E5E5E5] rounded-2xl p-6 shadow-xs">
-                <div className="flex items-center justify-between text-[#777777]">
-                  <span className="text-xs font-bold uppercase tracking-wider">Total Orders</span>
-                  <Package size={18} className="text-[#D71920]" />
-                </div>
-                <h3 className="text-3xl font-black text-[#171717] mt-2">{orders.length}</h3>
-                <p className="text-xs text-[#5F6368] mt-1">Across all districts</p>
-              </div>
-
-              <div className="bg-white border border-[#E5E5E5] rounded-2xl p-6 shadow-xs">
-                <div className="flex items-center justify-between text-[#777777]">
-                  <span className="text-xs font-bold uppercase tracking-wider">Pending Approval</span>
-                  <Clock size={18} className="text-amber-500" />
-                </div>
-                <h3 className="text-3xl font-black text-amber-700 mt-2">{pendingVerificationsCount}</h3>
-                <p className="text-xs text-[#5F6368] mt-1">Requires statement matching</p>
-              </div>
-
-              <div className="bg-white border border-[#E5E5E5] rounded-2xl p-6 shadow-xs">
-                <div className="flex items-center justify-between text-[#777777]">
-                  <span className="text-xs font-bold uppercase tracking-wider">Active Products</span>
-                  <BookOpen size={18} className="text-emerald-500" />
-                </div>
-                <h3 className="text-3xl font-black text-[#171717] mt-2">{products.length}</h3>
-                <p className="text-xs text-[#5F6368] mt-1">Books and stationery items</p>
-              </div>
-
-              <div className="bg-white border border-[#E5E5E5] rounded-2xl p-6 shadow-xs">
-                <div className="flex items-center justify-between text-[#777777]">
-                  <span className="text-xs font-bold uppercase tracking-wider">Verified Revenue</span>
-                  <DollarSign size={18} className="text-emerald-600" />
-                </div>
-                <h3 className="text-3xl font-black text-emerald-700 mt-2">৳{totalRevenue}</h3>
-                <p className="text-xs text-[#5F6368] mt-1">Approved payments</p>
-              </div>
-            </div>
-
-            {/* Recent Orders quick preview */}
-            <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 shadow-xs">
-              <h3 className="text-base font-black text-[#171717] mb-4">
-                Latest Customer Orders
-              </h3>
-              {orders.length > 0 ? (
-                <div className="space-y-3">
-                  {orders.slice(0, 5).map(o => (
-                    <div key={o.id} className="p-4 rounded-xl bg-[#F7F7F8] border border-[#E5E5E5] flex items-center justify-between">
-                      <div>
-                        <span className="font-mono text-xs font-bold text-[#D71920]">#{o.id}</span>
-                        <div className="font-bold text-sm text-[#171717]">{o.customerName} ({o.phone})</div>
-                        <div className="text-xs text-[#5F6368]">{o.items.length} items • {o.district}</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-black text-sm text-[#171717]">৳{o.total}</div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-white text-[#171717] border border-[#E5E5E5]">
-                          {o.orderStatus}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-[#777777]">No orders registered yet.</p>
-              )}
-            </div>
-          </div>
+          <AdminAnalytics 
+            orders={orders} 
+            products={products} 
+            paymentSubmissions={paymentSubmissions} 
+            onSelectTab={(tab) => setActiveTab(tab as any)} 
+          />
         )}
 
         {/* TAB 2: MANUAL PAYMENT VERIFICATIONS QUEUE */}
@@ -1481,8 +1480,16 @@ export function AdminDashboard() {
                     <div className="flex items-center justify-between pt-2 border-t border-[#EEEEEE]">
                       <div className="flex items-center gap-2">
                         <button 
-                          onClick={() => updateBanner(b.id, { isActive: b.isActive === false })}
-                          className={`text-xs font-semibold px-2.5 py-1 rounded-lg cursor-pointer ${
+                          onClick={async () => {
+                            try {
+                              const newStatus = b.isActive === false;
+                              await updateBanner(b.id, { isActive: newStatus });
+                              setToast({ show: true, type: 'success', message: `Banner ${newStatus ? 'activated on homepage' : 'hidden'} in real-time!` });
+                            } catch (e: any) {
+                              setToast({ show: true, type: 'error', message: 'Failed to update banner status' });
+                            }
+                          }}
+                          className={`text-xs font-semibold px-2.5 py-1 rounded-lg cursor-pointer transition-colors ${
                             b.isActive !== false ? 'text-neutral-700 bg-white border border-[#E5E5E5]' : 'text-emerald-700 bg-emerald-50 border border-emerald-200'
                           }`}
                         >
@@ -1509,7 +1516,14 @@ export function AdminDashboard() {
 
                       {banners.length > 1 && (
                         <button 
-                          onClick={() => deleteBanner(b.id)}
+                          onClick={async () => {
+                            try {
+                              await deleteBanner(b.id);
+                              setToast({ show: true, type: 'success', message: 'Banner removed in real-time!' });
+                            } catch (e: any) {
+                              setToast({ show: true, type: 'error', message: 'Failed to remove banner' });
+                            }
+                          }}
                           className="text-xs text-red-600 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
                         >
                           <Trash2 size={12} /> Remove
@@ -1716,9 +1730,20 @@ export function AdminDashboard() {
                       </button>
                       <button 
                         type="submit"
-                        className="px-6 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl shadow-md cursor-pointer flex items-center gap-1.5"
+                        disabled={bannerSaving || bannerUploading}
+                        className="px-6 py-2.5 bg-[#D71920] hover:bg-[#B9151B] disabled:opacity-60 text-white font-bold rounded-xl shadow-md cursor-pointer flex items-center gap-1.5 transition-all"
                       >
-                        <Check size={14} /> Save Banner
+                        {bannerSaving ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            <span>Saving to Firebase...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Check size={14} /> 
+                            <span>Save Banner</span>
+                          </>
+                        )}
                       </button>
                     </div>
                   </form>
