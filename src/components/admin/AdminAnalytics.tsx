@@ -109,7 +109,7 @@ export function AdminAnalytics({
       } else if (pm.includes('nagad')) {
         nagadCount += 1; nagadRevenue += o.total;
       } else {
-        codCount += 1; codRevenue += o.total; // Default fallback
+        codCount += 1; codRevenue += o.total;
       }
     });
 
@@ -235,7 +235,7 @@ export function AdminAnalytics({
     return orders.slice(0, 10);
   }, [orders, recentOrdersTab]);
 
-  // Daily Trend Chart data (Main Performance Trend)
+  // Daily Trend Chart data
   const chartData = useMemo(() => {
     const daysCount = selectedRange === 'today' ? 1 : selectedRange === '7days' ? 7 : selectedRange === '30days' ? 30 : 14;
     const now = Date.now();
@@ -262,58 +262,196 @@ export function AdminAnalytics({
   return (
     <div className="space-y-6">
 
-      {/* 1. TOP STATUS QUICK ACTION STRIP (Pending, To Ship, Payment Due) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <button 
+      {/* ========================================================================= */}
+      {/* EXACT TOP SECTION MATCHING USER'S REFERENCE IMAGE (DARK SLATE CARD STYLE WITH RED ACCENTS) */}
+      {/* ========================================================================= */}
+      
+      {/* 1. TOP 3 WIDE STATUS CARDS (Pending, To Ship, Payment Due) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        
+        {/* Pending Card */}
+        <div 
           onClick={() => onSelectTab && onSelectTab('orders')}
-          className="bg-white border border-[#E5E5E5] hover:border-[#D71920] rounded-2xl p-4 flex items-center justify-between text-left shadow-xs cursor-pointer transition-all group"
+          className="bg-[#121824] border border-slate-800 hover:border-[#D71920] rounded-2xl p-5 flex items-center justify-between text-white shadow-lg cursor-pointer transition-all group"
         >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-200">
-              <Clock size={20} />
+          <div className="flex items-center gap-4">
+            <div className="w-11 h-11 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center border border-amber-500/30">
+              <Clock size={22} />
             </div>
             <div>
-              <span className="text-xs font-black uppercase text-neutral-500 tracking-wider block">Pending</span>
-              <span className="text-lg font-black text-neutral-900">{metrics.pending} Orders</span>
+              <span className="text-xs font-bold uppercase text-slate-400 tracking-wider block">Pending</span>
             </div>
           </div>
-          <ChevronRight size={18} className="text-neutral-400 group-hover:text-[#D71920] transition-colors" />
-        </button>
+          <div className="flex items-center gap-2">
+            <span className="text-xl font-black text-amber-400">{metrics.pending}</span>
+            <ChevronRight size={18} className="text-slate-500 group-hover:text-[#D71920] transition-colors" />
+          </div>
+        </div>
 
-        <button 
+        {/* To Ship Card */}
+        <div 
           onClick={() => onSelectTab && onSelectTab('orders')}
-          className="bg-white border border-[#E5E5E5] hover:border-[#D71920] rounded-2xl p-4 flex items-center justify-between text-left shadow-xs cursor-pointer transition-all group"
+          className="bg-[#121824] border border-slate-800 hover:border-[#D71920] rounded-2xl p-5 flex items-center justify-between text-white shadow-lg cursor-pointer transition-all group"
         >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-200">
-              <Package size={20} />
+          <div className="flex items-center gap-4">
+            <div className="w-11 h-11 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/30">
+              <Package size={22} />
             </div>
             <div>
-              <span className="text-xs font-black uppercase text-neutral-500 tracking-wider block">To Ship</span>
-              <span className="text-lg font-black text-neutral-900">{metrics.toShip} Orders</span>
+              <span className="text-xs font-bold uppercase text-slate-400 tracking-wider block">To Ship</span>
             </div>
           </div>
-          <ChevronRight size={18} className="text-neutral-400 group-hover:text-[#D71920] transition-colors" />
-        </button>
+          <div className="flex items-center gap-2">
+            <span className="text-xl font-black text-blue-400">{metrics.toShip}</span>
+            <ChevronRight size={18} className="text-slate-500 group-hover:text-[#D71920] transition-colors" />
+          </div>
+        </div>
 
-        <button 
+        {/* Payment Due Card */}
+        <div 
           onClick={() => onSelectTab && onSelectTab('verifications')}
-          className="bg-white border border-[#E5E5E5] hover:border-[#D71920] rounded-2xl p-4 flex items-center justify-between text-left shadow-xs cursor-pointer transition-all group"
+          className="bg-[#121824] border border-slate-800 hover:border-[#D71920] rounded-2xl p-5 flex items-center justify-between text-white shadow-lg cursor-pointer transition-all group"
         >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200">
-              <ShieldCheck size={20} />
+          <div className="flex items-center gap-4">
+            <div className="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+              <ShieldCheck size={22} />
             </div>
             <div>
-              <span className="text-xs font-black uppercase text-neutral-500 tracking-wider block">Payment Due</span>
-              <span className="text-lg font-black text-neutral-900">{metrics.paymentDue} Orders</span>
+              <span className="text-xs font-bold uppercase text-slate-400 tracking-wider block">Payment Due</span>
             </div>
           </div>
-          <ChevronRight size={18} className="text-neutral-400 group-hover:text-[#D71920] transition-colors" />
-        </button>
+          <div className="flex items-center gap-2">
+            <span className="text-xl font-black text-emerald-400">{metrics.paymentDue}</span>
+            <ChevronRight size={18} className="text-slate-500 group-hover:text-[#D71920] transition-colors" />
+          </div>
+        </div>
+
       </div>
 
-      {/* 2. WEEKLY REVENUE, ORDER PIPELINE & PAYMENT METHODS (IMAGE 3 SPEC) */}
+      {/* 2. 6 METRIC CARDS & MONTHLY REPORT GRID */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        
+        {/* Left 8 Columns: 6 Breakdown Cards */}
+        <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          
+          {/* Today's Pending */}
+          <div className="bg-[#121824] border border-amber-500/40 rounded-2xl p-5 text-white shadow-lg flex flex-col justify-between space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-xs uppercase tracking-wider font-bold text-slate-400 block">Today's Pending</span>
+                <div className="text-2xl font-black text-amber-400 mt-1">{metrics.todayPendingCount}</div>
+                <div className="text-xs font-bold text-slate-300 mt-1">BDT {metrics.todayPendingRev}</div>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center border border-amber-500/30">
+                <Clock size={20} />
+              </div>
+            </div>
+          </div>
+
+          {/* Today's Confirm */}
+          <div className="bg-[#121824] border border-slate-800 rounded-2xl p-5 text-white shadow-lg flex flex-col justify-between space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-xs uppercase tracking-wider font-bold text-slate-400 block">Today's Confirm</span>
+                <div className="text-2xl font-black text-emerald-400 mt-1">{metrics.todayConfirmedCount}</div>
+                <div className="text-xs font-bold text-slate-300 mt-1">BDT {metrics.todayConfirmedRev}</div>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                <CheckCircle2 size={20} />
+              </div>
+            </div>
+          </div>
+
+          {/* Today's Orders */}
+          <div className="bg-[#121824] border border-slate-800 rounded-2xl p-5 text-white shadow-lg flex flex-col justify-between space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-xs uppercase tracking-wider font-bold text-slate-400 block">Today's Orders</span>
+                <div className="text-2xl font-black text-[#D71920] mt-1">{metrics.todayOrdersCount}</div>
+                <div className="text-xs font-bold text-slate-300 mt-1">BDT {metrics.todayRevenue}</div>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-[#D71920]/20 text-[#D71920] flex items-center justify-center border border-[#D71920]/40">
+                <ShoppingBag size={20} />
+              </div>
+            </div>
+          </div>
+
+          {/* Delivered */}
+          <div className="bg-[#121824] border border-slate-800 rounded-2xl p-5 text-white shadow-lg flex flex-col justify-between space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-xs uppercase tracking-wider font-bold text-slate-400 block">Delivered</span>
+                <div className="text-2xl font-black text-emerald-400 mt-1">{metrics.deliveredCount}</div>
+                <div className="text-xs font-bold text-slate-300 mt-1">BDT {metrics.deliveredRevenue}</div>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                <Truck size={20} />
+              </div>
+            </div>
+          </div>
+
+          {/* Returns */}
+          <div className="bg-[#121824] border border-slate-800 rounded-2xl p-5 text-white shadow-lg flex flex-col justify-between space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-xs uppercase tracking-wider font-bold text-slate-400 block">Returns</span>
+                <div className="text-2xl font-black text-red-500 mt-1">{metrics.returnsCount}</div>
+                <div className="text-xs font-bold text-slate-300 mt-1">BDT {metrics.returnsRevenue}</div>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-red-500/15 text-red-400 flex items-center justify-center border border-red-500/30">
+                <RefreshCw size={20} />
+              </div>
+            </div>
+          </div>
+
+          {/* Total Orders */}
+          <div className="bg-[#121824] border border-slate-800 rounded-2xl p-5 text-white shadow-lg flex flex-col justify-between space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-xs uppercase tracking-wider font-bold text-slate-400 block">Total Orders</span>
+                <div className="text-2xl font-black text-white mt-1">{metrics.totalOrdersCount}</div>
+                <div className="text-xs font-bold text-[#D71920] mt-1">BDT {metrics.totalRevenue}</div>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-500 flex items-center justify-center border border-amber-500/30">
+                <Package size={20} />
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Right 4 Columns: Monthly Report Bar Chart Card */}
+        <div className="lg:col-span-4 bg-[#121824] border border-slate-800 rounded-3xl p-5 text-white shadow-lg flex flex-col justify-between space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-black text-sm text-white">Monthly Report</h3>
+            <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 text-[10px] font-bold rounded-lg border border-emerald-500/30">
+              This Year
+            </span>
+          </div>
+
+          <div className="h-48 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={metrics.monthlyData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
+                <XAxis dataKey="month" stroke="#94A3B8" fontSize={10} />
+                <YAxis stroke="#94A3B8" fontSize={10} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#0B0F17', borderColor: '#334155', borderRadius: '0.75rem', color: '#FFFFFF', fontSize: '11px' }}
+                  formatter={(val: any) => [`${val} orders`, 'Orders']}
+                />
+                <Bar dataKey="orders" fill="#D71920" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+      </div>
+
+      {/* ========================================================================= */}
+      {/* ADDITIONAL ADMIN ANALYTICS & WIDGETS BELOW */}
+      {/* ========================================================================= */}
+
+      {/* 3. WEEKLY REVENUE, ORDER PIPELINE & PAYMENT METHODS */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         
         {/* Weekly Revenue Card */}
@@ -427,7 +565,7 @@ export function AdminAnalytics({
 
       </div>
 
-      {/* 3. DAILY REPORTS & HOURLY REPORT ROW (IMAGE 1 SPEC) */}
+      {/* 4. DAILY REPORTS & HOURLY REPORT ROW */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         
         {/* Daily Reports (8 cols) */}
@@ -532,7 +670,7 @@ export function AdminAnalytics({
 
       </div>
 
-      {/* 4. RECENT ORDERS, TOP PRODUCTS & TRAFFIC SOURCE (IMAGE 2 SPEC) */}
+      {/* 5. RECENT ORDERS, TOP PRODUCTS & TRAFFIC SOURCE */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         
         {/* Recent Orders Table (7 cols) */}
@@ -685,7 +823,7 @@ export function AdminAnalytics({
 
       </div>
 
-      {/* 5. RECHART DAILY TREND & FILTER BAR */}
+      {/* 6. RECHART DAILY TREND & FILTER BAR */}
       <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 text-[#171717] shadow-xs space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#EEEEEE]">
           <div>
