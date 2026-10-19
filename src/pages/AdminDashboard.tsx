@@ -926,40 +926,6 @@ export function AdminDashboard() {
 
         {/* Main Content Area */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
-          {/* Quick Metrics & Welcome Banner */}
-          <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-xs border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-5">
-            <div>
-              <div className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-[11px] font-bold px-3 py-1 rounded-full mb-1 border border-emerald-200">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                Connected to Google Firebase Firestore
-              </div>
-              <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
-                MR. BOOKS Management Dashboard
-              </h1>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Logged in as <strong className="text-slate-700">mr.booksbd700@gmail.com</strong> (Admin)
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3 w-full md:w-auto">
-              <button 
-                onClick={() => setActiveTab('verifications')}
-                className="flex-1 md:flex-initial bg-slate-50 hover:bg-amber-50 p-3 rounded-2xl border border-slate-200 hover:border-amber-300 text-center min-w-[130px] transition-all cursor-pointer"
-              >
-                <span className="block text-[10px] text-slate-500 uppercase font-bold tracking-wider">Pending Verification</span>
-                <span className={`text-xl font-black ${pendingVerificationsCount > 0 ? 'text-amber-600' : 'text-slate-700'}`}>
-                  {pendingVerificationsCount}
-                </span>
-              </button>
-              <button 
-                onClick={() => setActiveTab('overview')}
-                className="flex-1 md:flex-initial bg-slate-50 hover:bg-emerald-50 p-3 rounded-2xl border border-slate-200 hover:border-emerald-300 text-center min-w-[130px] transition-all cursor-pointer"
-              >
-                <span className="block text-[10px] text-slate-500 uppercase font-bold tracking-wider">Verified Revenue</span>
-                <span className="text-xl font-black text-emerald-600">৳{totalRevenue.toLocaleString()}</span>
-              </button>
-            </div>
-          </div>
 
         {/* TAB 1: OVERVIEW & COMPREHENSIVE BUSINESS ANALYTICS */}
         {activeTab === 'overview' && (
