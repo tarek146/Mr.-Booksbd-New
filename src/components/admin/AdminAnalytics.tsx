@@ -263,7 +263,7 @@ export function AdminAnalytics({
     <div className="space-y-6">
 
       {/* ========================================================================= */}
-      {/* EXACT TOP SECTION MATCHING USER'S REFERENCE IMAGE (DARK SLATE CARD STYLE WITH RED ACCENTS) */}
+      {/* EXACT TOP SECTION MATCHING USER'S REFERENCE IMAGE (WHITE & RED BRANDING) */}
       {/* ========================================================================= */}
       
       {/* 1. TOP 3 WIDE STATUS CARDS (Pending, To Ship, Payment Due) */}
@@ -272,57 +272,57 @@ export function AdminAnalytics({
         {/* Pending Card */}
         <div 
           onClick={() => onSelectTab && onSelectTab('orders')}
-          className="bg-[#121824] border border-slate-800 hover:border-[#D71920] rounded-2xl p-5 flex items-center justify-between text-white shadow-lg cursor-pointer transition-all group"
+          className="bg-white border border-[#E5E5E5] hover:border-[#D71920] rounded-2xl p-5 flex items-center justify-between text-neutral-900 shadow-xs cursor-pointer transition-all group"
         >
           <div className="flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center border border-amber-500/30">
+            <div className="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-200">
               <Clock size={22} />
             </div>
             <div>
-              <span className="text-xs font-bold uppercase text-slate-400 tracking-wider block">Pending</span>
+              <span className="text-xs font-black uppercase text-neutral-500 tracking-wider block">Pending</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xl font-black text-amber-400">{metrics.pending}</span>
-            <ChevronRight size={18} className="text-slate-500 group-hover:text-[#D71920] transition-colors" />
+            <span className="text-xl font-black text-[#D71920]">{metrics.pending}</span>
+            <ChevronRight size={18} className="text-neutral-400 group-hover:text-[#D71920] transition-colors" />
           </div>
         </div>
 
         {/* To Ship Card */}
         <div 
           onClick={() => onSelectTab && onSelectTab('orders')}
-          className="bg-[#121824] border border-slate-800 hover:border-[#D71920] rounded-2xl p-5 flex items-center justify-between text-white shadow-lg cursor-pointer transition-all group"
+          className="bg-white border border-[#E5E5E5] hover:border-[#D71920] rounded-2xl p-5 flex items-center justify-between text-neutral-900 shadow-xs cursor-pointer transition-all group"
         >
           <div className="flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/30">
+            <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-200">
               <Package size={22} />
             </div>
             <div>
-              <span className="text-xs font-bold uppercase text-slate-400 tracking-wider block">To Ship</span>
+              <span className="text-xs font-black uppercase text-neutral-500 tracking-wider block">To Ship</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xl font-black text-blue-400">{metrics.toShip}</span>
-            <ChevronRight size={18} className="text-slate-500 group-hover:text-[#D71920] transition-colors" />
+            <span className="text-xl font-black text-blue-600">{metrics.toShip}</span>
+            <ChevronRight size={18} className="text-neutral-400 group-hover:text-[#D71920] transition-colors" />
           </div>
         </div>
 
         {/* Payment Due Card */}
         <div 
           onClick={() => onSelectTab && onSelectTab('verifications')}
-          className="bg-[#121824] border border-slate-800 hover:border-[#D71920] rounded-2xl p-5 flex items-center justify-between text-white shadow-lg cursor-pointer transition-all group"
+          className="bg-white border border-[#E5E5E5] hover:border-[#D71920] rounded-2xl p-5 flex items-center justify-between text-neutral-900 shadow-xs cursor-pointer transition-all group"
         >
           <div className="flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+            <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200">
               <ShieldCheck size={22} />
             </div>
             <div>
-              <span className="text-xs font-bold uppercase text-slate-400 tracking-wider block">Payment Due</span>
+              <span className="text-xs font-black uppercase text-neutral-500 tracking-wider block">Payment Due</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xl font-black text-emerald-400">{metrics.paymentDue}</span>
-            <ChevronRight size={18} className="text-slate-500 group-hover:text-[#D71920] transition-colors" />
+            <span className="text-xl font-black text-emerald-600">{metrics.paymentDue}</span>
+            <ChevronRight size={18} className="text-neutral-400 group-hover:text-[#D71920] transition-colors" />
           </div>
         </div>
 
@@ -335,84 +335,84 @@ export function AdminAnalytics({
         <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
           
           {/* Today's Pending */}
-          <div className="bg-[#121824] border border-amber-500/40 rounded-2xl p-5 text-white shadow-lg flex flex-col justify-between space-y-4">
+          <div className="bg-white border border-[#D71920]/40 rounded-2xl p-5 text-neutral-900 shadow-xs flex flex-col justify-between space-y-4">
             <div className="flex items-start justify-between">
               <div>
-                <span className="text-xs uppercase tracking-wider font-bold text-slate-400 block">Today's Pending</span>
-                <div className="text-2xl font-black text-amber-400 mt-1">{metrics.todayPendingCount}</div>
-                <div className="text-xs font-bold text-slate-300 mt-1">BDT {metrics.todayPendingRev}</div>
+                <span className="text-xs uppercase tracking-wider font-black text-neutral-500 block">Today's Pending</span>
+                <div className="text-2xl font-black text-amber-600 mt-1">{metrics.todayPendingCount}</div>
+                <div className="text-xs font-bold text-neutral-600 mt-1">BDT {metrics.todayPendingRev}</div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center border border-amber-500/30">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-200">
                 <Clock size={20} />
               </div>
             </div>
           </div>
 
           {/* Today's Confirm */}
-          <div className="bg-[#121824] border border-slate-800 rounded-2xl p-5 text-white shadow-lg flex flex-col justify-between space-y-4">
+          <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 text-neutral-900 shadow-xs flex flex-col justify-between space-y-4">
             <div className="flex items-start justify-between">
               <div>
-                <span className="text-xs uppercase tracking-wider font-bold text-slate-400 block">Today's Confirm</span>
-                <div className="text-2xl font-black text-emerald-400 mt-1">{metrics.todayConfirmedCount}</div>
-                <div className="text-xs font-bold text-slate-300 mt-1">BDT {metrics.todayConfirmedRev}</div>
+                <span className="text-xs uppercase tracking-wider font-black text-neutral-500 block">Today's Confirm</span>
+                <div className="text-2xl font-black text-emerald-600 mt-1">{metrics.todayConfirmedCount}</div>
+                <div className="text-xs font-bold text-neutral-600 mt-1">BDT {metrics.todayConfirmedRev}</div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200">
                 <CheckCircle2 size={20} />
               </div>
             </div>
           </div>
 
           {/* Today's Orders */}
-          <div className="bg-[#121824] border border-slate-800 rounded-2xl p-5 text-white shadow-lg flex flex-col justify-between space-y-4">
+          <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 text-neutral-900 shadow-xs flex flex-col justify-between space-y-4">
             <div className="flex items-start justify-between">
               <div>
-                <span className="text-xs uppercase tracking-wider font-bold text-slate-400 block">Today's Orders</span>
+                <span className="text-xs uppercase tracking-wider font-black text-neutral-500 block">Today's Orders</span>
                 <div className="text-2xl font-black text-[#D71920] mt-1">{metrics.todayOrdersCount}</div>
-                <div className="text-xs font-bold text-slate-300 mt-1">BDT {metrics.todayRevenue}</div>
+                <div className="text-xs font-bold text-neutral-600 mt-1">BDT {metrics.todayRevenue}</div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-[#D71920]/20 text-[#D71920] flex items-center justify-center border border-[#D71920]/40">
+              <div className="w-10 h-10 rounded-xl bg-[#FFF1F2] text-[#D71920] flex items-center justify-center border border-[#D71920]/25">
                 <ShoppingBag size={20} />
               </div>
             </div>
           </div>
 
           {/* Delivered */}
-          <div className="bg-[#121824] border border-slate-800 rounded-2xl p-5 text-white shadow-lg flex flex-col justify-between space-y-4">
+          <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 text-neutral-900 shadow-xs flex flex-col justify-between space-y-4">
             <div className="flex items-start justify-between">
               <div>
-                <span className="text-xs uppercase tracking-wider font-bold text-slate-400 block">Delivered</span>
-                <div className="text-2xl font-black text-emerald-400 mt-1">{metrics.deliveredCount}</div>
-                <div className="text-xs font-bold text-slate-300 mt-1">BDT {metrics.deliveredRevenue}</div>
+                <span className="text-xs uppercase tracking-wider font-black text-neutral-500 block">Delivered</span>
+                <div className="text-2xl font-black text-emerald-600 mt-1">{metrics.deliveredCount}</div>
+                <div className="text-xs font-bold text-neutral-600 mt-1">BDT {metrics.deliveredRevenue}</div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200">
                 <Truck size={20} />
               </div>
             </div>
           </div>
 
           {/* Returns */}
-          <div className="bg-[#121824] border border-slate-800 rounded-2xl p-5 text-white shadow-lg flex flex-col justify-between space-y-4">
+          <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 text-neutral-900 shadow-xs flex flex-col justify-between space-y-4">
             <div className="flex items-start justify-between">
               <div>
-                <span className="text-xs uppercase tracking-wider font-bold text-slate-400 block">Returns</span>
-                <div className="text-2xl font-black text-red-500 mt-1">{metrics.returnsCount}</div>
-                <div className="text-xs font-bold text-slate-300 mt-1">BDT {metrics.returnsRevenue}</div>
+                <span className="text-xs uppercase tracking-wider font-black text-neutral-500 block">Returns</span>
+                <div className="text-2xl font-black text-red-600 mt-1">{metrics.returnsCount}</div>
+                <div className="text-xs font-bold text-neutral-600 mt-1">BDT {metrics.returnsRevenue}</div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-red-500/15 text-red-400 flex items-center justify-center border border-red-500/30">
+              <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center border border-red-200">
                 <RefreshCw size={20} />
               </div>
             </div>
           </div>
 
           {/* Total Orders */}
-          <div className="bg-[#121824] border border-slate-800 rounded-2xl p-5 text-white shadow-lg flex flex-col justify-between space-y-4">
+          <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 text-neutral-900 shadow-xs flex flex-col justify-between space-y-4">
             <div className="flex items-start justify-between">
               <div>
-                <span className="text-xs uppercase tracking-wider font-bold text-slate-400 block">Total Orders</span>
-                <div className="text-2xl font-black text-white mt-1">{metrics.totalOrdersCount}</div>
+                <span className="text-xs uppercase tracking-wider font-black text-neutral-500 block">Total Orders</span>
+                <div className="text-2xl font-black text-neutral-900 mt-1">{metrics.totalOrdersCount}</div>
                 <div className="text-xs font-bold text-[#D71920] mt-1">BDT {metrics.totalRevenue}</div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-500 flex items-center justify-center border border-amber-500/30">
+              <div className="w-10 h-10 rounded-xl bg-[#FFF1F2] text-[#D71920] flex items-center justify-center border border-[#D71920]/25">
                 <Package size={20} />
               </div>
             </div>
@@ -421,10 +421,10 @@ export function AdminAnalytics({
         </div>
 
         {/* Right 4 Columns: Monthly Report Bar Chart Card */}
-        <div className="lg:col-span-4 bg-[#121824] border border-slate-800 rounded-3xl p-5 text-white shadow-lg flex flex-col justify-between space-y-4">
+        <div className="lg:col-span-4 bg-white border border-[#E5E5E5] rounded-3xl p-5 text-neutral-900 shadow-xs flex flex-col justify-between space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-black text-sm text-white">Monthly Report</h3>
-            <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 text-[10px] font-bold rounded-lg border border-emerald-500/30">
+            <h3 className="font-black text-sm text-neutral-900">Monthly Report</h3>
+            <span className="px-3 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-lg border border-emerald-200">
               This Year
             </span>
           </div>
@@ -432,11 +432,11 @@ export function AdminAnalytics({
           <div className="h-48 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={metrics.monthlyData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
-                <XAxis dataKey="month" stroke="#94A3B8" fontSize={10} />
-                <YAxis stroke="#94A3B8" fontSize={10} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F0" />
+                <XAxis dataKey="month" stroke="#888888" fontSize={10} />
+                <YAxis stroke="#888888" fontSize={10} />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#0B0F17', borderColor: '#334155', borderRadius: '0.75rem', color: '#FFFFFF', fontSize: '11px' }}
+                  contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E5E5E5', borderRadius: '0.75rem', color: '#171717', fontSize: '11px' }}
                   formatter={(val: any) => [`${val} orders`, 'Orders']}
                 />
                 <Bar dataKey="orders" fill="#D71920" radius={[4, 4, 0, 0]} />
@@ -847,7 +847,7 @@ export function AdminAnalytics({
                       : 'text-[#5F6368] hover:text-neutral-900'
                   }`}
                 >
-                  {range === 'today' ? 'Today' : range === '7days' ? 'Last 7 Days' : range === '30days' ? 'Last 30 Days' : 'All Time'}
+                  {range === 'today' ? 'Today' : range === '7days' ? 'Last 7 Days' : range === '30days' ? 'Last 7 Days' : 'All Time'}
                 </button>
               ))}
             </div>
