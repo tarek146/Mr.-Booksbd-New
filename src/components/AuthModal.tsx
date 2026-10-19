@@ -17,7 +17,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { signIn, signUp, loginAsDemoAdmin } = useAuthContext();
+  const { signIn, signUp } = useAuthContext();
 
   if (!isOpen) return null;
 
@@ -40,8 +40,9 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
   };
 
   const handleFillAdminDemo = () => {
-    loginAsDemoAdmin();
-    onClose();
+    setIsSignIn(true);
+    setEmail('mr.booksbd700@gmail.com');
+    setPassword('booksbd700@');
   };
 
   return (

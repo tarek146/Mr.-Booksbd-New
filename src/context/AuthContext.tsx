@@ -10,32 +10,43 @@ import { auth, ADMIN_UID, ADMIN_EMAIL, db } from '../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface AuthContextType {
-  currentUser: User | { uid: string; email: string; displayName?: string } | null;
+  currentUser: User | null;
   isAdmin: boolean;
   loading: boolean;
   signIn: (email: string, pass: string) => Promise<void>;
   signUp: (email: string, pass: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
-  loginAsDemoAdmin: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<User | { uid: string; email: string; displayName?: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setLoading(true);
       if (user) {
         setCurrentUser(user);
-        if (user.uid === ADMIN_UID || user.email === ADMIN_EMAIL) {
+        
+        // Check custom claim first if available
+        let hasAdminClaim = false;
+        try {
+          const idTokenResult = await user.getIdTokenResult();
+          hasAdminClaim = Boolean(idTokenResult.claims.admin);
+        } catch {
+          // ignore token error
+        }
+
+        // Strict authorization check: must match configured ADMIN_UID, ADMIN_EMAIL, or admin claim
+        if (user.uid === ADMIN_UID || (user.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) || hasAdminClaim) {
           setIsAdmin(true);
         } else {
           try {
             const userDoc = await getDoc(doc(db, 'users', user.uid));
-            if (userDoc.exists() && userDoc.data().isAdmin) {
+            if (userDoc.exists() && userDoc.data().isAdmin === true) {
               setIsAdmin(true);
             } else {
               setIsAdmin(false);
@@ -45,44 +56,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } else {
-        // If no user is logged in, check if local admin session exists
-        const storedAdmin = localStorage.getItem('mrbooks_admin_session');
-        if (storedAdmin === 'true') {
-          setCurrentUser({
-            uid: ADMIN_UID,
-            email: ADMIN_EMAIL,
-            displayName: 'Store Administrator'
-          });
-          setIsAdmin(true);
-        } else {
-          setCurrentUser(null);
-          setIsAdmin(false);
-        }
+        setCurrentUser(null);
+        setIsAdmin(false);
       }
       setLoading(false);
     });
+
     return unsubscribe;
   }, []);
 
   const signIn = async (email: string, pass: string) => {
-    try {
-      await signInWithEmailAndPassword(auth, email, pass);
-    } catch (err: any) {
-      if (email === ADMIN_EMAIL) {
-        loginAsDemoAdmin();
-        return;
-      }
-      throw err;
-    }
+    await signInWithEmailAndPassword(auth, email.trim(), pass);
   };
 
   const signUp = async (email: string, pass: string, name: string) => {
-    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    const cred = await createUserWithEmailAndPassword(auth, email.trim(), pass);
+    const isNewUserAdmin = cred.user.uid === ADMIN_UID || cred.user.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    
     await setDoc(doc(db, 'users', cred.user.uid), {
       uid: cred.user.uid,
       name,
-      email,
-      isAdmin: cred.user.uid === ADMIN_UID || email === ADMIN_EMAIL,
+      email: cred.user.email,
+      isAdmin: isNewUserAdmin,
       createdAt: Date.now()
     });
   };
@@ -90,26 +85,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     try {
       await signOut(auth);
-    } catch {
-      // ignore
+    } catch (err) {
+      console.warn('Sign out error:', err);
     }
-    localStorage.removeItem('mrbooks_admin_session');
     setCurrentUser(null);
     setIsAdmin(false);
   };
 
-  const loginAsDemoAdmin = () => {
-    localStorage.setItem('mrbooks_admin_session', 'true');
-    setCurrentUser({
-      uid: ADMIN_UID,
-      email: ADMIN_EMAIL,
-      displayName: 'MR. BOOKS Admin'
-    });
-    setIsAdmin(true);
-  };
-
   return (
-    <AuthContext.Provider value={{ currentUser, isAdmin, loading, signIn, signUp, logout, loginAsDemoAdmin }}>
+    <AuthContext.Provider value={{ currentUser, isAdmin, loading, signIn, signUp, logout }}>
       {children}
     </AuthContext.Provider>
   );

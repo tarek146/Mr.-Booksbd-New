@@ -84,7 +84,75 @@ interface StoreContextType {
 
   updateOrderStatus: (orderId: string, orderStatus: Order['orderStatus']) => Promise<void>;
   reviewPaymentSubmission: (subId: string, status: 'approved' | 'rejected', reason?: string) => Promise<void>;
-  
+  updateSettings: (newSettings: Partial<StoreSettings>) => Promise<void>;
+}
+
+function getPageFromLocation(): { page: string; productId: string | null } {
+  if (typeof window === 'undefined') return { page: 'home', productId: null };
+
+  const pathname = window.location.pathname.toLowerCase().replace(/\/+$/, '') || '/';
+  const hash = window.location.hash.toLowerCase().replace(/^#\/?/, '').replace(/\/+$/, '');
+  const search = window.location.search.toLowerCase();
+
+  // Admin routes: /admin, /admin/..., #admin, #/admin, ?page=admin
+  if (
+    pathname === '/admin' || 
+    pathname.startsWith('/admin/') || 
+    hash === 'admin' || 
+    hash.startsWith('admin/') ||
+    search.includes('page=admin')
+  ) {
+    return { page: 'admin', productId: null };
+  }
+
+  // Books / Shop routes
+  if (pathname === '/books' || pathname === '/shop' || hash === 'books' || hash === 'shop') {
+    return { page: 'books', productId: null };
+  }
+
+  // Stationery routes
+  if (pathname === '/stationery' || hash === 'stationery') {
+    return { page: 'stationery', productId: null };
+  }
+
+  // Cart route
+  if (pathname === '/cart' || hash === 'cart') {
+    return { page: 'cart', productId: null };
+  }
+
+  // Checkout route
+  if (pathname === '/checkout' || hash === 'checkout') {
+    return { page: 'checkout', productId: null };
+  }
+
+  // Order Success route
+  if (pathname === '/order-success' || hash === 'order-success') {
+    return { page: 'order-success', productId: null };
+  }
+
+  // My Orders / Tracking route
+  if (pathname === '/my-orders' || pathname === '/orders' || hash === 'my-orders' || hash === 'orders') {
+    return { page: 'my-orders', productId: null };
+  }
+
+  // Authors route
+  if (pathname === '/authors' || hash === 'authors') {
+    return { page: 'authors', productId: null };
+  }
+
+  // Product Detail route: /product/:id or /book/:id
+  if (pathname.startsWith('/product/') || pathname.startsWith('/book/')) {
+    const parts = window.location.pathname.split('/');
+    const id = parts[2] ? decodeURIComponent(parts[2]) : null;
+    return { page: 'product-detail', productId: id };
+  }
+  if (hash.startsWith('product/') || hash.startsWith('book/')) {
+    const parts = hash.split('/');
+    const id = parts[1] ? decodeURIComponent(parts[1]) : null;
+    return { page: 'product-detail', productId: id };
+  }
+
+  return { page: 'home', productId: null };
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -103,8 +171,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
   
-  const [activePage, setActivePageState] = useState<string>('home');
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const initialRoute = getPageFromLocation();
+  const [activePage, setActivePageState] = useState<string>(initialRoute.page);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(initialRoute.productId);
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   
@@ -133,8 +202,45 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const setActivePage = (page: string, productId?: string) => {
     setActivePageState(page);
     if (productId) setSelectedProductId(productId);
+
+    if (typeof window !== 'undefined') {
+      let targetPath = '/';
+      if (page === 'admin') targetPath = '/admin';
+      else if (page === 'books' || page === 'shop') targetPath = '/books';
+      else if (page === 'stationery') targetPath = '/stationery';
+      else if (page === 'cart') targetPath = '/cart';
+      else if (page === 'checkout') targetPath = '/checkout';
+      else if (page === 'order-success') targetPath = '/order-success';
+      else if (page === 'my-orders') targetPath = '/my-orders';
+      else if (page === 'authors') targetPath = '/authors';
+      else if (page === 'product-detail' && productId) targetPath = `/product/${encodeURIComponent(productId)}`;
+
+      if (window.location.pathname !== targetPath) {
+        try {
+          window.history.pushState({ page, productId }, '', targetPath);
+        } catch {
+          window.location.hash = targetPath.replace(/^\//, '');
+        }
+      }
+    }
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const loc = getPageFromLocation();
+      setActivePageState(loc.page);
+      if (loc.productId) setSelectedProductId(loc.productId);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('hashchange', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('hashchange', handlePopState);
+    };
+  }, []);
 
 
 
@@ -144,27 +250,97 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Seed initial data first
     seedInitialDataIfNeeded();
 
-    const unsubProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
-      setProducts(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
-    });
-    const unsubCategories = onSnapshot(collection(db, 'categories'), (snapshot) => {
-      setCategories(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Category)));
-    });
-    const unsubOrders = onSnapshot(collection(db, 'orders'), (snapshot) => {
-      setOrders(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Order)));
-    });
-    const unsubAuthors = onSnapshot(collection(db, 'authors'), (snapshot) => {
-      setAuthors(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Author)));
-    });
-    const unsubBanners = onSnapshot(collection(db, 'banners'), (snapshot) => {
-      setBanners(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Banner)));
-    });
-    const unsubPayments = onSnapshot(collection(db, 'payment_methods'), (snapshot) => {
-      setPaymentMethods(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PaymentMethodConfig)));
-    });
-    const unsubSubs = onSnapshot(collection(db, 'payment_submissions'), (snapshot) => {
-      setPaymentSubmissions(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PaymentSubmission)));
-    });
+    const unsubProducts = onSnapshot(
+      collection(db, 'products'),
+      (snapshot) => {
+        if (!snapshot.empty) {
+          setProducts(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
+        }
+      },
+      (err) => {
+        console.warn('Products snapshot warning:', err.message);
+      }
+    );
+
+    const unsubCategories = onSnapshot(
+      collection(db, 'categories'),
+      (snapshot) => {
+        if (!snapshot.empty) {
+          setCategories(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Category)));
+        }
+      },
+      (err) => {
+        console.warn('Categories snapshot warning:', err.message);
+      }
+    );
+
+    const unsubOrders = onSnapshot(
+      collection(db, 'orders'),
+      (snapshot) => {
+        setOrders(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Order)));
+      },
+      (err) => {
+        console.warn('Orders snapshot warning:', err.message);
+      }
+    );
+
+    const unsubAuthors = onSnapshot(
+      collection(db, 'authors'),
+      (snapshot) => {
+        if (!snapshot.empty) {
+          setAuthors(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Author)));
+        }
+      },
+      (err) => {
+        console.warn('Authors snapshot warning:', err.message);
+      }
+    );
+
+    const unsubBanners = onSnapshot(
+      collection(db, 'banners'),
+      (snapshot) => {
+        if (!snapshot.empty) {
+          setBanners(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Banner)));
+        }
+      },
+      (err) => {
+        console.warn('Banners snapshot warning:', err.message);
+      }
+    );
+
+    const unsubPayments = onSnapshot(
+      collection(db, 'payment_methods'),
+      (snapshot) => {
+        if (!snapshot.empty) {
+          setPaymentMethods(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PaymentMethodConfig)));
+        }
+      },
+      (err) => {
+        console.warn('Payments snapshot warning:', err.message);
+      }
+    );
+
+    const unsubSubs = onSnapshot(
+      collection(db, 'payment_submissions'),
+      (snapshot) => {
+        setPaymentSubmissions(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PaymentSubmission)));
+      },
+      (err) => {
+        console.warn('Payment submissions snapshot warning:', err.message);
+      }
+    );
+
+    const unsubSettings = onSnapshot(
+      doc(db, 'settings', 'general'),
+      (snap) => {
+        if (snap.exists()) {
+          setSettings(prev => ({ ...prev, ...snap.data() } as StoreSettings));
+        }
+      },
+      (err) => {
+        console.warn('Settings snapshot warning:', err.message);
+      }
+    );
 
     return () => {
       unsubProducts();
@@ -174,6 +350,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubBanners();
       unsubPayments();
       unsubSubs();
+      unsubSettings();
     };
   }, []);
 
@@ -466,6 +643,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     } : o));
   };
 
+  const updateSettings = async (newSettings: Partial<StoreSettings>) => {
+    try {
+      await setDoc(doc(db, 'settings', 'general'), newSettings, { merge: true });
+    } catch (err) {
+      console.warn('Firestore update settings warning:', err);
+    }
+    setSettings(prev => ({ ...prev, ...newSettings }));
+  };
+
   return (
     <StoreContext.Provider value={{
       products,
@@ -510,7 +696,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       updateCategory,
       deleteCategory,
       updateOrderStatus,
-      reviewPaymentSubmission
+      reviewPaymentSubmission,
+      updateSettings
     }}>
       {children}
     </StoreContext.Provider>

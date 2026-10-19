@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
+import { useAuth } from '../context/AuthContext';
 import { 
   ShieldCheck, 
   CreditCard, 
@@ -17,12 +18,20 @@ import {
   Users,
   Upload,
   Eye,
+  EyeOff,
   Check,
-  Edit2
+  Edit2,
+  Lock,
+  LogOut,
+  AlertTriangle,
+  ExternalLink,
+  Key,
+  Server
 } from 'lucide-react';
 import { Author, Banner } from '../types';
 
 export function AdminDashboard() {
+  const { currentUser, isAdmin, loading: authLoading, signIn, logout } = useAuth();
   const { 
     orders, 
     paymentSubmissions, 
@@ -37,6 +46,7 @@ export function AdminDashboard() {
     updatePaymentMethod, 
     deletePaymentMethod,
     addProduct,
+    updateProduct,
     categories,
     deleteProduct,
     addBanner,
@@ -47,7 +57,9 @@ export function AdminDashboard() {
     deleteAuthor,
     addCategory,
     updateCategory,
-    deleteCategory
+    deleteCategory,
+    updateSettings,
+    setActivePage
   } = useStore();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'verifications' | 'payment-methods' | 'orders' | 'products' | 'categories' | 'banners' | 'authors' | 'settings'>('overview');
@@ -88,8 +100,25 @@ export function AdminDashboard() {
   const [pmAccNum, setPmAccNum] = useState('');
   const [pmInst, setPmInst] = useState('');
 
-  // New Product modal state
+  // Admin Login State
+  const [adminEmail, setAdminEmail] = useState('mr.booksbd700@gmail.com');
+  const [adminPassword, setAdminPassword] = useState('booksbd700@');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+
+  // Settings form state
+  const [settingsForm, setSettingsForm] = useState(settings);
+  const [settingsSuccess, setSettingsSuccess] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+
+  useEffect(() => {
+    setSettingsForm(settings);
+  }, [settings]);
+
+  // Product modal state
   const [showAddProdModal, setShowAddProdModal] = useState(false);
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [prodTitle, setProdTitle] = useState('');
   const [prodType, setProdType] = useState<'book' | 'stationery'>('book');
   const [prodPrice, setProdPrice] = useState(350);
@@ -147,11 +176,11 @@ export function AdminDashboard() {
         })).filter(v => v.name.length > 0)
       : [{ id: 'v1', name: 'Paperback', price: prodPrice, stock: 100, sku: 'MRB-PB' }];
 
-    await addProduct({
+    const payload = {
       type: prodType,
       title: prodTitle,
-      slug: prodTitle.toLowerCase().replace(/ /g, '-'),
-      description: 'Newly added book or stationery item.',
+      slug: prodTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+      description: 'Book or stationery item from MR. BOOKS inventory.',
       category: prodCategory,
       author: prodAuthor,
       publisher: 'MR. BOOKS Publications',
@@ -167,7 +196,15 @@ export function AdminDashboard() {
       variants: parsedVariants.length > 0 ? parsedVariants : [
         { id: 'v1', name: 'Paperback', price: prodPrice, stock: 100, sku: 'MRB-PB' }
       ]
-    });
+    };
+
+    if (editingProductId) {
+      await updateProduct(editingProductId, payload);
+    } else {
+      await addProduct(payload);
+    }
+
+    setEditingProductId(null);
     setProdTitle('');
     setProdAuthor('');
     setProdImage('');
@@ -313,39 +350,347 @@ export function AdminDashboard() {
     setCatShowOnHome(true);
   };
 
-  return (
-    <div className="min-h-screen bg-white transition-colors py-10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Admin Header Banner - Bright, Crisp Light Theme */}
-        <div className="bg-white rounded-3xl p-6 sm:p-8 text-[#171717] shadow-xs mb-8 flex flex-col md:flex-row items-center justify-between gap-6 border border-[#E5E5E5]">
-          <div className="flex items-center gap-4">
-            <div className="w-13 h-13 bg-[#D71920] rounded-2xl flex items-center justify-center text-white shadow-md shadow-[#D71920]/25">
-              <ShieldCheck size={28} />
+  // 1. Loading State Check (Standalone Admin Portal Loader)
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#0B0F17] text-white flex flex-col items-center justify-center p-6 selection:bg-[#D71920] selection:text-white">
+        <div className="text-center space-y-4 max-w-sm">
+          <div className="relative w-16 h-16 mx-auto">
+            <div className="w-16 h-16 border-4 border-[#D71920] border-t-transparent rounded-full animate-spin"></div>
+            <div className="absolute inset-0 flex items-center justify-center text-[#D71920]">
+              <ShieldCheck size={24} />
+            </div>
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-white tracking-wider uppercase">MR. BOOKS ADMIN PORTAL</h2>
+            <p className="text-xs text-slate-400 mt-1">Authenticating with Firebase & validating administrator credentials...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Unauthenticated Barrier: Must sign in as Admin (100% Standalone Page, No Website Header/Footer)
+  if (!currentUser) {
+    const handleAdminLogin = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setLoginError('');
+      setLoginLoading(true);
+      try {
+        await signIn(adminEmail, adminPassword);
+      } catch (err: any) {
+        setLoginError(err.message || 'Authentication failed. Please verify credentials.');
+      } finally {
+        setLoginLoading(false);
+      }
+    };
+
+    return (
+      <div className="min-h-screen bg-[#0B0F17] text-slate-100 flex flex-col justify-between selection:bg-[#D71920] selection:text-white font-sans antialiased">
+        {/* Dedicated Admin Portal Top Bar */}
+        <header className="border-b border-slate-800/80 bg-[#0E131F]/90 backdrop-blur-md px-4 sm:px-8 py-3.5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#D71920] flex items-center justify-center text-white shadow-md shadow-[#D71920]/30">
+              <ShieldCheck size={20} />
             </div>
             <div>
-              <div className="inline-flex items-center gap-1.5 bg-[#FFF1F2] text-[#D71920] text-[11px] font-bold px-3 py-1 rounded-full mb-1 border border-[#D71920]/25">
-                Authorized Admin Control Center
+              <div className="flex items-center gap-2">
+                <span className="font-black text-sm tracking-tight text-white">MR. BOOKS</span>
+                <span className="text-[10px] font-bold bg-[#D71920]/20 text-[#FF4D4D] border border-[#D71920]/30 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  Admin OS
+                </span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[#171717]">
-                MR. BOOKS Admin Portal
-              </h1>
-              <p className="text-xs text-[#5F6368]">
-                Administrator: <strong>mr.booksbd700@gmail.com</strong>
-              </p>
+              <p className="text-[10px] text-slate-400">Enterprise Management System</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <div className="flex-1 md:flex-initial bg-[#F7F7F8] px-4 py-3 rounded-2xl border border-[#E5E5E5] text-center">
-              <span className="block text-[10px] text-[#5F6368] uppercase font-bold tracking-wider">Pending Verification</span>
-              <span className="text-xl font-black text-amber-700">{pendingVerificationsCount}</span>
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-1.5 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-full text-[11px] text-slate-300">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>Firebase Auth & Firestore: <strong className="text-white">mr-book-new</strong></span>
             </div>
-            <div className="flex-1 md:flex-initial bg-[#F7F7F8] px-4 py-3 rounded-2xl border border-[#E5E5E5] text-center">
-              <span className="block text-[10px] text-[#5F6368] uppercase font-bold tracking-wider">Verified Revenue</span>
-              <span className="text-xl font-black text-emerald-700">৳{totalRevenue}</span>
+            <button
+              onClick={() => setActivePage('home')}
+              className="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-xl border border-slate-800 hover:border-slate-700 bg-slate-900/60 transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <span>Storefront</span>
+              <ExternalLink size={13} />
+            </button>
+          </div>
+        </header>
+
+        {/* Center: Dedicated Standalone Admin Authentication Card */}
+        <main className="flex-1 flex items-center justify-center p-4 sm:p-6 py-12">
+          <div className="w-full max-w-md bg-[#121826] border border-slate-800/90 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black/60 relative overflow-hidden">
+            {/* Subtle top ambient crimson line */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#D71920] to-transparent"></div>
+
+            <div className="text-center space-y-3 mb-6">
+              <div className="w-14 h-14 bg-gradient-to-br from-[#D71920] to-[#990F14] text-white rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-[#D71920]/30">
+                <Lock size={26} />
+              </div>
+              <div>
+                <h1 className="text-2xl font-black text-white tracking-tight">Admin Portal Sign In</h1>
+                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                  Restricted administrative console for <strong>MR. BOOKS</strong>. Please sign in with your configured administrator Firebase account.
+                </p>
+              </div>
+
+              {/* Verified Identity Badge */}
+              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-2.5 text-left flex items-start gap-2.5 mt-2">
+                <div className="p-1.5 bg-[#D71920]/15 text-[#FF4D4D] rounded-lg mt-0.5 shrink-0">
+                  <Key size={14} />
+                </div>
+                <div className="text-[11px] leading-tight space-y-0.5">
+                  <div className="text-slate-400">Configured Administrator:</div>
+                  <div className="font-bold text-white">mr.booksbd700@gmail.com</div>
+                  <div className="text-[10px] text-slate-500 font-mono">UID: ytewGIOO2uhISkUfUUwktSvzdjy1</div>
+                </div>
+              </div>
+            </div>
+
+            {loginError && (
+              <div className="mb-5 p-3.5 bg-red-950/60 border border-red-800/60 text-red-200 rounded-2xl text-xs flex items-start gap-2.5">
+                <AlertTriangle size={16} className="text-red-400 shrink-0 mt-0.5" />
+                <span>{loginError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleAdminLogin} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-bold uppercase text-slate-300 mb-1.5 text-[11px] tracking-wider">
+                  Admin Email Address
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={adminEmail}
+                  onChange={e => setAdminEmail(e.target.value)}
+                  placeholder="mr.booksbd700@gmail.com"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-800 bg-slate-900/90 text-white placeholder-slate-500 focus:outline-none focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920] transition-colors"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block font-bold uppercase text-slate-300 text-[11px] tracking-wider">
+                    Admin Password
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-[11px] text-slate-400 hover:text-white flex items-center gap-1 cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff size={12} /> : <Eye size={12} />}
+                    <span>{showPassword ? 'Hide' : 'Show'}</span>
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={adminPassword}
+                    onChange={e => setAdminPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-800 bg-slate-900/90 text-white placeholder-slate-500 focus:outline-none focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920] transition-colors"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loginLoading}
+                className="w-full py-3.5 bg-gradient-to-r from-[#D71920] to-[#B9151B] hover:from-[#B9151B] hover:to-[#990F14] text-white font-black rounded-xl shadow-lg shadow-[#D71920]/25 transition-all text-xs uppercase tracking-wider disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2 mt-2"
+              >
+                {loginLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Authenticating with Firebase...
+                  </>
+                ) : (
+                  <>
+                    <Lock size={15} />
+                    <span>Sign In to Admin Portal</span>
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-6 pt-5 border-t border-slate-800 flex items-center justify-between text-xs">
+              <button
+                type="button"
+                onClick={() => setActivePage('home')}
+                className="text-slate-400 hover:text-white font-medium cursor-pointer transition-colors"
+              >
+                ← Back to Book Store
+              </button>
+              <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
+                <Server size={11} className="text-emerald-500" />
+                <span>Live Realtime Firestore</span>
+              </div>
             </div>
           </div>
-        </div>
+        </main>
+
+        {/* Dedicated Admin Portal Footer */}
+        <footer className="border-t border-slate-800/80 bg-[#0E131F]/90 px-4 sm:px-8 py-3.5 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500 gap-2">
+          <div>
+            MR. BOOKS Administrative Management System © {new Date().getFullYear()}. All rights reserved.
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="flex items-center gap-1.5 text-slate-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              Direct Firestore Engine Connected
+            </span>
+          </div>
+        </footer>
+      </div>
+    );
+  }
+
+  // 3. Unauthorized Customer Barrier (100% Standalone Page)
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-[#0B0F17] text-slate-100 flex flex-col justify-between selection:bg-[#D71920] selection:text-white font-sans antialiased">
+        <header className="border-b border-slate-800/80 bg-[#0E131F]/90 px-4 sm:px-8 py-3.5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#D71920] flex items-center justify-center text-white">
+              <ShieldCheck size={20} />
+            </div>
+            <span className="font-black text-sm tracking-tight text-white">MR. BOOKS ADMIN OS</span>
+          </div>
+          <button
+            onClick={() => setActivePage('home')}
+            className="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-xl border border-slate-800 bg-slate-900 transition-colors flex items-center gap-1.5 cursor-pointer"
+          >
+            <span>Return to Store</span>
+            <ExternalLink size={13} />
+          </button>
+        </header>
+
+        <main className="flex-1 flex items-center justify-center p-4 sm:p-6">
+          <div className="bg-[#121826] rounded-3xl max-w-md w-full p-8 shadow-2xl border border-red-900/40 text-center space-y-5">
+            <div className="w-14 h-14 bg-red-950/80 text-[#FF4D4D] rounded-2xl flex items-center justify-center mx-auto border border-red-800/40">
+              <XCircle size={30} />
+            </div>
+            <div>
+              <h1 className="text-xl font-black text-white">Access Denied</h1>
+              <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+                You are currently signed in as <strong className="text-white">{currentUser.email}</strong>.
+                <br />
+                UID: <code className="bg-slate-900 px-1.5 py-0.5 rounded text-[10px] text-slate-300 font-mono">{currentUser.uid}</code>
+                <br /><br />
+                This account does not have administrator privileges. Regular customer accounts are strictly forbidden from accessing the management console.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2.5 pt-2">
+              <button
+                onClick={async () => {
+                  await logout();
+                }}
+                className="w-full py-3 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs cursor-pointer shadow-lg shadow-[#D71920]/25 transition-all"
+              >
+                Sign Out & Login as Administrator
+              </button>
+              <button
+                onClick={() => setActivePage('home')}
+                className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold rounded-xl text-xs cursor-pointer border border-slate-800 transition-colors"
+              >
+                Return to Public Store
+              </button>
+            </div>
+          </div>
+        </main>
+
+        <footer className="border-t border-slate-800/80 bg-[#0E131F]/90 px-4 sm:px-8 py-3 text-[11px] text-slate-500 text-center">
+          MR. BOOKS Enterprise Security • Protected Area
+        </footer>
+      </div>
+    );
+  }
+
+  // 4. Authenticated Administrator Control Console (100% Dedicated Standalone UI)
+  return (
+    <div className="min-h-screen bg-[#F4F6F8] text-[#171717] flex flex-col justify-between selection:bg-[#D71920] selection:text-white font-sans antialiased">
+      <div>
+        {/* Dedicated Admin Standalone Navigation Bar */}
+        <header className="bg-[#0E131F] border-b border-slate-800 text-white sticky top-0 z-40 px-4 sm:px-8 py-3 shadow-md flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D71920] to-[#B9151B] flex items-center justify-center text-white shadow-md shadow-[#D71920]/30 shrink-0">
+              <ShieldCheck size={22} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-black text-base tracking-tight text-white">MR. BOOKS</span>
+                <span className="text-[10px] font-black bg-[#D71920] text-white px-2 py-0.5 rounded-md uppercase tracking-wider">
+                  ADMIN CONSOLE
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Firebase Real-time Sync Active (<code className="text-slate-300">mr-book-new</code>)</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="hidden lg:flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl text-xs text-slate-300">
+              <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+              <span>Admin: <strong className="text-white">mr.booksbd700@gmail.com</strong></span>
+            </div>
+
+            <button
+              onClick={() => setActivePage('home')}
+              title="View Public Store"
+              className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white rounded-xl border border-slate-800 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+            >
+              <Eye size={15} className="text-slate-400" />
+              <span className="hidden sm:inline">Storefront</span>
+            </button>
+
+            <button
+              onClick={async () => {
+                await logout();
+                setActivePage('home');
+              }}
+              title="Logout Administrator"
+              className="px-3.5 py-2 bg-red-950/40 hover:bg-red-900/60 text-red-200 rounded-xl border border-red-800/50 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+            >
+              <LogOut size={15} className="text-[#FF4D4D]" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Admin Dashboard Body Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+          {/* Quick Metrics & Welcome Banner */}
+          <div className="bg-white rounded-3xl p-6 sm:p-7 shadow-xs mb-7 border border-[#E2E8F0] flex flex-col md:flex-row items-center justify-between gap-6">
+            <div>
+              <div className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-[11px] font-bold px-3 py-1 rounded-full mb-1.5 border border-emerald-200">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                Real-time Firestore Listeners Connected
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[#0F172A]">
+                E-Commerce Management Dashboard
+              </h1>
+              <p className="text-xs text-slate-500 mt-1">
+                UID: <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-[10px] text-slate-700">ytewGIOO2uhISkUfUUwktSvzdjy1</code> | All modifications sync directly to Firebase Firestore in real-time.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              <div className="flex-1 md:flex-initial bg-[#F8FAFC] px-4 py-3 rounded-2xl border border-slate-200 text-center min-w-[120px]">
+                <span className="block text-[10px] text-slate-500 uppercase font-bold tracking-wider">Pending Verification</span>
+                <span className="text-xl font-black text-amber-600">{pendingVerificationsCount}</span>
+              </div>
+              <div className="flex-1 md:flex-initial bg-[#F8FAFC] px-4 py-3 rounded-2xl border border-slate-200 text-center min-w-[120px]">
+                <span className="block text-[10px] text-slate-500 uppercase font-bold tracking-wider">Verified Revenue</span>
+                <span className="text-xl font-black text-emerald-600">৳{totalRevenue}</span>
+              </div>
+            </div>
+          </div>
 
         {/* Tab Navigation Pill Bar */}
         <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-8">
@@ -695,7 +1040,20 @@ export function AdminDashboard() {
             <div className="flex items-center justify-between pb-4 border-b border-[#EEEEEE]">
               <h2 className="text-xl font-black text-[#171717]">Books & Stationery Inventory</h2>
               <button 
-                onClick={() => setShowAddProdModal(true)}
+                onClick={() => {
+                  setEditingProductId(null);
+                  setProdTitle('');
+                  setProdType('book');
+                  setProdPrice(350);
+                  setProdCategory(categories[0]?.name || 'Fiction & Literature');
+                  setProdAuthor('');
+                  setProdImage('');
+                  setProdExtraImages('');
+                  setProdPrintVariants('Paperback, Hardcover');
+                  setProdIsOriginal(true);
+                  setProdDeliveryEstimate('2-3 Days');
+                  setShowAddProdModal(true);
+                }}
                 className="px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md cursor-pointer"
               >
                 <Plus size={14} /> Add Product
@@ -710,12 +1068,33 @@ export function AdminDashboard() {
                     <span className="text-[10px] font-bold uppercase text-[#D71920]">{p.type}</span>
                     <h4 className="font-bold text-xs text-[#171717] truncate">{p.title}</h4>
                     <p className="text-xs font-black text-[#171717] mt-1">৳{p.price}</p>
-                    <button 
-                      onClick={() => deleteProduct(p.id)}
-                      className="mt-1 text-[11px] text-red-600 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
-                    >
-                      <Trash2 size={11} /> Delete
-                    </button>
+                    <div className="flex items-center gap-3 mt-1.5">
+                      <button 
+                        onClick={() => {
+                          setEditingProductId(p.id);
+                          setProdTitle(p.title);
+                          setProdType(p.type);
+                          setProdPrice(p.price);
+                          setProdCategory(p.category);
+                          setProdAuthor(p.author || (p as any).brand || '');
+                          setProdImage(p.images[0] || '');
+                          setProdExtraImages(p.images.slice(1).join(', '));
+                          setProdIsOriginal(p.isOriginalBadge !== false);
+                          setProdPrintVariants(p.variants ? p.variants.map(v => v.name).join(', ') : 'Paperback, Hardcover');
+                          setProdDeliveryEstimate(p.deliveryEstimate || '2-3 Days');
+                          setShowAddProdModal(true);
+                        }}
+                        className="text-[11px] text-[#171717] hover:text-[#D71920] font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        <Edit2 size={11} /> Edit
+                      </button>
+                      <button 
+                        onClick={() => deleteProduct(p.id)}
+                        className="text-[11px] text-red-600 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
+                      >
+                        <Trash2 size={11} /> Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -723,7 +1102,9 @@ export function AdminDashboard() {
 
             {showAddProdModal && (
               <form onSubmit={handleCreateProduct} className="p-5 bg-[#F7F7F8] rounded-2xl border border-[#E5E5E5] space-y-3">
-                <h3 className="font-bold text-sm text-[#171717]">Add New Book or Stationery</h3>
+                <h3 className="font-bold text-sm text-[#171717]">
+                  {editingProductId ? 'Edit Book or Stationery' : 'Add New Book or Stationery'}
+                </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <input type="text" placeholder="Title" required value={prodTitle} onChange={e => setProdTitle(e.target.value)} className="px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]" />
                   <select value={prodType} onChange={e => setProdType(e.target.value as any)} className="px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]">
@@ -1550,31 +1931,166 @@ export function AdminDashboard() {
         {/* TAB 6: STORE SETTINGS */}
         {activeTab === 'settings' && (
           <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-            <h2 className="text-xl font-black text-[#171717]">Store Branding & Delivery Charges</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-xs">
+            <div className="flex items-center justify-between pb-4 border-b border-[#EEEEEE]">
               <div>
-                <label className="block font-bold uppercase text-[#5F6368] mb-1">Store Name</label>
-                <input type="text" defaultValue={settings.storeName} className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" />
+                <h2 className="text-xl font-black text-[#171717] flex items-center gap-2">
+                  <Settings size={20} className="text-[#D71920]" /> Store Branding & Configuration
+                </h2>
+                <p className="text-xs text-[#5F6368] mt-1">
+                  Updates are saved directly to Firebase in real-time and applied immediately across the entire shop.
+                </p>
               </div>
-              <div>
-                <label className="block font-bold uppercase text-[#5F6368] mb-1">Hotline Phone</label>
-                <input type="text" defaultValue={settings.phone} className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" />
-              </div>
-              <div>
-                <label className="block font-bold uppercase text-[#5F6368] mb-1">Inside Dhaka Delivery Fee (৳)</label>
-                <input type="number" defaultValue={settings.insideDhakaCharge} className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" />
-              </div>
-              <div>
-                <label className="block font-bold uppercase text-[#5F6368] mb-1">Outside Dhaka Delivery Fee (৳)</label>
-                <input type="number" defaultValue={settings.outsideDhakaCharge} className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" />
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-bold">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                Real-time Firebase Firestore Sync
               </div>
             </div>
-            <button className="px-6 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs shadow-md cursor-pointer">
-              Save Store Settings
-            </button>
+
+            {settingsSuccess && (
+              <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-bold flex items-center gap-2">
+                <CheckCircle2 size={16} className="text-emerald-600" />
+                Store settings successfully saved to Firebase and updated in real-time!
+              </div>
+            )}
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setSettingsSaving(true);
+                try {
+                  await updateSettings(settingsForm);
+                  setSettingsSuccess(true);
+                  setTimeout(() => setSettingsSuccess(false), 3000);
+                } finally {
+                  setSettingsSaving(false);
+                }
+              }}
+              className="space-y-6"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-xs">
+                <div>
+                  <label className="block font-bold uppercase text-[#5F6368] mb-1">Store Name</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={settingsForm.storeName || ''} 
+                    onChange={e => setSettingsForm(prev => ({ ...prev, storeName: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold uppercase text-[#5F6368] mb-1">Tagline</label>
+                  <input 
+                    type="text" 
+                    value={settingsForm.tagline || ''} 
+                    onChange={e => setSettingsForm(prev => ({ ...prev, tagline: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold uppercase text-[#5F6368] mb-1">Hotline Phone</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={settingsForm.phone || ''} 
+                    onChange={e => setSettingsForm(prev => ({ ...prev, phone: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold uppercase text-[#5F6368] mb-1">Support Email</label>
+                  <input 
+                    type="email" 
+                    value={settingsForm.email || ''} 
+                    onChange={e => setSettingsForm(prev => ({ ...prev, email: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block font-bold uppercase text-[#5F6368] mb-1">Physical Address</label>
+                  <input 
+                    type="text" 
+                    value={settingsForm.address || ''} 
+                    onChange={e => setSettingsForm(prev => ({ ...prev, address: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold uppercase text-[#5F6368] mb-1">Inside Dhaka Delivery Fee (৳)</label>
+                  <input 
+                    type="number" 
+                    required
+                    value={settingsForm.insideDhakaCharge ?? 60} 
+                    onChange={e => setSettingsForm(prev => ({ ...prev, insideDhakaCharge: Number(e.target.value) }))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold uppercase text-[#5F6368] mb-1">Outside Dhaka Delivery Fee (৳)</label>
+                  <input 
+                    type="number" 
+                    required
+                    value={settingsForm.outsideDhakaCharge ?? 120} 
+                    onChange={e => setSettingsForm(prev => ({ ...prev, outsideDhakaCharge: Number(e.target.value) }))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold uppercase text-[#5F6368] mb-1">Free Delivery Minimum Order (৳)</label>
+                  <input 
+                    type="number" 
+                    value={settingsForm.freeShippingThreshold ?? 2000} 
+                    onChange={e => setSettingsForm(prev => ({ ...prev, freeShippingThreshold: Number(e.target.value) }))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold uppercase text-[#5F6368] mb-1">Official bKash Number</label>
+                  <input 
+                    type="text" 
+                    value={settingsForm.bkashNumber || ''} 
+                    onChange={e => setSettingsForm(prev => ({ ...prev, bkashNumber: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <button 
+                  type="submit" 
+                  disabled={settingsSaving}
+                  className="px-6 py-2.5 bg-[#D71920] hover:bg-[#B9151B] disabled:opacity-50 text-white font-bold rounded-xl text-xs shadow-md cursor-pointer flex items-center gap-2"
+                >
+                  {settingsSaving ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Saving to Firebase...
+                    </>
+                  ) : (
+                    <>
+                      <Check size={14} /> Save Store Settings
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         )}
       </div>
+      </div>
+
+      {/* Dedicated Standalone Admin Portal Footer */}
+      <footer className="mt-12 border-t border-slate-200/80 bg-white py-4 px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
+        <div>
+          MR. BOOKS Administrative Management Console • Connected to Firebase (<code className="text-slate-700 font-mono">mr-book-new</code>)
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1.5 text-emerald-600 font-semibold">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            Real-time Firestore Engine Active
+          </span>
+        </div>
+      </footer>
     </div>
   );
 }

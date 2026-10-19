@@ -144,9 +144,16 @@ export function Footer() {
         {/* Bottom Boxed Copyright Footer */}
         <div className="bg-[#1c1c1e] border border-zinc-800/90 rounded-2xl px-5 sm:px-6 py-3.5 sm:py-4 flex flex-col sm:flex-row items-center justify-between text-xs text-zinc-400 gap-2 shadow-sm">
           <p>© {new Date().getFullYear()} MR. BOOKS Bangladesh. All rights reserved.</p>
-          <p className="text-zinc-500 text-[11px]">
-            Designed for book lovers in Bangladesh.
-          </p>
+          <div className="flex items-center gap-3 text-zinc-500 text-[11px]">
+            <span>Designed for book lovers in Bangladesh.</span>
+            <span>•</span>
+            <button 
+              onClick={() => setActivePage('admin')} 
+              className="text-zinc-500 hover:text-white transition-colors cursor-pointer flex items-center gap-1"
+            >
+              Admin Portal (/admin)
+            </button>
+          </div>
         </div>
 
       </div>

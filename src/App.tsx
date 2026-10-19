@@ -18,6 +18,12 @@ import { AdminDashboard } from './pages/AdminDashboard';
 function MainRouter() {
   const { activePage } = useStore();
 
+  // Standalone Isolated Admin Application
+  // Completely separated from storefront: no consumer Navbar, no Footer, no MobileBottomNav
+  if (activePage === 'admin') {
+    return <AdminDashboard />;
+  }
+
   return (
     <div className="bg-white text-[#171717] min-h-screen flex flex-col font-sans antialiased selection:bg-[#FFF1F2] selection:text-[#D71920] pb-14 md:pb-0">
       <Navbar />
@@ -31,7 +37,6 @@ function MainRouter() {
         {activePage === 'order-success' && <OrderSuccessPage />}
         {activePage === 'my-orders' && <MyOrdersPage />}
         {activePage === 'authors' && <AuthorsPage />}
-        {activePage === 'admin' && <AdminDashboard />}
       </main>
       <Footer />
       <MobileBottomNav />
