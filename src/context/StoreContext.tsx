@@ -35,7 +35,7 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
-import { cleanForFirestore } from '../utils/imageCompressor';
+import { cleanForFirestore, addCacheBust } from '../utils/imageCompressor';
 
 interface StoreContextType {
   products: Product[];
@@ -355,13 +355,33 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
         if (!isMounted) return;
 
-        setProducts(prodSnap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
-        setCategories(catSnap.docs.map(d => ({ id: d.id, ...d.data() } as Category)));
-        setAuthors(authSnap.docs.map(d => ({ id: d.id, ...d.data() } as Author)));
-        setBanners(bannerSnap.docs.map(d => ({ id: d.id, ...d.data() } as Banner)));
+        setProducts(prodSnap.docs.map(d => {
+          const data = d.data() as Product;
+          return { ...data, id: d.id, images: (data.images || []).map(img => addCacheBust(img)) };
+        }));
+        setCategories(catSnap.docs.map(d => {
+          const data = d.data() as Category;
+          return { ...data, id: d.id, image: addCacheBust(data.image) };
+        }));
+        setAuthors(authSnap.docs.map(d => {
+          const data = d.data() as Author;
+          return { ...data, id: d.id, photoUrl: addCacheBust(data.photoUrl) };
+        }));
+        setBanners(bannerSnap.docs.map(d => {
+          const data = d.data() as Banner;
+          return { ...data, id: d.id, imageUrl: addCacheBust(data.imageUrl) };
+        }));
         setPaymentMethods(paySnap.docs.map(d => ({ id: d.id, ...d.data() } as PaymentMethodConfig)));
         if (setSnap.exists()) {
-          setSettings(prev => ({ ...prev, ...setSnap.data() } as StoreSettings));
+          const st = setSnap.data() as StoreSettings;
+          setSettings(prev => ({
+            ...prev,
+            ...st,
+            logoUrl: addCacheBust(st.logoUrl),
+            footerLogoUrl: addCacheBust(st.footerLogoUrl),
+            faviconUrl: addCacheBust(st.faviconUrl),
+            ogImageUrl: addCacheBust(st.ogImageUrl)
+          }));
         }
         if (!revSnap.empty) {
           setReviews(revSnap.docs.map(d => ({ id: d.id, ...d.data() } as Review)));
@@ -379,7 +399,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       collection(db, 'products'),
       (snapshot) => {
         setIsLoading(false);
-        setProducts(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
+        setProducts(snapshot.docs.map(d => {
+          const data = d.data() as Product;
+          return { ...data, id: d.id, images: (data.images || []).map(img => addCacheBust(img)) };
+        }));
       },
       (err) => {
         setIsLoading(false);
@@ -390,7 +413,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const unsubCategories = onSnapshot(
       collection(db, 'categories'),
       (snapshot) => {
-        setCategories(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Category)));
+        setCategories(snapshot.docs.map(d => {
+          const data = d.data() as Category;
+          return { ...data, id: d.id, image: addCacheBust(data.image) };
+        }));
       },
       (err) => {
         console.warn('Categories listener notice:', err.message);
@@ -400,7 +426,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const unsubAuthors = onSnapshot(
       collection(db, 'authors'),
       (snapshot) => {
-        setAuthors(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Author)));
+        setAuthors(snapshot.docs.map(d => {
+          const data = d.data() as Author;
+          return { ...data, id: d.id, photoUrl: addCacheBust(data.photoUrl) };
+        }));
       },
       (err) => {
         console.warn('Authors listener notice:', err.message);
@@ -410,7 +439,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const unsubBanners = onSnapshot(
       collection(db, 'banners'),
       (snapshot) => {
-        setBanners(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Banner)));
+        setBanners(snapshot.docs.map(d => {
+          const data = d.data() as Banner;
+          return { ...data, id: d.id, imageUrl: addCacheBust(data.imageUrl) };
+        }));
       },
       (err) => {
         console.warn('Banners listener notice:', err.message);
@@ -431,7 +463,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       doc(db, 'settings', 'general'),
       (snap) => {
         if (snap.exists()) {
-          setSettings(prev => ({ ...prev, ...snap.data() } as StoreSettings));
+          const st = snap.data() as StoreSettings;
+          setSettings(prev => ({
+            ...prev,
+            ...st,
+            logoUrl: addCacheBust(st.logoUrl),
+            footerLogoUrl: addCacheBust(st.footerLogoUrl),
+            faviconUrl: addCacheBust(st.faviconUrl),
+            ogImageUrl: addCacheBust(st.ogImageUrl)
+          }));
         }
       },
       (err) => {
