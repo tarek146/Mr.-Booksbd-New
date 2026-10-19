@@ -1207,8 +1207,35 @@ export function AdminDashboard() {
               </div>
             </div>
 
-            {/* Filter Pills Row & Extra Dropdowns */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-1">
+            {/* Filter Pills Row & Extra Dropdowns (Optimized Two-Tier Layout) */}
+            <div className="bg-[#F7F7F8] p-4 rounded-2xl border border-[#E5E5E5] space-y-3">
+              {/* Top Row: Extra Filter Dropdowns (All Channels, All Payments, Verification) */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#E5E5E5]">
+                <div className="text-xs font-black uppercase text-neutral-500 tracking-wider">
+                  Advanced Filters & Channels
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <select className="px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs font-bold text-neutral-700 focus:outline-none focus:border-[#D71920] shadow-2xs">
+                    <option value="all">🌐 All Channels</option>
+                    <option value="web">Website Store</option>
+                    <option value="phone">Phone Order</option>
+                  </select>
+
+                  <select className="px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs font-bold text-neutral-700 focus:outline-none focus:border-[#D71920] shadow-2xs">
+                    <option value="all">💳 All Payments</option>
+                    <option value="cod">Cash on Delivery</option>
+                    <option value="online">Online Payment</option>
+                  </select>
+
+                  <select className="px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs font-bold text-neutral-700 focus:outline-none focus:border-[#D71920] shadow-2xs">
+                    <option value="all">🛡️ Verification (All)</option>
+                    <option value="verified">Verified</option>
+                    <option value="pending">Pending</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Bottom Row: Status Tabs & Pills (All Orders, Pending, Processing, Shipped, Completed, Cancelled) */}
               <div className="flex flex-wrap items-center gap-2">
                 {[
                   { id: 'all', label: `All Orders (${orders.length})` },
@@ -1221,33 +1248,13 @@ export function AdminDashboard() {
                   <button
                     key={tab.id}
                     onClick={() => setOrderStatusFilter(tab.id)}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                      orderStatusFilter === tab.id ? 'bg-[#D71920] text-white shadow-xs' : 'bg-[#F7F7F8] text-neutral-700 hover:bg-neutral-200 border border-[#E5E5E5]'
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      orderStatusFilter === tab.id ? 'bg-[#D71920] text-white shadow-xs' : 'bg-white text-neutral-700 hover:bg-neutral-100 border border-[#E5E5E5]'
                     }`}
                   >
                     {tab.label}
                   </button>
                 ))}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <select className="px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-xs font-bold text-neutral-700 focus:outline-none focus:border-[#D71920]">
-                  <option value="all">🌐 All Channels</option>
-                  <option value="web">Website Store</option>
-                  <option value="phone">Phone Order</option>
-                </select>
-
-                <select className="px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-xs font-bold text-neutral-700 focus:outline-none focus:border-[#D71920]">
-                  <option value="all">💳 All Payments</option>
-                  <option value="cod">Cash on Delivery</option>
-                  <option value="online">Online Payment</option>
-                </select>
-
-                <select className="px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-xs font-bold text-neutral-700 focus:outline-none focus:border-[#D71920]">
-                  <option value="all">🛡️ Verification (All)</option>
-                  <option value="verified">Verified</option>
-                  <option value="pending">Pending</option>
-                </select>
               </div>
             </div>
 
