@@ -130,6 +130,20 @@ export function MyOrdersPage() {
   const [senderNum, setSenderNum] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Order ID direct lookup state
+  const [trackingInput, setTrackingInput] = useState('');
+  const [searchedOrderResult, setSearchedOrderResult] = useState<any | null>(null);
+  const [searchAttempted, setSearchAttempted] = useState(false);
+
+  const handleLookupOrder = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!trackingInput.trim()) return;
+    const query = trackingInput.trim().replace(/^#/, '');
+    const found = orders.find(o => o.id.toLowerCase() === query.toLowerCase() || o.phone.includes(query));
+    setSearchedOrderResult(found || null);
+    setSearchAttempted(true);
+  };
+
   const userOrders = currentUser 
     ? orders.filter(o => o.userId === currentUser.uid || o.email === currentUser.email)
     : orders;
@@ -275,9 +289,72 @@ export function MyOrdersPage() {
 
         {/* TAB 2: ORDER HISTORY WITH DEDICATED TRACKING PROGRESS BAR */}
         {activeTab === 'orders' && (
-          <div>
+          <div className="space-y-8">
+            {/* Direct Order ID / Phone Tracking Lookup Card */}
+            <div className="bg-[#F8F9FA] border border-[#E5E5E5] rounded-3xl p-6 sm:p-8 shadow-xs">
+              <div className="max-w-xl mx-auto text-center space-y-3">
+                <div className="w-12 h-12 bg-[#D71920]/10 text-[#D71920] rounded-2xl mx-auto flex items-center justify-center font-black">
+                  <Truck size={24} />
+                </div>
+                <h2 className="text-xl font-black text-[#171717] tracking-tight">
+                  Track Your Order Status
+                </h2>
+                <p className="text-xs text-[#5F6368]">
+                  Enter your Order ID (e.g., PV-728014) or phone number to view real-time fulfillment status directly from Firebase.
+                </p>
+
+                <form onSubmit={handleLookupOrder} className="flex gap-2 pt-2">
+                  <input 
+                    type="text"
+                    required
+                    placeholder="Enter Order ID (e.g. PV-728014)"
+                    value={trackingInput}
+                    onChange={e => setTrackingInput(e.target.value)}
+                    className="flex-1 px-4 py-3 rounded-2xl border border-[#E5E5E5] bg-white text-xs font-mono font-bold text-[#171717] shadow-2xs"
+                  />
+                  <button
+                    type="submit"
+                    className="px-6 py-3 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-2xl text-xs shadow-md transition-all cursor-pointer shrink-0"
+                  >
+                    Track Status
+                  </button>
+                </form>
+
+                {searchAttempted && (
+                  <div className="mt-4">
+                    {searchedOrderResult ? (
+                      <div className="bg-white border border-emerald-200 rounded-2xl p-5 text-left shadow-md space-y-4 animate-in fade-in duration-200">
+                        <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
+                          <div>
+                            <span className="text-xs font-bold text-[#D71920] uppercase font-mono">
+                              Order #{searchedOrderResult.id}
+                            </span>
+                            <h4 className="font-black text-sm text-[#171717] mt-0.5">
+                              {searchedOrderResult.customerName} ({searchedOrderResult.phone})
+                            </h4>
+                          </div>
+                          <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-bold capitalize">
+                            {searchedOrderResult.orderStatus}
+                          </span>
+                        </div>
+                        <OrderTracking 
+                          orderStatus={searchedOrderResult.orderStatus}
+                          paymentStatus={searchedOrderResult.paymentStatus}
+                        />
+                      </div>
+                    ) : (
+                      <div className="bg-[#FFF1F2] border border-[#D71920]/30 rounded-2xl p-4 text-[#D71920] text-xs font-bold">
+                        No order found matching "{trackingInput}". Please check your Order ID and try again.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
             {userOrders.length > 0 ? (
               <div className="space-y-6">
+                <h3 className="text-sm font-black uppercase text-neutral-500 tracking-wider">Your Recent Orders</h3>
                 {userOrders.map(order => (
                   <div 
                     key={order.id}

@@ -8,7 +8,8 @@ import {
   Category, 
   Author, 
   Banner,
-  StoreSettings 
+  StoreSettings,
+  Review
 } from '../types';
 import { 
   db, 
@@ -89,6 +90,8 @@ interface StoreContextType {
   updateOrderStatus: (orderId: string, orderStatus: Order['orderStatus']) => Promise<void>;
   reviewPaymentSubmission: (subId: string, status: 'approved' | 'rejected', reason?: string) => Promise<void>;
   updateSettings: (newSettings: Partial<StoreSettings>) => Promise<void>;
+  reviews: Review[];
+  addProductReview: (review: Omit<Review, 'id' | 'createdAt'>) => Promise<void>;
 }
 
 function getPageFromLocation(): { page: string; productId: string | null } {
@@ -171,6 +174,27 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodConfig[]>(DEFAULT_PAYMENT_METHODS);
   const [orders, setOrders] = useState<Order[]>([]);
   const [paymentSubmissions, setPaymentSubmissions] = useState<PaymentSubmission[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([
+    { id: 'rev-1', productId: 'prod-1', userName: 'Tanvir Ahmed', rating: 5, comment: 'Authentic print quality! Book binding and paper feel 100% original. Delivered in Sylhet within 48 hours.', createdAt: Date.now() - 86400000, isVerifiedPurchase: true },
+    { id: 'rev-2', productId: 'prod-1', userName: 'Nusrat Jahan', rating: 5, comment: 'Fast bKash manual payment verification. Received the package safely wrapped in bubble wrap.', createdAt: Date.now() - 43200000, isVerifiedPurchase: true }
+  ]);
+
+  const addProductReview = async (reviewData: Omit<Review, 'id' | 'createdAt'>) => {
+    const id = 'rev-' + Date.now();
+    const newRev: Review = {
+      ...reviewData,
+      id,
+      createdAt: Date.now()
+    };
+    try {
+      const cleaned = cleanForFirestore(newRev);
+      await setDoc(doc(db, 'reviews', id), cleaned);
+      setReviews(prev => [newRev, ...prev]);
+    } catch (err: any) {
+      console.error('Error adding review to Firebase:', err);
+      setReviews(prev => [newRev, ...prev]);
+    }
+  };
   
   const [cart, setCart] = useState<CartItem[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
@@ -200,8 +224,64 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     instagramUrl: 'https://instagram.com/mrbooksbd',
     youtubeUrl: 'https://youtube.com',
     bkashNumber: '01712345678',
-    nagadNumber: '01812345678'
+    nagadNumber: '01812345678',
+    facebookPixelId: '123456789012345',
+    facebookCapiToken: '',
+    gaMeasurementId: 'G-XXXXXXXXXX',
+    tiktokPixelId: 'CXXXXXXXXXXXXXXX',
+    footerPaymentMethods: [
+      { id: 'p1', name: 'bKash Online', icon: 'bkash', isActive: true },
+      { id: 'p2', name: 'Nagad Gateway', icon: 'nagad', isActive: true },
+      { id: 'p3', name: 'Visa / MasterCard', icon: 'visa', isActive: true },
+      { id: 'p4', name: 'Cash on Delivery', icon: 'cod', isActive: true }
+    ],
+    socialLinks: [
+      { id: 's1', name: 'Facebook', url: 'https://facebook.com/mrbooksbd', icon: 'facebook', isActive: true },
+      { id: 's2', name: 'Instagram', url: 'https://instagram.com/mrbooksbd', icon: 'instagram', isActive: true },
+      { id: 's3', name: 'YouTube', url: 'https://youtube.com', icon: 'youtube', isActive: true },
+      { id: 's4', name: 'TikTok', url: 'https://tiktok.com', icon: 'tiktok', isActive: true },
+      { id: 's5', name: 'WhatsApp', url: 'https://wa.me/8801712345678', icon: 'message-circle', isActive: true }
+    ],
+    metaTitle: 'MR. BOOKS - Premium Online Bookstore & Stationery in Bangladesh',
+    metaDescription: 'Buy bestselling books, novels, Islamic books, university textbooks, and premium stationery online in Bangladesh with fast nationwide delivery.',
+    ogImageUrl: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=1200&auto=format&fit=crop&q=80',
+    keywords: 'bookstore bangladesh, online book shop dhaka, stationery, novel, islamic books, mr books'
   });
+
+  // Real-time SEO and OpenGraph head synchronization
+  useEffect(() => {
+    if (settings.metaTitle) {
+      document.title = settings.metaTitle;
+    } else if (settings.storeName) {
+      document.title = `${settings.storeName} - ${settings.tagline || 'Online Bookstore & Stationery'}`;
+    }
+
+    const updateMetaTag = (propertyOrName: string, content: string, isProperty = true) => {
+      if (!content) return;
+      const attr = isProperty ? 'property' : 'name';
+      let tag = document.querySelector(`meta[${attr}="${propertyOrName}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute(attr, propertyOrName);
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute('content', content);
+    };
+
+    if (settings.metaDescription) {
+      updateMetaTag('description', settings.metaDescription, false);
+      updateMetaTag('og:description', settings.metaDescription, true);
+    }
+    if (settings.metaTitle) {
+      updateMetaTag('og:title', settings.metaTitle, true);
+    }
+    if (settings.ogImageUrl) {
+      updateMetaTag('og:image', settings.ogImageUrl, true);
+    }
+    if (settings.keywords) {
+      updateMetaTag('keywords', settings.keywords, false);
+    }
+  }, [settings]);
 
   const setActivePage = (page: string, productId?: string) => {
     setActivePageState(page);
@@ -322,6 +402,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
+    const unsubReviews = onSnapshot(
+      collection(db, 'reviews'),
+      (snapshot) => {
+        if (!snapshot.empty) {
+          setReviews(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Review)));
+        }
+      },
+      (err) => {
+        console.warn('Reviews listener notice:', err.message);
+      }
+    );
+
     return () => {
       unsubProducts();
       unsubCategories();
@@ -329,6 +421,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubBanners();
       unsubPayments();
       unsubSettings();
+      unsubReviews();
     };
   }, []);
 
@@ -907,7 +1000,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       deleteCategory,
       updateOrderStatus,
       reviewPaymentSubmission,
-      updateSettings
+      updateSettings,
+      reviews,
+      addProductReview
     }}>
       {children}
     </StoreContext.Provider>

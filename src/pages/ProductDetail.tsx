@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 
 export function ProductDetail() {
-  const { products, selectedProductId, setActivePage, addToCart, wishlist, toggleWishlist, setSelectedCategoryFilter, settings } = useStore();
+  const { products, selectedProductId, setActivePage, addToCart, wishlist, toggleWishlist, setSelectedCategoryFilter, settings, reviews, addProductReview } = useStore();
   
   const product = products.find(p => p.id === selectedProductId) || products[0];
   const [selectedVariantId, setSelectedVariantId] = useState<string>(product?.variants[0]?.id || '');
@@ -37,6 +37,39 @@ export function ProductDetail() {
   const [copiedLink, setCopiedLink] = useState(false);
   const [addedAlert, setAddedAlert] = useState(false);
   const [activeTab, setActiveTab] = useState<'description' | 'specifications' | 'reviews'>('description');
+
+  const [newReviewName, setNewReviewName] = useState('');
+  const [newReviewRating, setNewReviewRating] = useState(5);
+  const [newReviewComment, setNewReviewComment] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewSuccess, setReviewSuccess] = useState(false);
+
+  const productReviews = reviews.filter(r => r.productId === product.id);
+  const avgRating = productReviews.length > 0 
+    ? (productReviews.reduce((sum, r) => sum + r.rating, 0) / productReviews.length).toFixed(1)
+    : (product.rating || 5.0);
+
+  const handleReviewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newReviewName.trim() || !newReviewComment.trim()) return;
+    setReviewSubmitting(true);
+    try {
+      await addProductReview({
+        productId: product.id,
+        userName: newReviewName.trim(),
+        rating: Number(newReviewRating),
+        comment: newReviewComment.trim(),
+        isVerifiedPurchase: true
+      });
+      setNewReviewName('');
+      setNewReviewComment('');
+      setNewReviewRating(5);
+      setReviewSuccess(true);
+      setTimeout(() => setReviewSuccess(false), 3000);
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
 
   if (!product) {
     return (
@@ -581,41 +614,119 @@ export function ProductDetail() {
 
           {/* TAB 3: Reviews */}
           {activeTab === 'reviews' && (
-            <div className="bg-neutral-50 p-5 sm:p-7 rounded-2xl border border-neutral-200 space-y-3">
-              <div className="flex items-center justify-between pb-3 border-b border-neutral-200">
+            <div className="bg-neutral-50 p-5 sm:p-7 rounded-2xl border border-neutral-200 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-neutral-200 gap-4">
                 <div>
-                  <h3 className="font-black text-base sm:text-lg text-neutral-900">Verified Reader Ratings</h3>
+                  <h3 className="font-black text-base sm:text-lg text-neutral-900">Verified Reader Ratings & Reviews</h3>
                   <div className="flex items-center gap-2 mt-1">
                     <div className="flex items-center text-amber-500">
                       {[...Array(5)].map((_, i) => (
-                        <Star key={i} size={16} fill="currentColor" />
+                        <Star key={i} size={16} fill={i < Math.round(Number(avgRating)) ? 'currentColor' : 'none'} />
                       ))}
                     </div>
-                    <span className="font-bold text-sm text-neutral-900">{product.rating} out of 5</span>
+                    <span className="font-black text-sm text-neutral-900">{avgRating} out of 5</span>
+                    <span className="text-xs text-neutral-500 font-medium">({productReviews.length} reviews)</span>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-3 pt-1">
-                <div className="p-3.5 bg-white rounded-xl border border-neutral-200 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs text-neutral-900">Tanvir Ahmed</span>
-                    <span className="text-[11px] text-neutral-400">Sylhet</span>
-                  </div>
-                  <p className="text-xs text-neutral-600 leading-relaxed italic">
-                    "Authentic print quality! Book binding and paper feel 100% original. Delivered in Sylhet within 48 hours."
-                  </p>
-                </div>
+              {/* Review Submission Form */}
+              <div className="bg-white p-5 rounded-2xl border border-neutral-200 shadow-2xs space-y-4">
+                <h4 className="font-bold text-xs uppercase tracking-wide text-neutral-900">Leave Your Verified Review</h4>
 
-                <div className="p-3.5 bg-white rounded-xl border border-neutral-200 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs text-neutral-900">Nusrat Jahan</span>
-                    <span className="text-[11px] text-neutral-400">Dhaka (Dhanmondi)</span>
+                {reviewSuccess && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2">
+                    <CheckCircle2 size={16} className="text-emerald-600" />
+                    Review submitted successfully! Thank you for your feedback.
                   </div>
-                  <p className="text-xs text-neutral-600 leading-relaxed italic">
-                    "Fast bKash manual payment verification. Received the package safely wrapped in bubble wrap."
-                  </p>
-                </div>
+                )}
+
+                <form onSubmit={handleReviewSubmit} className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <label className="block font-bold text-neutral-700 mb-1">Your Name</label>
+                      <input 
+                        type="text"
+                        required
+                        placeholder="e.g. Abdullah Al Mamun"
+                        value={newReviewName}
+                        onChange={e => setNewReviewName(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-900 font-semibold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-neutral-700 mb-1">Star Rating</label>
+                      <select
+                        value={newReviewRating}
+                        onChange={e => setNewReviewRating(Number(e.target.value))}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-900 font-bold"
+                      >
+                        <option value="5">5 Stars - Excellent / Original</option>
+                        <option value="4">4 Stars - Very Good</option>
+                        <option value="3">3 Stars - Good</option>
+                        <option value="2">2 Stars - Fair</option>
+                        <option value="1">1 Star - Poor</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-neutral-700 mb-1">Your Detailed Review & Comment</label>
+                    <textarea 
+                      rows={3}
+                      required
+                      placeholder="Share your experience regarding paper quality, binding, delivery speed..."
+                      value={newReviewComment}
+                      onChange={e => setNewReviewComment(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-900 text-xs"
+                    />
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={reviewSubmitting}
+                      className="px-5 py-2.5 bg-[#D71920] hover:bg-[#B9151B] disabled:opacity-50 text-white font-bold rounded-xl text-xs shadow-md cursor-pointer transition-all"
+                    >
+                      {reviewSubmitting ? 'Submitting Review...' : 'Post Verified Review'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* Dynamic Reviews List */}
+              <div className="space-y-3 pt-2">
+                {productReviews.length > 0 ? (
+                  productReviews.map(rev => (
+                    <div key={rev.id} className="p-4 bg-white rounded-2xl border border-neutral-200 space-y-2 shadow-2xs">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="font-black text-xs text-neutral-900">{rev.userName}</span>
+                          {rev.isVerifiedPurchase && (
+                            <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+                              <CheckCircle2 size={10} /> Verified Purchaser
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center text-amber-500">
+                          {[...Array(5)].map((_, i) => (
+                            <Star key={i} size={12} fill={i < rev.rating ? 'currentColor' : 'none'} />
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-xs text-neutral-700 leading-relaxed italic">
+                        "{rev.comment}"
+                      </p>
+                      <div className="text-[10px] text-neutral-400">
+                        {new Date(rev.createdAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-6 text-neutral-400 text-xs font-medium">
+                    No reviews yet for this product. Be the first verified purchaser to leave a review!
+                  </div>
+                )}
               </div>
             </div>
           )}

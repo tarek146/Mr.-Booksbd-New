@@ -2258,6 +2258,203 @@ export function AdminDashboard() {
                 </div>
               </div>
 
+              {/* Marketing & Tracking Conversion APIs */}
+              <div className="pt-6 border-t border-[#EEEEEE] space-y-4">
+                <h3 className="text-sm font-black text-[#171717] uppercase tracking-wider flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+                  Marketing & Conversion Tracking APIs (Facebook CAPI, GA4, TikTok)
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <label className="block font-bold text-[#5F6368] mb-1">Facebook Pixel ID</label>
+                    <input 
+                      type="text"
+                      placeholder="e.g. 123456789012345"
+                      value={settingsForm.facebookPixelId || ''}
+                      onChange={e => setSettingsForm(prev => ({ ...prev, facebookPixelId: e.target.value }))}
+                      className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-[#5F6368] mb-1">Facebook CAPI Access Token (Server-side)</label>
+                    <input 
+                      type="password"
+                      placeholder="EAA..."
+                      value={settingsForm.facebookCapiToken || ''}
+                      onChange={e => setSettingsForm(prev => ({ ...prev, facebookCapiToken: e.target.value }))}
+                      className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-[#5F6368] mb-1">Google Analytics (GA4) Measurement ID</label>
+                    <input 
+                      type="text"
+                      placeholder="G-XXXXXXXXXX"
+                      value={settingsForm.gaMeasurementId || ''}
+                      onChange={e => setSettingsForm(prev => ({ ...prev, gaMeasurementId: e.target.value }))}
+                      className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-[#5F6368] mb-1">TikTok Pixel ID</label>
+                    <input 
+                      type="text"
+                      placeholder="CXXXXXXXXXXXXXXX"
+                      value={settingsForm.tiktokPixelId || ''}
+                      onChange={e => setSettingsForm(prev => ({ ...prev, tiktokPixelId: e.target.value }))}
+                      className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer Payment Methods & Social Media Management */}
+              <div className="pt-6 border-t border-[#EEEEEE] space-y-4">
+                <h3 className="text-sm font-black text-[#171717] uppercase tracking-wider flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
+                  Footer Payment Options & Social Media Manager
+                </h3>
+                <p className="text-xs text-[#5F6368]">
+                  Manage the payment option badges and social media links displayed in your website footer.
+                </p>
+
+                {/* Footer Payment Methods List */}
+                <div className="space-y-2">
+                  <label className="block font-bold text-xs text-slate-700">Footer Payment Options</label>
+                  {(settingsForm.footerPaymentMethods || []).map((pm, idx) => (
+                    <div key={pm.id} className="flex items-center gap-3 bg-[#F7F7F8] p-2.5 rounded-xl border border-[#E5E5E5]">
+                      <input 
+                        type="text"
+                        value={pm.name}
+                        onChange={e => {
+                          const updated = [...(settingsForm.footerPaymentMethods || [])];
+                          updated[idx].name = e.target.value;
+                          setSettingsForm(prev => ({ ...prev, footerPaymentMethods: updated }));
+                        }}
+                        className="flex-1 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-bold"
+                      />
+                      <label className="flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
+                        <input 
+                          type="checkbox"
+                          checked={pm.isActive}
+                          onChange={e => {
+                            const updated = [...(settingsForm.footerPaymentMethods || [])];
+                            updated[idx].isActive = e.target.checked;
+                            setSettingsForm(prev => ({ ...prev, footerPaymentMethods: updated }));
+                          }}
+                          className="w-4 h-4 accent-[#D71920]"
+                        />
+                        Show in Footer
+                      </label>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Footer Social Media Links List */}
+                <div className="space-y-2 pt-2">
+                  <label className="block font-bold text-xs text-slate-700">Footer Social Media Links ("Our Social Media")</label>
+                  {(settingsForm.socialLinks || []).map((soc, idx) => (
+                    <div key={soc.id} className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-[#F7F7F8] p-2.5 rounded-xl border border-[#E5E5E5]">
+                      <input 
+                        type="text"
+                        placeholder="Platform Name (e.g. Facebook)"
+                        value={soc.name}
+                        onChange={e => {
+                          const updated = [...(settingsForm.socialLinks || [])];
+                          updated[idx].name = e.target.value;
+                          setSettingsForm(prev => ({ ...prev, socialLinks: updated }));
+                        }}
+                        className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-bold"
+                      />
+                      <input 
+                        type="text"
+                        placeholder="URL (https://...)"
+                        value={soc.url}
+                        onChange={e => {
+                          const updated = [...(settingsForm.socialLinks || [])];
+                          updated[idx].url = e.target.value;
+                          setSettingsForm(prev => ({ ...prev, socialLinks: updated }));
+                        }}
+                        className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-semibold"
+                      />
+                      <div className="flex items-center justify-between">
+                        <label className="flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
+                          <input 
+                            type="checkbox"
+                            checked={soc.isActive}
+                            onChange={e => {
+                              const updated = [...(settingsForm.socialLinks || [])];
+                              updated[idx].isActive = e.target.checked;
+                              setSettingsForm(prev => ({ ...prev, socialLinks: updated }));
+                            }}
+                            className="w-4 h-4 accent-[#D71920]"
+                          />
+                          Active
+                        </label>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* SEO & Open Graph Settings Section */}
+              <div className="pt-6 border-t border-[#EEEEEE] space-y-4">
+                <h3 className="text-sm font-black text-[#171717] uppercase tracking-wider flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-purple-600"></span>
+                  SEO & Open Graph Metadata Settings (Real-time Head Sync)
+                </h3>
+                <p className="text-xs text-[#5F6368]">
+                  Configure search engine optimization meta tags and social share preview cards (Open Graph) that update the site head instantly upon saving.
+                </p>
+
+                <div className="space-y-4 text-xs">
+                  <div>
+                    <label className="block font-bold text-[#5F6368] mb-1">Meta Title (<code className="text-slate-800 font-mono">title</code>)</label>
+                    <input 
+                      type="text"
+                      placeholder="e.g. MR. BOOKS - Best Online Bookstore in Bangladesh"
+                      value={settingsForm.metaTitle || ''}
+                      onChange={e => setSettingsForm(prev => ({ ...prev, metaTitle: e.target.value }))}
+                      className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717] font-semibold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-[#5F6368] mb-1">Meta Description (<code className="text-slate-800 font-mono">meta name="description"</code>)</label>
+                    <textarea 
+                      rows={3}
+                      placeholder="Brief overview of your store for search engines..."
+                      value={settingsForm.metaDescription || ''}
+                      onChange={e => setSettingsForm(prev => ({ ...prev, metaDescription: e.target.value }))}
+                      className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-bold text-[#5F6368] mb-1">Open Graph Image URL (<code className="text-slate-800 font-mono">og:image</code>)</label>
+                      <input 
+                        type="text"
+                        placeholder="https://images.unsplash.com/..."
+                        value={settingsForm.ogImageUrl || ''}
+                        onChange={e => setSettingsForm(prev => ({ ...prev, ogImageUrl: e.target.value }))}
+                        className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-[#5F6368] mb-1">Keywords (<code className="text-slate-800 font-mono">keywords</code>)</label>
+                      <input 
+                        type="text"
+                        placeholder="bookstore, novels, stationery, dhaka"
+                        value={settingsForm.keywords || ''}
+                        onChange={e => setSettingsForm(prev => ({ ...prev, keywords: e.target.value }))}
+                        className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="pt-2 flex justify-end">
                 <button 
                   type="submit" 

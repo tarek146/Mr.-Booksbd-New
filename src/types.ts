@@ -151,6 +151,21 @@ export interface AuditLog {
   timestamp: number;
 }
 
+export interface FooterPaymentMethod {
+  id: string;
+  name: string;
+  icon: string; // e.g. 'bkash', 'nagad', 'visa', 'mastercard', 'cod'
+  isActive: boolean;
+}
+
+export interface SocialLinkItem {
+  id: string;
+  name: string; // e.g. 'Facebook', 'Instagram', 'YouTube', 'TikTok', 'Twitter'
+  url: string;
+  icon: string;
+  isActive: boolean;
+}
+
 export interface StoreSettings {
   storeName: string;
   tagline: string;
@@ -168,4 +183,28 @@ export interface StoreSettings {
   youtubeUrl: string;
   bkashNumber: string;
   nagadNumber: string;
+  // Marketing & Tracking APIs
+  facebookPixelId?: string;
+  facebookCapiToken?: string;
+  gaMeasurementId?: string;
+  tiktokPixelId?: string;
+  // Footer Customizations
+  footerPaymentMethods?: FooterPaymentMethod[];
+  socialLinks?: SocialLinkItem[];
+  // SEO Settings
+  metaTitle?: string;
+  metaDescription?: string;
+  ogImageUrl?: string;
+  keywords?: string;
+}
+
+export interface Review {
+  id: string;
+  productId: string;
+  userName: string;
+  userEmail?: string;
+  rating: number;
+  comment: string;
+  createdAt: number;
+  isVerifiedPurchase?: boolean;
 }
