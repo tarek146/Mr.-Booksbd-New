@@ -136,6 +136,13 @@ export function AdminDashboard() {
   const [prodIsOriginal, setProdIsOriginal] = useState(true);
   const [prodPrintVariants, setProdPrintVariants] = useState('Paperback, Hardcover');
   const [prodDeliveryEstimate, setProdDeliveryEstimate] = useState('2-3 Days');
+  const [prodPublisher, setProdPublisher] = useState('');
+  const [prodIsbn, setProdIsbn] = useState('');
+  const [prodBrand, setProdBrand] = useState('');
+  const [prodMaterial, setProdMaterial] = useState('');
+  const [prodDimensions, setProdDimensions] = useState('');
+  const [prodColorModel, setProdColorModel] = useState('');
+  const [inventoryFilter, setInventoryFilter] = useState<'all' | 'book' | 'stationery'>('all');
 
   // Reject reason modal
   const [rejectingSubId, setRejectingSubId] = useState<string | null>(null);
@@ -199,21 +206,26 @@ export function AdminDashboard() {
       type: prodType,
       title: prodTitle,
       slug: prodTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
-      description: 'Book or stationery item from MR. BOOKS inventory.',
+      description: prodType === 'book' ? 'Authentic book publication from MR. BOOKS.' : 'Premium stationery and office supply item.',
       category: prodCategory,
-      author: prodAuthor,
-      publisher: 'MR. BOOKS Publications',
+      author: prodType === 'book' ? prodAuthor : (prodBrand || 'Stationery Brand'),
+      publisher: prodType === 'book' ? (prodPublisher || 'MR. BOOKS Publications') : undefined,
+      isbn: prodType === 'book' ? prodIsbn : undefined,
+      brand: prodType === 'stationery' ? prodBrand : undefined,
+      material: prodType === 'stationery' ? prodMaterial : undefined,
+      dimensions: prodType === 'stationery' ? prodDimensions : undefined,
+      colorModel: prodType === 'stationery' ? prodColorModel : undefined,
       images: allImages,
       price: prodPrice,
       previousPrice: prodPrice + 100,
       stock: 100,
-      sku: 'MRB-' + Math.floor(1000 + Math.random() * 9000),
+      sku: (prodType === 'book' ? 'MRB-BK-' : 'MRB-ST-') + Math.floor(1000 + Math.random() * 9000),
       rating: 5.0,
       reviewCount: 1,
       isOriginalBadge: prodIsOriginal,
       deliveryEstimate: prodDeliveryEstimate,
       variants: parsedVariants.length > 0 ? parsedVariants : [
-        { id: 'v1', name: 'Paperback', price: prodPrice, stock: 100, sku: 'MRB-PB' }
+        { id: 'v1', name: prodType === 'book' ? 'Paperback' : 'Standard', price: prodPrice, stock: 100, sku: 'MRB-VAR-1' }
       ]
     };
 
@@ -226,6 +238,12 @@ export function AdminDashboard() {
     setEditingProductId(null);
     setProdTitle('');
     setProdAuthor('');
+    setProdPublisher('');
+    setProdIsbn('');
+    setProdBrand('');
+    setProdMaterial('');
+    setProdDimensions('');
+    setProdColorModel('');
     setProdImage('');
     setProdExtraImages('');
     setProdPrintVariants('Paperback, Hardcover');
@@ -1180,8 +1198,11 @@ export function AdminDashboard() {
         {/* TAB 5: CATALOG & INVENTORY */}
         {activeTab === 'products' && (
           <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-[#EEEEEE]">
-              <h2 className="text-xl font-black text-[#171717]">Books & Stationery Inventory</h2>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-[#EEEEEE]">
+              <div>
+                <h2 className="text-xl font-black text-[#171717]">Books & Stationery Inventory</h2>
+                <p className="text-xs text-[#5F6368] mt-1">Manage catalog items, add new books with author/publisher details, or stationery with brand/material specifications.</p>
+              </div>
               <button 
                 onClick={() => {
                   setEditingProductId(null);
@@ -1190,6 +1211,12 @@ export function AdminDashboard() {
                   setProdPrice(350);
                   setProdCategory(categories[0]?.name || 'Fiction & Literature');
                   setProdAuthor('');
+                  setProdPublisher('');
+                  setProdIsbn('');
+                  setProdBrand('');
+                  setProdMaterial('');
+                  setProdDimensions('');
+                  setProdColorModel('');
                   setProdImage('');
                   setProdExtraImages('');
                   setProdPrintVariants('Paperback, Hardcover');
@@ -1197,20 +1224,45 @@ export function AdminDashboard() {
                   setProdDeliveryEstimate('2-3 Days');
                   setShowAddProdModal(true);
                 }}
-                className="px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md cursor-pointer"
+                className="px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md cursor-pointer shrink-0"
               >
                 <Plus size={14} /> Add Product
               </button>
             </div>
 
+            {/* Inventory Filter Pills */}
+            <div className="flex items-center gap-2 bg-[#F7F7F8] p-1.5 rounded-2xl w-fit border border-[#E5E5E5]">
+              {[
+                { id: 'all', label: `All Products (${products.length})` },
+                { id: 'book', label: `Books (${products.filter(p => p.type === 'book').length})` },
+                { id: 'stationery', label: `Stationery (${products.filter(p => p.type === 'stationery').length})` }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setInventoryFilter(tab.id as any)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    inventoryFilter === tab.id ? 'bg-[#D71920] text-white shadow-xs' : 'text-neutral-600 hover:text-neutral-900'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {products.map(p => (
+              {products
+                .filter(p => inventoryFilter === 'all' || p.type === inventoryFilter)
+                .map(p => (
                 <div key={p.id} className="p-4 rounded-2xl border border-[#E5E5E5] bg-[#F7F7F8] flex items-center gap-3.5">
                   <img src={p.images[0]} alt="" className="w-14 h-18 object-contain bg-white rounded-lg p-1 border border-[#E5E5E5]" />
                   <div className="flex-1 min-w-0">
-                    <span className="text-[10px] font-bold uppercase text-[#D71920]">{p.type}</span>
-                    <h4 className="font-bold text-xs text-[#171717] truncate">{p.title}</h4>
-                    <p className="text-xs font-black text-[#171717] mt-1">৳{p.price}</p>
+                    <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                      p.type === 'book' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {p.type === 'book' ? '📚 Book' : '✏️ Stationery'}
+                    </span>
+                    <h4 className="font-bold text-xs text-[#171717] truncate mt-1">{p.title}</h4>
+                    <p className="text-xs font-black text-[#171717] mt-0.5">৳{p.price}</p>
                     <div className="flex items-center gap-3 mt-1.5">
                       <button 
                         onClick={() => {
@@ -1219,7 +1271,13 @@ export function AdminDashboard() {
                           setProdType(p.type);
                           setProdPrice(p.price);
                           setProdCategory(p.category);
-                          setProdAuthor(p.author || (p as any).brand || '');
+                          setProdAuthor(p.author || '');
+                          setProdPublisher((p as any).publisher || '');
+                          setProdIsbn((p as any).isbn || '');
+                          setProdBrand((p as any).brand || p.author || '');
+                          setProdMaterial((p as any).material || '');
+                          setProdDimensions((p as any).dimensions || '');
+                          setProdColorModel((p as any).colorModel || '');
                           setProdImage(p.images[0] || '');
                           setProdExtraImages(p.images.slice(1).join(', '));
                           setProdIsOriginal(p.isOriginalBadge !== false);
@@ -1244,78 +1302,135 @@ export function AdminDashboard() {
             </div>
 
             {showAddProdModal && (
-              <form onSubmit={handleCreateProduct} className="p-5 bg-[#F7F7F8] rounded-2xl border border-[#E5E5E5] space-y-3">
-                <h3 className="font-bold text-sm text-[#171717]">
-                  {editingProductId ? 'Edit Book or Stationery' : 'Add New Book or Stationery'}
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <input type="text" placeholder="Title" required value={prodTitle} onChange={e => setProdTitle(e.target.value)} className="px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]" />
-                  <select value={prodType} onChange={e => setProdType(e.target.value as any)} className="px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]">
-                    <option value="book">Book</option>
-                    <option value="stationery">Stationery</option>
-                  </select>
-                  <select value={prodCategory} onChange={e => setProdCategory(e.target.value)} className="px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]">
-                    {categories.map(c => (
-                      <option key={c.id} value={c.name}>{c.name}</option>
-                    ))}
-                  </select>
-                  <input type="number" placeholder="Price (BDT)" required value={prodPrice} onChange={e => setProdPrice(Number(e.target.value))} className="px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]" />
-                  <input type="text" placeholder="Author / Brand" required value={prodAuthor} onChange={e => setProdAuthor(e.target.value)} className="px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717] sm:col-span-2" />
+              <form onSubmit={handleCreateProduct} className="p-6 bg-[#F7F7F8] rounded-3xl border border-[#E5E5E5] space-y-4 shadow-xl">
+                <div className="flex items-center justify-between pb-3 border-b border-[#E5E5E5]">
+                  <h3 className="font-black text-sm text-[#171717]">
+                    {editingProductId ? 'Edit Catalog Item' : 'Add New Item (Book or Stationery)'}
+                  </h3>
+                  <button type="button" onClick={() => setShowAddProdModal(false)} className="text-neutral-400 hover:text-neutral-900 font-bold">✕</button>
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Item Title</label>
+                    <input type="text" placeholder="e.g. Paradoxical Sajid / Faber Castell Pencil" required value={prodTitle} onChange={e => setProdTitle(e.target.value)} className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]" />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Catalog Type</label>
+                    <select value={prodType} onChange={e => setProdType(e.target.value as any)} className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs font-bold text-[#171717]">
+                      <option value="book">📚 Book (Literature / Text)</option>
+                      <option value="stationery">✏️ Stationery & Office Supply</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Category</label>
+                    <select value={prodCategory} onChange={e => setProdCategory(e.target.value)} className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]">
+                      {categories
+                        .filter(c => c.type === prodType)
+                        .map(c => (
+                          <option key={c.id} value={c.name}>{c.name}</option>
+                        ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Price (BDT)</label>
+                    <input type="number" placeholder="350" required value={prodPrice} onChange={e => setProdPrice(Number(e.target.value))} className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]" />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Delivery Estimate</label>
+                    <input type="text" placeholder="e.g. 2-3 Days" value={prodDeliveryEstimate} onChange={e => setProdDeliveryEstimate(e.target.value)} className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]" />
+                  </div>
+                </div>
+
+                {/* TAILORED FIELDS: BOOK VS STATIONERY */}
+                {prodType === 'book' ? (
+                  <div className="p-4 rounded-2xl bg-amber-50/50 border border-amber-200/60 space-y-3">
+                    <div className="text-xs font-black text-amber-900 flex items-center gap-1.5">
+                      <span>📚 Book Specific Attributes</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">Author Name *</label>
+                        <input type="text" placeholder="e.g. Humayun Ahmed" required value={prodAuthor} onChange={e => setProdAuthor(e.target.value)} className="w-full px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-white text-xs" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">Publisher</label>
+                        <input type="text" placeholder="e.g. Prothoma Publications" value={prodPublisher} onChange={e => setProdPublisher(e.target.value)} className="w-full px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-white text-xs" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">ISBN Code</label>
+                        <input type="text" placeholder="e.g. 978984..." value={prodIsbn} onChange={e => setProdIsbn(e.target.value)} className="w-full px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-white text-xs" />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-2xl bg-blue-50/50 border border-blue-200/60 space-y-3">
+                    <div className="text-xs font-black text-blue-900 flex items-center gap-1.5">
+                      <span>✏️ Stationery & Office Supply Attributes</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">Brand / Manufacturer *</label>
+                        <input type="text" placeholder="e.g. Faber-Castell / Deli" required value={prodBrand} onChange={e => setProdBrand(e.target.value)} className="w-full px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-white text-xs" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">Material</label>
+                        <input type="text" placeholder="e.g. Plastic / Wood / Metal" value={prodMaterial} onChange={e => setProdMaterial(e.target.value)} className="w-full px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-white text-xs" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">Dimensions / Size</label>
+                        <input type="text" placeholder="e.g. A4 / 0.5mm / 30cm" value={prodDimensions} onChange={e => setProdDimensions(e.target.value)} className="w-full px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-white text-xs" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">Color / Model</label>
+                        <input type="text" placeholder="e.g. Blue / Matte Black" value={prodColorModel} onChange={e => setProdColorModel(e.target.value)} className="w-full px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-white text-xs" />
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
-                <div className="space-y-2 pt-1">
+                <div className="space-y-1">
                   <label className="block text-[11px] font-bold text-[#5F6368] uppercase tracking-wider">
                     Main Photo URL:
                   </label>
-                  <input type="url" placeholder="Cover Image URL (e.g. https://...)" value={prodImage} onChange={e => setProdImage(e.target.value)} className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]" />
+                  <input type="url" placeholder="Cover Image URL (https://...)" value={prodImage} onChange={e => setProdImage(e.target.value)} className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]" />
                 </div>
 
                 <div className="space-y-1">
                   <label className="block text-[11px] font-bold text-[#5F6368] uppercase tracking-wider">
-                    Book Print Editions / Formats (Auto-rotates every 3-4s on Home):
+                    {prodType === 'book' ? 'Book Print Editions / Formats:' : 'Item Variants / Pack Sizes:'}
                   </label>
                   <input 
                     type="text" 
-                    placeholder="e.g. Paperback, Hardcover, Regular Print, Premium Print" 
+                    placeholder={prodType === 'book' ? 'Paperback, Hardcover' : 'Single Piece, Pack of 5, Box of 12'} 
                     value={prodPrintVariants} 
                     onChange={e => setProdPrintVariants(e.target.value)} 
                     className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]"
                   />
-                  <span className="text-[10px] text-[#777777] block">
-                    Tip: Enter comma-separated print editions (Paperback, Hardcover, Premium Print, etc.) to cycle automatically on product cards!
-                  </span>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="block text-[11px] font-bold text-[#5F6368] uppercase tracking-wider">
-                    Delivery Estimate:
-                  </label>
-                  <input 
-                    type="text" 
-                    placeholder="e.g. 2-3 Days, 5-7 Days" 
-                    value={prodDeliveryEstimate} 
-                    onChange={e => setProdDeliveryEstimate(e.target.value)} 
-                    className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]"
-                  />
-                </div>
+                {prodType === 'book' && (
+                  <div className="flex items-center gap-2 pt-1 pb-1">
+                    <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                      <input 
+                        type="checkbox" 
+                        checked={prodIsOriginal} 
+                        onChange={e => setProdIsOriginal(e.target.checked)} 
+                        className="w-4 h-4 text-[#D71920] accent-[#D71920] rounded cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-neutral-800 flex items-center gap-1">
+                        <ShieldCheck size={14} className="text-emerald-600" /> Show "অরিজিনাল বই" (Original Book Verified Badge)
+                      </span>
+                    </label>
+                  </div>
+                )}
 
-                <div className="flex items-center gap-2 pt-1 pb-1">
-                  <label className="inline-flex items-center gap-2 cursor-pointer select-none">
-                    <input 
-                      type="checkbox" 
-                      checked={prodIsOriginal} 
-                      onChange={e => setProdIsOriginal(e.target.checked)} 
-                      className="w-4 h-4 text-[#D71920] accent-[#D71920] rounded cursor-pointer"
-                    />
-                    <span className="text-xs font-bold text-neutral-800 flex items-center gap-1">
-                      <ShieldCheck size={14} className="text-emerald-600" /> Show "অরিজিনাল বই" (Original Book Verified Badge)
-                    </span>
-                  </label>
-                </div>
-
-                <div className="flex justify-end gap-2 pt-2">
-                  <button type="button" onClick={() => setShowAddProdModal(false)} className="px-4 py-1.5 bg-white text-xs font-bold rounded-lg border border-[#E5E5E5] cursor-pointer">Cancel</button>
-                  <button type="submit" className="px-4 py-1.5 bg-[#D71920] text-white text-xs font-bold rounded-lg shadow-sm cursor-pointer">Save to Catalog</button>
+                <div className="flex justify-end gap-2 pt-3">
+                  <button type="button" onClick={() => setShowAddProdModal(false)} className="px-4 py-2 bg-white text-xs font-bold rounded-xl border border-[#E5E5E5] cursor-pointer">Cancel</button>
+                  <button type="submit" className="px-5 py-2 bg-[#D71920] text-white text-xs font-bold rounded-xl shadow-md cursor-pointer hover:bg-[#B9151B]">Save Product</button>
                 </div>
               </form>
             )}

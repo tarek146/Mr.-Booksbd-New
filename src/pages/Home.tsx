@@ -46,7 +46,7 @@ export function Home() {
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-[#D71920]" />
             <h2 className="text-xs sm:text-sm font-bold text-[#171717] tracking-tight">
-              Popular Book Categories
+              Our Categories
             </h2>
           </div>
           <button 
