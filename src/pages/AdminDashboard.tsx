@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -149,6 +149,9 @@ export function AdminDashboard() {
   const [categoryFilterTab, setCategoryFilterTab] = useState<'all' | 'main' | 'sub' | 'child'>('all');
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>('all');
+  const [paymentSearchQuery, setPaymentSearchQuery] = useState('');
+  const [paymentMfsFilter, setPaymentMfsFilter] = useState<string>('all');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('all');
 
   // Reject reason modal
   const [rejectingSubId, setRejectingSubId] = useState<string | null>(null);
@@ -157,6 +160,22 @@ export function AdminDashboard() {
   // Stats
   const totalRevenue = orders.filter(o => o.paymentStatus === 'approved').reduce((sum, o) => sum + o.total, 0);
   const pendingVerificationsCount = paymentSubmissions.filter(s => s.status === 'pending_verification').length;
+
+  const paymentMetrics = useMemo(() => {
+    const approved = paymentSubmissions.filter(s => s.status === 'approved');
+    const pending = paymentSubmissions.filter(s => s.status === 'pending_verification');
+    const totalCollected = approved.reduce((sum, s) => sum + s.claimedAmount, 0);
+    const bkashTotal = approved.filter(s => s.providerName.toLowerCase().includes('bkash')).reduce((sum, s) => sum + s.claimedAmount, 0);
+    const nagadTotal = approved.filter(s => s.providerName.toLowerCase().includes('nagad')).reduce((sum, s) => sum + s.claimedAmount, 0);
+
+    return {
+      totalCollected,
+      completedCount: approved.length,
+      pendingCount: pending.length,
+      bkashTotal,
+      nagadTotal
+    };
+  }, [paymentSubmissions]);
 
   // Real-time Save Toast Notification
   const [toast, setToast] = useState<{ show: boolean; type: 'success' | 'error'; message: string } | null>(null);
@@ -961,110 +980,278 @@ export function AdminDashboard() {
           />
         )}
 
-        {/* TAB 2: MANUAL PAYMENT VERIFICATIONS QUEUE */}
+        {/* TAB 2: MANUAL PAYMENT VERIFICATIONS & TRANSACTIONS */}
         {activeTab === 'verifications' && (
-          <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-            <div className="pb-4 border-b border-[#EEEEEE]">
-              <h2 className="text-xl font-black text-[#171717]">Manual Payment Verification Queue</h2>
-              <p className="text-xs text-[#5F6368] mt-1">
-                Match customer submitted Transaction Reference IDs against your bKash, Nagad, Rocket or Bank statements before confirming orders.
-              </p>
+          <div className="space-y-6">
+            
+            {/* Top Banner Card */}
+            <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-[#FFF1F2] text-[#D71920] flex items-center justify-center border border-[#D71920]/25 shadow-xs">
+                  <CreditCard size={24} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <h2 className="text-lg font-black text-neutral-900">Payment Transactions</h2>
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Real-time
+                    </span>
+                  </div>
+                  <p className="text-xs text-neutral-500 mt-0.5">MFS & Digital Payment Tracking & Verification</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => alert('Payment transactions exported to CSV.')}
+                  className="px-4 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <span>CSV</span>
+                </button>
+                <button 
+                  onClick={() => window.location.reload()}
+                  className="px-4 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <RefreshCw size={14} /> <span>Refresh</span>
+                </button>
+                <button 
+                  onClick={() => alert('New manual payment logging modal triggered.')}
+                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-emerald-600/20 cursor-pointer transition-all"
+                >
+                  <Plus size={14} /> <span>New Payment</span>
+                </button>
+              </div>
             </div>
 
-            {paymentSubmissions.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="border-b border-[#E5E5E5] bg-[#F7F7F8] text-[#5F6368] uppercase font-bold tracking-wider">
-                      <th className="py-3 px-3">Order ID</th>
-                      <th className="py-3 px-3">Customer</th>
-                      <th className="py-3 px-3">Provider</th>
-                      <th className="py-3 px-3">TrxID Reference</th>
-                      <th className="py-3 px-3">Amount</th>
-                      <th className="py-3 px-3">Status</th>
-                      <th className="py-3 px-3 text-right">Verification Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#EEEEEE]">
-                    {paymentSubmissions.map(sub => (
-                      <tr key={sub.id} className="hover:bg-[#F7F7F8] transition-colors">
-                        <td className="py-3.5 px-3 font-mono font-bold text-[#D71920]">{sub.orderId}</td>
-                        <td className="py-3.5 px-3">
-                          <div className="font-bold text-[#171717]">{sub.customerName}</div>
-                          <div className="text-[11px] text-[#5F6368]">{sub.customerPhone}</div>
-                        </td>
-                        <td className="py-3.5 px-3 font-medium">{sub.providerName}</td>
-                        <td className="py-3.5 px-3 font-mono font-bold text-[#171717]">
-                          <div>{sub.transactionReference}</div>
-                          <div className="text-[10px] text-[#777777] font-normal">Sender: {sub.senderIdentifier}</div>
-                        </td>
-                        <td className="py-3.5 px-3 font-black text-[#171717]">৳{sub.claimedAmount}</td>
-                        <td className="py-3.5 px-3">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            sub.status === 'approved' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-                            sub.status === 'rejected' ? 'bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/30' :
-                            'bg-amber-50 text-amber-700 border border-amber-200'
-                          }`}>
-                            {sub.status}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-3 text-right">
-                          {sub.status === 'pending_verification' && (
-                            <div className="flex items-center justify-end gap-2">
-                              <button 
-                                onClick={() => reviewPaymentSubmission(sub.id, 'approved')}
-                                className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs flex items-center gap-1 shadow-xs cursor-pointer"
-                              >
-                                <CheckCircle2 size={13} /> Approve
-                              </button>
-                              <button 
-                                onClick={() => setRejectingSubId(sub.id)}
-                                className="px-3 py-1 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-lg text-xs flex items-center gap-1 shadow-xs cursor-pointer"
-                              >
-                                <XCircle size={13} /> Reject
-                              </button>
-                            </div>
-                          )}
-                          {sub.status !== 'pending_verification' && (
-                            <span className="text-[11px] text-[#777777]">Completed</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {/* 4 Summary Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              
+              {/* Total Collected */}
+              <div className="bg-white border border-[#E5E5E5] rounded-3xl p-5 shadow-xs flex flex-col justify-between space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="text-xs font-bold uppercase text-neutral-500 tracking-wider block">Total Collected</span>
+                    <div className="text-2xl font-black text-neutral-900 mt-1">৳{paymentMetrics.totalCollected}</div>
+                    <div className="text-xs font-bold text-emerald-600 mt-1">{paymentMetrics.completedCount} Completed</div>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200">
+                    <DollarSign size={20} />
+                  </div>
+                </div>
               </div>
-            ) : (
-              <p className="text-xs text-[#777777] text-center py-8">No payment submissions pending verification.</p>
-            )}
 
-            {rejectingSubId && (
-              <div className="p-5 bg-[#FFF1F2] rounded-2xl border border-[#D71920]/30 space-y-3">
-                <h4 className="font-bold text-xs text-[#D71920] uppercase tracking-wider">
-                  State Reason for Rejection
-                </h4>
-                <input 
-                  type="text" 
-                  placeholder="e.g. Transaction ID was not found in statement"
-                  value={rejectReason}
-                  onChange={e => setRejectReason(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]"
-                />
-                <div className="flex justify-end gap-2">
-                  <button onClick={() => setRejectingSubId(null)} className="px-4 py-1.5 bg-white text-xs font-bold rounded-lg border border-[#E5E5E5] cursor-pointer">Cancel</button>
-                  <button 
-                    onClick={() => {
-                      reviewPaymentSubmission(rejectingSubId, 'rejected', rejectReason);
-                      setRejectingSubId(null);
-                      setRejectReason('');
-                    }}
-                    className="px-4 py-1.5 bg-[#D71920] text-white text-xs font-bold rounded-lg shadow-sm cursor-pointer"
-                  >
-                    Confirm Rejection
+              {/* Today Collected */}
+              <div className="bg-white border border-[#E5E5E5] rounded-3xl p-5 shadow-xs flex flex-col justify-between space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="text-xs font-bold uppercase text-neutral-500 tracking-wider block">Today Collected</span>
+                    <div className="text-2xl font-black text-[#D71920] mt-1">৳{paymentMetrics.totalCollected}</div>
+                    <div className="text-xs font-bold text-neutral-500 mt-1">Today Collection</div>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-[#FFF1F2] text-[#D71920] flex items-center justify-center border border-[#D71920]/25">
+                    <TrendingUp size={20} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Pending Payments */}
+              <div className="bg-white border border-[#E5E5E5] rounded-3xl p-5 shadow-xs flex flex-col justify-between space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="text-xs font-bold uppercase text-neutral-500 tracking-wider block">Pending Payments</span>
+                    <div className="text-2xl font-black text-amber-600 mt-1">{paymentMetrics.pendingCount}</div>
+                    <div className="text-xs font-bold text-amber-600 mt-1">pending verification</div>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-200">
+                    <Clock size={20} />
+                  </div>
+                </div>
+              </div>
+
+              {/* bKash & Other MFS */}
+              <div className="bg-white border border-[#E5E5E5] rounded-3xl p-5 shadow-xs flex flex-col justify-between space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="text-xs font-bold uppercase text-neutral-500 tracking-wider block">bKash & Other MFS</span>
+                    <div className="text-xl font-black text-neutral-900 mt-1">৳{paymentMetrics.bkashTotal + paymentMetrics.nagadTotal}</div>
+                    <div className="text-[11px] font-bold text-neutral-600 mt-1">bKash: ৳{paymentMetrics.bkashTotal} | Nagad: ৳{paymentMetrics.nagadTotal}</div>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-pink-50 text-pink-600 flex items-center justify-center border border-pink-200">
+                    <CreditCard size={20} />
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Search & Filter Toolbar Card */}
+            <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 shadow-xs space-y-4">
+              
+              {/* Row 1: Search & Action Pills */}
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-[#EEEEEE]">
+                <div className="relative flex-1">
+                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">🔍</span>
+                  <input 
+                    type="text"
+                    placeholder="Search by TrxID, mobile, customer or order..."
+                    value={paymentSearchQuery}
+                    onChange={e => setPaymentSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-[#E5E5E5] bg-[#F7F7F8] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button className="px-3.5 py-2 rounded-xl bg-neutral-100 text-neutral-700 hover:bg-neutral-200 text-xs font-bold border border-neutral-200 cursor-pointer">
+                    ❌ Failed (0)
+                  </button>
+                  <button className="px-3.5 py-2 rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-100 text-xs font-bold border border-amber-200 cursor-pointer">
+                    ⚠️ Flagged (0)
                   </button>
                 </div>
               </div>
-            )}
+
+              {/* Row 2: Filter Pills (MFS Gateway & Status) */}
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  {[
+                    { id: 'all', label: `All (${paymentSubmissions.length})` },
+                    { id: 'bkash', label: 'bKash (0)' },
+                    { id: 'nagad', label: 'Nagad (0)' },
+                    { id: 'rocket', label: 'Rocket (0)' },
+                    { id: 'upay', label: 'Upay (0)' },
+                    { id: 'card', label: 'Card / Other (0)' },
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setPaymentMfsFilter(tab.id)}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        paymentMfsFilter === tab.id ? 'bg-[#D71920] text-white shadow-xs' : 'bg-[#F7F7F8] text-neutral-700 hover:bg-neutral-200 border border-[#E5E5E5]'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {[
+                    { id: 'all', label: `All (${paymentSubmissions.length})` },
+                    { id: 'pending', label: `Pending (${paymentMetrics.pendingCount})` },
+                    { id: 'paid', label: `Paid (${paymentMetrics.completedCount})` },
+                    { id: 'failed', label: 'Failed (0)' },
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setPaymentStatusFilter(tab.id)}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        paymentStatusFilter === tab.id ? 'bg-[#171717] text-white shadow-xs' : 'bg-[#F7F7F8] text-neutral-700 hover:bg-neutral-200 border border-[#E5E5E5]'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Payment Submissions Table */}
+              {paymentSubmissions.length > 0 ? (
+                <div className="overflow-x-auto pt-2">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-[#E5E5E5] bg-[#F7F7F8] text-[#5F6368] uppercase font-bold tracking-wider">
+                        <th className="py-3 px-3">Order ID</th>
+                        <th className="py-3 px-3">Customer</th>
+                        <th className="py-3 px-3">Provider</th>
+                        <th className="py-3 px-3">TrxID Reference</th>
+                        <th className="py-3 px-3">Amount</th>
+                        <th className="py-3 px-3">Status</th>
+                        <th className="py-3 px-3 text-right">Verification Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#EEEEEE]">
+                      {paymentSubmissions.map(sub => (
+                        <tr key={sub.id} className="hover:bg-[#F7F7F8] transition-colors">
+                          <td className="py-3.5 px-3 font-mono font-bold text-[#D71920]">{sub.orderId}</td>
+                          <td className="py-3.5 px-3">
+                            <div className="font-bold text-[#171717]">{sub.customerName}</div>
+                            <div className="text-[11px] text-[#5F6368]">{sub.customerPhone}</div>
+                          </td>
+                          <td className="py-3.5 px-3 font-medium">{sub.providerName}</td>
+                          <td className="py-3.5 px-3 font-mono font-bold text-[#171717]">
+                            <div>{sub.transactionReference}</div>
+                            <div className="text-[10px] text-[#777777] font-normal">Sender: {sub.senderIdentifier}</div>
+                          </td>
+                          <td className="py-3.5 px-3 font-black text-[#171717]">৳{sub.claimedAmount}</td>
+                          <td className="py-3.5 px-3">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              sub.status === 'approved' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                              sub.status === 'rejected' ? 'bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/30' :
+                              'bg-amber-50 text-amber-700 border border-amber-200'
+                            }`}>
+                              {sub.status}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-3 text-right">
+                            {sub.status === 'pending_verification' && (
+                              <div className="flex items-center justify-end gap-2">
+                                <button 
+                                  onClick={() => reviewPaymentSubmission(sub.id, 'approved')}
+                                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs flex items-center gap-1 shadow-xs cursor-pointer"
+                                >
+                                  <CheckCircle2 size={13} /> Approve
+                                </button>
+                                <button 
+                                  onClick={() => setRejectingSubId(sub.id)}
+                                  className="px-3 py-1 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-lg text-xs flex items-center gap-1 shadow-xs cursor-pointer"
+                                >
+                                  <XCircle size={13} /> Reject
+                                </button>
+                              </div>
+                            )}
+                            {sub.status !== 'pending_verification' && (
+                              <span className="text-[11px] text-[#777777]">Completed</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-xs text-[#777777] text-center py-8">No payment submissions pending verification.</p>
+              )}
+
+              {rejectingSubId && (
+                <div className="p-5 bg-[#FFF1F2] rounded-2xl border border-[#D71920]/30 space-y-3 mt-4">
+                  <h4 className="font-bold text-xs text-[#D71920] uppercase tracking-wider">
+                    State Reason for Rejection
+                  </h4>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. Transaction ID was not found in statement"
+                    value={rejectReason}
+                    onChange={e => setRejectReason(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button onClick={() => setRejectingSubId(null)} className="px-4 py-1.5 bg-white text-xs font-bold rounded-lg border border-[#E5E5E5] cursor-pointer">Cancel</button>
+                    <button 
+                      onClick={() => {
+                        reviewPaymentSubmission(rejectingSubId, 'rejected', rejectReason);
+                        setRejectingSubId(null);
+                        setRejectReason('');
+                      }}
+                      className="px-4 py-1.5 bg-[#D71920] text-white text-xs font-bold rounded-lg shadow-sm cursor-pointer"
+                    >
+                      Confirm Rejection
+                    </button>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
           </div>
         )}
 
