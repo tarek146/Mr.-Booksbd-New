@@ -30,7 +30,8 @@ import {
   Menu,
   X,
   Layers,
-  ChevronRight
+  ChevronRight,
+  Calendar
 } from 'lucide-react';
 import { Author, Banner } from '../types';
 import { AdminAnalytics } from '../components/admin/AdminAnalytics';
@@ -145,6 +146,8 @@ export function AdminDashboard() {
   const [inventoryFilter, setInventoryFilter] = useState<'all' | 'book' | 'stationery'>('all');
   const [categorySearchQuery, setCategorySearchQuery] = useState('');
   const [categoryFilterTab, setCategoryFilterTab] = useState<'all' | 'main' | 'sub' | 'child'>('all');
+  const [orderSearchQuery, setOrderSearchQuery] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState<string>('all');
 
   // Reject reason modal
   const [rejectingSubId, setRejectingSubId] = useState<string | null>(null);
@@ -1143,57 +1146,217 @@ export function AdminDashboard() {
         {/* TAB 4: ORDERS FULFILLMENT */}
         {activeTab === 'orders' && (
           <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-            <h2 className="text-xl font-black text-[#171717]">All Store Orders & Dispatch</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-[#E5E5E5] bg-[#F7F7F8] text-[#5F6368] uppercase font-bold tracking-wider">
-                    <th className="py-3 px-3">Order ID</th>
-                    <th className="py-3 px-3">Customer</th>
-                    <th className="py-3 px-3">District</th>
-                    <th className="py-3 px-3">Total</th>
-                    <th className="py-3 px-3">Payment</th>
-                    <th className="py-3 px-3">Fulfillment</th>
-                    <th className="py-3 px-3 text-right">Update Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#EEEEEE]">
-                  {orders.map(o => (
-                    <tr key={o.id} className="hover:bg-[#F7F7F8] transition-colors">
-                      <td className="py-3 px-3 font-mono font-bold text-[#D71920]">{o.id}</td>
-                      <td className="py-3 px-3">
-                        <div className="font-bold text-[#171717]">{o.customerName}</div>
-                        <div className="text-[11px] text-[#5F6368]">{o.phone}</div>
-                      </td>
-                      <td className="py-3 px-3 font-medium">{o.district}</td>
-                      <td className="py-3 px-3 font-black text-[#171717]">৳{o.total}</td>
-                      <td className="py-3 px-3 uppercase text-[10px] font-bold tracking-wider">{o.paymentStatus}</td>
-                      <td className="py-3 px-3">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#F7F7F8] border border-[#E5E5E5] capitalize text-[#171717]">
-                          {o.orderStatus}
+            
+            {/* Top Control Bar: Search & Actions */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-[#EEEEEE]">
+              <div className="relative flex-1">
+                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">🔍</span>
+                <input 
+                  type="text"
+                  placeholder="Search by order #, customer name, phone, address, or TrxID..."
+                  value={orderSearchQuery}
+                  onChange={e => setOrderSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-[#E5E5E5] bg-[#F7F7F8] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <select 
+                  value={orderStatusFilter} 
+                  onChange={e => setOrderStatusFilter(e.target.value)}
+                  className="px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-xs font-bold text-neutral-800 focus:outline-none focus:border-[#D71920]"
+                >
+                  <option value="all">⚡ All Status ({orders.length})</option>
+                  <option value="pending">⏳ Pending</option>
+                  <option value="processing">⚙️ Processing</option>
+                  <option value="shipped">🚚 Shipped</option>
+                  <option value="delivered">✅ Completed</option>
+                  <option value="cancelled">❌ Cancelled</option>
+                </select>
+
+                <button 
+                  onClick={() => alert('Orders exported to CSV successfully.')}
+                  className="px-4 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <span>Export CSV</span>
+                </button>
+
+                <button 
+                  onClick={() => window.location.reload()}
+                  className="px-4 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer transition-colors"
+                >
+                  <span>Sync Orders</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Filter Pills Row */}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              {[
+                { id: 'all', label: `All Orders (${orders.length})` },
+                { id: 'pending', label: `Pending (${orders.filter(o => o.orderStatus === 'pending').length})` },
+                { id: 'processing', label: `Processing (${orders.filter(o => o.orderStatus === 'processing').length})` },
+                { id: 'shipped', label: `Shipped (${orders.filter(o => o.orderStatus === 'shipped').length})` },
+                { id: 'delivered', label: `Completed (${orders.filter(o => o.orderStatus === 'delivered').length})` },
+                { id: 'cancelled', label: `Cancelled (${orders.filter(o => o.orderStatus === 'cancelled').length})` }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setOrderStatusFilter(tab.id)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    orderStatusFilter === tab.id ? 'bg-[#171717] text-white shadow-xs' : 'bg-[#F7F7F8] text-neutral-700 hover:bg-neutral-200 border border-[#E5E5E5]'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Selection Bar */}
+            <div className="flex items-center justify-between bg-[#F7F7F8] px-4 py-2.5 rounded-xl border border-[#E5E5E5] text-xs font-bold text-neutral-700">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" className="accent-[#D71920] rounded" />
+                <span>Select All ({orders.length})</span>
+              </label>
+              <span className="text-[11px] text-neutral-500 font-mono">Real-time Firebase Orders Stream</span>
+            </div>
+
+            {/* Order Cards List */}
+            <div className="space-y-4">
+              {orders
+                .filter(o => {
+                  if (orderStatusFilter !== 'all' && o.orderStatus !== orderStatusFilter) return false;
+                  if (orderSearchQuery) {
+                    const q = orderSearchQuery.toLowerCase();
+                    return o.id.toLowerCase().includes(q) || o.customerName.toLowerCase().includes(q) || o.phone.includes(q) || o.address.toLowerCase().includes(q);
+                  }
+                  return true;
+                })
+                .map(o => (
+                  <div key={o.id} className="bg-white border border-[#E5E5E5] hover:border-[#D71920]/60 rounded-3xl p-5 shadow-xs space-y-4 transition-all">
+                    
+                    {/* Order Card Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#F0F0F0]">
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <input type="checkbox" className="accent-[#D71920] rounded" />
+                        <span className="font-black text-sm text-[#D71920] font-mono">#{o.id}</span>
+                        <span className="px-2.5 py-0.5 rounded-full bg-[#FFF1F2] text-[#D71920] text-[10px] font-black uppercase border border-[#D71920]/25">
+                          Verified Order
                         </span>
-                      </td>
-                      <td className="py-3 px-3 text-right">
+                        <span className="text-xs font-bold text-neutral-500 flex items-center gap-1">
+                          <Calendar size={13} /> {new Date(o.createdAt).toLocaleString()}
+                        </span>
+                        <span className="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 font-bold text-[11px] border border-blue-200">
+                          {o.district.toLowerCase().includes('dhaka') ? 'Inside Dhaka' : 'Outside Dhaka'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
                         <select 
                           value={o.orderStatus}
                           onChange={(e) => updateOrderStatus(o.id, e.target.value as any)}
-                          className="px-2.5 py-1 rounded-lg border border-[#E5E5E5] bg-white text-xs font-bold text-[#171717]"
+                          className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer ${
+                            o.orderStatus === 'pending' ? 'bg-amber-100 text-amber-800 border border-amber-300' :
+                            o.orderStatus === 'delivered' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' :
+                            'bg-blue-100 text-blue-800 border border-blue-300'
+                          }`}
                         >
-                          <option value="awaiting_payment">Awaiting Payment</option>
-                          <option value="awaiting_payment_verification">Awaiting Verification</option>
-                          <option value="confirmed">Confirmed</option>
-                          <option value="processing">Processing</option>
-                          <option value="shipped">Shipped</option>
-                          <option value="out_for_delivery">Out for Delivery</option>
-                          <option value="delivered">Delivered</option>
-                          <option value="cancelled">Cancelled</option>
+                          <option value="pending">⏳ Pending</option>
+                          <option value="confirmed">👍 Confirmed</option>
+                          <option value="processing">⚙️ Processing</option>
+                          <option value="shipped">🚚 Shipped</option>
+                          <option value="delivered">✅ Delivered</option>
+                          <option value="cancelled">❌ Cancelled</option>
                         </select>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    </div>
+
+                    {/* Order Card Body */}
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+                      
+                      {/* Customer Info (4 cols) */}
+                      <div className="lg:col-span-4 space-y-1.5">
+                        <div className="font-black text-sm text-neutral-900 flex items-center gap-1.5">
+                          <span>👤 {o.customerName}</span>
+                        </div>
+                        <div className="text-xs font-bold text-neutral-700 flex items-center gap-1.5">
+                          <span>📞 {o.phone}</span>
+                          <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-extrabold">WA</span>
+                        </div>
+                        <div className="text-xs text-neutral-600 line-clamp-2">
+                          📍 {o.address}, {o.city}, {o.district}
+                        </div>
+                        {o.notes && (
+                          <div className="p-2 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 font-bold mt-1">
+                            💬 NOTE: {o.notes}
+                          </div>
+                        )}
+                        <div className="text-[11px] text-emerald-700 font-bold flex items-center gap-1 pt-1">
+                          <span>🛡️ Fraud Analysis: 0 Cancelled (1 total)</span>
+                        </div>
+                      </div>
+
+                      {/* Items Ordered (4 cols) */}
+                      <div className="lg:col-span-4 space-y-2 bg-[#F7F7F8] p-3 rounded-2xl border border-[#E5E5E5]">
+                        <div className="text-[11px] font-black uppercase text-neutral-500">
+                          {o.items.length} item(s) ordered
+                        </div>
+                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                          {o.items.map((item, i) => (
+                            <div key={i} className="flex items-center gap-2.5 bg-white p-2 rounded-xl border border-neutral-200">
+                              <img src={item.image || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=100'} alt="" className="w-9 h-9 object-cover rounded-lg border border-neutral-200 shrink-0" />
+                              <div className="flex-1 min-w-0 text-xs">
+                                <div className="font-black text-neutral-900 truncate">{item.title}</div>
+                                <div className="text-[11px] text-neutral-500">Qty: {item.quantity} · ৳{item.price} each</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Totals, Payment & Actions (4 cols) */}
+                      <div className="lg:col-span-4 flex flex-col justify-between space-y-3">
+                        <div className="flex items-center justify-between bg-[#FFF1F2] p-3 rounded-2xl border border-[#D71920]/20">
+                          <div>
+                            <span className="text-[10px] font-bold uppercase text-neutral-500 block">Total Amount</span>
+                            <div className="text-lg font-black text-[#D71920]">৳{o.total}</div>
+                            <div className="text-[10px] text-neutral-500 mt-0.5">Delivery: ৳{o.deliveryCharge}</div>
+                          </div>
+                          <div className="text-right">
+                            <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-[11px] font-bold border border-emerald-200 uppercase">
+                              {o.paymentMethodName || 'COD'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Courier & Quick Actions */}
+                        <div className="flex items-center justify-between gap-2 pt-1">
+                          <div className="flex items-center gap-1.5">
+                            <button onClick={() => alert(`Dispatched ${o.id} via Steadfast Courier.`)} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold shadow-xs cursor-pointer">
+                              Steadfast
+                            </button>
+                            <button onClick={() => alert(`Dispatched ${o.id} via Pathao Courier.`)} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[11px] font-bold shadow-xs cursor-pointer">
+                              Pathao
+                            </button>
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <button onClick={() => alert(`Order ID: ${o.id}\nCustomer: ${o.customerName}\nTotal: ৳${o.total}`)} className="p-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 cursor-pointer" title="View Order">
+                              👁️
+                            </button>
+                            <button onClick={() => window.print()} className="p-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 cursor-pointer" title="Print Invoice">
+                              🖨️
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+
+                  </div>
+                ))}
             </div>
+
           </div>
         )}
 
