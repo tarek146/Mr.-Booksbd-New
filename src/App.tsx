@@ -24,11 +24,18 @@ function MainRouter() {
 
   return (
     <>
-      {/* Real-time Loading Progress & Live Data Synchronization Notice */}
+      {/* Full-Screen Branded Splash Loading Screen during Initial Data Sync */}
       {isLoading && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-[#D71920] text-white text-[11px] font-bold py-1.5 px-4 flex items-center justify-center gap-2 shadow-lg animate-pulse select-none">
-          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-          <span>Site is loading live data from Firebase...</span>
+        <div className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center p-6 text-center select-none transition-opacity duration-300">
+          <div className="w-16 h-16 bg-[#D71920] text-white rounded-2xl flex items-center justify-center text-2xl font-black shadow-lg mb-4 animate-bounce">
+            MB
+          </div>
+          <h2 className="text-xl font-bold text-[#171717] tracking-tight mb-1">MR. BOOKS</h2>
+          <p className="text-xs text-slate-500 mb-6">Online Bookstore & Stationery Partner in Bangladesh</p>
+          <div className="flex items-center gap-3 px-5 py-2.5 bg-[#FFF1F2] border border-[#FEE2E2] rounded-full text-[#D71920] text-xs font-semibold shadow-xs animate-pulse">
+            <div className="w-4 h-4 border-2 border-[#D71920] border-t-transparent rounded-full animate-spin"></div>
+            <span>Synchronizing live banners, logo & store data from Firebase...</span>
+          </div>
         </div>
       )}
 

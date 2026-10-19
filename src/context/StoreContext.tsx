@@ -23,7 +23,9 @@ import {
 import { 
   collection, 
   getDocs, 
+  getDocsFromServer,
   doc, 
+  getDocFromServer,
   setDoc, 
   deleteDoc, 
   addDoc,
@@ -168,11 +170,11 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const { currentUser, isAdmin } = useAuth();
   
-  const [products, setProducts] = useState<Product[]>(DEFAULT_PRODUCTS);
-  const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
-  const [authors, setAuthors] = useState<Author[]>(DEFAULT_AUTHORS);
-  const [banners, setBanners] = useState<Banner[]>(DEFAULT_BANNERS);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodConfig[]>(DEFAULT_PAYMENT_METHODS);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [authors, setAuthors] = useState<Author[]>([]);
+  const [banners, setBanners] = useState<Banner[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodConfig[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [paymentSubmissions, setPaymentSubmissions] = useState<PaymentSubmission[]>([]);
   const [reviews, setReviews] = useState<Review[]>([
@@ -335,15 +337,49 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
 
 
-  // 1. Public catalog collections: Products, Categories, Authors, Banners, Payment Methods, Settings
+  // 1. Public catalog collections: Force-Fetch fresh live data from server bypassing browser cache, then attach real-time listeners
   useEffect(() => {
+    let isMounted = true;
+
+    async function forceFetchFromServer() {
+      try {
+        const [prodSnap, catSnap, authSnap, bannerSnap, paySnap, setSnap, revSnap] = await Promise.all([
+          getDocsFromServer(collection(db, 'products')),
+          getDocsFromServer(collection(db, 'categories')),
+          getDocsFromServer(collection(db, 'authors')),
+          getDocsFromServer(collection(db, 'banners')),
+          getDocsFromServer(collection(db, 'payment_methods')),
+          getDocFromServer(doc(db, 'settings', 'general')),
+          getDocsFromServer(collection(db, 'reviews'))
+        ]);
+
+        if (!isMounted) return;
+
+        setProducts(prodSnap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
+        setCategories(catSnap.docs.map(d => ({ id: d.id, ...d.data() } as Category)));
+        setAuthors(authSnap.docs.map(d => ({ id: d.id, ...d.data() } as Author)));
+        setBanners(bannerSnap.docs.map(d => ({ id: d.id, ...d.data() } as Banner)));
+        setPaymentMethods(paySnap.docs.map(d => ({ id: d.id, ...d.data() } as PaymentMethodConfig)));
+        if (setSnap.exists()) {
+          setSettings(prev => ({ ...prev, ...setSnap.data() } as StoreSettings));
+        }
+        if (!revSnap.empty) {
+          setReviews(revSnap.docs.map(d => ({ id: d.id, ...d.data() } as Review)));
+        }
+      } catch (err: any) {
+        console.warn('Force fetch from server notice:', err?.message);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    forceFetchFromServer();
+
     const unsubProducts = onSnapshot(
       collection(db, 'products'),
       (snapshot) => {
         setIsLoading(false);
-        if (!snapshot.empty) {
-          setProducts(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
-        }
+        setProducts(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
       },
       (err) => {
         setIsLoading(false);
@@ -354,9 +390,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const unsubCategories = onSnapshot(
       collection(db, 'categories'),
       (snapshot) => {
-        if (!snapshot.empty) {
-          setCategories(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Category)));
-        }
+        setCategories(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Category)));
       },
       (err) => {
         console.warn('Categories listener notice:', err.message);
@@ -366,9 +400,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const unsubAuthors = onSnapshot(
       collection(db, 'authors'),
       (snapshot) => {
-        if (!snapshot.empty) {
-          setAuthors(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Author)));
-        }
+        setAuthors(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Author)));
       },
       (err) => {
         console.warn('Authors listener notice:', err.message);
@@ -378,9 +410,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const unsubBanners = onSnapshot(
       collection(db, 'banners'),
       (snapshot) => {
-        if (!snapshot.empty) {
-          setBanners(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Banner)));
-        }
+        setBanners(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Banner)));
       },
       (err) => {
         console.warn('Banners listener notice:', err.message);
@@ -390,9 +420,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const unsubPayments = onSnapshot(
       collection(db, 'payment_methods'),
       (snapshot) => {
-        if (!snapshot.empty) {
-          setPaymentMethods(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PaymentMethodConfig)));
-        }
+        setPaymentMethods(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PaymentMethodConfig)));
       },
       (err) => {
         console.warn('Payments listener notice:', err.message);
@@ -424,6 +452,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     );
 
     return () => {
+      isMounted = false;
       unsubProducts();
       unsubCategories();
       unsubAuthors();
