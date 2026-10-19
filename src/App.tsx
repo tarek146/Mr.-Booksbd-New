@@ -13,7 +13,11 @@ import { CheckoutPage } from './pages/CheckoutPage';
 import { OrderSuccessPage } from './pages/OrderSuccessPage';
 import { MyOrdersPage } from './pages/MyOrdersPage';
 import { AuthorsPage } from './pages/AuthorsPage';
-import { AdminDashboard } from './pages/AdminDashboard';
+
+// Code-split AdminDashboard so customers don't download admin code on homepage
+const AdminDashboard = React.lazy(() => 
+  import('./pages/AdminDashboard').then(m => ({ default: m.AdminDashboard }))
+);
 
 function MainRouter() {
   const { activePage } = useStore();
@@ -21,7 +25,16 @@ function MainRouter() {
   // Standalone Isolated Admin Application
   // Completely separated from storefront: no consumer Navbar, no Footer, no MobileBottomNav
   if (activePage === 'admin') {
-    return <AdminDashboard />;
+    return (
+      <React.Suspense fallback={
+        <div className="min-h-screen bg-[#0B0F17] flex flex-col items-center justify-center text-white p-6">
+          <div className="w-12 h-12 border-4 border-[#D71920] border-t-transparent rounded-full animate-spin mb-3"></div>
+          <span className="text-xs uppercase tracking-wider text-slate-400">Loading Management Suite...</span>
+        </div>
+      }>
+        <AdminDashboard />
+      </React.Suspense>
+    );
   }
 
   return (

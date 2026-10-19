@@ -68,13 +68,17 @@ export function ProductDetail() {
     .slice(0, 4);
 
   const handleAddToCart = () => {
-    addToCart(product, activeVariant.id, quantity);
+    if (product.stock <= 0) return;
+    const safeQty = Math.max(1, Math.min(quantity, activeVariant.stock || product.stock));
+    addToCart(product, activeVariant.id, safeQty);
     setAddedAlert(true);
     setTimeout(() => setAddedAlert(false), 2500);
   };
 
   const handleBuyNow = () => {
-    addToCart(product, activeVariant.id, quantity);
+    if (product.stock <= 0) return;
+    const safeQty = Math.max(1, Math.min(quantity, activeVariant.stock || product.stock));
+    addToCart(product, activeVariant.id, safeQty);
     setActivePage('cart');
   };
 
@@ -201,7 +205,13 @@ export function ProductDetail() {
                             : 'border-neutral-200/90 opacity-75 hover:opacity-100 hover:border-neutral-400'
                         }`}
                       >
-                        <img src={img} alt="" className="w-full h-full object-contain" />
+                        <img 
+                          src={img} 
+                          alt="" 
+                          loading="lazy"
+                          decoding="async"
+                          className="w-full h-full object-contain" 
+                        />
                         <span className={`absolute bottom-1 right-1 text-[9px] font-black px-1.5 py-0.5 rounded-md shadow-2xs ${
                           isSelected ? 'bg-[#D71920] text-white' : 'bg-[#171717]/80 text-white'
                         }`}>

@@ -302,50 +302,7 @@ export const DEFAULT_BANNERS: Banner[] = [
   }
 ];
 
-// Seed initial data if permitted
+// Demo data insertion is disabled to enforce strict production data integrity (No mock/fake data)
 export async function seedInitialDataIfNeeded() {
-  try {
-    const pmRef = collection(db, 'payment_methods');
-    const pmSnap = await getDocs(pmRef);
-    if (pmSnap.empty) {
-      for (const m of DEFAULT_PAYMENT_METHODS) {
-        await setDoc(doc(db, 'payment_methods', m.id), m);
-      }
-    }
-
-    const catRef = collection(db, 'categories');
-    const catSnap = await getDocs(catRef);
-    if (catSnap.empty) {
-      for (const c of DEFAULT_CATEGORIES) {
-        await setDoc(doc(db, 'categories', c.id), c);
-      }
-    }
-
-    const authRef = collection(db, 'authors');
-    const authSnap = await getDocs(authRef);
-    if (authSnap.empty) {
-      for (const a of DEFAULT_AUTHORS) {
-        await setDoc(doc(db, 'authors', a.id), a);
-      }
-    }
-
-    const prodRef = collection(db, 'products');
-    const prodSnap = await getDocs(prodRef);
-    if (prodSnap.empty) {
-      for (const p of DEFAULT_PRODUCTS) {
-        await setDoc(doc(db, 'products', p.id), p);
-      }
-    }
-
-    const banRef = collection(db, 'banners');
-    const banSnap = await getDocs(banRef);
-    if (banSnap.empty) {
-      for (const b of DEFAULT_BANNERS) {
-        await setDoc(doc(db, 'banners', b.id), b);
-      }
-    }
-  } catch (err: any) {
-    // Gracefully handle permission errors without crashing app execution
-    console.warn('Firestore seeding skipped or restricted by rules:', err?.message || err);
-  }
+  // Safe no-op in production. Real products and categories are managed via Admin Console.
 }

@@ -1,0 +1,64 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Default Deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.uid == 'ytewGIOO2uhISkUfUUwktSvzdjy1' ||
+        (request.auth.token.email != null && request.auth.token.email == 'mr.booksbd700@gmail.com') ||
+        request.auth.token.admin == true
+      );
+    }
+
+    function isImageFile() {
+      return request.resource.contentType.matches('image/(jpeg|png|webp|gif|avif)')
+        && request.resource.size < 5 * 1024 * 1024; // 5 MB max
+    }
+
+    // Public catalog images (Products, Categories, Authors, Banners, Settings)
+    // Read: anyone can view
+    // Write: only authenticated Admin can upload or delete
+    match /products/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin() && isImageFile();
+      allow delete: if isAdmin();
+    }
+
+    match /categories/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin() && isImageFile();
+      allow delete: if isAdmin();
+    }
+
+    match /authors/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin() && isImageFile();
+      allow delete: if isAdmin();
+    }
+
+    match /banners/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin() && isImageFile();
+      allow delete: if isAdmin();
+    }
+
+    match /settings/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin() && isImageFile();
+      allow delete: if isAdmin();
+    }
+
+    // Payment proof receipts uploaded by customers
+    match /payment_proofs/{fileName} {
+      allow read: if isAdmin();
+      allow write: if isImageFile();
+      allow delete: if isAdmin();
+    }
+  }
+}

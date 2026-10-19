@@ -64,7 +64,12 @@ export function ProductCard({ product }: ProductCardProps) {
         <div className="w-full aspect-square relative bg-[#F8F9FA] rounded-xl p-2 flex items-center justify-center overflow-hidden border border-neutral-100">
           <img 
             src={product.images[currentImgIdx] || product.images[0] || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400'} 
-            alt={product.title}
+            alt={product.title || 'Product'}
+            loading="lazy"
+            decoding="async"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400';
+            }}
             className="h-full w-full object-contain filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.06)] group-hover:scale-105 transition-transform duration-300 ease-out"
           />
 

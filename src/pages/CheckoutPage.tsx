@@ -36,29 +36,48 @@ export function CheckoutPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const [errorMsg, setErrorMsg] = useState('');
+
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !phone || !address) {
-      alert('Please fill in all required shipping address fields.');
+    setErrorMsg('');
+
+    const cleanName = name.trim();
+    const cleanPhone = phone.trim().replace(/[\s-]/g, '');
+    const cleanAddress = address.trim();
+
+    if (cleanName.length < 2) {
+      setErrorMsg('Please enter your full name (minimum 2 characters).');
+      return;
+    }
+
+    // Bangladeshi phone verification (11 digits e.g. 017xxxxxxxx or +88017xxxxxxxx)
+    if (!/^(\+?8801|01)[3-9]\d{8}$/.test(cleanPhone)) {
+      setErrorMsg('Please enter a valid 11-digit Bangladesh mobile number (e.g. 01712345678).');
+      return;
+    }
+
+    if (cleanAddress.length < 5) {
+      setErrorMsg('Please enter a detailed delivery address (minimum 5 characters).');
       return;
     }
 
     if (cart.length === 0) {
-      alert('Your cart is empty.');
+      setErrorMsg('Your shopping cart is currently empty.');
       return;
     }
 
     setLoading(true);
     try {
       const orderId = await createOrder({
-        userId: currentUser?.uid || 'guest-' + Date.now(),
-        customerName: name,
-        phone,
-        email,
+        userId: currentUser?.uid || ('guest-' + Date.now()),
+        customerName: cleanName,
+        phone: cleanPhone,
+        email: email.trim(),
         district,
-        city,
-        address,
-        notes,
+        city: city.trim(),
+        address: cleanAddress,
+        notes: notes.trim(),
         items: cart,
         subtotal,
         deliveryCharge,
@@ -71,7 +90,7 @@ export function CheckoutPage() {
       // Transition to order success / payment submission screen
       setActivePage('order-success', orderId);
     } catch (err: any) {
-      alert('Failed to place order: ' + err.message);
+      setErrorMsg(err.message || 'Failed to place order. Please check your cart and try again.');
     } finally {
       setLoading(false);
     }
@@ -302,6 +321,11 @@ export function CheckoutPage() {
                   <span className="text-[#D71920] text-xl">৳{total}</span>
                 </div>
               </div>
+              {errorMsg && (
+                <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold leading-relaxed">
+                  ⚠️ {errorMsg}
+                </div>
+              )}
 
               <button 
                 type="submit" 

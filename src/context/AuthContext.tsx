@@ -40,21 +40,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // ignore token error
         }
 
-        // Strict authorization check: must match configured ADMIN_UID, ADMIN_EMAIL, or admin claim
-        if (user.uid === ADMIN_UID || (user.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) || hasAdminClaim) {
-          setIsAdmin(true);
-        } else {
-          try {
-            const userDoc = await getDoc(doc(db, 'users', user.uid));
-            if (userDoc.exists() && userDoc.data().isAdmin === true) {
-              setIsAdmin(true);
-            } else {
-              setIsAdmin(false);
-            }
-          } catch {
-            setIsAdmin(false);
-          }
-        }
+        // Strict administrator authorization: Verified Firebase Auth UID, Admin Email, or Custom Claims
+        const isAuthorizedAdmin = 
+          user.uid === ADMIN_UID || 
+          (Boolean(user.email) && user.email!.toLowerCase() === ADMIN_EMAIL.toLowerCase()) || 
+          hasAdminClaim;
+
+        setIsAdmin(isAuthorizedAdmin);
       } else {
         setCurrentUser(null);
         setIsAdmin(false);

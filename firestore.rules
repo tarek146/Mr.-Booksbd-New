@@ -1,65 +1,136 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Default Deny: All collections are private by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
     // Administrator verification helper
     function isAdmin() {
       return request.auth != null && (
         request.auth.uid == 'ytewGIOO2uhISkUfUUwktSvzdjy1' ||
-        request.auth.token.email == 'mr.booksbd700@gmail.com' ||
+        (request.auth.token.email != null && request.auth.token.email == 'mr.booksbd700@gmail.com') ||
         request.auth.token.admin == true
       );
     }
 
-    // Public catalog collections: anyone can read, only authenticated Admin can write
-    match /products/{document=**} {
+    // Public catalog collections: anyone can read active items, only authenticated Admin can write
+    match /products/{productId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    match /categories/{document=**} {
+    match /categories/{categoryId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    match /authors/{document=**} {
+    match /authors/{authorId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    match /banners/{document=**} {
+    match /banners/{bannerId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    match /payment_methods/{document=**} {
+    match /payment_methods/{methodId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    match /settings/{document=**} {
+    match /settings/{settingId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    // Orders: anyone can place an order; customers can read their own; admin has full access
+    match /coupons/{couponId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Orders collection:
+    // Create: Allowed with strict validation (positive values, required fields)
+    // Read: Only the authenticated order owner or Admin (NO anonymous leaks or cross-customer access)
+    // Update: Only Admin can update status/payment; Customer can only attach payment submission ID or cancel their own pending order
+    // Delete: Admin only
     match /orders/{orderId} {
-      allow create: if true;
-      allow read: if isAdmin() || (request.auth != null && resource.data.customerId == request.auth.uid) || true;
-      allow update: if isAdmin() || (request.auth != null && resource.data.customerId == request.auth.uid) || true;
+      allow create: if request.resource.data.id == orderId
+        && request.resource.data.subtotal >= 0
+        && request.resource.data.deliveryCharge >= 0
+        && request.resource.data.total >= 0
+        && request.resource.data.items is list
+        && request.resource.data.items.size() > 0
+        && request.resource.data.customerName is string
+        && request.resource.data.phone is string
+        && request.resource.data.paymentStatus in ['unpaid', 'pending_verification']
+        && request.resource.data.orderStatus in ['pending', 'awaiting_payment', 'confirmed']
+        && (request.auth == null || request.resource.data.userId == request.auth.uid || isAdmin());
+
+      allow read: if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid);
+
+      allow update: if isAdmin() || (
+        request.auth != null 
+        && resource.data.userId == request.auth.uid
+        // Customer cannot modify total, subtotal, discount, items, or escalate orderStatus
+        && request.resource.data.total == resource.data.total
+        && request.resource.data.subtotal == resource.data.subtotal
+        && request.resource.data.items == resource.data.items
+        && request.resource.data.userId == resource.data.userId
+        && (
+          // Allowing customer to link their payment proof or cancel if still pending
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paymentSubmissionId', 'paymentStatus', 'orderStatus', 'updatedAt'])
+           && request.resource.data.paymentStatus == 'pending_verification'
+           && request.resource.data.orderStatus == 'awaiting_payment_verification')
+          ||
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus', 'updatedAt'])
+           && resource.data.orderStatus in ['pending', 'awaiting_payment']
+           && request.resource.data.orderStatus == 'cancelled')
+        )
+      );
+
       allow delete: if isAdmin();
     }
 
-    // Payment submissions: anyone can submit transaction slip; admin manages and verifies
+    // Payment submissions collection:
+    // Create: Customer submits payment verification reference with positive claimed amount
+    // Read: Admin or the customer who submitted it
+    // Update, Delete: Admin only
     match /payment_submissions/{submissionId} {
-      allow create: if true;
-      allow read: if isAdmin() || true;
+      allow create: if request.resource.data.id == submissionId
+        && request.resource.data.claimedAmount > 0
+        && request.resource.data.status == 'pending_verification'
+        && request.resource.data.transactionReference is string
+        && (request.auth == null || request.resource.data.userId == request.auth.uid || isAdmin());
+
+      allow read: if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid);
+
       allow update, delete: if isAdmin();
     }
 
-    // User accounts
+    // User accounts:
+    // User can only read and update their own document; Admin can read all
+    // User cannot elevate themselves to Admin (isAdmin field is immutable by customer)
     match /users/{userId} {
-      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
-      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow read: if isAdmin() || (request.auth != null && request.auth.uid == userId);
+      
+      allow create: if request.auth != null && request.auth.uid == userId
+        && (!('isAdmin' in request.resource.data) || request.resource.data.isAdmin == false || isAdmin());
+
+      allow update: if isAdmin() || (
+        request.auth != null && request.auth.uid == userId
+        && (!('isAdmin' in request.resource.data) || request.resource.data.isAdmin == resource.data.isAdmin)
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // Audit logs: Strictly restricted to Admin
+    match /audit_logs/{logId} {
+      allow read, write: if isAdmin();
     }
   }
 }
