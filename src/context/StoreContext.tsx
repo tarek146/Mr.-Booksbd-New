@@ -51,6 +51,7 @@ interface StoreContextType {
   selectedCategoryFilter: string;
   searchQuery: string;
   darkMode: boolean;
+  isLoading: boolean;
   
   setActivePage: (page: string, productId?: string) => void;
   setSelectedCategoryFilter: (cat: string) => void;
@@ -207,6 +208,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   
   const [darkMode] = useState<boolean>(false);
   const setDarkMode = (_dark: boolean) => {};
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 500);
+    return () => clearTimeout(timer);
+  }, []);
   
   const [settings, setSettings] = useState<StoreSettings>({
     storeName: 'MR. BOOKS',
@@ -333,11 +340,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const unsubProducts = onSnapshot(
       collection(db, 'products'),
       (snapshot) => {
+        setIsLoading(false);
         if (!snapshot.empty) {
           setProducts(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
         }
       },
       (err) => {
+        setIsLoading(false);
         console.warn('Products listener notice:', err.message);
       }
     );
@@ -972,6 +981,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       selectedCategoryFilter,
       searchQuery,
       darkMode,
+      isLoading,
       setActivePage,
       setSelectedCategoryFilter,
       setSearchQuery,
