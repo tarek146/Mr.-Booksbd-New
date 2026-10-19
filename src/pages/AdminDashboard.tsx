@@ -26,7 +26,11 @@ import {
   AlertTriangle,
   ExternalLink,
   Key,
-  Server
+  Server,
+  Menu,
+  X,
+  Layers,
+  ChevronRight
 } from 'lucide-react';
 import { Author, Banner } from '../types';
 import { AdminAnalytics } from '../components/admin/AdminAnalytics';
@@ -65,6 +69,7 @@ export function AdminDashboard() {
   } = useStore();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'verifications' | 'payment-methods' | 'orders' | 'products' | 'categories' | 'banners' | 'authors' | 'settings'>('overview');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Category management state
   const [showAddCatModal, setShowAddCatModal] = useState(false);
@@ -648,140 +653,313 @@ export function AdminDashboard() {
     );
   }
 
-  // 4. Authenticated Administrator Control Console (100% Dedicated Standalone UI)
-  return (
-    <div className="min-h-screen bg-[#F4F6F8] text-[#171717] flex flex-col justify-between selection:bg-[#D71920] selection:text-white font-sans antialiased">
-      <div>
-        {/* Real-time Save Floating Toast Notification */}
-        {toast?.show && (
-          <div className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-xs font-bold transition-all border animate-in slide-in-from-top-2 duration-200 ${
-            toast.type === 'success' 
-              ? 'bg-slate-900 text-white border-emerald-500/50 shadow-emerald-950/20' 
-              : 'bg-red-950 text-white border-red-500/50 shadow-red-950/20'
-          }`}>
-            {toast.type === 'success' ? (
-              <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
-            ) : (
-              <AlertTriangle size={18} className="text-red-400 shrink-0" />
-            )}
-            <span>{toast.message}</span>
-            <button 
-              onClick={() => setToast(null)}
-              className="ml-2 text-slate-400 hover:text-white cursor-pointer"
-            >
-              ✕
-            </button>
-          </div>
-        )}
+  interface NavItem {
+    id: string;
+    label: string;
+    icon: any;
+    badge?: string;
+    badgeColor?: string;
+    count?: number;
+  }
 
-        {/* Dedicated Admin Standalone Navigation Bar */}
-        <header className="bg-[#0E131F] border-b border-slate-800 text-white sticky top-0 z-40 px-4 sm:px-8 py-3 shadow-md flex items-center justify-between">
+  interface NavSection {
+    title: string;
+    items: NavItem[];
+  }
+
+  // Navigation Sections for the Left Sidebar Menu
+  const navSections: NavSection[] = [
+    {
+      title: 'ANALYTICS & CORE',
+      items: [
+        { id: 'overview', label: 'Dashboard Analytics', icon: TrendingUp, badge: 'Live', badgeColor: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' },
+      ]
+    },
+    {
+      title: 'COMMERCE & ORDERS',
+      items: [
+        { id: 'orders', label: 'Customer Orders', icon: Package, count: orders.length },
+        { 
+          id: 'verifications', 
+          label: 'Payment Verifications', 
+          icon: CreditCard, 
+          count: pendingVerificationsCount,
+          badgeColor: pendingVerificationsCount > 0 ? 'bg-amber-500 text-black font-black animate-pulse' : undefined 
+        },
+        { id: 'payment-methods', label: 'Payment Methods', icon: CreditCard, count: paymentMethods.length },
+      ]
+    },
+    {
+      title: 'CATALOG & STOREFRONT',
+      items: [
+        { id: 'products', label: 'Books & Inventory', icon: BookOpen, count: products.length },
+        { id: 'categories', label: 'Categories', icon: Layers, count: categories.length },
+        { id: 'banners', label: 'Hero Banners', icon: ImageIcon, count: banners.length },
+        { id: 'authors', label: 'Writers & Authors', icon: Users, count: authors.length },
+      ]
+    },
+    {
+      title: 'SYSTEM & SETTINGS',
+      items: [
+        { id: 'settings', label: 'Store Settings', icon: Settings },
+      ]
+    }
+  ];
+
+  const renderSidebarNav = () => (
+    <div className="flex flex-col h-full justify-between">
+      <div>
+        {/* Brand Header */}
+        <div className="p-5 border-b border-slate-800/80 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D71920] to-[#B9151B] flex items-center justify-center text-white shadow-md shadow-[#D71920]/30 shrink-0">
               <ShieldCheck size={22} />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <span className="font-black text-base tracking-tight text-white">MR. BOOKS</span>
-                <span className="text-[10px] font-black bg-[#D71920] text-white px-2 py-0.5 rounded-md uppercase tracking-wider">
-                  ADMIN CONSOLE
+                <span className="text-[9px] font-black bg-[#D71920] text-white px-1.5 py-0.5 rounded uppercase tracking-wider">
+                  ADMIN OS
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>Firebase Real-time Sync Active (<code className="text-slate-300">mr-book-new</code>)</span>
+              <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Firestore Live Sync</span>
               </div>
             </div>
           </div>
+          {/* Mobile Close Button */}
+          <button 
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 cursor-pointer"
+            aria-label="Close Sidebar"
+          >
+            <X size={18} />
+          </button>
+        </div>
 
+        {/* Navigation Sections Menu */}
+        <div className="py-4 px-3 space-y-6 overflow-y-auto max-h-[calc(100vh-190px)]">
+          {navSections.map((sec, sIdx) => (
+            <div key={sIdx}>
+              <div className="text-[10px] uppercase font-black tracking-widest text-slate-500 px-3 mb-1.5">
+                {sec.title}
+              </div>
+              <div className="space-y-1">
+                {sec.items.map(item => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setActiveTab(item.id as any);
+                        setSidebarOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer group ${
+                        isActive
+                          ? 'bg-[#D71920] text-white shadow-md shadow-[#D71920]/30 font-bold'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/80 font-semibold'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 truncate">
+                        <Icon size={16} className={`shrink-0 transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`} />
+                        <span className="truncate">{item.label}</span>
+                      </div>
+                      {item.badge ? (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${item.badgeColor || 'bg-slate-800 text-slate-300'}`}>
+                          {item.badge}
+                        </span>
+                      ) : item.count !== undefined ? (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          isActive 
+                            ? 'bg-black/30 text-white' 
+                            : (item as any).badgeColor || 'bg-slate-800 text-slate-400 group-hover:text-slate-200'
+                        }`}>
+                          {item.count}
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Sidebar Footer User Card */}
+      <div className="p-3 border-t border-slate-800/80 bg-[#070A11] space-y-2">
+        <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-[#D71920] text-white font-black text-xs flex items-center justify-center shrink-0">
+              A
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-bold text-white truncate">mr.booksbd700</div>
+              <div className="text-[10px] text-slate-400 truncate">Administrator</div>
+            </div>
+          </div>
+          <button
+            onClick={async () => {
+              await logout();
+              setActivePage('home');
+            }}
+            title="Sign Out"
+            className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-950/30 rounded-lg cursor-pointer transition-colors shrink-0"
+          >
+            <LogOut size={15} />
+          </button>
+        </div>
+
+        <button
+          onClick={() => setActivePage('home')}
+          className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-slate-800/80 hover:bg-slate-700/80 text-slate-200 hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+        >
+          <Eye size={14} className="text-slate-400" />
+          <span>View Public Storefront</span>
+          <ExternalLink size={12} className="text-slate-400" />
+        </button>
+      </div>
+    </div>
+  );
+
+  // 4. Authenticated Administrator Control Console (100% Dedicated Standalone UI with Left Sidebar)
+  return (
+    <div className="min-h-screen bg-[#F4F6F8] text-[#171717] flex font-sans antialiased selection:bg-[#D71920] selection:text-white">
+      {/* Real-time Save Floating Toast Notification */}
+      {toast?.show && (
+        <div className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-xs font-bold transition-all border animate-in slide-in-from-top-2 duration-200 ${
+          toast.type === 'success' 
+            ? 'bg-slate-900 text-white border-emerald-500/50 shadow-emerald-950/20' 
+            : 'bg-red-950 text-white border-red-500/50 shadow-red-950/20'
+        }`}>
+          {toast.type === 'success' ? (
+            <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+          ) : (
+            <AlertTriangle size={18} className="text-red-400 shrink-0" />
+          )}
+          <span>{toast.message}</span>
+          <button 
+            onClick={() => setToast(null)}
+            className="ml-2 text-slate-400 hover:text-white cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Mobile Off-Canvas Sidebar Overlay & Drawer */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden flex">
+          <div 
+            onClick={() => setSidebarOpen(false)}
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity" 
+          />
+          <aside className="relative w-72 max-w-[85vw] bg-[#0A0E17] text-slate-300 h-full shadow-2xl flex flex-col z-10 animate-in slide-in-from-left duration-200 border-r border-slate-800">
+            {renderSidebarNav()}
+          </aside>
+        </div>
+      )}
+
+      {/* Desktop Pinned Left Sidebar */}
+      <aside className="hidden lg:flex w-64 xl:w-72 bg-[#0A0E17] text-slate-300 flex-col shrink-0 min-h-screen sticky top-0 h-screen border-r border-slate-800/90 select-none z-30">
+        {renderSidebarNav()}
+      </aside>
+
+      {/* Main Workspace Area */}
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen bg-[#F4F6F8]">
+        
+        {/* Modern Top Header */}
+        <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/90 sticky top-0 z-20 px-4 sm:px-6 lg:px-8 py-3.5 shadow-2xs flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="hidden lg:flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl text-xs text-slate-300">
-              <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-              <span>Admin: <strong className="text-white">mr.booksbd700@gmail.com</strong></span>
+            {/* Hamburger Button for Mobile */}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 cursor-pointer transition-colors"
+              aria-label="Open Sidebar Menu"
+            >
+              <Menu size={20} />
+            </button>
+
+            {/* Breadcrumb Title */}
+            <div className="flex items-center gap-2 text-xs">
+              <span className="font-bold text-slate-400 hidden sm:inline">Admin Console</span>
+              <span className="text-slate-300 hidden sm:inline">/</span>
+              <span className="font-black text-slate-900 text-sm sm:text-base capitalize">
+                {activeTab.replace('-', ' ')}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Real-time status */}
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>Firestore Sync: <code className="text-emerald-800 font-mono text-[11px]">mr-book-new</code></span>
             </div>
 
+            {/* Storefront button */}
             <button
               onClick={() => setActivePage('home')}
               title="View Public Store"
-              className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white rounded-xl border border-slate-800 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+              className="px-3 sm:px-3.5 py-1.5 sm:py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
             >
-              <Eye size={15} className="text-slate-400" />
+              <Eye size={14} className="text-slate-500" />
               <span className="hidden sm:inline">Storefront</span>
             </button>
 
+            {/* Sign Out button */}
             <button
               onClick={async () => {
                 await logout();
                 setActivePage('home');
               }}
               title="Logout Administrator"
-              className="px-3.5 py-2 bg-red-950/40 hover:bg-red-900/60 text-red-200 rounded-xl border border-red-800/50 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+              className="px-3 sm:px-3.5 py-1.5 sm:py-2 bg-red-50 hover:bg-red-100 text-[#D71920] rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
             >
-              <LogOut size={15} className="text-[#FF4D4D]" />
+              <LogOut size={14} />
               <span className="hidden sm:inline">Sign Out</span>
             </button>
           </div>
         </header>
 
-        {/* Admin Dashboard Body Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {/* Main Content Area */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
           {/* Quick Metrics & Welcome Banner */}
-          <div className="bg-white rounded-3xl p-6 sm:p-7 shadow-xs mb-7 border border-[#E2E8F0] flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-xs border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-5">
             <div>
-              <div className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-[11px] font-bold px-3 py-1 rounded-full mb-1.5 border border-emerald-200">
+              <div className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-[11px] font-bold px-3 py-1 rounded-full mb-1 border border-emerald-200">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                Real-time Firestore Listeners Connected
+                Connected to Google Firebase Firestore
               </div>
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[#0F172A]">
-                E-Commerce Management Dashboard
+              <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
+                MR. BOOKS Management Dashboard
               </h1>
-              <p className="text-xs text-slate-500 mt-1">
-                UID: <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-[10px] text-slate-700">ytewGIOO2uhISkUfUUwktSvzdjy1</code> | All modifications sync directly to Firebase Firestore in real-time.
+              <p className="text-xs text-slate-500 mt-0.5">
+                Logged in as <strong className="text-slate-700">mr.booksbd700@gmail.com</strong> (Admin)
               </p>
             </div>
 
             <div className="flex items-center gap-3 w-full md:w-auto">
-              <div className="flex-1 md:flex-initial bg-[#F8FAFC] px-4 py-3 rounded-2xl border border-slate-200 text-center min-w-[120px]">
+              <button 
+                onClick={() => setActiveTab('verifications')}
+                className="flex-1 md:flex-initial bg-slate-50 hover:bg-amber-50 p-3 rounded-2xl border border-slate-200 hover:border-amber-300 text-center min-w-[130px] transition-all cursor-pointer"
+              >
                 <span className="block text-[10px] text-slate-500 uppercase font-bold tracking-wider">Pending Verification</span>
-                <span className="text-xl font-black text-amber-600">{pendingVerificationsCount}</span>
-              </div>
-              <div className="flex-1 md:flex-initial bg-[#F8FAFC] px-4 py-3 rounded-2xl border border-slate-200 text-center min-w-[120px]">
+                <span className={`text-xl font-black ${pendingVerificationsCount > 0 ? 'text-amber-600' : 'text-slate-700'}`}>
+                  {pendingVerificationsCount}
+                </span>
+              </button>
+              <button 
+                onClick={() => setActiveTab('overview')}
+                className="flex-1 md:flex-initial bg-slate-50 hover:bg-emerald-50 p-3 rounded-2xl border border-slate-200 hover:border-emerald-300 text-center min-w-[130px] transition-all cursor-pointer"
+              >
                 <span className="block text-[10px] text-slate-500 uppercase font-bold tracking-wider">Verified Revenue</span>
-                <span className="text-xl font-black text-emerald-600">৳{totalRevenue}</span>
-              </div>
+                <span className="text-xl font-black text-emerald-600">৳{totalRevenue.toLocaleString()}</span>
+              </button>
             </div>
           </div>
-
-        {/* Tab Navigation Pill Bar */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-8">
-          {[
-            { id: 'overview', label: 'Overview', icon: TrendingUp },
-            { id: 'categories', label: `Categories (${categories.length})`, icon: BookOpen },
-            { id: 'banners', label: `Hero Banners (${banners.length})`, icon: ImageIcon },
-            { id: 'authors', label: `Writers & Authors (${authors.length})`, icon: Users },
-            { id: 'verifications', label: `Payment Verifications (${pendingVerificationsCount})`, icon: CreditCard },
-            { id: 'payment-methods', label: 'Payment Methods', icon: CreditCard },
-            { id: 'orders', label: `Orders (${orders.length})`, icon: Package },
-            { id: 'products', label: `Catalog (${products.length})`, icon: BookOpen },
-            { id: 'settings', label: 'Store Settings', icon: Settings }
-          ].map(tab => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button 
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                  isActive 
-                    ? 'bg-[#D71920] text-white shadow-md shadow-[#D71920]/25' 
-                    : 'bg-white border border-[#E5E5E5] text-[#171717] hover:border-[#D71920]'
-                }`}
-              >
-                <Icon size={14} /> {tab.label}
-              </button>
-            );
-          })}
-        </div>
 
         {/* TAB 1: OVERVIEW & COMPREHENSIVE BUSINESS ANALYTICS */}
         {activeTab === 'overview' && (
@@ -2101,21 +2279,21 @@ export function AdminDashboard() {
             </form>
           </div>
         )}
-      </div>
-      </div>
+        </main>
 
-      {/* Dedicated Standalone Admin Portal Footer */}
-      <footer className="mt-12 border-t border-slate-200/80 bg-white py-4 px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
-        <div>
-          MR. BOOKS Administrative Management Console • Connected to Firebase (<code className="text-slate-700 font-mono">mr-book-new</code>)
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5 text-emerald-600 font-semibold">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            Real-time Firestore Engine Active
-          </span>
-        </div>
-      </footer>
+        {/* Dedicated Standalone Admin Portal Footer */}
+        <footer className="mt-auto border-t border-slate-200/80 bg-white py-4 px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
+          <div>
+            MR. BOOKS Administrative Management Console • Connected to Firebase (<code className="text-slate-700 font-mono">mr-book-new</code>)
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1.5 text-emerald-600 font-semibold">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Real-time Firestore Engine Active
+            </span>
+          </div>
+        </footer>
+      </div>
     </div>
   );
 }
