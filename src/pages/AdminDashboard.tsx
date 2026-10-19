@@ -1148,24 +1148,45 @@ export function AdminDashboard() {
         {activeTab === 'orders' && (
           <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
             
-            {/* Top Control Bar: Search & Actions */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-[#EEEEEE]">
-              <div className="relative flex-1">
-                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">🔍</span>
-                <input 
-                  type="text"
-                  placeholder="Search by order #, customer name, phone, address, or TrxID..."
-                  value={orderSearchQuery}
-                  onChange={e => setOrderSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-[#E5E5E5] bg-[#F7F7F8] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
-                />
+            {/* Unified & Compact Order Filter & Search Toolbar */}
+            <div className="bg-[#F7F7F8] border border-[#E5E5E5] rounded-2xl p-4 space-y-3 shadow-xs">
+              
+              {/* Row 1: Search & Main Action Buttons (Create Order, Sync) */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="relative flex-1">
+                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-neutral-400">🔍</span>
+                  <input 
+                    type="text"
+                    placeholder="Search orders by ID, customer name, phone, or address..."
+                    value={orderSearchQuery}
+                    onChange={e => setOrderSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button 
+                    onClick={() => alert('Create Order modal triggered.')}
+                    className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer transition-all"
+                  >
+                    <Plus size={13} /> <span>Create Order</span>
+                  </button>
+
+                  <button 
+                    onClick={() => window.location.reload()}
+                    className="px-3.5 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer transition-all"
+                  >
+                    <RefreshCw size={13} /> <span>Sync</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              {/* Row 2: Compact Dropdown Filters (Status, Dates, Channels, Payments, Verification) */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1 border-t border-[#E5E5E5] pt-3">
                 <select 
                   value={orderStatusFilter} 
                   onChange={e => setOrderStatusFilter(e.target.value)}
-                  className="px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-xs font-bold text-neutral-800 focus:outline-none focus:border-[#D71920]"
+                  className="px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-white text-xs font-bold text-neutral-800 focus:outline-none focus:border-[#D71920]"
                 >
                   <option value="all">⚡ All Status ({orders.length})</option>
                   <option value="pending">⏳ Pending</option>
@@ -1175,68 +1196,34 @@ export function AdminDashboard() {
                   <option value="cancelled">❌ Cancelled</option>
                 </select>
 
-                <select 
-                  className="px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-xs font-bold text-neutral-800 focus:outline-none focus:border-[#D71920]"
-                >
+                <select className="px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-white text-xs font-bold text-neutral-800 focus:outline-none focus:border-[#D71920]">
                   <option value="all">📅 All Dates</option>
                   <option value="today">Today</option>
                   <option value="7days">Last 7 Days</option>
                   <option value="30days">Last 30 Days</option>
                 </select>
 
-                <button 
-                  onClick={() => alert('Create Order modal / feature triggered.')}
-                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-emerald-600/20 cursor-pointer transition-all"
-                >
-                  <Plus size={14} /> <span>Create Order</span>
-                </button>
+                <select className="px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-white text-xs font-bold text-neutral-800 focus:outline-none focus:border-[#D71920]">
+                  <option value="all">🌐 All Channels</option>
+                  <option value="web">Website Store</option>
+                  <option value="phone">Phone Order</option>
+                </select>
 
-                <button 
-                  onClick={() => alert('Orders exported to CSV successfully.')}
-                  className="px-4 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
-                >
-                  <span>Export CSV</span>
-                </button>
+                <select className="px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-white text-xs font-bold text-neutral-800 focus:outline-none focus:border-[#D71920]">
+                  <option value="all">💳 All Payments</option>
+                  <option value="cod">Cash on Delivery</option>
+                  <option value="online">Online Payment</option>
+                </select>
 
-                <button 
-                  onClick={() => window.location.reload()}
-                  className="px-4 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer transition-colors"
-                >
-                  <RefreshCw size={14} /> <span>Sync</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Filter Pills Row & Extra Dropdowns (Optimized Two-Tier Layout) */}
-            <div className="bg-[#F7F7F8] p-4 rounded-2xl border border-[#E5E5E5] space-y-3">
-              {/* Top Row: Extra Filter Dropdowns (All Channels, All Payments, Verification) */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#E5E5E5]">
-                <div className="text-xs font-black uppercase text-neutral-500 tracking-wider">
-                  Advanced Filters & Channels
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <select className="px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs font-bold text-neutral-700 focus:outline-none focus:border-[#D71920] shadow-2xs">
-                    <option value="all">🌐 All Channels</option>
-                    <option value="web">Website Store</option>
-                    <option value="phone">Phone Order</option>
-                  </select>
-
-                  <select className="px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs font-bold text-neutral-700 focus:outline-none focus:border-[#D71920] shadow-2xs">
-                    <option value="all">💳 All Payments</option>
-                    <option value="cod">Cash on Delivery</option>
-                    <option value="online">Online Payment</option>
-                  </select>
-
-                  <select className="px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs font-bold text-neutral-700 focus:outline-none focus:border-[#D71920] shadow-2xs">
-                    <option value="all">🛡️ Verification (All)</option>
-                    <option value="verified">Verified</option>
-                    <option value="pending">Pending</option>
-                  </select>
-                </div>
+                <select className="px-3.5 py-1.5 rounded-xl border border-[#E5E5E5] bg-white text-xs font-bold text-neutral-800 focus:outline-none focus:border-[#D71920] col-span-2 sm:col-span-1">
+                  <option value="all">🛡️ Verification (All)</option>
+                  <option value="verified">Verified</option>
+                  <option value="pending">Pending</option>
+                </select>
               </div>
 
-              {/* Bottom Row: Status Tabs & Pills (All Orders, Pending, Processing, Shipped, Completed, Cancelled) */}
-              <div className="flex flex-wrap items-center gap-2">
+              {/* Row 3: Status Pill Quick Tabs */}
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
                 {[
                   { id: 'all', label: `All Orders (${orders.length})` },
                   { id: 'pending', label: `Pending (${orders.filter(o => o.orderStatus === 'pending').length})` },
@@ -1248,7 +1235,7 @@ export function AdminDashboard() {
                   <button
                     key={tab.id}
                     onClick={() => setOrderStatusFilter(tab.id)}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       orderStatusFilter === tab.id ? 'bg-[#D71920] text-white shadow-xs' : 'bg-white text-neutral-700 hover:bg-neutral-100 border border-[#E5E5E5]'
                     }`}
                   >
