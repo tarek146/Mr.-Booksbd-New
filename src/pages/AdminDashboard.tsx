@@ -143,6 +143,8 @@ export function AdminDashboard() {
   const [prodDimensions, setProdDimensions] = useState('');
   const [prodColorModel, setProdColorModel] = useState('');
   const [inventoryFilter, setInventoryFilter] = useState<'all' | 'book' | 'stationery'>('all');
+  const [categorySearchQuery, setCategorySearchQuery] = useState('');
+  const [categoryFilterTab, setCategoryFilterTab] = useState<'all' | 'main' | 'sub' | 'child'>('all');
 
   // Reject reason modal
   const [rejectingSubId, setRejectingSubId] = useState<string | null>(null);
@@ -1440,89 +1442,194 @@ export function AdminDashboard() {
         {/* TAB: CATEGORIES MANAGEMENT */}
         {activeTab === 'categories' && (
           <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-[#EEEEEE]">
-              <div>
+            
+            {/* Header with Title and Action Buttons */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-5 border-b border-[#EEEEEE]">
+              <div className="flex items-center gap-3">
                 <h2 className="text-xl font-black text-[#171717] flex items-center gap-2">
-                  <BookOpen size={20} className="text-[#D71920]" /> Store Book & Stationery Categories
+                  <span>Categories</span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/30 text-xs font-bold">
+                    {categories.length} items
+                  </span>
                 </h2>
-                <p className="text-xs text-[#5F6368] mt-1">
-                  Add or edit categories with picture images. Photos will be displayed prominently on the home page and category filters.
-                </p>
               </div>
-              <button 
-                onClick={() => {
-                  setEditingCatId(null);
-                  setCatName('');
-                  setCatType('book');
-                  setCatImage('https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80');
-                  setCatShowOnHome(true);
-                  setShowAddCatModal(true);
-                }}
-                className="px-4 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md cursor-pointer shrink-0"
-              >
-                <Plus size={14} /> Add Category
-              </button>
+              
+              <div className="flex flex-wrap items-center gap-2">
+                <button 
+                  onClick={() => {
+                    setEditingCatId(null);
+                    setCatName('');
+                    setCatType('book');
+                    setCatImage('https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80');
+                    setCatShowOnHome(true);
+                    setShowAddCatModal(true);
+                  }}
+                  className="px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs flex items-center gap-1 shadow-md cursor-pointer transition-colors"
+                >
+                  <Plus size={14} /> Category
+                </button>
+                <button 
+                  onClick={() => {
+                    setEditingCatId(null);
+                    setCatName('');
+                    setCatType('stationery');
+                    setCatImage('https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?w=600&auto=format&fit=crop&q=80');
+                    setCatShowOnHome(true);
+                    setShowAddCatModal(true);
+                  }}
+                  className="px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-white font-bold rounded-xl text-xs flex items-center gap-1 shadow-md cursor-pointer transition-colors"
+                >
+                  <Plus size={14} /> Sub Category
+                </button>
+                <button 
+                  onClick={() => {
+                    setEditingCatId(null);
+                    setCatName('');
+                    setCatType('book');
+                    setCatImage('https://images.unsplash.com/photo-1512820790803-83ca734da794?w=600&auto=format&fit=crop&q=80');
+                    setCatShowOnHome(true);
+                    setShowAddCatModal(true);
+                  }}
+                  className="px-4 py-2 bg-white hover:bg-neutral-100 text-neutral-800 border border-neutral-300 font-bold rounded-xl text-xs flex items-center gap-1 shadow-xs cursor-pointer transition-colors"
+                >
+                  <Plus size={14} /> Child
+                </button>
+              </div>
             </div>
 
-            {/* Category List Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {categories.map(cat => (
-                <div key={cat.id} className="p-4 rounded-2xl border border-[#E5E5E5] bg-[#F7F7F8] flex items-center gap-3.5 shadow-2xs group">
-                  <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 border border-[#E5E5E5] bg-white">
-                    {cat.image ? (
-                      <img src={cat.image} alt={cat.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                    ) : (
-                      <div className="w-full h-full bg-[#FFF1F2] text-[#D71920] font-black flex items-center justify-center text-sm">
-                        {cat.name[0]}
-                      </div>
-                    )}
-                  </div>
+            {/* Search & Filter Bar */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[#F7F7F8] p-3 rounded-2xl border border-[#E5E5E5]">
+              <div className="relative flex-1">
+                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">🔍</span>
+                <input 
+                  type="text"
+                  placeholder="Search categories..."
+                  value={categorySearchQuery}
+                  onChange={e => setCategorySearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                />
+              </div>
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1 mb-0.5">
-                      <span className="text-[10px] font-bold uppercase text-[#D71920]">{cat.type} Category</span>
-                      
-                      {/* Quick Toggle Button for Homepage Display */}
-                      <button 
-                        onClick={() => updateCategory(cat.id, { showOnHome: !(cat.showOnHome !== false) })}
-                        className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full border cursor-pointer transition-colors ${
-                          cat.showOnHome !== false 
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' 
-                            : 'bg-neutral-100 text-neutral-500 border-neutral-200 hover:bg-neutral-200'
-                        }`}
-                        title="Click to toggle display on homepage"
-                      >
-                        {cat.showOnHome !== false ? '✓ Home ON' : '✕ Home OFF'}
-                      </button>
-                    </div>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+                {[
+                  { id: 'all', label: 'All' },
+                  { id: 'main', label: '1 - Main' },
+                  { id: 'sub', label: '2 - Sub' },
+                  { id: 'child', label: '3 - Child' }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setCategoryFilterTab(tab.id as any)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                      categoryFilterTab === tab.id ? 'bg-[#D71920] text-white shadow-xs' : 'bg-white text-neutral-700 border border-neutral-200 hover:bg-neutral-50'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-                    <h4 className="font-bold text-sm text-[#171717] truncate">{cat.name}</h4>
-                    <p className="text-[11px] text-[#5F6368] font-mono mt-0.5">/{cat.slug}</p>
-
-                    <div className="flex items-center gap-3 mt-2">
-                      <button 
-                        onClick={() => {
-                          setEditingCatId(cat.id);
-                          setCatName(cat.name);
-                          setCatType(cat.type);
-                          setCatImage(cat.image || '');
-                          setCatShowOnHome(cat.showOnHome !== false);
-                          setShowAddCatModal(true);
-                        }}
-                        className="text-[11px] text-[#171717] hover:text-[#D71920] font-bold flex items-center gap-1 cursor-pointer"
-                      >
-                        <Edit2 size={11} /> Edit
-                      </button>
-                      <button 
-                        onClick={() => deleteCategory(cat.id)}
-                        className="text-[11px] text-red-600 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
-                      >
-                        <Trash2 size={11} /> Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+            {/* Professional Categories Table */}
+            <div className="overflow-x-auto border border-[#E5E5E5] rounded-2xl bg-white shadow-2xs">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-[#F7F7F8] text-neutral-500 font-bold uppercase tracking-wider border-b border-[#E5E5E5] text-[11px]">
+                    <th className="py-3 px-4 w-10 text-center"><input type="checkbox" className="accent-[#D71920] rounded" /></th>
+                    <th className="py-3 px-4">Category</th>
+                    <th className="py-3 px-4">Parent</th>
+                    <th className="py-3 px-4">Products</th>
+                    <th className="py-3 px-4">Type</th>
+                    <th className="py-3 px-4">Pos</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#EEEEEE]">
+                  {categories
+                    .filter(c => !categorySearchQuery || c.name.toLowerCase().includes(categorySearchQuery.toLowerCase()))
+                    .map((cat, idx) => {
+                      const itemCount = products.filter(p => p.category.toLowerCase() === cat.name.toLowerCase()).length;
+                      return (
+                        <tr key={cat.id} className="hover:bg-[#FFF9F9] transition-colors group">
+                          <td className="py-3.5 px-4 text-center"><input type="checkbox" className="accent-[#D71920] rounded" /></td>
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-11 h-11 rounded-xl overflow-hidden shrink-0 border border-neutral-200 bg-neutral-100">
+                                {cat.image ? (
+                                  <img src={cat.image} alt={cat.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full bg-[#FFF1F2] text-[#D71920] font-black flex items-center justify-center text-xs">
+                                    {cat.name[0]}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <h4 className="font-black text-xs text-neutral-900 uppercase truncate">{cat.name}</h4>
+                                <p className="text-[11px] text-neutral-400 font-mono mt-0.5">/{cat.slug}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4 text-neutral-400 font-bold">—</td>
+                          <td className="py-3.5 px-4">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                              {itemCount} {itemCount === 1 ? 'item' : 'items'}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-black">
+                              Main (1)
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-1.5 bg-neutral-100 px-2 py-1 rounded-lg border border-neutral-200 w-fit">
+                              <span className="font-bold text-neutral-800">{idx}</span>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <button
+                              onClick={() => updateCategory(cat.id, { showOnHome: !(cat.showOnHome !== false) })}
+                              className={`px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider cursor-pointer transition-colors ${
+                                cat.showOnHome !== false
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                  : 'bg-neutral-100 text-neutral-600 border border-neutral-300'
+                              }`}
+                              title="Click to toggle status"
+                            >
+                              {cat.showOnHome !== false ? 'Active' : 'Hidden'}
+                            </button>
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button 
+                                onClick={() => {
+                                  setEditingCatId(cat.id);
+                                  setCatName(cat.name);
+                                  setCatType(cat.type);
+                                  setCatImage(cat.image || '');
+                                  setCatShowOnHome(cat.showOnHome !== false);
+                                  setShowAddCatModal(true);
+                                }}
+                                className="p-1.5 rounded-lg border border-neutral-200 bg-white text-neutral-700 hover:text-[#D71920] hover:border-[#D71920] cursor-pointer transition-colors"
+                                title="Edit Category"
+                              >
+                                <Edit2 size={13} />
+                              </button>
+                              <button 
+                                onClick={() => deleteCategory(cat.id)}
+                                className="p-1.5 rounded-lg border border-neutral-200 bg-white text-neutral-700 hover:text-red-600 hover:border-red-300 cursor-pointer transition-colors"
+                                title="Delete Category"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
             </div>
 
             {/* Modal for Add / Edit Category */}
