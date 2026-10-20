@@ -298,7 +298,7 @@ export function Footer() {
                   <li><button onClick={() => setActivePage('books')} className="hover:text-white transition-colors cursor-pointer text-left w-full truncate">Books Catalog</button></li>
                   <li><button onClick={() => setActivePage('stationery')} className="hover:text-white transition-colors cursor-pointer text-left w-full truncate">Stationery</button></li>
                   <li><button onClick={() => setActivePage('authors')} className="hover:text-white transition-colors cursor-pointer text-left w-full truncate">Authors</button></li>
-                  <li><button onClick={() => setActivePage('my-orders')} className="hover:text-white transition-colors cursor-pointer text-left w-full truncate">Track Orders</button></li>
+                  <li><button onClick={() => setActivePage('track-order')} className="hover:text-white transition-colors cursor-pointer text-left w-full truncate">Track Orders</button></li>
                 </ul>
               </div>
             </div>

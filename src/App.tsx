@@ -13,6 +13,7 @@ import { CheckoutPage } from './pages/CheckoutPage';
 import { OrderSuccessPage } from './pages/OrderSuccessPage';
 import { MyOrdersPage } from './pages/MyOrdersPage';
 import { AuthorsPage } from './pages/AuthorsPage';
+import { TrackOrderPage } from './pages/TrackOrderPage';
 
 // Code-split AdminDashboard so customers don't download admin code on homepage
 const AdminDashboard = React.lazy(() => 
@@ -62,6 +63,7 @@ function MainRouter() {
             {activePage === 'order-success' && <OrderSuccessPage />}
             {activePage === 'my-orders' && <MyOrdersPage />}
             {activePage === 'authors' && <AuthorsPage />}
+            {activePage === 'track-order' && <TrackOrderPage />}
           </main>
           <Footer />
           <MobileBottomNav />

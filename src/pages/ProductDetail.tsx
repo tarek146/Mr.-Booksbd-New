@@ -292,14 +292,14 @@ export function ProductDetail() {
 
             {/* Multiple Photos Thumbnail Gallery Strip */}
             {productImages.length > 1 && (
-              <div className="flex items-center gap-2.5 overflow-x-auto pb-1 pt-1 scrollbar-none">
+              <div className="flex items-center justify-center gap-2.5 overflow-x-auto pb-1 pt-1 scrollbar-none">
                 {productImages.map((img, idx) => {
                     const isSelected = activeImageIndex === idx;
                     return (
                       <button 
                         key={idx}
                         onClick={() => setActiveImageIndex(idx)}
-                        className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl border-2 overflow-hidden bg-white p-1 transition-all shrink-0 cursor-pointer shadow-2xs ${
+                        className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl border-2 overflow-hidden bg-white p-1 transition-all shrink-0 cursor-pointer shadow-2xs ${
                           isSelected 
                             ? 'border-[#D71920] ring-2 ring-[#D71920]/25 scale-105 shadow-md' 
                             : 'border-neutral-200/90 opacity-75 hover:opacity-100 hover:border-neutral-400'
@@ -312,11 +312,6 @@ export function ProductDetail() {
                           decoding="async"
                           className="w-full h-full object-contain" 
                         />
-                        <span className={`absolute bottom-1 right-1 text-[9px] font-black px-1.5 py-0.5 rounded-md shadow-2xs ${
-                          isSelected ? 'bg-[#D71920] text-white' : 'bg-[#171717]/80 text-white'
-                        }`}>
-                          {idx + 1}
-                        </span>
                       </button>
                     );
                   })}

@@ -149,6 +149,11 @@ function getPageFromLocation(): { page: string; productId: string | null } {
     return { page: 'my-orders', productId: null };
   }
 
+  // Track Order route
+  if (pathname === '/track' || pathname === '/track-order' || hash === 'track' || hash === 'track-order') {
+    return { page: 'track-order', productId: null };
+  }
+
   // Authors route
   if (pathname === '/authors' || hash === 'authors') {
     return { page: 'authors', productId: null };
