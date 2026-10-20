@@ -9,7 +9,8 @@ import {
   Author, 
   Banner,
   StoreSettings,
-  Review
+  Review,
+  Subscriber
 } from '../types';
 import { 
   db, 
@@ -87,11 +88,17 @@ interface StoreContextType {
   updateCategory: (id: string, data: Partial<Category>) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
 
-  updateOrderStatus: (orderId: string, orderStatus: Order['orderStatus']) => Promise<void>;
+   updateOrderStatus: (orderId: string, orderStatus: Order['orderStatus']) => Promise<void>;
+  updateOrderTracking: (orderId: string, data: { orderStatus?: Order['orderStatus']; courierName?: string; trackingCode?: string; trackingUrl?: string; trackingNotes?: string }) => Promise<void>;
   reviewPaymentSubmission: (subId: string, status: 'approved' | 'rejected', reason?: string) => Promise<void>;
   updateSettings: (newSettings: Partial<StoreSettings>) => Promise<void>;
   reviews: Review[];
   addProductReview: (review: Omit<Review, 'id' | 'createdAt'>) => Promise<void>;
+
+  subscribers: Subscriber[];
+  addSubscriber: (emailOrPhone: string) => Promise<{ success: boolean; message: string; isNew: boolean }>;
+  deleteSubscriber: (id: string) => Promise<void>;
+  trackOrder: (orderIdOrPhone: string) => Promise<Order | null>;
 }
 
 function getPageFromLocation(): { page: string; productId: string | null } {
@@ -175,6 +182,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [paymentSubmissions, setPaymentSubmissions] = useState<PaymentSubmission[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
 
   const addProductReview = async (reviewData: Omit<Review, 'id' | 'createdAt'>) => {
     const id = 'rev-' + Date.now();
@@ -240,6 +248,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       { id: 's4', name: 'TikTok', url: 'https://tiktok.com', icon: 'tiktok', isActive: true },
       { id: 's5', name: 'WhatsApp', url: 'https://wa.me/8801712345678', icon: 'message-circle', isActive: true }
     ],
+    // Footer Subscription & Tracking Defaults
+    showFooterSubscription: true,
+    subscriptionTitle: 'Join MR. BOOKS Readers Club',
+    subscriptionSubtitle: 'Subscribe to get 10% OFF discount coupon & new releases alert directly to your phone/email.',
+    subscriptionDiscountBadge: 'Get 10% OFF Coupon',
+    showFooterTracking: true,
+    trackingTitle: 'Real-Time Order Tracking',
+    trackingSubtitle: 'Enter your Order ID (ORD-...) or phone number to track your book package.',
     metaTitle: 'MR. BOOKS - Premium Online Bookstore & Stationery in Bangladesh',
     metaDescription: 'Buy bestselling books, novels, Islamic books, university textbooks, and premium stationery online in Bangladesh with fast nationwide delivery.',
     ogImageUrl: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=1200&auto=format&fit=crop&q=80',
@@ -573,9 +589,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let unsubOrders: (() => void) | null = null;
     let unsubSubs: (() => void) | null = null;
+    let unsubSubscribers: (() => void) | null = null;
 
     if (isAdmin) {
-      // Administrator: Real-time sync for all orders and payment verification queues
+      // Administrator: Real-time sync for all orders, payment verification queues, and subscribers
       unsubOrders = onSnapshot(
         collection(db, 'orders'),
         (snapshot) => {
@@ -593,6 +610,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         },
         (err) => {
           console.warn('Admin submissions listener notice:', err.message);
+        }
+      );
+
+      unsubSubscribers = onSnapshot(
+        collection(db, 'subscribers'),
+        (snapshot) => {
+          setSubscribers(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Subscriber)));
+        },
+        (err) => {
+          console.warn('Admin subscribers listener notice:', err.message);
         }
       );
     } else if (currentUser) {
@@ -617,6 +644,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return () => {
       if (unsubOrders) unsubOrders();
       if (unsubSubs) unsubSubs();
+      if (unsubSubscribers) unsubSubscribers();
     };
   }, [currentUser, isAdmin]);
 
@@ -1041,6 +1069,124 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, orderStatus, updatedAt: Date.now() } : o));
   };
 
+  const updateOrderTracking = async (
+    orderId: string, 
+    data: { 
+      orderStatus?: Order['orderStatus']; 
+      courierName?: string; 
+      trackingCode?: string; 
+      trackingUrl?: string; 
+      trackingNotes?: string;
+    }
+  ) => {
+    try {
+      const updatePayload = {
+        ...data,
+        updatedAt: Date.now()
+      };
+      await setDoc(doc(db, 'orders', orderId), cleanForFirestore(updatePayload), { merge: true });
+      await logAdminAction('order_tracking_updated', orderId, `Updated tracking for Order #${orderId}: ${data.courierName || 'Courier'} (${data.trackingCode || 'No Code'})`);
+    } catch (err) {
+      console.error('Firestore update tracking error:', err);
+      throw err;
+    }
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...data, updatedAt: Date.now() } : o));
+  };
+
+  const trackOrder = async (orderIdOrPhone: string): Promise<Order | null> => {
+    const raw = orderIdOrPhone.trim().replace(/^#/, '');
+    if (!raw) return null;
+
+    // 1. Check local in-memory orders
+    const rawCleanDigits = raw.replace(/[^0-9]/g, '');
+    const foundLocal = orders.find(o => {
+      const idMatch = o.id.toLowerCase() === raw.toLowerCase();
+      const phoneDigits = o.phone.replace(/[^0-9]/g, '');
+      const phoneMatch = rawCleanDigits.length >= 6 && phoneDigits.includes(rawCleanDigits);
+      return idMatch || phoneMatch;
+    });
+    if (foundLocal) return foundLocal;
+
+    // 2. Direct Firestore document fetch by ID
+    try {
+      const docRef = doc(db, 'orders', raw);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() } as Order;
+      }
+    } catch (err) {
+      console.warn('Direct order get notice:', err);
+    }
+
+    // 3. Fallback query by phone
+    try {
+      if (rawCleanDigits.length >= 6) {
+        const q = query(collection(db, 'orders'), where('phone', '==', raw));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          return { id: snap.docs[0].id, ...snap.docs[0].data() } as Order;
+        }
+      }
+    } catch (err) {
+      console.warn('Phone order query notice:', err);
+    }
+
+    return null;
+  };
+
+  const addSubscriber = async (emailOrPhone: string): Promise<{ success: boolean; message: string; isNew: boolean }> => {
+    const raw = emailOrPhone.trim();
+    if (!raw) {
+      return { success: false, message: 'Please enter a valid email or phone number.', isNew: false };
+    }
+
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw);
+    const cleanPhone = raw.replace(/[^0-9+]/g, '');
+    const isPhone = /^(\+?8801|01)[3-9]\d{8}$/.test(cleanPhone) || (cleanPhone.length >= 10 && cleanPhone.length <= 15);
+
+    if (!isEmail && !isPhone) {
+      return { success: false, message: 'Please enter a valid email (e.g. name@example.com) or 11-digit mobile number.', isNew: false };
+    }
+
+    const type = isEmail ? 'email' : 'phone';
+    const normalized = isEmail ? raw.toLowerCase() : cleanPhone;
+
+    const existing = subscribers.find(s => s.emailOrPhone.toLowerCase() === normalized.toLowerCase());
+    if (existing) {
+      return { success: true, message: 'You are already registered! Use coupon MRBOOKS10 for 10% off.', isNew: false };
+    }
+
+    const id = 'sub-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
+    const newSub: Subscriber = {
+      id,
+      emailOrPhone: normalized,
+      type,
+      subscribedAt: Date.now(),
+      status: 'active',
+      source: 'footer_subscription'
+    };
+
+    try {
+      await setDoc(doc(db, 'subscribers', id), cleanForFirestore(newSub));
+      setSubscribers(prev => [newSub, ...prev]);
+      return { success: true, message: '🎉 Subscription successful! Welcome to MR. BOOKS Readers Club. Your 10% OFF code: MRBOOKS10', isNew: true };
+    } catch (err: any) {
+      console.warn('Subscribers Firestore write notice:', err);
+      setSubscribers(prev => [newSub, ...prev]);
+      return { success: true, message: '🎉 Subscription saved! Welcome to MR. BOOKS Readers Club. Your 10% OFF code: MRBOOKS10', isNew: true };
+    }
+  };
+
+  const deleteSubscriber = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'subscribers', id));
+      await logAdminAction('subscriber_deleted', id, `Removed subscriber ${id}`);
+    } catch (err) {
+      console.error('Error deleting subscriber:', err);
+    }
+    setSubscribers(prev => prev.filter(s => s.id !== id));
+  };
+
   const reviewPaymentSubmission = async (subId: string, status: 'approved' | 'rejected', reason?: string) => {
     const sub = paymentSubmissions.find(s => s.id === subId);
     if (!sub) return;
@@ -1143,10 +1289,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       updateCategory,
       deleteCategory,
       updateOrderStatus,
+      updateOrderTracking,
       reviewPaymentSubmission,
       updateSettings,
       reviews,
-      addProductReview
+      addProductReview,
+      subscribers,
+      addSubscriber,
+      deleteSubscriber,
+      trackOrder
     }}>
       {children}
     </StoreContext.Provider>

@@ -1,6 +1,22 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
-import { BookOpen, Phone, Mail, MapPin, ShieldCheck, Truck, RefreshCw, Globe } from 'lucide-react';
+import { 
+  BookOpen, 
+  Phone, 
+  Mail, 
+  MapPin, 
+  Truck, 
+  Globe, 
+  Package, 
+  Sparkles, 
+  Search, 
+  CheckCircle2, 
+  AlertCircle, 
+  ArrowRight,
+  Gift
+} from 'lucide-react';
+import { OrderTrackingModal } from './OrderTrackingModal';
+import { Order } from '../types';
 
 const FacebookIcon = () => (
   <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
@@ -33,54 +49,226 @@ const WhatsAppIcon = () => (
 );
 
 export function Footer() {
-  const { settings, setActivePage, setSelectedCategoryFilter } = useStore();
+  const { settings, setActivePage, setSelectedCategoryFilter, addSubscriber, trackOrder } = useStore();
+
+  // Subscription state
+  const [subInput, setSubInput] = useState('');
+  const [subLoading, setSubLoading] = useState(false);
+  const [subMessage, setSubMessage] = useState<{ text: string; success: boolean } | null>(null);
+
+  // Tracking state
+  const [trackInput, setTrackInput] = useState('');
+  const [trackLoading, setTrackLoading] = useState(false);
+  const [trackError, setTrackError] = useState<string | null>(null);
+  const [activeTrackingOrder, setActiveTrackingOrder] = useState<Order | null>(null);
+
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!subInput.trim()) return;
+    setSubLoading(true);
+    setSubMessage(null);
+    try {
+      const res = await addSubscriber(subInput);
+      setSubMessage({ text: res.message, success: res.success });
+      if (res.success) {
+        setSubInput('');
+      }
+    } catch {
+      setSubMessage({ text: 'Something went wrong. Please try again.', success: false });
+    } finally {
+      setSubLoading(false);
+    }
+  };
+
+  const handleTrackSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!trackInput.trim()) return;
+    setTrackLoading(true);
+    setTrackError(null);
+    try {
+      const order = await trackOrder(trackInput);
+      if (order) {
+        setActiveTrackingOrder(order);
+        setTrackError(null);
+      } else {
+        setTrackError(`কোনো অর্ডার পাওয়া যায়নি। সঠিক Order ID (যেমন #ORD-...) অথবা অর্ডার দেওয়ার সময় ব্যবহৃত মোবাইল নম্বর দিয়ে চেষ্টা করুন।`);
+      }
+    } catch {
+      setTrackError('অর্ডার লোড হতে সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন অথবা আমাদের হেল্পলাইনে কল করুন।');
+    } finally {
+      setTrackLoading(false);
+    }
+  };
+
+  const showSubscription = settings.showFooterSubscription !== false;
+  const showTracking = settings.showFooterTracking !== false;
 
   return (
-    <footer className="bg-[#121212] text-zinc-300 pt-10 sm:pt-12 pb-10 sm:pb-12 border-t border-zinc-800/80 transition-colors">
+    <footer className="bg-[#121212] text-zinc-300 pt-8 sm:pt-10 pb-10 sm:pb-12 border-t border-zinc-800/80 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8">
         
-        {/* Top 4 Value Pillars - Boxed Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4">
-          <div className="bg-[#1c1c1e] border border-zinc-800/90 rounded-2xl p-3.5 sm:p-4 flex items-center gap-3 shadow-sm hover:border-zinc-700 transition-colors">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-[#28282a] text-[#D71920] rounded-xl flex items-center justify-center shrink-0 border border-zinc-700/60 shadow-2xs">
-              <Truck size={18} />
-            </div>
-            <div>
-              <h4 className="font-bold text-white text-xs sm:text-sm">Nationwide Delivery</h4>
-              <p className="text-[10px] sm:text-[11px] text-zinc-400">Inside Dhaka 48h, Outside 72h</p>
-            </div>
-          </div>
+        {/* Phone-Optimized Subscription & Real-Time Order Tracking Options (Side-by-side in 1 line on md+) */}
+        {(showSubscription || showTracking) && (
+          <div className={`grid ${showSubscription && showTracking ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'} gap-3.5 sm:gap-4.5 items-stretch`}>
+            
+            {/* 1. VIP Book Club & Offers Subscription Card */}
+            {showSubscription && (
+              <div className="relative overflow-hidden bg-gradient-to-br from-[#1c1c20] via-[#18181b] to-[#131315] border border-zinc-800/90 hover:border-zinc-700/90 rounded-2xl p-4 sm:p-5 flex flex-col justify-between shadow-lg shadow-black/25 transition-all duration-300 group">
+                {/* Decorative Subtle Ambient Red Glow */}
+                <div className="pointer-events-none absolute -top-12 -right-12 w-32 h-32 bg-[#D71920]/10 group-hover:bg-[#D71920]/20 rounded-full blur-2xl transition-all duration-500" />
 
-          <div className="bg-[#1c1c1e] border border-zinc-800/90 rounded-2xl p-3.5 sm:p-4 flex items-center gap-3 shadow-sm hover:border-zinc-700 transition-colors">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-[#28282a] text-[#D71920] rounded-xl flex items-center justify-center shrink-0 border border-zinc-700/60 shadow-2xs">
-              <ShieldCheck size={18} />
-            </div>
-            <div>
-              <h4 className="font-bold text-white text-xs sm:text-sm">100% Original Guarantee</h4>
-              <p className="text-[10px] sm:text-[11px] text-zinc-400">Directly from publishers</p>
-            </div>
-          </div>
+                <div className="space-y-2.5 relative z-10">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#D71920]/25 to-[#D71920]/10 text-[#FF4D4D] flex items-center justify-center border border-[#D71920]/35 shadow-xs shrink-0 group-hover:scale-105 transition-transform duration-200">
+                        <Gift size={18} />
+                      </div>
+                      <h3 className="font-bold text-white text-[15px] sm:text-base tracking-tight leading-snug">
+                        {settings.subscriptionTitle || 'Join MR. BOOKS Readers Club'}
+                      </h3>
+                    </div>
 
-          <div className="bg-[#1c1c1e] border border-zinc-800/90 rounded-2xl p-3.5 sm:p-4 flex items-center gap-3 shadow-sm hover:border-zinc-700 transition-colors">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-[#28282a] text-[#D71920] rounded-xl flex items-center justify-center shrink-0 border border-zinc-700/60 shadow-2xs">
-              <RefreshCw size={18} />
-            </div>
-            <div>
-              <h4 className="font-bold text-white text-xs sm:text-sm">Instant Order Support</h4>
-              <p className="text-[10px] sm:text-[11px] text-zinc-400">bKash, Nagad & COD verified</p>
-            </div>
-          </div>
+                    <span className="inline-flex items-center gap-1.5 text-[10.5px] sm:text-[11px] font-bold text-[#FF5555] bg-[#D71920]/15 border border-[#D71920]/30 px-2.5 py-0.5 rounded-full shrink-0 shadow-2xs">
+                      <Sparkles size={11} className="text-[#FF5555]" /> {settings.subscriptionDiscountBadge || '10% OFF Coupon'}
+                    </span>
+                  </div>
 
-          <div className="bg-[#1c1c1e] border border-zinc-800/90 rounded-2xl p-3.5 sm:p-4 flex items-center gap-3 shadow-sm hover:border-zinc-700 transition-colors">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-[#28282a] text-[#D71920] rounded-xl flex items-center justify-center shrink-0 border border-zinc-700/60 shadow-2xs">
-              <Phone size={18} />
-            </div>
-            <div>
-              <h4 className="font-bold text-white text-xs sm:text-sm">Customer Helpline</h4>
-              <p className="text-[10px] sm:text-[11px] text-zinc-400">{settings.phone}</p>
-            </div>
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    {settings.subscriptionSubtitle || 'Subscribe to get 10% OFF discount coupon & new releases alert directly to your phone/email.'}
+                  </p>
+                </div>
+
+                {/* Sleek Integrated Subscription Form */}
+                <form onSubmit={handleSubscribe} className="mt-3.5 space-y-2 relative z-10">
+                  <div className="relative flex items-center bg-[#232327] hover:bg-[#26262a] focus-within:bg-[#232327] border border-zinc-700/80 focus-within:border-[#D71920] focus-within:ring-2 focus-within:ring-[#D71920]/20 rounded-xl p-1 transition-all duration-200 shadow-inner">
+                    <div className="pl-2.5 pr-1.5 text-zinc-400 pointer-events-none flex items-center shrink-0">
+                      <Mail size={15} />
+                    </div>
+                    <input
+                      type="text"
+                      value={subInput}
+                      onChange={e => { setSubInput(e.target.value); setSubMessage(null); }}
+                      placeholder="Email or Mobile (017... / name@...)"
+                      disabled={subLoading}
+                      className="w-full bg-transparent px-2 py-1.5 sm:py-2 text-white placeholder-zinc-500 text-xs sm:text-sm focus:outline-none"
+                    />
+                    <button
+                      type="submit"
+                      disabled={subLoading || !subInput.trim()}
+                      className="px-3.5 sm:px-4 py-2 bg-gradient-to-r from-[#D71920] to-[#B9151B] hover:from-[#E51E25] hover:to-[#C7171D] disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-lg text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all shadow-md hover:shadow-[#D71920]/25 cursor-pointer shrink-0 active:scale-95"
+                    >
+                      {subLoading ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span className="hidden sm:inline">Subscribing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Subscribe</span>
+                          <ArrowRight size={13} />
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {subMessage && (
+                    <div className={`p-2.5 rounded-xl text-xs flex items-start gap-2 animate-in fade-in slide-in-from-top-1 duration-200 ${
+                      subMessage.success 
+                        ? 'bg-emerald-950/70 border border-emerald-700/80 text-emerald-300' 
+                        : 'bg-red-950/70 border border-red-700/80 text-red-300'
+                    }`}>
+                      {subMessage.success ? <CheckCircle2 size={15} className="shrink-0 mt-0.5" /> : <AlertCircle size={15} className="shrink-0 mt-0.5" />}
+                      <span className="leading-snug">{subMessage.text}</span>
+                    </div>
+                  )}
+                </form>
+              </div>
+            )}
+
+            {/* 2. Real-Time Order Tracking Card */}
+            {showTracking && (
+              <div className="relative overflow-hidden bg-gradient-to-br from-[#1c1c20] via-[#18181b] to-[#131315] border border-zinc-800/90 hover:border-zinc-700/90 rounded-2xl p-4 sm:p-5 flex flex-col justify-between shadow-lg shadow-black/25 transition-all duration-300 group">
+                {/* Decorative Subtle Ambient Emerald Glow */}
+                <div className="pointer-events-none absolute -top-12 -right-12 w-32 h-32 bg-emerald-500/10 group-hover:bg-emerald-500/20 rounded-full blur-2xl transition-all duration-500" />
+
+                <div className="space-y-2.5 relative z-10">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500/25 to-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/35 shadow-xs shrink-0 group-hover:scale-105 transition-transform duration-200">
+                        <Truck size={18} />
+                      </div>
+                      <h3 className="font-bold text-white text-[15px] sm:text-base tracking-tight leading-snug">
+                        {settings.trackingTitle || 'Real-Time Order Tracking'}
+                      </h3>
+                    </div>
+
+                    <span className="inline-flex items-center gap-1.5 text-[10.5px] sm:text-[11px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-700/60 px-2.5 py-0.5 rounded-full shrink-0 shadow-2xs">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                      </span>
+                      Live Status
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    {settings.trackingSubtitle || 'Enter your Order ID (ORD-...) or phone number to track your book package.'}
+                  </p>
+                </div>
+
+                {/* Sleek Integrated Tracking Form */}
+                <form onSubmit={handleTrackSubmit} className="mt-3.5 space-y-2 relative z-10">
+                  <div className="relative flex items-center bg-[#232327] hover:bg-[#26262a] focus-within:bg-[#232327] border border-zinc-700/80 focus-within:border-[#D71920] focus-within:ring-2 focus-within:ring-[#D71920]/20 rounded-xl p-1 transition-all duration-200 shadow-inner">
+                    <div className="pl-2.5 pr-1.5 text-zinc-400 pointer-events-none flex items-center shrink-0">
+                      <Package size={15} />
+                    </div>
+                    <input
+                      type="text"
+                      value={trackInput}
+                      onChange={e => { setTrackInput(e.target.value); setTrackError(null); }}
+                      placeholder="Order ID (ORD-...) or Mobile No."
+                      disabled={trackLoading}
+                      className="w-full bg-transparent px-2 py-1.5 sm:py-2 text-white placeholder-zinc-500 text-xs sm:text-sm focus:outline-none"
+                    />
+                    <button
+                      type="submit"
+                      disabled={trackLoading || !trackInput.trim()}
+                      className="px-3.5 sm:px-4 py-2 bg-gradient-to-r from-[#D71920] to-[#B9151B] hover:from-[#E51E25] hover:to-[#C7171D] disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-lg text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all shadow-md hover:shadow-[#D71920]/25 cursor-pointer shrink-0 active:scale-95"
+                    >
+                      {trackLoading ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span className="hidden sm:inline">Searching...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Search size={13} />
+                          <span>Track Order</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {trackError && (
+                    <div className="p-2.5 rounded-xl bg-red-950/70 border border-red-800 text-red-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                      <div className="flex items-start gap-1.5">
+                        <AlertCircle size={15} className="shrink-0 mt-0.5 text-red-400" />
+                        <span className="leading-snug">{trackError}</span>
+                      </div>
+                      <a
+                        href={`tel:${settings.phone.replace(/[^0-9+]/g, '')}`}
+                        className="inline-flex items-center justify-center gap-1 text-[11px] font-bold text-white bg-red-800/90 hover:bg-red-700 px-2.5 py-1 rounded-lg shrink-0 transition-colors shadow-xs"
+                      >
+                        <Phone size={11} /> Call Helpline
+                      </a>
+                    </div>
+                  )}
+                </form>
+              </div>
+            )}
+
           </div>
-        </div>
+        )}
 
         {/* Main Footer Links - Modern Boxed Cards */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4">
@@ -219,6 +407,14 @@ export function Footer() {
         </div>
 
       </div>
+
+      {/* Real-Time Order Tracking Modal */}
+      {activeTrackingOrder && (
+        <OrderTrackingModal 
+          order={activeTrackingOrder} 
+          onClose={() => setActiveTrackingOrder(null)} 
+        />
+      )}
     </footer>
   );
 }

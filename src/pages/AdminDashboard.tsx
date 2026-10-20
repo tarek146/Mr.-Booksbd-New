@@ -32,9 +32,14 @@ import {
   Layers,
   ChevronRight,
   Calendar,
-  RefreshCw
+  RefreshCw,
+  Mail,
+  Gift,
+  Search,
+  Copy,
+  Truck
 } from 'lucide-react';
-import { Author, Banner } from '../types';
+import { Author, Banner, Order } from '../types';
 import { AdminAnalytics } from '../components/admin/AdminAnalytics';
 import { compressImageFile } from '../utils/imageCompressor';
 
@@ -67,11 +72,31 @@ export function AdminDashboard() {
     updateCategory,
     deleteCategory,
     updateSettings,
-    setActivePage
+    setActivePage,
+    subscribers,
+    addSubscriber,
+    deleteSubscriber,
+    updateOrderTracking
   } = useStore();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'verifications' | 'payment-methods' | 'orders' | 'products' | 'categories' | 'banners' | 'authors' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'verifications' | 'payment-methods' | 'orders' | 'products' | 'categories' | 'banners' | 'authors' | 'subscribers' | 'settings'>('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Subscribers management state
+  const [subSearchQuery, setSubSearchQuery] = useState('');
+  const [showAddSubModal, setShowAddSubModal] = useState(false);
+  const [newSubInput, setNewSubInput] = useState('');
+  const [newSubMsg, setNewSubMsg] = useState<{ text: string; success: boolean } | null>(null);
+  const [copiedSubs, setCopiedSubs] = useState(false);
+
+  // Courier & Order Tracking modal state
+  const [trackingModalOrder, setTrackingModalOrder] = useState<Order | null>(null);
+  const [courierNameInput, setCourierNameInput] = useState('Steadfast');
+  const [trackingCodeInput, setTrackingCodeInput] = useState('');
+  const [trackingUrlInput, setTrackingUrlInput] = useState('');
+  const [trackingNotesInput, setTrackingNotesInput] = useState('');
+  const [trackingStatusInput, setTrackingStatusInput] = useState<Order['orderStatus']>('shipped');
+  const [trackingSaving, setTrackingSaving] = useState(false);
 
   // Category management state
   const [showAddCatModal, setShowAddCatModal] = useState(false);
@@ -739,6 +764,12 @@ export function AdminDashboard() {
         { id: 'categories', label: 'Categories', icon: Layers, count: categories.length },
         { id: 'banners', label: 'Hero Banners', icon: ImageIcon, count: banners.length },
         { id: 'authors', label: 'Writers & Authors', icon: Users, count: authors.length },
+      ]
+    },
+    {
+      title: 'MARKETING & AUDIENCE',
+      items: [
+        { id: 'subscribers', label: 'VIP Subscribers', icon: Mail, count: subscribers.length },
       ]
     },
     {
@@ -1540,24 +1571,58 @@ export function AdminDashboard() {
                           </div>
                         </div>
 
-                        {/* Courier & Quick Actions */}
-                        <div className="flex items-center justify-between gap-2 pt-1">
-                          <div className="flex items-center gap-1.5">
-                            <button onClick={() => alert(`Dispatched ${o.id} via Steadfast Courier.`)} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold shadow-xs cursor-pointer">
-                              Steadfast
-                            </button>
-                            <button onClick={() => alert(`Dispatched ${o.id} via Pathao Courier.`)} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[11px] font-bold shadow-xs cursor-pointer">
-                              Pathao
-                            </button>
-                          </div>
+                        {/* Courier & Live Tracking Management */}
+                        <div className="space-y-2 pt-1 border-t border-neutral-100">
+                          {o.courierName || o.trackingCode ? (
+                            <div className="bg-amber-50/80 border border-amber-200/80 rounded-xl p-2 text-xs flex items-center justify-between">
+                              <div className="min-w-0">
+                                <span className="font-extrabold text-amber-900 block truncate">
+                                  🚚 {o.courierName || 'Courier'}: {o.trackingCode || 'Dispatched'}
+                                </span>
+                                {o.trackingNotes && (
+                                  <span className="text-[10px] text-amber-700 block truncate">{o.trackingNotes}</span>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setTrackingModalOrder(o);
+                                  setCourierNameInput(o.courierName || 'Steadfast');
+                                  setTrackingCodeInput(o.trackingCode || '');
+                                  setTrackingUrlInput(o.trackingUrl || '');
+                                  setTrackingNotesInput(o.trackingNotes || '');
+                                  setTrackingStatusInput(o.orderStatus);
+                                }}
+                                className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[10px] font-bold shrink-0 cursor-pointer transition-colors"
+                              >
+                                Edit
+                              </button>
+                            </div>
+                          ) : null}
 
-                          <div className="flex items-center gap-1.5">
-                            <button onClick={() => alert(`Order ID: ${o.id}\nCustomer: ${o.customerName}\nTotal: ৳${o.total}`)} className="p-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 cursor-pointer" title="View Order">
-                              👁️
+                          <div className="flex items-center justify-between gap-2">
+                            <button
+                              onClick={() => {
+                                setTrackingModalOrder(o);
+                                setCourierNameInput(o.courierName || 'Steadfast');
+                                setTrackingCodeInput(o.trackingCode || '');
+                                setTrackingUrlInput(o.trackingUrl || '');
+                                setTrackingNotesInput(o.trackingNotes || '');
+                                setTrackingStatusInput(o.orderStatus);
+                              }}
+                              className="flex-1 py-1.5 px-3 bg-[#171717] hover:bg-neutral-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition-all"
+                            >
+                              <Truck size={13} className="text-[#D71920]" />
+                              <span>{o.courierName || o.trackingCode ? 'Manage Tracking' : 'Assign Courier'}</span>
                             </button>
-                            <button onClick={() => window.print()} className="p-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 cursor-pointer" title="Print Invoice">
-                              🖨️
-                            </button>
+
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button onClick={() => alert(`Order ID: ${o.id}\nCustomer: ${o.customerName}\nPhone: ${o.phone}\nAddress: ${o.address}, ${o.city}\nTotal: ৳${o.total}`)} className="p-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 cursor-pointer" title="View Details">
+                                👁️
+                              </button>
+                              <button onClick={() => window.print()} className="p-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 cursor-pointer" title="Print Invoice">
+                                🖨️
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1568,6 +1633,179 @@ export function AdminDashboard() {
                 ))}
             </div>
 
+            {/* Courier & Order Tracking Modal */}
+            {trackingModalOrder && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
+                <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-neutral-200 space-y-5 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between pb-3 border-b border-neutral-200">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-2xl bg-[#D71920]/10 text-[#D71920] flex items-center justify-center">
+                        <Truck size={20} />
+                      </div>
+                      <div>
+                        <h3 className="font-black text-neutral-900 text-base">Assign Courier & Live Tracking</h3>
+                        <p className="text-xs text-neutral-500 font-mono">Order #{trackingModalOrder.id}</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setTrackingModalOrder(null)} 
+                      className="p-1.5 rounded-xl hover:bg-neutral-100 text-neutral-400 hover:text-neutral-700 cursor-pointer"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  <div className="bg-[#F7F7F8] p-3 rounded-2xl border border-neutral-200 text-xs space-y-1">
+                    <div className="flex justify-between font-bold text-neutral-800">
+                      <span>👤 {trackingModalOrder.customerName}</span>
+                      <span>📞 {trackingModalOrder.phone}</span>
+                    </div>
+                    <p className="text-neutral-500 text-[11px] truncate">
+                      📍 {trackingModalOrder.address}, {trackingModalOrder.city}, {trackingModalOrder.district}
+                    </p>
+                  </div>
+
+                  <form 
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      setTrackingSaving(true);
+                      try {
+                        let finalUrl = trackingUrlInput.trim();
+                        if (!finalUrl && trackingCodeInput.trim()) {
+                          if (courierNameInput.toLowerCase().includes('steadfast')) {
+                            finalUrl = `https://steadfast.com.bd/t/${encodeURIComponent(trackingCodeInput.trim())}`;
+                          } else if (courierNameInput.toLowerCase().includes('pathao')) {
+                            finalUrl = `https://pathao.com/courier/tracking/?consignment_id=${encodeURIComponent(trackingCodeInput.trim())}`;
+                          } else if (courierNameInput.toLowerCase().includes('redx')) {
+                            finalUrl = `https://redx.com.bd/track-order/?trackingId=${encodeURIComponent(trackingCodeInput.trim())}`;
+                          }
+                        }
+
+                        await updateOrderTracking(trackingModalOrder.id, {
+                          courierName: courierNameInput,
+                          trackingCode: trackingCodeInput.trim(),
+                          trackingUrl: finalUrl,
+                          trackingNotes: trackingNotesInput.trim(),
+                          orderStatus: trackingStatusInput
+                        });
+                        setTrackingModalOrder(null);
+                      } catch (err: any) {
+                        alert('Failed to update tracking: ' + err.message);
+                      } finally {
+                        setTrackingSaving(false);
+                      }
+                    }}
+                    className="space-y-4 text-xs"
+                  >
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-bold text-neutral-700 mb-1 uppercase tracking-wider text-[10px]">
+                          Courier Partner
+                        </label>
+                        <select
+                          value={courierNameInput}
+                          onChange={e => setCourierNameInput(e.target.value)}
+                          className="w-full px-3 py-2.5 rounded-xl border border-neutral-200 bg-white font-bold text-neutral-800 focus:outline-none focus:border-[#D71920]"
+                        >
+                          <option value="Steadfast">Steadfast Courier</option>
+                          <option value="Pathao">Pathao Courier</option>
+                          <option value="RedX">RedX Delivery</option>
+                          <option value="Paperfly">Paperfly</option>
+                          <option value="eCourier">eCourier</option>
+                          <option value="Sundarban Courier">Sundarban Courier</option>
+                          <option value="SA Paribahan">SA Paribahan</option>
+                          <option value="In-House Delivery">In-House Delivery (Rider)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-neutral-700 mb-1 uppercase tracking-wider text-[10px]">
+                          Order Status
+                        </label>
+                        <select
+                          value={trackingStatusInput}
+                          onChange={e => setTrackingStatusInput(e.target.value as any)}
+                          className="w-full px-3 py-2.5 rounded-xl border border-neutral-200 bg-white font-bold text-neutral-800 focus:outline-none focus:border-[#D71920]"
+                        >
+                          <option value="confirmed">Confirmed</option>
+                          <option value="processing">Processing</option>
+                          <option value="shipped">Shipped (In Transit)</option>
+                          <option value="out_for_delivery">Out for Delivery</option>
+                          <option value="delivered">Delivered</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-neutral-700 mb-1 uppercase tracking-wider text-[10px]">
+                        Courier Consignment / Tracking Code
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 241020XYZ888"
+                        value={trackingCodeInput}
+                        onChange={e => setTrackingCodeInput(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white font-mono text-neutral-900 font-bold focus:outline-none focus:border-[#D71920]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-neutral-700 mb-1 uppercase tracking-wider text-[10px]">
+                        Courier Live Tracking URL (Optional)
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="Leave blank to auto-generate for Steadfast/Pathao"
+                        value={trackingUrlInput}
+                        onChange={e => setTrackingUrlInput(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white text-neutral-800 focus:outline-none focus:border-[#D71920]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-neutral-700 mb-1 uppercase tracking-wider text-[10px]">
+                        Customer Tracking Note / Dispatch Remark
+                      </label>
+                      <textarea
+                        rows={2}
+                        placeholder="e.g. Parcel dispatched via Steadfast, expected delivery within 48h."
+                        value={trackingNotesInput}
+                        onChange={e => setTrackingNotesInput(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white text-neutral-800 focus:outline-none focus:border-[#D71920]"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-neutral-200">
+                      <button
+                        type="button"
+                        onClick={() => setTrackingModalOrder(null)}
+                        className="px-4 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold rounded-xl cursor-pointer transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={trackingSaving}
+                        className="px-5 py-2.5 bg-[#D71920] hover:bg-[#B9151B] disabled:opacity-50 text-white font-bold rounded-xl shadow-sm cursor-pointer flex items-center gap-1.5 transition-all"
+                      >
+                        {trackingSaving ? (
+                          <>
+                            <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            <span>Saving Tracking...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Check size={14} />
+                            <span>Save & Update Order</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -2693,6 +2931,252 @@ export function AdminDashboard() {
           </div>
         )}
 
+        {/* TAB: SUBSCRIBERS AUDIENCE MANAGEMENT */}
+        {activeTab === 'subscribers' && (
+          <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-[#EEEEEE]">
+              <div>
+                <h2 className="text-xl font-black text-[#171717] flex items-center gap-2">
+                  <Mail size={22} className="text-[#D71920]" /> VIP Club & Discount Subscribers
+                </h2>
+                <p className="text-xs text-[#5F6368] mt-1">
+                  Manage all phone numbers and emails collected from the website footer subscription box for marketing campaigns and discounts.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button
+                  onClick={() => {
+                    if (subscribers.length === 0) {
+                      alert('No subscribers to copy.');
+                      return;
+                    }
+                    const list = subscribers.map(s => s.emailOrPhone).join('\n');
+                    navigator.clipboard?.writeText(list);
+                    setCopiedSubs(true);
+                    setTimeout(() => setCopiedSubs(false), 2500);
+                  }}
+                  className="flex-1 sm:flex-initial px-4 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-neutral-300"
+                >
+                  {copiedSubs ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                  <span>{copiedSubs ? 'Copied to Clipboard!' : 'Copy All Subscribers'}</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setNewSubInput('');
+                    setNewSubMsg(null);
+                    setShowAddSubModal(true);
+                  }}
+                  className="flex-1 sm:flex-initial px-4 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
+                >
+                  <Plus size={14} />
+                  <span>Add Subscriber</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Metric Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="bg-[#F7F7F8] p-4 rounded-2xl border border-neutral-200">
+                <span className="text-xs font-bold text-neutral-500 uppercase tracking-wider block">Total Subscribers</span>
+                <div className="text-2xl font-black text-neutral-900 mt-1">{subscribers.length}</div>
+                <span className="text-[11px] text-emerald-600 font-bold mt-1 block">● 100% Active in Audience</span>
+              </div>
+
+              <div className="bg-[#F7F7F8] p-4 rounded-2xl border border-neutral-200">
+                <span className="text-xs font-bold text-neutral-500 uppercase tracking-wider block">Mobile Subscribers</span>
+                <div className="text-2xl font-black text-[#D71920] mt-1">
+                  {subscribers.filter(s => s.type === 'phone').length}
+                </div>
+                <span className="text-[11px] text-neutral-500 font-medium mt-1 block">Ready for SMS Campaign</span>
+              </div>
+
+              <div className="bg-[#F7F7F8] p-4 rounded-2xl border border-neutral-200">
+                <span className="text-xs font-bold text-neutral-500 uppercase tracking-wider block">Email Subscribers</span>
+                <div className="text-2xl font-black text-blue-600 mt-1">
+                  {subscribers.filter(s => s.type === 'email').length}
+                </div>
+                <span className="text-[11px] text-neutral-500 font-medium mt-1 block">Ready for Email Newsletter</span>
+              </div>
+            </div>
+
+            {/* Search & Filter Toolbar */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-[#F7F7F8] p-3 rounded-2xl border border-neutral-200">
+              <div className="relative w-full sm:w-80">
+                <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-neutral-400">
+                  <Search size={14} />
+                </span>
+                <input
+                  type="text"
+                  placeholder="Search by phone number or email..."
+                  value={subSearchQuery}
+                  onChange={e => setSubSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-neutral-800 focus:outline-none focus:border-[#D71920]"
+                />
+              </div>
+
+              <span className="text-xs font-bold text-neutral-500">
+                Showing {subscribers.filter(s => {
+                  if (!subSearchQuery.trim()) return true;
+                  return s.emailOrPhone.toLowerCase().includes(subSearchQuery.toLowerCase());
+                }).length} of {subscribers.length} total
+              </span>
+            </div>
+
+            {/* Subscribers List */}
+            <div className="space-y-2">
+              {subscribers
+                .filter(s => {
+                  if (!subSearchQuery.trim()) return true;
+                  return s.emailOrPhone.toLowerCase().includes(subSearchQuery.toLowerCase());
+                })
+                .sort((a, b) => b.subscribedAt - a.subscribedAt)
+                .map(sub => (
+                  <div
+                    key={sub.id}
+                    className="flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-white border border-neutral-200 hover:border-neutral-300 transition-colors shadow-2xs"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                        sub.type === 'phone' 
+                          ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' 
+                          : 'bg-blue-50 text-blue-600 border border-blue-200'
+                      }`}>
+                        {sub.type === 'phone' ? '📱' : <Mail size={16} />}
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-black text-sm text-neutral-900 truncate">
+                            {sub.emailOrPhone}
+                          </span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                            sub.type === 'phone' 
+                              ? 'bg-emerald-100 text-emerald-800' 
+                              : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {sub.type}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-neutral-500 mt-0.5">
+                          Subscribed: {new Date(sub.subscribedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} at {new Date(sub.subscribedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => {
+                          navigator.clipboard?.writeText(sub.emailOrPhone);
+                          alert(`Copied ${sub.emailOrPhone} to clipboard!`);
+                        }}
+                        className="p-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-600 cursor-pointer"
+                        title="Copy"
+                      >
+                        <Copy size={13} />
+                      </button>
+
+                      <button
+                        onClick={async () => {
+                          if (confirm(`Remove subscriber ${sub.emailOrPhone}?`)) {
+                            await deleteSubscriber(sub.id);
+                          }
+                        }}
+                        className="p-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 cursor-pointer transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+              {subscribers.length === 0 && (
+                <div className="text-center py-12 bg-[#F7F7F8] rounded-2xl border border-dashed border-neutral-300">
+                  <Mail size={32} className="mx-auto text-neutral-400 mb-2" />
+                  <p className="font-bold text-neutral-700 text-sm">No subscribers recorded yet.</p>
+                  <p className="text-xs text-neutral-500 mt-1">
+                    When visitors enter their phone number or email in the footer, they will appear here automatically in real-time.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Add Subscriber Modal */}
+            {showAddSubModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
+                <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-neutral-200 space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-neutral-200">
+                    <h3 className="font-black text-neutral-900 text-base">Add New VIP Subscriber</h3>
+                    <button
+                      onClick={() => setShowAddSubModal(false)}
+                      className="p-1.5 rounded-xl hover:bg-neutral-100 text-neutral-400 hover:text-neutral-700 cursor-pointer"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!newSubInput.trim()) return;
+                      const res = await addSubscriber(newSubInput.trim());
+                      setNewSubMsg({ text: res.message, success: res.success });
+                      if (res.success) {
+                        setTimeout(() => {
+                          setShowAddSubModal(false);
+                          setNewSubInput('');
+                          setNewSubMsg(null);
+                        }, 1200);
+                      }
+                    }}
+                    className="space-y-4 text-xs"
+                  >
+                    <div>
+                      <label className="block font-bold text-neutral-700 mb-1 uppercase tracking-wider text-[10px]">
+                        Subscriber Email or Phone Number
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="01712345678 or customer@example.com"
+                        value={newSubInput}
+                        onChange={e => setNewSubInput(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white text-neutral-900 font-bold focus:outline-none focus:border-[#D71920]"
+                      />
+                    </div>
+
+                    {newSubMsg && (
+                      <div className={`p-2.5 rounded-xl text-xs font-bold ${
+                        newSubMsg.success ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'
+                      }`}>
+                        {newSubMsg.text}
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-200">
+                      <button
+                        type="button"
+                        onClick={() => setShowAddSubModal(false)}
+                        className="px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold rounded-xl cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-5 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl shadow-xs cursor-pointer"
+                      >
+                        Save Subscriber
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* TAB 6: STORE SETTINGS */}
         {activeTab === 'settings' && (
           <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
@@ -2956,6 +3440,126 @@ export function AdminDashboard() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+
+              {/* Footer Subscription & Order Tracking Options Configuration */}
+              <div className="pt-6 border-t border-[#EEEEEE] space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-black text-[#171717] uppercase tracking-wider flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#D71920]"></span>
+                    Footer VIP Subscription & Real-Time Tracking Controls
+                  </h3>
+                  <span className="text-[10px] font-bold text-neutral-500 bg-neutral-100 px-2.5 py-0.5 rounded-full">
+                    Mobile & Desktop Optimized
+                  </span>
+                </div>
+                <p className="text-xs text-[#5F6368]">
+                  Control whether the VIP Subscription Box and Real-Time Order Tracking Box appear in the footer, and customize their titles, subtitles, and promo badges.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Subscription Box Settings Card */}
+                  <div className="p-4 rounded-2xl bg-[#F7F7F8] border border-neutral-200 space-y-3.5">
+                    <div className="flex items-center justify-between pb-2 border-b border-neutral-200">
+                      <div className="flex items-center gap-2">
+                        <Gift size={16} className="text-[#D71920]" />
+                        <span className="font-black text-xs text-neutral-800">VIP Subscription Box</span>
+                      </div>
+                      <label className="flex items-center gap-2 text-xs font-bold text-neutral-800 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={settingsForm.showFooterSubscription !== false}
+                          onChange={e => setSettingsForm(prev => ({ ...prev, showFooterSubscription: e.target.checked }))}
+                          className="w-4 h-4 accent-[#D71920]"
+                        />
+                        <span>Enabled</span>
+                      </label>
+                    </div>
+
+                    <div className="space-y-3 text-xs">
+                      <div>
+                        <label className="block font-bold text-neutral-700 mb-1 text-[11px]">Subscription Heading</label>
+                        <input
+                          type="text"
+                          value={settingsForm.subscriptionTitle || ''}
+                          onChange={e => setSettingsForm(prev => ({ ...prev, subscriptionTitle: e.target.value }))}
+                          placeholder="Join MR. BOOKS VIP Club"
+                          className="w-full px-3.5 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-neutral-900"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-neutral-700 mb-1 text-[11px]">Subtitle / Offer Description</label>
+                        <textarea
+                          rows={2}
+                          value={settingsForm.subscriptionSubtitle || ''}
+                          onChange={e => setSettingsForm(prev => ({ ...prev, subscriptionSubtitle: e.target.value }))}
+                          placeholder="Subscribe to get 10% OFF discount coupon & new releases alert directly to your phone/email."
+                          className="w-full px-3.5 py-2 rounded-xl border border-neutral-300 bg-white text-xs text-neutral-800"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-neutral-700 mb-1 text-[11px]">Discount Promo Badge</label>
+                        <input
+                          type="text"
+                          value={settingsForm.subscriptionDiscountBadge || ''}
+                          onChange={e => setSettingsForm(prev => ({ ...prev, subscriptionDiscountBadge: e.target.value }))}
+                          placeholder="10% OFF Coupon"
+                          className="w-full px-3.5 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-neutral-900"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tracking Box Settings Card */}
+                  <div className="p-4 rounded-2xl bg-[#F7F7F8] border border-neutral-200 space-y-3.5">
+                    <div className="flex items-center justify-between pb-2 border-b border-neutral-200">
+                      <div className="flex items-center gap-2">
+                        <Truck size={16} className="text-[#D71920]" />
+                        <span className="font-black text-xs text-neutral-800">Order Tracking Box</span>
+                      </div>
+                      <label className="flex items-center gap-2 text-xs font-bold text-neutral-800 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={settingsForm.showFooterTracking !== false}
+                          onChange={e => setSettingsForm(prev => ({ ...prev, showFooterTracking: e.target.checked }))}
+                          className="w-4 h-4 accent-[#D71920]"
+                        />
+                        <span>Enabled</span>
+                      </label>
+                    </div>
+
+                    <div className="space-y-3 text-xs">
+                      <div>
+                        <label className="block font-bold text-neutral-700 mb-1 text-[11px]">Tracking Heading</label>
+                        <input
+                          type="text"
+                          value={settingsForm.trackingTitle || ''}
+                          onChange={e => setSettingsForm(prev => ({ ...prev, trackingTitle: e.target.value }))}
+                          placeholder="Real-Time Order Tracking"
+                          className="w-full px-3.5 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-neutral-900"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-neutral-700 mb-1 text-[11px]">Subtitle / Help Instructions</label>
+                        <textarea
+                          rows={2}
+                          value={settingsForm.trackingSubtitle || ''}
+                          onChange={e => setSettingsForm(prev => ({ ...prev, trackingSubtitle: e.target.value }))}
+                          placeholder="Enter your Order ID (ORD-...) or phone number to track your book package."
+                          className="w-full px-3.5 py-2 rounded-xl border border-neutral-300 bg-white text-xs text-neutral-800"
+                        />
+                      </div>
+
+                      <div className="p-2.5 rounded-xl bg-neutral-200/60 text-[11px] text-neutral-600 space-y-1">
+                        <p className="font-bold text-neutral-800">⚡ Tracking Integration Notice:</p>
+                        <p>Customer searches will match against Firestore orders in real-time, displaying courier partner details, consignment tracking links, and delivery journey stepper.</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 

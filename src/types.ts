@@ -73,6 +73,19 @@ export interface Order {
   createdAt: number;
   updatedAt: number;
   paymentSubmissionId?: string;
+  courierName?: string;
+  trackingCode?: string;
+  trackingUrl?: string;
+  trackingNotes?: string;
+}
+
+export interface Subscriber {
+  id: string;
+  emailOrPhone: string;
+  type: 'email' | 'phone';
+  subscribedAt: number;
+  status: 'active' | 'unsubscribed';
+  source?: string;
 }
 
 export interface PaymentSubmission {
@@ -191,6 +204,14 @@ export interface StoreSettings {
   // Footer Customizations
   footerPaymentMethods?: FooterPaymentMethod[];
   socialLinks?: SocialLinkItem[];
+  // Footer Subscription & Tracking Settings
+  showFooterSubscription?: boolean;
+  subscriptionTitle?: string;
+  subscriptionSubtitle?: string;
+  subscriptionDiscountBadge?: string;
+  showFooterTracking?: boolean;
+  trackingTitle?: string;
+  trackingSubtitle?: string;
   // SEO Settings
   metaTitle?: string;
   metaDescription?: string;

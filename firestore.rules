@@ -52,10 +52,16 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Subscribers collection (Newsletter, VIP club & book deals)
+    match /subscribers/{subscriberId} {
+      allow create: if request.resource.data.emailOrPhone is string;
+      allow read, update, delete: if isAdmin();
+    }
+
     // Orders collection:
     // Create: Allowed with strict validation (positive values, required fields)
-    // Read: Only the authenticated order owner or Admin (NO anonymous leaks or cross-customer access)
-    // Update: Only Admin can update status/payment; Customer can only attach payment submission ID or cancel their own pending order
+    // Read: Customer can read their own order, Admin can read all, or single order lookup by Order ID for direct tracking
+    // Update: Only Admin can update status/payment/tracking; Customer can only attach payment submission ID or cancel their own pending order
     // Delete: Admin only
     match /orders/{orderId} {
       allow create: if request.resource.data.id == orderId
@@ -70,7 +76,8 @@ service cloud.firestore {
         && request.resource.data.orderStatus in ['pending', 'awaiting_payment', 'confirmed']
         && (request.auth == null || request.resource.data.userId == request.auth.uid || isAdmin());
 
-      allow read: if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid);
+      allow get: if true;
+      allow list: if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid);
 
       allow update: if isAdmin() || (
         request.auth != null 
