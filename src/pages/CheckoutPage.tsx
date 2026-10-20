@@ -143,26 +143,13 @@ export function CheckoutPage() {
   return (
     <div className="min-h-screen bg-white transition-colors py-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+        <div className="flex items-center justify-between mb-6">
           <button 
             onClick={() => setActivePage('cart')}
             className="flex items-center gap-1.5 text-xs font-bold text-[#5F6368] hover:text-[#D71920] transition-colors cursor-pointer"
           >
             <ArrowLeft size={16} /> Back to Cart
           </button>
-
-          {/* Checkout Form Completion Parameter Bar */}
-          <div className="bg-neutral-100 border border-neutral-200 px-4 py-2 rounded-2xl flex items-center gap-3 w-full sm:w-auto">
-            <div className="text-xs font-bold text-neutral-700">
-              Form Completion: <span className="text-[#D71920] font-black">{completionPercentage}%</span>
-            </div>
-            <div className="w-32 sm:w-40 h-2 bg-neutral-200 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-[#D71920] transition-all duration-300 rounded-full"
-                style={{ width: `${completionPercentage}%` }}
-              ></div>
-            </div>
-          </div>
         </div>
 
         <form onSubmit={handlePlaceOrder} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -171,13 +158,28 @@ export function CheckoutPage() {
             
             {/* Delivery Address Card */}
             <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 sm:p-8 shadow-xs space-y-5">
-              <div className="flex items-center gap-3 pb-4 border-b border-[#EEEEEE]">
-                <div className="w-10 h-10 bg-[#FFF1F2] text-[#D71920] rounded-xl flex items-center justify-center">
-                  <Truck size={20} />
+              <div className="flex items-center justify-between gap-3 pb-4 border-b border-[#EEEEEE] flex-wrap">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-[#FFF1F2] text-[#D71920] rounded-xl flex items-center justify-center">
+                    <Truck size={20} />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-black text-[#171717]">Delivery Address</h2>
+                    <p className="text-xs text-[#5F6368]">Where should we deliver your book parcel?</p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-lg font-black text-[#171717]">Delivery Address</h2>
-                  <p className="text-xs text-[#5F6368]">Where should we deliver your book parcel?</p>
+
+                {/* Checkout Form Completion Parameter Bar */}
+                <div className="bg-neutral-100 border border-neutral-200 px-3.5 py-1.5 rounded-2xl flex items-center gap-2.5">
+                  <div className="text-[11px] font-bold text-neutral-700">
+                    Form Completion: <span className="text-[#D71920] font-black">{completionPercentage}%</span>
+                  </div>
+                  <div className="w-24 sm:w-28 h-2 bg-neutral-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-[#D71920] transition-all duration-300 rounded-full"
+                      style={{ width: `${completionPercentage}%` }}
+                    ></div>
+                  </div>
                 </div>
               </div>
 
