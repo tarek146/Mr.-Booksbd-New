@@ -13,18 +13,14 @@ import {
 } from '../types';
 import { 
   db, 
-  seedInitialDataIfNeeded, 
-  DEFAULT_PRODUCTS, 
-  DEFAULT_CATEGORIES, 
-  DEFAULT_AUTHORS, 
-  DEFAULT_BANNERS, 
-  DEFAULT_PAYMENT_METHODS 
+  seedInitialDataIfNeeded 
 } from '../firebase';
 import { 
   collection, 
   getDocs, 
   getDocsFromServer,
   doc, 
+  getDoc,
   getDocFromServer,
   setDoc, 
   deleteDoc, 
@@ -36,6 +32,7 @@ import {
 } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { cleanForFirestore, addCacheBust } from '../utils/imageCompressor';
+import { SyncTracker, REQUIRED_COLLECTIONS } from '../utils/syncManager';
 
 interface StoreContextType {
   products: Product[];
@@ -177,10 +174,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodConfig[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [paymentSubmissions, setPaymentSubmissions] = useState<PaymentSubmission[]>([]);
-  const [reviews, setReviews] = useState<Review[]>([
-    { id: 'rev-1', productId: 'prod-1', userName: 'Tanvir Ahmed', rating: 5, comment: 'Authentic print quality! Book binding and paper feel 100% original. Delivered in Sylhet within 48 hours.', createdAt: Date.now() - 86400000, isVerifiedPurchase: true },
-    { id: 'rev-2', productId: 'prod-1', userName: 'Nusrat Jahan', rating: 5, comment: 'Fast bKash manual payment verification. Received the package safely wrapped in bubble wrap.', createdAt: Date.now() - 43200000, isVerifiedPurchase: true }
-  ]);
+  const [reviews, setReviews] = useState<Review[]>([]);
 
   const addProductReview = async (reviewData: Omit<Review, 'id' | 'createdAt'>) => {
     const id = 'rev-' + Date.now();
@@ -211,11 +205,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [darkMode] = useState<boolean>(false);
   const setDarkMode = (_dark: boolean) => {};
   const [isLoading, setIsLoading] = useState<boolean>(true);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(timer);
-  }, []);
   
   const [settings, setSettings] = useState<StoreSettings>({
     storeName: 'MR. BOOKS',
@@ -337,12 +326,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
 
 
-  // 1. Public catalog collections: Force-Fetch fresh live data from server bypassing browser cache, then attach real-time listeners
+  // 1. Authoritative Server-First Data Synchronization & Real-time Subscriptions
   useEffect(() => {
     let isMounted = true;
+    const tracker = new SyncTracker();
 
-    async function forceFetchFromServer() {
+    // Safety timeout: in case of extreme network stall or quota lock, unlock UI gracefully
+    const safetyTimer = setTimeout(() => {
+      if (isMounted) {
+        tracker.setOffline(true);
+        setIsLoading(false);
+      }
+    }, 7000);
+
+    async function initializeStore() {
       try {
+        // Fetch fresh authoritative data directly from Cloud Firestore servers
         const [prodSnap, catSnap, authSnap, bannerSnap, paySnap, setSnap, revSnap] = await Promise.all([
           getDocsFromServer(collection(db, 'products')),
           getDocsFromServer(collection(db, 'categories')),
@@ -355,144 +354,210 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
         if (!isMounted) return;
 
-        setProducts(prodSnap.docs.map(d => {
-          const data = d.data() as Product;
-          return { ...data, id: d.id, images: (data.images || []).map(img => addCacheBust(img)) };
-        }));
-        setCategories(catSnap.docs.map(d => {
-          const data = d.data() as Category;
-          return { ...data, id: d.id, image: addCacheBust(data.image) };
-        }));
-        setAuthors(authSnap.docs.map(d => {
-          const data = d.data() as Author;
-          return { ...data, id: d.id, photoUrl: addCacheBust(data.photoUrl) };
-        }));
-        setBanners(bannerSnap.docs.map(d => {
-          const data = d.data() as Banner;
-          return { ...data, id: d.id, imageUrl: addCacheBust(data.imageUrl) };
-        }));
-        setPaymentMethods(paySnap.docs.map(d => ({ id: d.id, ...d.data() } as PaymentMethodConfig)));
+        // Record server confirmation for all required collections
+        REQUIRED_COLLECTIONS.forEach(col => tracker.recordSnapshot(col, false));
+
+        setProducts(prodSnap.docs.map(d => ({ ...d.data(), id: d.id } as Product)));
+        setCategories(catSnap.docs.map(d => ({ ...d.data(), id: d.id } as Category)));
+        setAuthors(authSnap.docs.map(d => ({ ...d.data(), id: d.id } as Author)));
+        setBanners(bannerSnap.docs.map(d => ({ ...d.data(), id: d.id } as Banner)));
+        setPaymentMethods(paySnap.docs.map(d => ({ ...d.data(), id: d.id } as PaymentMethodConfig)));
         if (setSnap.exists()) {
           const st = setSnap.data() as StoreSettings;
-          setSettings(prev => ({
-            ...prev,
-            ...st,
-            logoUrl: addCacheBust(st.logoUrl),
-            footerLogoUrl: addCacheBust(st.footerLogoUrl),
-            faviconUrl: addCacheBust(st.faviconUrl),
-            ogImageUrl: addCacheBust(st.ogImageUrl)
-          }));
+          setSettings(prev => ({ ...prev, ...st }));
         }
         if (!revSnap.empty) {
-          setReviews(revSnap.docs.map(d => ({ id: d.id, ...d.data() } as Review)));
+          setReviews(revSnap.docs.map(d => ({ ...d.data(), id: d.id } as Review)));
+        } else {
+          setReviews([]);
         }
+
+        setIsLoading(false);
       } catch (err: any) {
-        console.warn('Force fetch from server notice:', err?.message);
-      } finally {
-        if (isMounted) setIsLoading(false);
+        console.warn('Initial server fetch notice, falling back to cache if available:', err?.message);
+        try {
+          tracker.setOffline(true);
+          const [prodSnap, catSnap, authSnap, bannerSnap, paySnap, setSnap, revSnap] = await Promise.all([
+            getDocs(collection(db, 'products')),
+            getDocs(collection(db, 'categories')),
+            getDocs(collection(db, 'authors')),
+            getDocs(collection(db, 'banners')),
+            getDocs(collection(db, 'payment_methods')),
+            getDoc(doc(db, 'settings', 'general')),
+            getDocs(collection(db, 'reviews'))
+          ]);
+
+          if (!isMounted) return;
+
+          setProducts(prodSnap.docs.map(d => ({ ...d.data(), id: d.id } as Product)));
+          setCategories(catSnap.docs.map(d => ({ ...d.data(), id: d.id } as Category)));
+          setAuthors(authSnap.docs.map(d => ({ ...d.data(), id: d.id } as Author)));
+          setBanners(bannerSnap.docs.map(d => ({ ...d.data(), id: d.id } as Banner)));
+          setPaymentMethods(paySnap.docs.map(d => ({ ...d.data(), id: d.id } as PaymentMethodConfig)));
+          if (setSnap && setSnap.exists()) {
+            setSettings(prev => ({ ...prev, ...(setSnap.data() as StoreSettings) }));
+          }
+          if (revSnap && !revSnap.empty) {
+            setReviews(revSnap.docs.map(d => ({ ...d.data(), id: d.id } as Review)));
+          }
+        } catch (fallbackErr) {
+          console.error('Fallback query error:', fallbackErr);
+        } finally {
+          if (isMounted) setIsLoading(false);
+        }
       }
     }
 
-    forceFetchFromServer();
+    initializeStore();
 
+    // 2. Real-time Listeners with Metadata Checks
     const unsubProducts = onSnapshot(
       collection(db, 'products'),
+      { includeMetadataChanges: true },
       (snapshot) => {
-        setIsLoading(false);
-        setProducts(snapshot.docs.map(d => {
-          const data = d.data() as Product;
-          return { ...data, id: d.id, images: (data.images || []).map(img => addCacheBust(img)) };
-        }));
+        const fromCache = snapshot.metadata.fromCache;
+        tracker.recordSnapshot('products', fromCache);
+
+        if (!tracker.shouldApplySnapshot('products', fromCache)) {
+          return; // Guard against stale IndexedDB cache flashing
+        }
+
+        setProducts(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Product)));
+        if (tracker.isInitialSyncComplete()) {
+          setIsLoading(false);
+        }
       },
       (err) => {
-        setIsLoading(false);
-        console.warn('Products listener notice:', err.message);
+        console.warn('Products realtime listener notice:', err.message);
       }
     );
 
     const unsubCategories = onSnapshot(
       collection(db, 'categories'),
+      { includeMetadataChanges: true },
       (snapshot) => {
-        setCategories(snapshot.docs.map(d => {
-          const data = d.data() as Category;
-          return { ...data, id: d.id, image: addCacheBust(data.image) };
-        }));
+        const fromCache = snapshot.metadata.fromCache;
+        tracker.recordSnapshot('categories', fromCache);
+
+        if (!tracker.shouldApplySnapshot('categories', fromCache)) {
+          return;
+        }
+
+        setCategories(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Category)));
+        if (tracker.isInitialSyncComplete()) {
+          setIsLoading(false);
+        }
       },
       (err) => {
-        console.warn('Categories listener notice:', err.message);
+        console.warn('Categories realtime listener notice:', err.message);
       }
     );
 
     const unsubAuthors = onSnapshot(
       collection(db, 'authors'),
+      { includeMetadataChanges: true },
       (snapshot) => {
-        setAuthors(snapshot.docs.map(d => {
-          const data = d.data() as Author;
-          return { ...data, id: d.id, photoUrl: addCacheBust(data.photoUrl) };
-        }));
+        const fromCache = snapshot.metadata.fromCache;
+        tracker.recordSnapshot('authors', fromCache);
+
+        if (!tracker.shouldApplySnapshot('authors', fromCache)) {
+          return;
+        }
+
+        setAuthors(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Author)));
+        if (tracker.isInitialSyncComplete()) {
+          setIsLoading(false);
+        }
       },
       (err) => {
-        console.warn('Authors listener notice:', err.message);
+        console.warn('Authors realtime listener notice:', err.message);
       }
     );
 
     const unsubBanners = onSnapshot(
       collection(db, 'banners'),
+      { includeMetadataChanges: true },
       (snapshot) => {
-        setBanners(snapshot.docs.map(d => {
-          const data = d.data() as Banner;
-          return { ...data, id: d.id, imageUrl: addCacheBust(data.imageUrl) };
-        }));
+        const fromCache = snapshot.metadata.fromCache;
+        tracker.recordSnapshot('banners', fromCache);
+
+        if (!tracker.shouldApplySnapshot('banners', fromCache)) {
+          return;
+        }
+
+        setBanners(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Banner)));
+        if (tracker.isInitialSyncComplete()) {
+          setIsLoading(false);
+        }
       },
       (err) => {
-        console.warn('Banners listener notice:', err.message);
+        console.warn('Banners realtime listener notice:', err.message);
       }
     );
 
     const unsubPayments = onSnapshot(
       collection(db, 'payment_methods'),
+      { includeMetadataChanges: true },
       (snapshot) => {
-        setPaymentMethods(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PaymentMethodConfig)));
+        const fromCache = snapshot.metadata.fromCache;
+        tracker.recordSnapshot('payment_methods', fromCache);
+
+        if (!tracker.shouldApplySnapshot('payment_methods', fromCache)) {
+          return;
+        }
+
+        setPaymentMethods(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as PaymentMethodConfig)));
+        if (tracker.isInitialSyncComplete()) {
+          setIsLoading(false);
+        }
       },
       (err) => {
-        console.warn('Payments listener notice:', err.message);
+        console.warn('Payments realtime listener notice:', err.message);
       }
     );
 
     const unsubSettings = onSnapshot(
       doc(db, 'settings', 'general'),
+      { includeMetadataChanges: true },
       (snap) => {
+        const fromCache = snap.metadata.fromCache;
+        tracker.recordSnapshot('settings', fromCache);
+
+        if (!tracker.shouldApplySnapshot('settings', fromCache)) {
+          return;
+        }
+
         if (snap.exists()) {
           const st = snap.data() as StoreSettings;
-          setSettings(prev => ({
-            ...prev,
-            ...st,
-            logoUrl: addCacheBust(st.logoUrl),
-            footerLogoUrl: addCacheBust(st.footerLogoUrl),
-            faviconUrl: addCacheBust(st.faviconUrl),
-            ogImageUrl: addCacheBust(st.ogImageUrl)
-          }));
+          setSettings(prev => ({ ...prev, ...st }));
+        }
+        if (tracker.isInitialSyncComplete()) {
+          setIsLoading(false);
         }
       },
       (err) => {
-        console.warn('Settings listener notice:', err.message);
+        console.warn('Settings realtime listener notice:', err.message);
       }
     );
 
     const unsubReviews = onSnapshot(
       collection(db, 'reviews'),
+      { includeMetadataChanges: true },
       (snapshot) => {
         if (!snapshot.empty) {
-          setReviews(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Review)));
+          setReviews(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Review)));
+        } else {
+          setReviews([]);
         }
       },
       (err) => {
-        console.warn('Reviews listener notice:', err.message);
+        console.warn('Reviews realtime listener notice:', err.message);
       }
     );
 
     return () => {
       isMounted = false;
+      clearTimeout(safetyTimer);
       unsubProducts();
       unsubCategories();
       unsubAuthors();

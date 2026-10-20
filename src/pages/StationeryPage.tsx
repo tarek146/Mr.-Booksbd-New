@@ -8,9 +8,7 @@ import {
   SlidersHorizontal, 
   X, 
   RotateCcw, 
-  Check, 
-  Sparkles,
-  Layers
+  Check 
 } from 'lucide-react';
 
 export function StationeryPage() {
@@ -97,53 +95,47 @@ export function StationeryPage() {
     <div className="min-h-screen bg-white transition-colors pt-3 pb-16 sm:py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         
-        {/* Header Breadcrumb & Title */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#F7F7F8] p-5 rounded-3xl border border-[#E5E5E5]">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#D71920] text-white rounded-2xl flex items-center justify-center shadow-md">
-              <PenTool size={20} />
-            </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-black text-[#171717] tracking-tight">
-                Stationery & Office Supplies
-              </h1>
-              <p className="text-xs text-[#5F6368] font-medium mt-0.5">
-                Explore premium pens, notebooks, desk essentials, and art supplies with instant delivery.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <span className="px-3.5 py-1.5 bg-white border border-[#E5E5E5] rounded-xl text-xs font-bold text-[#171717] shadow-2xs">
-              Total <strong>{allStationeryCount}</strong> Stationery Items
-            </span>
-          </div>
-        </div>
-
-        {/* Quick Filter, Search & Sort Bar */}
-        <div className="bg-[#F7F7F8] p-4 sm:p-5 rounded-2xl border border-[#E5E5E5] space-y-3">
-          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+        {/* Unified Compact Header & Filter Box */}
+        <div className="bg-[#F7F7F8] p-4 sm:p-5 rounded-2xl border border-[#E5E5E5] space-y-4">
+          
+          {/* Row 1: Title & Quick Stats + Search & Sort */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             
-            {/* Search Input */}
-            <div className="flex-1 max-w-md">
-              <AnimatedSearchInput 
-                value={searchQuery}
-                onChange={(val) => setSearchQuery(val)}
-                showSubmitButton={false}
-              />
+            {/* Left: Icon & Title */}
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-[#D71920] text-white rounded-xl flex items-center justify-center shadow-xs shrink-0">
+                <PenTool size={18} />
+              </div>
+              <div>
+                <h1 className="text-lg sm:text-xl font-black text-[#171717] tracking-tight">
+                  Stationery & Office Supplies
+                </h1>
+                <p className="text-[11px] text-[#5F6368] font-medium">
+                  {allStationeryCount} items available in store
+                </p>
+              </div>
             </div>
 
-            {/* Mobile Filter Button & Sort Selector */}
-            <div className="flex items-center justify-between gap-2 shrink-0">
+            {/* Right: Search Bar & Sort */}
+            <div className="flex items-center gap-3 flex-1 max-w-xl justify-end">
+              <div className="flex-1 max-w-xs">
+                <AnimatedSearchInput 
+                  value={searchQuery}
+                  onChange={(val) => setSearchQuery(val)}
+                  showSubmitButton={false}
+                />
+              </div>
+
+              {/* Mobile Filter Button */}
               <button 
                 onClick={() => setIsMobileFilterOpen(true)}
-                className="md:hidden flex-1 px-4 py-2 bg-white border border-[#E5E5E5] rounded-xl text-xs font-bold text-[#171717] flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs hover:border-[#D71920]"
+                className="md:hidden px-3.5 py-2 bg-white border border-[#E5E5E5] rounded-xl text-xs font-bold text-[#171717] flex items-center gap-1.5 cursor-pointer shadow-2xs hover:border-[#D71920] shrink-0"
               >
                 <SlidersHorizontal size={14} className="text-[#D71920]" />
-                <span>Filters {hasActiveFilters && '• Active'}</span>
+                <span>Filters {hasActiveFilters && '•'}</span>
               </button>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <span className="text-xs text-[#777777] hidden sm:inline">Sort:</span>
                 <select 
                   value={sortBy}
@@ -153,17 +145,17 @@ export function StationeryPage() {
                   <option value="featured">Featured First</option>
                   <option value="price-low">Price: Low to High</option>
                   <option value="price-high">Price: High to Low</option>
-                  <option value="rating">Top Customer Rated</option>
+                  <option value="rating">Top Rated</option>
                 </select>
               </div>
             </div>
           </div>
 
-          {/* Category Chips Bar */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+          {/* Row 2: Category Chips inside the same unified box */}
+          <div className="flex items-center gap-2 overflow-x-auto pt-2 border-t border-[#E5E5E5] pb-1 scrollbar-none">
             <button 
               onClick={() => setSelectedCategoryFilter('all')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+              className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
                 selectedCategoryFilter === 'all' 
                   ? 'bg-[#D71920] text-white shadow-2xs' 
                   : 'bg-white border border-[#E5E5E5] text-[#171717] hover:border-[#D71920]'
@@ -177,7 +169,7 @@ export function StationeryPage() {
                 <button 
                   key={cat.id}
                   onClick={() => setSelectedCategoryFilter(cat.name)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 ${
+                  className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 ${
                     selectedCategoryFilter === cat.name 
                       ? 'bg-[#D71920] text-white shadow-2xs' 
                       : 'bg-white border border-[#E5E5E5] text-[#171717] hover:border-[#D71920]'

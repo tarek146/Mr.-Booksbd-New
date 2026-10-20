@@ -83,14 +83,16 @@ export function cleanForFirestore<T>(data: T): T {
 }
 
 /**
- * Appends a cache-busting query parameter to image and asset URLs
- * to ensure the browser never serves stale cached images from previous sessions.
+ * Normalizes an image URL safely without constantly invalidating browser image cache on every render.
  */
-export function addCacheBust(url?: string | null): string {
+export function addCacheBust(url?: string | null, version?: number | string): string {
   if (!url || typeof url !== 'string') return '';
   if (url.startsWith('data:') || url.startsWith('blob:')) return url;
-  if (url.includes('cb=') || url.includes('_t=')) return url;
-  const separator = url.includes('?') ? '&' : '?';
-  return `${url}${separator}cb=${Date.now()}`;
+  if (url.includes('cb=') || url.includes('_t=') || url.includes('v=')) return url;
+  if (version) {
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}v=${version}`;
+  }
+  return url;
 }
 

@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 export function Home() {
-  const { products, categories, setActivePage, setSelectedCategoryFilter } = useStore();
+  const { products, categories, reviews, setActivePage, setSelectedCategoryFilter } = useStore();
   
   const categoryScrollRef = useRef<HTMLDivElement>(null);
   const booksScrollRef = useRef<HTMLDivElement>(null);
@@ -219,89 +219,59 @@ export function Home() {
         </div>
       </section>
 
-      {/* 5. Verified Customer Reviews & Testimonials (Single Row Horizontal Slider) */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
-        <div className="flex items-center justify-between mb-3 sm:mb-4 pb-1 border-b border-[#F0F0F0]">
-          <h2 className="text-lg sm:text-2xl font-black text-[#171717] tracking-tight">
-            What Book Lovers Say About MR. BOOKS
-          </h2>
-        </div>
+      {/* 5. Verified Customer Reviews & Testimonials (Rendered dynamically from Firestore) */}
+      {reviews.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+          <div className="flex items-center justify-between mb-3 sm:mb-4 pb-1 border-b border-[#F0F0F0]">
+            <h2 className="text-lg sm:text-2xl font-black text-[#171717] tracking-tight">
+              What Book Lovers Say About MR. BOOKS
+            </h2>
+          </div>
 
-        <div className="relative group/reviews-slider">
-          <button 
-            onClick={() => scrollContainer(reviewsScrollRef, 'left')}
-            className="absolute -left-2.5 sm:-left-3.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white border border-[#E5E5E5] shadow-lg flex items-center justify-center text-[#171717] hover:bg-[#D71920] hover:text-white hover:border-[#D71920] transition-all z-20 opacity-90 sm:opacity-0 sm:group-hover/reviews-slider:opacity-100 cursor-pointer active:scale-90"
-            aria-label="Scroll Reviews Left"
-          >
-            <ChevronLeft size={18} />
-          </button>
+          <div className="relative group/reviews-slider">
+            <button 
+              onClick={() => scrollContainer(reviewsScrollRef, 'left')}
+              className="absolute -left-2.5 sm:-left-3.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white border border-[#E5E5E5] shadow-lg flex items-center justify-center text-[#171717] hover:bg-[#D71920] hover:text-white hover:border-[#D71920] transition-all z-20 opacity-90 sm:opacity-0 sm:group-hover/reviews-slider:opacity-100 cursor-pointer active:scale-90"
+              aria-label="Scroll Reviews Left"
+            >
+              <ChevronLeft size={18} />
+            </button>
 
-          <button 
-            onClick={() => scrollContainer(reviewsScrollRef, 'right')}
-            className="absolute -right-2.5 sm:-right-3.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white border border-[#E5E5E5] shadow-lg flex items-center justify-center text-[#171717] hover:bg-[#D71920] hover:text-white hover:border-[#D71920] transition-all z-20 opacity-90 sm:opacity-0 sm:group-hover/reviews-slider:opacity-100 cursor-pointer active:scale-90"
-            aria-label="Scroll Reviews Right"
-          >
-            <ChevronRight size={18} />
-          </button>
+            <button 
+              onClick={() => scrollContainer(reviewsScrollRef, 'right')}
+              className="absolute -right-2.5 sm:-right-3.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white border border-[#E5E5E5] shadow-lg flex items-center justify-center text-[#171717] hover:bg-[#D71920] hover:text-white hover:border-[#D71920] transition-all z-20 opacity-90 sm:opacity-0 sm:group-hover/reviews-slider:opacity-100 cursor-pointer active:scale-90"
+              aria-label="Scroll Reviews Right"
+            >
+              <ChevronRight size={18} />
+            </button>
 
-          <div 
-            ref={reviewsScrollRef}
-            className="flex items-stretch gap-3 sm:gap-4 overflow-x-auto scrollbar-none scroll-smooth snap-x snap-mandatory py-1 px-0.5"
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-          >
-            <div className="w-[calc(85%-8px)] sm:w-[calc(50%-8px)] md:w-[calc(33.333%-10px)] shrink-0 snap-start p-4 rounded-2xl bg-white border border-[#E5E5E5] space-y-2 shadow-2xs flex flex-col justify-between">
-              <div className="space-y-2">
-                <div className="flex items-center text-emerald-600">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} size={13} fill="currentColor" />
-                  ))}
+            <div 
+              ref={reviewsScrollRef}
+              className="flex items-stretch gap-3 sm:gap-4 overflow-x-auto scrollbar-none scroll-smooth snap-x snap-mandatory py-1 px-0.5"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {reviews.map((rev) => (
+                <div key={rev.id} className="w-[calc(85%-8px)] sm:w-[calc(50%-8px)] md:w-[calc(33.333%-10px)] shrink-0 snap-start p-4 rounded-2xl bg-white border border-[#E5E5E5] space-y-2 shadow-2xs flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center text-emerald-600">
+                      {[...Array(rev.rating || 5)].map((_, i) => (
+                        <Star key={i} size={13} fill="currentColor" />
+                      ))}
+                    </div>
+                    <p className="text-xs text-[#171717] leading-relaxed italic">
+                      "{rev.comment}"
+                    </p>
+                  </div>
+                  <div className="pt-2 border-t border-[#EEEEEE]">
+                    <div className="font-bold text-xs text-[#171717]">{rev.userName}</div>
+                    <div className="text-[10px] text-[#5F6368]">{rev.isVerifiedPurchase ? 'Verified Purchase' : 'Customer Review'}</div>
+                  </div>
                 </div>
-                <p className="text-xs text-[#171717] leading-relaxed italic">
-                  "Received my order in Sylhet within 48 hours. The book packaging was exceptional and the paper quality is 100% authentic publisher print!"
-                </p>
-              </div>
-              <div className="pt-2 border-t border-[#EEEEEE]">
-                <div className="font-bold text-xs text-[#171717]">Tanvir Ahmed</div>
-                <div className="text-[10px] text-[#5F6368]">Verified Buyer • Sylhet</div>
-              </div>
-            </div>
-
-            <div className="w-[calc(85%-8px)] sm:w-[calc(50%-8px)] md:w-[calc(33.333%-10px)] shrink-0 snap-start p-4 rounded-2xl bg-white border border-[#E5E5E5] space-y-2 shadow-2xs flex flex-col justify-between">
-              <div className="space-y-2">
-                <div className="flex items-center text-emerald-600">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} size={13} fill="currentColor" />
-                  ))}
-                </div>
-                <p className="text-xs text-[#171717] leading-relaxed italic">
-                  "The manual bKash payment verification was approved within minutes after submitting the TrxID. Very smooth checkout experience on mobile."
-                </p>
-              </div>
-              <div className="pt-2 border-t border-[#EEEEEE]">
-                <div className="font-bold text-xs text-[#171717]">Sadia Rahman</div>
-                <div className="text-[10px] text-[#5F6368]">Verified Buyer • Dhaka (Dhanmondi)</div>
-              </div>
-            </div>
-
-            <div className="w-[calc(85%-8px)] sm:w-[calc(50%-8px)] md:w-[calc(33.333%-10px)] shrink-0 snap-start p-4 rounded-2xl bg-white border border-[#E5E5E5] space-y-2 shadow-2xs flex flex-col justify-between">
-              <div className="space-y-2">
-                <div className="flex items-center text-emerald-600">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} size={13} fill="currentColor" />
-                  ))}
-                </div>
-                <p className="text-xs text-[#171717] leading-relaxed italic">
-                  "Ordered the Executive Leather Diary and Schneider calligraphy set. Premium build and delivered right on time before the new year!"
-                </p>
-              </div>
-              <div className="pt-2 border-t border-[#EEEEEE]">
-                <div className="font-bold text-xs text-[#171717]">Mahmudul Hasan</div>
-                <div className="text-[10px] text-[#5F6368]">Verified Buyer • Chittagong</div>
-              </div>
+              ))}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* 6. Writer / Featured Authors Section (Positioned above Footer) */}
       <FeaturedAuthorsSection />
