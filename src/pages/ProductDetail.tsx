@@ -327,40 +327,38 @@ export function ProductDetail() {
           {/* Right Column (7 cols): Buy Actions & Prominent Categories */}
           <div className="lg:col-span-7 space-y-5">
             
-            {/* Prominent Category Header Chips & Actions */}
+            {/* Header: Title, Author, Rating, then Category/Badges, then Price Card */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                {/* Category & Subcategory Chips */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <button 
-                    onClick={() => { setSelectedCategoryFilter(product.category); setActivePage(product.type === 'book' ? 'books' : 'stationery'); }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FFF1F2] border border-[#D71920]/30 text-[#D71920] font-bold text-xs hover:bg-[#D71920] hover:text-white transition-all cursor-pointer shadow-2xs"
-                  >
-                    <BookOpen size={13} />
-                    <span>Category: {product.category}</span>
-                  </button>
+              <div className="flex items-start justify-between gap-2">
+                <div className="space-y-1.5 flex-1 min-w-0">
+                  <h1 className="text-2xl sm:text-3xl font-black text-neutral-900 tracking-tight leading-snug">
+                    {product.title}
+                  </h1>
 
-                  {product.subcategory && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-neutral-100 text-neutral-700 font-bold text-xs border border-neutral-200">
-                      <Tag size={11} className="text-neutral-500" />
-                      {product.subcategory}
-                    </span>
-                  )}
+                  <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed">
+                    {product.type === 'book' ? (
+                      <>
+                        By <strong className="text-neutral-900 font-bold">{product.author || 'Renowned Author'}</strong> • Published by {product.publisher || 'MR. BOOKS Publications'}
+                      </>
+                    ) : (
+                      <>Brand: <strong className="text-neutral-900 font-bold">{product.brand || 'Stationery'}</strong></>
+                    )}
+                  </p>
 
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-600 font-semibold text-[10px] uppercase tracking-wider">
-                    {product.type === 'book' ? 'Book' : 'Stationery'}
-                  </span>
-
-                  {product.isOriginalBadge !== false && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 font-extrabold text-[11px] border border-emerald-300 shadow-2xs">
-                      <ShieldCheck size={12} className="text-emerald-600" />
-                      <span>অরিজিনাল বই</span>
-                    </span>
-                  )}
+                  {/* 5-Star Rating */}
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <div className="flex items-center text-amber-500">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} size={15} fill="currentColor" />
+                      ))}
+                    </div>
+                    <span className="text-sm font-bold text-neutral-900 tabular-nums">{avgRating}</span>
+                    <span className="text-xs text-neutral-400 tabular-nums">({displayReviews.length} verified reviews)</span>
+                  </div>
                 </div>
 
                 {/* Wishlist & Copy Link Buttons */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0 pt-1">
                   <button 
                     onClick={handleCopyLink}
                     className="p-2 rounded-full border border-neutral-200 text-neutral-600 hover:text-[#D71920] hover:bg-[#FFF1F2] transition-colors cursor-pointer"
@@ -382,29 +380,33 @@ export function ProductDetail() {
                 </div>
               </div>
 
-              <h1 className="text-2xl sm:text-3xl font-black text-neutral-900 tracking-tight leading-snug">
-                {product.title}
-              </h1>
+              {/* Category Chips, Book/Stationery Type & Original Badge (Below Rating & Above Price Card) */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <button 
+                  onClick={() => { setSelectedCategoryFilter(product.category); setActivePage(product.type === 'book' ? 'books' : 'stationery'); }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FFF1F2] border border-[#D71920]/30 text-[#D71920] font-bold text-xs hover:bg-[#D71920] hover:text-white transition-all cursor-pointer shadow-2xs"
+                >
+                  <BookOpen size={13} />
+                  <span>Category: {product.category}</span>
+                </button>
 
-              <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed">
-                {product.type === 'book' ? (
-                  <>
-                    By <strong className="text-neutral-900 font-bold">{product.author || 'Renowned Author'}</strong> • Published by {product.publisher || 'MR. BOOKS Publications'}
-                  </>
-                ) : (
-                  <>Brand: <strong className="text-neutral-900 font-bold">{product.brand || 'Stationery'}</strong></>
+                {product.subcategory && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-neutral-100 text-neutral-700 font-bold text-xs border border-neutral-200">
+                    <Tag size={11} className="text-neutral-500" />
+                    {product.subcategory}
+                  </span>
                 )}
-              </p>
 
-              {/* 5-Star Rating */}
-              <div className="flex items-center gap-2">
-                <div className="flex items-center text-amber-500">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} size={15} fill="currentColor" />
-                  ))}
-                </div>
-                <span className="text-sm font-bold text-neutral-900 tabular-nums">{product.rating}</span>
-                <span className="text-xs text-neutral-400 tabular-nums">({product.reviewCount} verified reviews)</span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-600 font-semibold text-[10px] uppercase tracking-wider">
+                  {product.type === 'book' ? 'Book' : 'Stationery'}
+                </span>
+
+                {product.isOriginalBadge !== false && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 font-extrabold text-[11px] border border-emerald-300 shadow-2xs">
+                    <ShieldCheck size={12} className="text-emerald-600" />
+                    <span>অরিজিনাল বই</span>
+                  </span>
+                )}
               </div>
             </div>
 
