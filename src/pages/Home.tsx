@@ -24,6 +24,28 @@ export function Home() {
   // Filter categories enabled for homepage display (showOnHome !== false)
   const homeCategories = categories.filter(c => c.showOnHome !== false);
 
+  // Dynamic Category Product Rows for categories with showOnHome !== false and having products
+  const categoryProductSections = categories
+    .filter(cat => cat.showOnHome !== false)
+    .map(cat => ({
+      category: cat,
+      items: products.filter(p => p.category.toLowerCase() === cat.name.toLowerCase())
+    }))
+    .filter(sec => sec.items.length > 0);
+
+  const catScrollRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
+  const scrollCategoryProducts = (catId: string, direction: 'left' | 'right') => {
+    const el = catScrollRefs.current[catId];
+    if (el) {
+      const scrollAmount = el.clientWidth * 0.8;
+      el.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
+
   const scrollContainer = (ref: React.RefObject<HTMLDivElement | null>, direction: 'left' | 'right') => {
     if (ref.current) {
       const scrollAmount = ref.current.clientWidth * 0.8;
@@ -115,7 +137,7 @@ export function Home() {
         </div>
       </section>
 
-      {/* 3. Bestselling Books Showcase (Single Row Slider: 5 on PC, 2 on Mobile) */}
+      {/* 3. Bestselling Books Showcase */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
         <div className="flex items-center justify-between mb-3 sm:mb-4 pb-1 border-b border-[#F0F0F0]">
           <div>
@@ -132,7 +154,6 @@ export function Home() {
           </button>
         </div>
 
-        {/* Bestselling Books Horizontal Single-Row Slider */}
         <div className="relative group/books-slider">
           <button 
             onClick={() => scrollContainer(booksScrollRef, 'left')}
@@ -167,7 +188,60 @@ export function Home() {
         </div>
       </section>
 
-      {/* 4. Stationery Section (Single Row Slider: 5 on PC, 2 on Mobile) */}
+      {/* Dynamic Category Product Rows (Controlled by Admin 'Show on Homepage' Toggle) */}
+      {categoryProductSections.map(({ category, items }) => (
+        <section key={category.id} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+          <div className="flex items-center justify-between mb-3 sm:mb-4 pb-1 border-b border-[#F0F0F0]">
+            <div>
+              <h2 className="text-lg sm:text-2xl font-black text-[#171717] tracking-tight uppercase">
+                {category.name}
+              </h2>
+            </div>
+            <button 
+              onClick={() => { setSelectedCategoryFilter(category.name); setActivePage(category.type === 'stationery' ? 'stationery' : 'books'); }}
+              className="text-xs font-bold text-[#D71920] hover:text-[#B9151B] flex items-center gap-1 group cursor-pointer shrink-0"
+            >
+              <span>View All ({items.length})</span>
+              <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
+
+          <div className="relative">
+            <button 
+              onClick={() => scrollCategoryProducts(category.id, 'left')}
+              className="absolute -left-2.5 sm:-left-3.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white border border-[#E5E5E5] shadow-lg flex items-center justify-center text-[#171717] hover:bg-[#D71920] hover:text-white hover:border-[#D71920] transition-all z-20 opacity-90 sm:opacity-0 sm:hover:opacity-100 cursor-pointer active:scale-90"
+              aria-label="Scroll Left"
+            >
+              <ChevronLeft size={18} />
+            </button>
+
+            <button 
+              onClick={() => scrollCategoryProducts(category.id, 'right')}
+              className="absolute -right-2.5 sm:-right-3.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white border border-[#E5E5E5] shadow-lg flex items-center justify-center text-[#171717] hover:bg-[#D71920] hover:text-white hover:border-[#D71920] transition-all z-20 opacity-90 sm:opacity-0 sm:hover:opacity-100 cursor-pointer active:scale-90"
+              aria-label="Scroll Right"
+            >
+              <ChevronRight size={18} />
+            </button>
+
+            <div 
+              ref={el => { catScrollRefs.current[category.id] = el; }}
+              className="flex items-stretch gap-3 sm:gap-4 overflow-x-auto scrollbar-none scroll-smooth snap-x snap-mandatory py-1 px-0.5"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {items.map(product => (
+                <div 
+                  key={product.id} 
+                  className="w-[calc(50%-6px)] md:w-[calc(20%-12px)] shrink-0 snap-start flex flex-col"
+                >
+                  <ProductCard product={product} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      ))}
+
+      {/* 4. Stationery Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
         <div className="flex items-center justify-between mb-3 sm:mb-4 pb-1 border-b border-[#F0F0F0]">
           <div>
@@ -184,7 +258,6 @@ export function Home() {
           </button>
         </div>
 
-        {/* Stationery Horizontal Single-Row Slider */}
         <div className="relative group/stationery-slider">
           <button 
             onClick={() => scrollContainer(stationeryScrollRef, 'left')}
@@ -219,7 +292,7 @@ export function Home() {
         </div>
       </section>
 
-      {/* 5. Verified Customer Reviews & Testimonials (Rendered dynamically from Firestore) */}
+      {/* 5. Verified Customer Reviews & Testimonials */}
       {reviews.length > 0 && (
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex items-center justify-between mb-3 sm:mb-4 pb-1 border-b border-[#F0F0F0]">
@@ -273,7 +346,7 @@ export function Home() {
         </section>
       )}
 
-      {/* 6. Writer / Featured Authors Section (Positioned above Footer) */}
+      {/* 6. Writer / Featured Authors Section */}
       <FeaturedAuthorsSection />
     </div>
   );
