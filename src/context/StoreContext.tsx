@@ -256,6 +256,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     showFooterTracking: true,
     trackingTitle: 'Real-Time Order Tracking',
     trackingSubtitle: 'Enter your Order ID (ORD-...) or phone number to track your book package.',
+    // Direct Contact Buttons (Product Detail & Support)
+    whatsappNumber: '+880 1712-345678',
+    callNumber: '+880 1712-345678',
+    telegramUrl: 'https://t.me/mrbooksbd',
+    messengerUrl: 'https://m.me/mrbooksbd',
     metaTitle: 'MR. BOOKS - Premium Online Bookstore & Stationery in Bangladesh',
     metaDescription: 'Buy bestselling books, novels, Islamic books, university textbooks, and premium stationery online in Bangladesh with fast nationwide delivery.',
     ogImageUrl: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=1200&auto=format&fit=crop&q=80',

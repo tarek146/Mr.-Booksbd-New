@@ -3563,6 +3563,88 @@ export function AdminDashboard() {
                 </div>
               </div>
 
+              {/* Single Product Page Quick Contact Buttons (WhatsApp, Call, Telegram, Messenger) */}
+              <div className="pt-6 border-t border-[#EEEEEE] space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-black text-[#171717] uppercase tracking-wider flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                    Direct Support Action Buttons (WhatsApp, Call, Telegram, Messenger)
+                  </h3>
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                    Single Product Page Controls
+                  </span>
+                </div>
+                <p className="text-xs text-[#5F6368]">
+                  Customize the phone numbers and direct message links displayed in the 4 action buttons right above the accordion on single product pages.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                  {/* WhatsApp */}
+                  <div className="p-3.5 rounded-2xl bg-[#E8F8F0]/60 border border-[#BBEBD2] space-y-2">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A8754]">
+                      <span className="w-2 h-2 rounded-full bg-[#25D366]"></span>
+                      <span>WhatsApp Number</span>
+                    </div>
+                    <input 
+                      type="text"
+                      placeholder="e.g. +880 1712-345678"
+                      value={settingsForm.whatsappNumber || ''}
+                      onChange={e => setSettingsForm(prev => ({ ...prev, whatsappNumber: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl border border-[#BBEBD2] bg-white text-xs font-bold text-neutral-900"
+                    />
+                    <p className="text-[10px] text-neutral-500">Direct WhatsApp chat with pre-filled book title</p>
+                  </div>
+
+                  {/* Call Hotline */}
+                  <div className="p-3.5 rounded-2xl bg-[#EEF4FF]/60 border border-[#CFE1FF] space-y-2">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-[#1D63D8]">
+                      <span className="w-2 h-2 rounded-full bg-[#1D63D8]"></span>
+                      <span>Hotline / Call Number</span>
+                    </div>
+                    <input 
+                      type="text"
+                      placeholder="e.g. 01712345678"
+                      value={settingsForm.callNumber || ''}
+                      onChange={e => setSettingsForm(prev => ({ ...prev, callNumber: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl border border-[#CFE1FF] bg-white text-xs font-bold text-neutral-900"
+                    />
+                    <p className="text-[10px] text-neutral-500">Immediate phone dialer for customer support</p>
+                  </div>
+
+                  {/* Telegram */}
+                  <div className="p-3.5 rounded-2xl bg-[#EAF6FD]/60 border border-[#BFECF8] space-y-2">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-[#0088CC]">
+                      <span className="w-2 h-2 rounded-full bg-[#229ED9]"></span>
+                      <span>Telegram URL / Username</span>
+                    </div>
+                    <input 
+                      type="text"
+                      placeholder="https://t.me/mrbooksbd"
+                      value={settingsForm.telegramUrl || ''}
+                      onChange={e => setSettingsForm(prev => ({ ...prev, telegramUrl: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl border border-[#BFECF8] bg-white text-xs font-bold text-neutral-900"
+                    />
+                    <p className="text-[10px] text-neutral-500">Telegram channel or support handle</p>
+                  </div>
+
+                  {/* Messenger */}
+                  <div className="p-3.5 rounded-2xl bg-[#F0F5FF]/60 border border-[#CCE0FF] space-y-2">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-[#0084FF]">
+                      <span className="w-2 h-2 rounded-full bg-[#0084FF]"></span>
+                      <span>Facebook Messenger URL</span>
+                    </div>
+                    <input 
+                      type="text"
+                      placeholder="https://m.me/mrbooksbd"
+                      value={settingsForm.messengerUrl || ''}
+                      onChange={e => setSettingsForm(prev => ({ ...prev, messengerUrl: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl border border-[#CCE0FF] bg-white text-xs font-bold text-neutral-900"
+                    />
+                    <p className="text-[10px] text-neutral-500">Instant Messenger chat link (m.me/...)</p>
+                  </div>
+                </div>
+              </div>
+
               {/* SEO & Open Graph Settings Section */}
               <div className="pt-6 border-t border-[#EEEEEE] space-y-4">
                 <h3 className="text-sm font-black text-[#171717] uppercase tracking-wider flex items-center gap-2">

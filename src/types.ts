@@ -212,6 +212,11 @@ export interface StoreSettings {
   showFooterTracking?: boolean;
   trackingTitle?: string;
   trackingSubtitle?: string;
+  // Quick Contact Buttons (Product Detail & Support)
+  whatsappNumber?: string;
+  callNumber?: string;
+  telegramUrl?: string;
+  messengerUrl?: string;
   // SEO Settings
   metaTitle?: string;
   metaDescription?: string;
