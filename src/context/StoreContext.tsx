@@ -276,7 +276,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     enableSundarbanCourier: true,
     sundarbanForcesPrepayment: true,
     extraWeightChargePerKg: 20,
-    deliveryNote: 'সুন্দরবন কুরিয়ার সার্ভিসের ক্ষেত্রে সম্পূর্ণ পেমেন্ট অগ্রিম প্রযোজ্য।'
+    deliveryNote: 'সুন্দরবন কুরিয়ার সার্ভিসের ক্ষেত্রে সম্পূর্ণ পেমেন্ট অগ্রিম প্রযোজ্য।',
+
+    specialOffer: {
+      enabled: true,
+      title: 'Special Offer',
+      endTime: Date.now() + 48 * 60 * 60 * 1000,
+      items: [
+        { productId: 'prod-1', discountPercentage: 23, soldPercentage: 64, onlinePaymentOnly: false },
+        { productId: 'prod-2', discountPercentage: 15, soldPercentage: 89, onlinePaymentOnly: true },
+        { productId: 'prod-3', discountPercentage: 20, soldPercentage: 75, onlinePaymentOnly: false },
+        { productId: 'prod-4', discountPercentage: 18, soldPercentage: 50, onlinePaymentOnly: false }
+      ]
+    }
   });
 
   // Real-time SEO and OpenGraph head synchronization

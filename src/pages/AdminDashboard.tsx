@@ -37,7 +37,8 @@ import {
   Gift,
   Search,
   Copy,
-  Truck
+  Truck,
+  Flame
 } from 'lucide-react';
 import { Author, Banner, Order } from '../types';
 import { AdminAnalytics } from '../components/admin/AdminAnalytics';
@@ -81,7 +82,7 @@ export function AdminDashboard() {
     deleteOrder
   } = useStore();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'verifications' | 'payment-methods' | 'orders' | 'products' | 'categories' | 'banners' | 'authors' | 'subscribers' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'verifications' | 'payment-methods' | 'orders' | 'products' | 'categories' | 'banners' | 'authors' | 'subscribers' | 'settings' | 'special-offer'>('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Subscribers management state
@@ -749,6 +750,7 @@ export function AdminDashboard() {
       title: 'COMMERCE & ORDERS',
       items: [
         { id: 'orders', label: 'Customer Orders', icon: Package, count: orders.length },
+        { id: 'special-offer', label: 'Special Offer Deals', icon: Flame },
         { 
           id: 'verifications', 
           label: 'Payment Verifications', 
@@ -1361,6 +1363,214 @@ export function AdminDashboard() {
                 </div>
               </form>
             )}
+          </div>
+        )}
+
+        {/* TAB: SPECIAL OFFER DEALS */}
+        {activeTab === 'special-offer' && (
+          <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+            <div className="flex items-center justify-between pb-4 border-b border-[#EEEEEE]">
+              <div>
+                <h2 className="text-xl font-black text-[#171717]">Special Offer Banner & Deal Manager</h2>
+                <p className="text-xs text-[#5F6368] mt-0.5">
+                  Configure homepage special offer countdown deals, discount percentages, sold progress, and online payment requirements.
+                </p>
+              </div>
+              <button 
+                type="button"
+                onClick={async () => {
+                  try {
+                    setSettingsSaving(true);
+                    await updateSettings({ specialOffer: settingsForm.specialOffer });
+                    setToast({ show: true, type: 'success', message: 'Special Offer configuration saved successfully!' });
+                  } catch (err: any) {
+                    setToast({ show: true, type: 'error', message: 'Failed to save: ' + err.message });
+                  } finally {
+                    setSettingsSaving(false);
+                  }
+                }}
+                className="px-5 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs shadow-md cursor-pointer transition-all flex items-center gap-1.5"
+              >
+                <Check size={14} /> <span>{settingsSaving ? 'Saving...' : 'Save Special Offer'}</span>
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              {/* Enable & Title */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-[#F7F7F8] border border-neutral-200">
+                <div className="flex items-center justify-between sm:border-r sm:border-neutral-200 sm:pr-4">
+                  <div>
+                    <h4 className="font-bold text-xs text-neutral-900">Enable Special Offer Section</h4>
+                    <p className="text-[11px] text-neutral-500">Showcases special offer banner on homepage</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settingsForm.specialOffer?.enabled !== false}
+                    onChange={e => {
+                      const val = e.target.checked;
+                      setSettingsForm(prev => ({
+                        ...prev,
+                        specialOffer: {
+                          ...(prev.specialOffer || { title: 'Special Offer', endTime: Date.now() + 48*3600*1000, items: [] }),
+                          enabled: val
+                        }
+                      }));
+                    }}
+                    className="w-5 h-5 accent-[#D71920]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-neutral-700 mb-1 text-xs">Section Heading Title</label>
+                  <input
+                    type="text"
+                    value={settingsForm.specialOffer?.title || 'Special Offer'}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setSettingsForm(prev => ({
+                        ...prev,
+                        specialOffer: {
+                          ...(prev.specialOffer || { enabled: true, endTime: Date.now() + 48*3600*1000, items: [] }),
+                          title: val
+                        }
+                      }));
+                    }}
+                    className="w-full px-3.5 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-neutral-900"
+                  />
+                </div>
+              </div>
+
+              {/* Offer Products List */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-black text-xs text-neutral-800 uppercase tracking-wider">
+                    Featured Offer Products ({settingsForm.specialOffer?.items?.length || 0})
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (products.length === 0) return;
+                      const firstProd = products[0];
+                      const currentItems = settingsForm.specialOffer?.items || [];
+                      setSettingsForm(prev => ({
+                        ...prev,
+                        specialOffer: {
+                          ...(prev.specialOffer || { enabled: true, title: 'Special Offer', endTime: Date.now() + 48*3600*1000 }),
+                          items: [...currentItems, { productId: firstProd.id, discountPercentage: 20, soldPercentage: 50, onlinePaymentOnly: false }]
+                        }
+                      }));
+                    }}
+                    className="px-3.5 py-1.5 bg-neutral-900 text-white rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer hover:bg-neutral-800"
+                  >
+                    <Plus size={13} /> Add Offer Product
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {(settingsForm.specialOffer?.items || []).map((item, idx) => {
+                    const prod = products.find(p => p.id === item.productId);
+                    return (
+                      <div key={idx} className="p-4 rounded-2xl border border-neutral-200 bg-[#F7F7F8] grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                        <div className="md:col-span-4 flex items-center gap-3">
+                          <img src={prod?.images[0] || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=100'} alt="" className="w-12 h-12 rounded-xl object-cover border border-neutral-200 shrink-0" />
+                          <div className="min-w-0">
+                            <select
+                              value={item.productId}
+                              onChange={e => {
+                                const newId = e.target.value;
+                                setSettingsForm(prev => {
+                                  const items = [...(prev.specialOffer?.items || [])];
+                                  items[idx] = { ...items[idx], productId: newId };
+                                  return { ...prev, specialOffer: { ...prev.specialOffer!, items } };
+                                });
+                              }}
+                              className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-300 bg-white text-xs font-bold text-neutral-900"
+                            >
+                              {products.map(p => (
+                                <option key={p.id} value={p.id}>{p.title} (৳{p.price})</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label className="block text-[10px] font-bold text-neutral-500 uppercase">Discount %</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="90"
+                            value={item.discountPercentage}
+                            onChange={e => {
+                              const val = Number(e.target.value) || 20;
+                              setSettingsForm(prev => {
+                                const items = [...(prev.specialOffer?.items || [])];
+                                items[idx] = { ...items[idx], discountPercentage: val };
+                                return { ...prev, specialOffer: { ...prev.specialOffer!, items } };
+                              });
+                            }}
+                            className="w-full px-3 py-1.5 rounded-lg border border-neutral-300 bg-white text-xs font-bold text-neutral-900"
+                          />
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label className="block text-[10px] font-bold text-neutral-500 uppercase">Sold %</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="100"
+                            value={item.soldPercentage}
+                            onChange={e => {
+                              const val = Number(e.target.value) || 50;
+                              setSettingsForm(prev => {
+                                const items = [...(prev.specialOffer?.items || [])];
+                                items[idx] = { ...items[idx], soldPercentage: val };
+                                return { ...prev, specialOffer: { ...prev.specialOffer!, items } };
+                              });
+                            }}
+                            className="w-full px-3 py-1.5 rounded-lg border border-neutral-300 bg-white text-xs font-bold text-neutral-900"
+                          />
+                        </div>
+
+                        <div className="md:col-span-3 flex items-center gap-2">
+                          <label className="flex items-center gap-1.5 text-xs font-bold text-neutral-700 cursor-pointer pt-3">
+                            <input
+                              type="checkbox"
+                              checked={!!item.onlinePaymentOnly}
+                              onChange={e => {
+                                const val = e.target.checked;
+                                setSettingsForm(prev => {
+                                  const items = [...(prev.specialOffer?.items || [])];
+                                  items[idx] = { ...items[idx], onlinePaymentOnly: val };
+                                  return { ...prev, specialOffer: { ...prev.specialOffer!, items } };
+                                });
+                              }}
+                              className="w-4 h-4 accent-blue-600"
+                            />
+                            <span>Online Payment Only</span>
+                          </label>
+                        </div>
+
+                        <div className="md:col-span-1 text-right">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSettingsForm(prev => {
+                                const items = (prev.specialOffer?.items || []).filter((_, i) => i !== idx);
+                                return { ...prev, specialOffer: { ...prev.specialOffer!, items } };
+                              });
+                            }}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg cursor-pointer"
+                            title="Remove Product"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

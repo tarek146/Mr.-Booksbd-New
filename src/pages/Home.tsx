@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Hero } from '../components/Hero';
+import { SpecialOfferSection } from '../components/SpecialOfferSection';
 import { ProductCard } from '../components/ProductCard';
 import { FeaturedAuthorsSection } from '../components/FeaturedAuthorsSection';
 import { 
@@ -136,6 +137,9 @@ export function Home() {
           </div>
         </div>
       </section>
+
+      {/* Special Offer Section */}
+      <SpecialOfferSection />
 
       {/* 3. Bestselling Books Showcase */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">

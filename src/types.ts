@@ -229,6 +229,23 @@ export interface StoreSettings {
   metaDescription?: string;
   ogImageUrl?: string;
   keywords?: string;
+
+  // Special Offer Section Config
+  specialOffer?: SpecialOfferConfig;
+}
+
+export interface SpecialOfferItem {
+  productId: string;
+  discountPercentage: number;
+  soldPercentage: number;
+  onlinePaymentOnly?: boolean;
+}
+
+export interface SpecialOfferConfig {
+  enabled: boolean;
+  title: string;
+  endTime: number;
+  items: SpecialOfferItem[];
 }
 
 export interface Review {
