@@ -38,7 +38,9 @@ import {
   Search,
   Copy,
   Truck,
-  Flame
+  Flame,
+  Film,
+  Play
 } from 'lucide-react';
 import { Author, Banner, Order } from '../types';
 import { AdminAnalytics } from '../components/admin/AdminAnalytics';
@@ -79,11 +81,23 @@ export function AdminDashboard() {
     addSubscriber,
     deleteSubscriber,
     updateOrderTracking,
-    deleteOrder
+    deleteOrder,
+    reels,
+    addReel,
+    updateReel,
+    deleteReel
   } = useStore();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'verifications' | 'payment-methods' | 'orders' | 'products' | 'categories' | 'banners' | 'authors' | 'subscribers' | 'settings' | 'special-offer'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'verifications' | 'payment-methods' | 'orders' | 'products' | 'categories' | 'banners' | 'authors' | 'subscribers' | 'settings' | 'special-offer' | 'reels'>('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Reels management state
+  const [showAddReelModal, setShowAddReelModal] = useState(false);
+  const [editingReelId, setEditingReelId] = useState<string | null>(null);
+  const [reelTitle, setReelTitle] = useState('');
+  const [reelVideoUrl, setReelVideoUrl] = useState('');
+  const [reelThumbnailUrl, setReelThumbnailUrl] = useState('');
+  const [reelProductId, setReelProductId] = useState('');
 
   // Subscribers management state
   const [subSearchQuery, setSubSearchQuery] = useState('');
@@ -768,6 +782,7 @@ export function AdminDashboard() {
         { id: 'categories', label: 'Categories', icon: Layers, count: categories.length },
         { id: 'banners', label: 'Hero Banners', icon: ImageIcon, count: banners.length },
         { id: 'authors', label: 'Writers & Authors', icon: Users, count: authors.length },
+        { id: 'reels', label: 'Book Video Reels', icon: Film, count: reels.length },
       ]
     },
     {
@@ -1571,6 +1586,179 @@ export function AdminDashboard() {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* TAB: BOOK VIDEO REELS */}
+        {activeTab === 'reels' && (
+          <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#EEEEEE]">
+              <div>
+                <h2 className="text-xl font-black text-[#171717] flex items-center gap-2">
+                  <Film size={20} className="text-[#D71920]" />
+                  <span>Book Video Reels Manager</span>
+                </h2>
+                <p className="text-xs text-[#5F6368] mt-0.5">
+                  Publish short video reviews, Facebook / Instagram Reels, YouTube Shorts, or MP4 video links displayed in a single row below Authors on the homepage.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingReelId(null);
+                  setReelTitle('');
+                  setReelVideoUrl('');
+                  setReelThumbnailUrl('');
+                  setReelProductId('');
+                  setShowAddReelModal(true);
+                }}
+                className="px-4 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md cursor-pointer shrink-0"
+              >
+                <Plus size={14} /> Add New Video Reel
+              </button>
+            </div>
+
+            {/* Reels Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {reels.map(reel => {
+                const linkedProduct = reel.productId ? products.find(p => p.id === reel.productId) : null;
+                return (
+                  <div key={reel.id} className="p-4 rounded-2xl border border-neutral-200 bg-[#F7F7F8] space-y-3 flex flex-col justify-between">
+                    <div className="space-y-2">
+                      <div className="relative w-full h-44 rounded-xl overflow-hidden bg-black border border-neutral-200">
+                        <img src={reel.thumbnailUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400'} alt="" className="w-full h-full object-cover opacity-80" />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-9 h-9 rounded-full bg-white/30 backdrop-blur-md text-white flex items-center justify-center">
+                            <Play size={16} fill="currentColor" className="ml-0.5" />
+                          </div>
+                        </div>
+                        <span className={`absolute top-2 right-2 px-2 py-0.5 rounded text-[10px] font-bold ${reel.isActive !== false ? 'bg-emerald-500 text-white' : 'bg-zinc-600 text-white'}`}>
+                          {reel.isActive !== false ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
+
+                      <h3 className="font-bold text-xs text-neutral-900 line-clamp-2">{reel.title}</h3>
+                      <p className="text-[10px] font-mono text-neutral-500 truncate" title={reel.videoUrl}>🎥 {reel.videoUrl}</p>
+
+                      {linkedProduct && (
+                        <div className="p-2 rounded-lg bg-white border border-neutral-200 flex items-center gap-2 text-[11px]">
+                          <img src={linkedProduct.images[0]} alt="" className="w-7 h-7 rounded object-cover" />
+                          <div className="truncate font-bold text-neutral-800">{linkedProduct.title} (৳{linkedProduct.price})</div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pt-2 border-t border-neutral-200 flex items-center justify-between">
+                      <button
+                        onClick={() => updateReel(reel.id, { isActive: !reel.isActive })}
+                        className="text-xs font-bold text-[#D71920] hover:underline cursor-pointer"
+                      >
+                        {reel.isActive !== false ? 'Deactivate' : 'Activate'}
+                      </button>
+                      <button
+                        onClick={() => deleteReel(reel.id)}
+                        className="text-xs text-red-600 hover:text-red-700 flex items-center gap-1 cursor-pointer"
+                      >
+                        <Trash2 size={13} /> Remove
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Add / Edit Reel Modal */}
+            {showAddReelModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-200">
+                <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-neutral-200 space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-neutral-200">
+                    <h3 className="font-black text-neutral-900 text-base">Add New Video Reel</h3>
+                    <button onClick={() => setShowAddReelModal(false)} className="p-1.5 rounded-xl hover:bg-neutral-100 text-neutral-400 hover:text-neutral-700 cursor-pointer">
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!reelTitle || !reelVideoUrl) {
+                        alert('Please fill in title and video URL');
+                        return;
+                      }
+                      await addReel({
+                        title: reelTitle.trim(),
+                        videoUrl: reelVideoUrl.trim(),
+                        thumbnailUrl: reelThumbnailUrl.trim() || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600',
+                        productId: reelProductId || undefined,
+                        viewsCount: Math.floor(800 + Math.random() * 2000),
+                        likesCount: Math.floor(200 + Math.random() * 600),
+                        isActive: true
+                      });
+                      setShowAddReelModal(false);
+                      setToast({ show: true, type: 'success', message: 'Video Reel published successfully!' });
+                    }}
+                    className="space-y-3 text-xs"
+                  >
+                    <div>
+                      <label className="block font-bold text-neutral-700 mb-1">Reel Title / Caption</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. নতুন বুক রিভিউ ভিডিও"
+                        value={reelTitle}
+                        onChange={e => setReelTitle(e.target.value)}
+                        className="w-full px-3.5 py-2 rounded-xl border border-neutral-300 bg-white font-bold text-neutral-900"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-neutral-700 mb-1">Video Link / URL (MP4 / YouTube Shorts / Facebook Embed)</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. https://assets.mixkit.co/.../video.mp4 or https://youtube.com/shorts/..."
+                        value={reelVideoUrl}
+                        onChange={e => setReelVideoUrl(e.target.value)}
+                        className="w-full px-3.5 py-2 rounded-xl border border-neutral-300 bg-white font-mono text-neutral-900"
+                      />
+                      <p className="text-[10px] text-neutral-500 mt-1">
+                        Paste direct MP4 link, YouTube Shorts URL, or embed video URL from Facebook/YouTube.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-neutral-700 mb-1">Thumbnail Cover Image URL</label>
+                      <input
+                        type="text"
+                        placeholder="https://images.unsplash.com/..."
+                        value={reelThumbnailUrl}
+                        onChange={e => setReelThumbnailUrl(e.target.value)}
+                        className="w-full px-3.5 py-2 rounded-xl border border-neutral-300 bg-white text-neutral-900"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-neutral-700 mb-1">Linked Book / Product (For Instant Buy Button)</label>
+                      <select
+                        value={reelProductId}
+                        onChange={e => setReelProductId(e.target.value)}
+                        className="w-full px-3.5 py-2 rounded-xl border border-neutral-300 bg-white font-bold text-neutral-900"
+                      >
+                        <option value="">None (General Review)</option>
+                        {products.map(p => (
+                          <option key={p.id} value={p.id}>{p.title} (৳{p.price})</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-2 border-t border-neutral-200">
+                      <button type="button" onClick={() => setShowAddReelModal(false)} className="px-4 py-2 bg-neutral-100 font-bold rounded-xl text-neutral-700 cursor-pointer">Cancel</button>
+                      <button type="submit" className="px-5 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl shadow-md cursor-pointer">Publish Reel</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

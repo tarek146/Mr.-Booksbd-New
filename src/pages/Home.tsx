@@ -2,24 +2,28 @@ import React, { useRef } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Hero } from '../components/Hero';
 import { SpecialOfferSection } from '../components/SpecialOfferSection';
+import { ReelsSection } from '../components/ReelsSection';
 import { ProductCard } from '../components/ProductCard';
 import { FeaturedAuthorsSection } from '../components/FeaturedAuthorsSection';
 import { 
   Star, 
   ArrowRight, 
   ChevronRight,
-  ChevronLeft
+  ChevronLeft,
+  Sparkles
 } from 'lucide-react';
 
 export function Home() {
   const { products, categories, reviews, setActivePage, setSelectedCategoryFilter } = useStore();
   
   const categoryScrollRef = useRef<HTMLDivElement>(null);
+  const newArrivalsScrollRef = useRef<HTMLDivElement>(null);
   const booksScrollRef = useRef<HTMLDivElement>(null);
   const stationeryScrollRef = useRef<HTMLDivElement>(null);
   const reviewsScrollRef = useRef<HTMLDivElement>(null);
 
   const featuredBooks = products.filter(p => p.type === 'book');
+  const newArrivals = [...products].sort((a, b) => b.createdAt - a.createdAt).slice(0, 10);
   const featuredStationery = products.filter(p => p.type === 'stationery');
   
   // Filter categories enabled for homepage display (showOnHome !== false)
@@ -140,6 +144,58 @@ export function Home() {
 
       {/* Special Offer Section */}
       <SpecialOfferSection />
+
+      {/* New Arrivals / New Books Collection Showcase */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+        <div className="flex items-center justify-between mb-3 sm:mb-4 pb-1 border-b border-[#F0F0F0]">
+          <div className="flex items-center gap-2">
+            <Sparkles size={18} className="text-[#D71920]" />
+            <h2 className="text-lg sm:text-2xl font-black text-[#171717] tracking-tight">
+              New Arrivals Collection / নতুন বই কালেকশন
+            </h2>
+          </div>
+          <button 
+            onClick={() => setActivePage('books')}
+            className="text-xs font-bold text-[#D71920] hover:text-[#B9151B] flex items-center gap-1 group cursor-pointer shrink-0"
+          >
+            <span>View All</span>
+            <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+          </button>
+        </div>
+
+        <div className="relative group/new-arrivals-slider">
+          <button 
+            onClick={() => scrollContainer(newArrivalsScrollRef, 'left')}
+            className="absolute -left-2.5 sm:-left-3.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white border border-[#E5E5E5] shadow-lg flex items-center justify-center text-[#171717] hover:bg-[#D71920] hover:text-white hover:border-[#D71920] transition-all z-20 opacity-90 sm:opacity-0 sm:group-hover/new-arrivals-slider:opacity-100 cursor-pointer active:scale-90"
+            aria-label="Scroll Left"
+          >
+            <ChevronLeft size={18} />
+          </button>
+
+          <button 
+            onClick={() => scrollContainer(newArrivalsScrollRef, 'right')}
+            className="absolute -right-2.5 sm:-right-3.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white border border-[#E5E5E5] shadow-lg flex items-center justify-center text-[#171717] hover:bg-[#D71920] hover:text-white hover:border-[#D71920] transition-all z-20 opacity-90 sm:opacity-0 sm:group-hover/new-arrivals-slider:opacity-100 cursor-pointer active:scale-90"
+            aria-label="Scroll Right"
+          >
+            <ChevronRight size={18} />
+          </button>
+
+          <div 
+            ref={newArrivalsScrollRef}
+            className="flex items-stretch gap-3 sm:gap-4 overflow-x-auto scrollbar-none scroll-smooth snap-x snap-mandatory py-1 px-0.5"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            {newArrivals.map(product => (
+              <div 
+                key={product.id} 
+                className="w-[calc(50%-6px)] md:w-[calc(20%-12px)] shrink-0 snap-start flex flex-col"
+              >
+                <ProductCard product={product} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* 3. Bestselling Books Showcase */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
@@ -352,6 +408,9 @@ export function Home() {
 
       {/* 6. Writer / Featured Authors Section */}
       <FeaturedAuthorsSection />
+
+      {/* 7. Book Reels & Video Reviews Section */}
+      <ReelsSection />
     </div>
   );
 }

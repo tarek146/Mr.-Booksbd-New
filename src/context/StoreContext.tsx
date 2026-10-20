@@ -10,7 +10,8 @@ import {
   Banner,
   StoreSettings,
   Review,
-  Subscriber
+  Subscriber,
+  Reel
 } from '../types';
 import { 
   db, 
@@ -101,6 +102,11 @@ interface StoreContextType {
   addSubscriber: (emailOrPhone: string) => Promise<{ success: boolean; message: string; isNew: boolean }>;
   deleteSubscriber: (id: string) => Promise<void>;
   trackOrder: (orderIdOrPhone: string) => Promise<Order | null>;
+
+  reels: Reel[];
+  addReel: (reel: Omit<Reel, 'id' | 'createdAt'>) => Promise<void>;
+  updateReel: (id: string, data: Partial<Reel>) => Promise<void>;
+  deleteReel: (id: string) => Promise<void>;
 }
 
 function getPageFromLocation(): { page: string; productId: string | null } {
@@ -190,6 +196,41 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [paymentSubmissions, setPaymentSubmissions] = useState<PaymentSubmission[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
+  const [reels, setReels] = useState<Reel[]>([
+    {
+      id: 'reel-1',
+      title: 'প্যারাডক্সিক্যাল সাজিদ ২ রিভিউ ও বই পরিচিতি',
+      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-hands-opening-a-book-in-a-library-41584-large.mp4',
+      thumbnailUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600',
+      productId: 'prod-1',
+      viewsCount: 1420,
+      likesCount: 380,
+      isActive: true,
+      createdAt: Date.now() - 3600000
+    },
+    {
+      id: 'reel-2',
+      title: 'ইসলামিক বই কালেকশন আনবক্সিং ভিডিও',
+      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-close-up-of-a-person-reading-a-book-41583-large.mp4',
+      thumbnailUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=600',
+      productId: 'prod-2',
+      viewsCount: 2890,
+      likesCount: 650,
+      isActive: true,
+      createdAt: Date.now() - 7200000
+    },
+    {
+      id: 'reel-3',
+      title: 'প্রিমিয়াম স্টেশনারি ও জার্নাল রিভিউ',
+      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-turning-pages-of-a-book-41585-large.mp4',
+      thumbnailUrl: 'https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?w=600',
+      productId: 'prod-3',
+      viewsCount: 1950,
+      likesCount: 420,
+      isActive: true,
+      createdAt: Date.now() - 10800000
+    }
+  ]);
 
   const addProductReview = async (reviewData: Omit<Review, 'id' | 'createdAt'>) => {
     const id = 'rev-' + Date.now();
@@ -600,6 +641,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
+    const unsubReels = onSnapshot(
+      collection(db, 'reels'),
+      { includeMetadataChanges: true },
+      (snapshot) => {
+        if (!snapshot.empty) {
+          setReels(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Reel)));
+        }
+      },
+      (err) => {
+        console.warn('Reels realtime listener notice:', err.message);
+      }
+    );
+
     return () => {
       isMounted = false;
       clearTimeout(safetyTimer);
@@ -610,6 +664,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubPayments();
       unsubSettings();
       unsubReviews();
+      unsubReels();
     };
   }, []);
 
@@ -1296,6 +1351,42 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setSettings(prev => ({ ...prev, ...newSettings }));
   };
 
+  const addReel = async (reelData: Omit<Reel, 'id' | 'createdAt'>) => {
+    const id = 'reel-' + Date.now();
+    const newReel: Reel = {
+      ...reelData,
+      id,
+      createdAt: Date.now()
+    };
+    try {
+      await setDoc(doc(db, 'reels', id), cleanForFirestore(newReel));
+      await logAdminAction('reel_created', id, `Added reel: ${newReel.title}`);
+    } catch (err) {
+      console.error('Error adding reel:', err);
+    }
+    setReels(prev => [newReel, ...prev]);
+  };
+
+  const updateReel = async (id: string, data: Partial<Reel>) => {
+    try {
+      await setDoc(doc(db, 'reels', id), cleanForFirestore(data), { merge: true });
+      await logAdminAction('reel_updated', id, `Updated reel: ${id}`);
+    } catch (err) {
+      console.error('Error updating reel:', err);
+    }
+    setReels(prev => prev.map(r => r.id === id ? { ...r, ...data } : r));
+  };
+
+  const deleteReel = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'reels', id));
+      await logAdminAction('reel_deleted', id, `Deleted reel: ${id}`);
+    } catch (err) {
+      console.error('Error deleting reel:', err);
+    }
+    setReels(prev => prev.filter(r => r.id !== id));
+  };
+
   return (
     <StoreContext.Provider value={{
       products,
@@ -1351,7 +1442,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       subscribers,
       addSubscriber,
       deleteSubscriber,
-      trackOrder
+      trackOrder,
+      reels,
+      addReel,
+      updateReel,
+      deleteReel
     }}>
       {children}
     </StoreContext.Provider>

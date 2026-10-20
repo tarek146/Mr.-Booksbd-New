@@ -258,3 +258,15 @@ export interface Review {
   createdAt: number;
   isVerifiedPurchase?: boolean;
 }
+
+export interface Reel {
+  id: string;
+  title: string;
+  videoUrl: string;
+  thumbnailUrl: string;
+  productId?: string;
+  viewsCount?: number;
+  likesCount?: number;
+  isActive: boolean;
+  createdAt: number;
+}
