@@ -179,7 +179,7 @@ export function ProductDetail() {
     if (product.stock <= 0) return;
     const safeQty = Math.max(1, Math.min(quantity, activeVariant.stock || product.stock));
     addToCart(product, activeVariant.id, safeQty);
-    setActivePage('cart');
+    setActivePage('checkout');
   };
 
   const handleCopyLink = () => {

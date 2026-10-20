@@ -3285,6 +3285,24 @@ export function AdminDashboard() {
                   />
                 </div>
                 <div>
+                  <label className="block font-bold uppercase text-[#5F6368] mb-1">Sundarban Courier Fee (৳)</label>
+                  <input 
+                    type="number" 
+                    value={settingsForm.sundarbanDeliveryCharge ?? 120} 
+                    onChange={e => setSettingsForm(prev => ({ ...prev, sundarbanDeliveryCharge: Number(e.target.value) }))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold uppercase text-[#5F6368] mb-1">Extra Weight Charge / Kg (৳)</label>
+                  <input 
+                    type="number" 
+                    value={settingsForm.extraWeightChargePerKg ?? 20} 
+                    onChange={e => setSettingsForm(prev => ({ ...prev, extraWeightChargePerKg: Number(e.target.value) }))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
+                  />
+                </div>
+                <div>
                   <label className="block font-bold uppercase text-[#5F6368] mb-1">Free Delivery Minimum Order (৳)</label>
                   <input 
                     type="number" 

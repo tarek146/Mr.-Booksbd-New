@@ -40,7 +40,7 @@ export function Home() {
       <Hero />
 
       {/* 2. Popular Categories Section (Compact Small Cards, Single Row Horizontal Slider) */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 sm:pt-3 pb-3">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 sm:pt-3 pb-3 bg-white">
         {/* Section Header */}
         <div className="flex items-center justify-between mb-2 pb-1 border-b border-[#F0F0F0]">
           <div className="flex items-center gap-1.5">

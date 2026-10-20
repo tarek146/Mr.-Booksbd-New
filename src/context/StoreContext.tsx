@@ -264,7 +264,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     metaTitle: 'MR. BOOKS - Premium Online Bookstore & Stationery in Bangladesh',
     metaDescription: 'Buy bestselling books, novels, Islamic books, university textbooks, and premium stationery online in Bangladesh with fast nationwide delivery.',
     ogImageUrl: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=1200&auto=format&fit=crop&q=80',
-    keywords: 'bookstore bangladesh, online book shop dhaka, stationery, novel, islamic books, mr books'
+    keywords: 'bookstore bangladesh, online book shop dhaka, stationery, novel, islamic books, mr books',
+    sundarbanDeliveryCharge: 120,
+    enableSundarbanCourier: true,
+    sundarbanForcesPrepayment: true,
+    extraWeightChargePerKg: 20,
+    deliveryNote: 'সুন্দরবন কুরিয়ার সার্ভিসের ক্ষেত্রে সম্পূর্ণ পেমেন্ট অগ্রিম প্রযোজ্য।'
   });
 
   // Real-time SEO and OpenGraph head synchronization

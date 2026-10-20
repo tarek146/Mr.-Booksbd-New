@@ -18,14 +18,51 @@ export function CheckoutPage() {
   const [district, setDistrict] = useState('Dhaka');
   const [city, setCity] = useState('');
   const [address, setAddress] = useState('');
-  const [notes] = useState('');
+  const [customerNote, setCustomerNote] = useState('');
 
-  const [selectedPaymentId, setSelectedPaymentId] = useState<string>(paymentMethods[0]?.id || 'cod');
+  // Delivery type: 'standard' (Home Delivery) or 'sundarban' (Sundarban Courier)
+  const [deliveryType, setDeliveryType] = useState<'standard' | 'sundarban'>('standard');
+
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string>(
+    paymentMethods.find(m => m.isActive && m.type === 'cod')?.id || paymentMethods[0]?.id || 'cod'
+  );
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
+  // If Sundarban is selected and prepayment is enforced, ensure COD is deselected and pick first online payment method
+  const handleDeliveryTypeChange = (type: 'standard' | 'sundarban') => {
+    setDeliveryType(type);
+    if (type === 'sundarban' && settings.sundarbanForcesPrepayment !== false) {
+      const onlineMethod = paymentMethods.find(m => m.isActive && m.type !== 'cod');
+      if (onlineMethod) {
+        setSelectedPaymentId(onlineMethod.id);
+      }
+    }
+  };
+
+  // Calculate form completion percentage parameter (25% each for Name, Phone, Address, District/City)
+  const completionPercentage = React.useMemo(() => {
+    let score = 0;
+    if (name.trim().length >= 2) score += 25;
+    if (/^(\+?8801|01)[3-9]\d{8}$/.test(phone.trim().replace(/[\s-]/g, ''))) score += 25;
+    if (district) score += 25;
+    if (address.trim().length >= 5) score += 25;
+    return score;
+  }, [name, phone, district, address]);
+
+  // Subtotal & Delivery Calculation
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const deliveryCharge = district === 'Dhaka' ? settings.insideDhakaCharge : settings.outsideDhakaCharge;
+  const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Base delivery charge
+  let baseDelivery = deliveryType === 'sundarban' 
+    ? (settings.sundarbanDeliveryCharge ?? 120)
+    : (district === 'Dhaka' ? settings.insideDhakaCharge : settings.outsideDhakaCharge);
+
+  // Extra weight charge if total items > 1 kg/item
+  const extraWeightCharge = totalQuantity > 1 ? (totalQuantity - 1) * (settings.extraWeightChargePerKg ?? 20) : 0;
+  const deliveryCharge = baseDelivery + extraWeightCharge;
   const total = subtotal + deliveryCharge;
 
   const selectedMethod = paymentMethods.find(m => m.id === selectedPaymentId) || paymentMethods[0];
@@ -35,8 +72,6 @@ export function CheckoutPage() {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-
-  const [errorMsg, setErrorMsg] = useState('');
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,7 +86,6 @@ export function CheckoutPage() {
       return;
     }
 
-    // Bangladeshi phone verification (11 digits e.g. 017xxxxxxxx or +88017xxxxxxxx)
     if (!/^(\+?8801|01)[3-9]\d{8}$/.test(cleanPhone)) {
       setErrorMsg('Please enter a valid 11-digit Bangladesh mobile number (e.g. 01712345678).');
       return;
@@ -62,6 +96,11 @@ export function CheckoutPage() {
       return;
     }
 
+    if (deliveryType === 'sundarban' && settings.sundarbanForcesPrepayment !== false && selectedMethod?.type === 'cod') {
+      setErrorMsg('Sundarban Courier Delivery requires advance online payment (bKash/Nagad/Card). Cash on Delivery is disabled for Sundarban.');
+      return;
+    }
+
     if (cart.length === 0) {
       setErrorMsg('Your shopping cart is currently empty.');
       return;
@@ -69,6 +108,12 @@ export function CheckoutPage() {
 
     setLoading(true);
     try {
+      const deliveryLabel = deliveryType === 'sundarban' ? 'Sundarban Courier (Prepaid)' : 'Standard Home Delivery';
+      const fullNotes = [
+        customerNote.trim() ? `Customer Note: ${customerNote.trim()}` : '',
+        `Delivery Method: ${deliveryLabel}`
+      ].filter(Boolean).join(' | ');
+
       const orderId = await createOrder({
         userId: currentUser?.uid || ('guest-' + Date.now()),
         customerName: cleanName,
@@ -77,7 +122,7 @@ export function CheckoutPage() {
         district,
         city: city.trim(),
         address: cleanAddress,
-        notes: notes.trim(),
+        notes: fullNotes,
         items: cart,
         subtotal,
         deliveryCharge,
@@ -87,7 +132,6 @@ export function CheckoutPage() {
         paymentMethodName: selectedMethod.name
       });
 
-      // Transition to order success / payment submission screen
       setActivePage('order-success', orderId);
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to place order. Please check your cart and try again.');
@@ -99,16 +143,32 @@ export function CheckoutPage() {
   return (
     <div className="min-h-screen bg-white transition-colors py-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <button 
-          onClick={() => setActivePage('cart')}
-          className="flex items-center gap-1.5 text-xs font-bold text-[#5F6368] hover:text-[#D71920] mb-8 transition-colors cursor-pointer"
-        >
-          <ArrowLeft size={16} /> Back to Cart
-        </button>
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+          <button 
+            onClick={() => setActivePage('cart')}
+            className="flex items-center gap-1.5 text-xs font-bold text-[#5F6368] hover:text-[#D71920] transition-colors cursor-pointer"
+          >
+            <ArrowLeft size={16} /> Back to Cart
+          </button>
+
+          {/* Checkout Form Completion Parameter Bar */}
+          <div className="bg-neutral-100 border border-neutral-200 px-4 py-2 rounded-2xl flex items-center gap-3 w-full sm:w-auto">
+            <div className="text-xs font-bold text-neutral-700">
+              Form Completion: <span className="text-[#D71920] font-black">{completionPercentage}%</span>
+            </div>
+            <div className="w-32 sm:w-40 h-2 bg-neutral-200 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-[#D71920] transition-all duration-300 rounded-full"
+                style={{ width: `${completionPercentage}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>
 
         <form onSubmit={handlePlaceOrder} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left Column (7 cols): Address & Payment Methods */}
+          {/* Left Column (7 cols): Address, Delivery Options & Payment Methods */}
           <div className="lg:col-span-7 space-y-6">
+            
             {/* Delivery Address Card */}
             <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 sm:p-8 shadow-xs space-y-5">
               <div className="flex items-center gap-3 pb-4 border-b border-[#EEEEEE]">
@@ -131,7 +191,7 @@ export function CheckoutPage() {
                     required 
                     value={name} 
                     onChange={e => setName(e.target.value)}
-                    placeholder="e.g. Asif Mahmud"
+                    placeholder="e.g. Abdullah Al Mamun"
                     className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-sm text-[#171717] focus:outline-none focus:border-[#D71920]"
                   />
                 </div>
@@ -194,18 +254,88 @@ export function CheckoutPage() {
                 ></textarea>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#5F6368] mb-1">
-                  Email Address (Optional)
-                </label>
-                <input 
-                  type="email" 
-                  value={email} 
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="name@example.com"
-                  className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-sm text-[#171717] focus:outline-none focus:border-[#D71920]"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#5F6368] mb-1">
+                    Email Address (Optional)
+                  </label>
+                  <input 
+                    type="email" 
+                    value={email} 
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="name@example.com"
+                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-sm text-[#171717] focus:outline-none focus:border-[#D71920]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#5F6368] mb-1">
+                    Customer Note (কাস্টমার নোট)
+                  </label>
+                  <input 
+                    type="text" 
+                    value={customerNote} 
+                    onChange={e => setCustomerNote(e.target.value)}
+                    placeholder="Any special instruction for delivery..."
+                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-sm text-[#171717] focus:outline-none focus:border-[#D71920]"
+                  />
+                </div>
               </div>
+            </div>
+
+            {/* Delivery Method Selection: Standard vs Sundarban Courier */}
+            <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
+              <div className="flex items-center gap-3 pb-3 border-b border-[#EEEEEE]">
+                <div className="w-10 h-10 bg-[#FFF1F2] text-[#D71920] rounded-xl flex items-center justify-center">
+                  <Truck size={20} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-[#171717]">Select Delivery Method</h2>
+                  <p className="text-xs text-[#5F6368]">Choose between Standard Home Delivery or Sundarban Courier</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div 
+                  onClick={() => handleDeliveryTypeChange('standard')}
+                  className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between ${
+                    deliveryType === 'standard' ? 'border-[#D71920] bg-[#FFF1F2] shadow-xs' : 'border-[#E5E5E5] bg-white hover:border-zinc-400'
+                  }`}
+                >
+                  <div>
+                    <h4 className="font-bold text-sm text-[#171717]">Standard Home Delivery</h4>
+                    <p className="text-[11px] text-[#5F6368]">Inside/Outside Dhaka (COD available)</p>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                    deliveryType === 'standard' ? 'border-[#D71920] bg-[#D71920] text-white' : 'border-[#CCCCCC]'
+                  }`}>
+                    {deliveryType === 'standard' && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                  </div>
+                </div>
+
+                <div 
+                  onClick={() => handleDeliveryTypeChange('sundarban')}
+                  className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between ${
+                    deliveryType === 'sundarban' ? 'border-[#D71920] bg-[#FFF1F2] shadow-xs' : 'border-[#E5E5E5] bg-white hover:border-zinc-400'
+                  }`}
+                >
+                  <div>
+                    <h4 className="font-bold text-sm text-[#171717]">Sundarban Courier Delivery</h4>
+                    <p className="text-[11px] text-[#5F6368]">Prepayment required (COD disabled)</p>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                    deliveryType === 'sundarban' ? 'border-[#D71920] bg-[#D71920] text-white' : 'border-[#CCCCCC]'
+                  }`}>
+                    {deliveryType === 'sundarban' && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                  </div>
+                </div>
+              </div>
+
+              {deliveryType === 'sundarban' && (
+                <div className="p-3.5 bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl text-xs font-semibold leading-relaxed space-y-1">
+                  <p className="font-bold">⚠️ Sundarban Courier Notice:</p>
+                  <p>{settings.deliveryNote || 'সুন্দরবন কুরিয়ার সার্ভিসের ক্ষেত্রে সম্পূর্ণ পেমেন্ট অগ্রিম প্রযোজ্য। ক্যাশ অন ডেলিভারি প্রযোজ্য নয়।'}</p>
+                </div>
+              )}
             </div>
 
             {/* Manual Payment Method Selection */}
@@ -216,12 +346,16 @@ export function CheckoutPage() {
                 </div>
                 <div>
                   <h2 className="text-lg font-black text-[#171717]">Payment Method</h2>
-                  <p className="text-xs text-[#5F6368]">Select manual payment method (TrxID submitted on next screen)</p>
+                  <p className="text-xs text-[#5F6368]">
+                    {deliveryType === 'sundarban' 
+                      ? 'Select Online Payment Method (Sundarban Courier requires advance payment)'
+                      : 'Select manual payment method or Cash on Delivery'}
+                  </p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {paymentMethods.filter(m => m.isActive).map(method => {
+                {paymentMethods.filter(m => m.isActive && (deliveryType !== 'sundarban' || m.type !== 'cod' || settings.sundarbanForcesPrepayment === false)).map(method => {
                   const isSelected = selectedPaymentId === method.id;
                   return (
                     <div 
@@ -275,7 +409,7 @@ export function CheckoutPage() {
                 </div>
               )}
 
-              {selectedMethod && selectedMethod.type === 'cod' && (
+              {selectedMethod && selectedMethod.type === 'cod' && deliveryType !== 'sundarban' && (
                 <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-200 text-xs text-emerald-800 leading-relaxed">
                   ✓ <strong>Cash on Delivery (COD) selected.</strong> Pay the courier when the package is delivered to your doorstep.
                 </div>
@@ -313,9 +447,15 @@ export function CheckoutPage() {
                   <span className="font-bold text-[#171717]">৳{subtotal}</span>
                 </div>
                 <div className="flex justify-between text-[#5F6368]">
-                  <span>Delivery ({district})</span>
-                  <span className="font-bold text-[#171717]">৳{deliveryCharge}</span>
+                  <span>Delivery ({deliveryType === 'sundarban' ? 'Sundarban' : district})</span>
+                  <span className="font-bold text-[#171717]">৳{baseDelivery}</span>
                 </div>
+                {extraWeightCharge > 0 && (
+                  <div className="flex justify-between text-[#5F6368]">
+                    <span>Extra Weight/Items Charge</span>
+                    <span className="font-bold text-[#171717]">৳{extraWeightCharge}</span>
+                  </div>
+                )}
                 <div className="pt-2 border-t border-[#E5E5E5] flex justify-between text-sm font-black text-[#171717]">
                   <span>Total Payable</span>
                   <span className="text-[#D71920] text-xl">৳{total}</span>
@@ -336,7 +476,7 @@ export function CheckoutPage() {
               </button>
 
               <p className="text-[11px] text-center text-[#777777]">
-                By clicking Confirm, you accept MR. BOOKS manual payment verification policy.
+                By clicking Confirm, you accept MR. BOOKS delivery and payment verification policy.
               </p>
             </div>
           </div>

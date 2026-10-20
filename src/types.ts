@@ -217,6 +217,13 @@ export interface StoreSettings {
   callNumber?: string;
   telegramUrl?: string;
   messengerUrl?: string;
+  // Delivery & Courier Settings
+  sundarbanDeliveryCharge?: number;
+  enableSundarbanCourier?: boolean;
+  sundarbanForcesPrepayment?: boolean;
+  extraWeightChargePerKg?: number;
+  deliveryNote?: string;
+
   // SEO Settings
   metaTitle?: string;
   metaDescription?: string;
