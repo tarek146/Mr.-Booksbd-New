@@ -91,6 +91,7 @@ interface StoreContextType {
    updateOrderStatus: (orderId: string, orderStatus: Order['orderStatus']) => Promise<void>;
   updateOrderPaymentStatus: (orderId: string, paymentStatus: Order['paymentStatus']) => Promise<void>;
   updateOrderTracking: (orderId: string, data: { orderStatus?: Order['orderStatus']; courierName?: string; trackingCode?: string; trackingUrl?: string; trackingNotes?: string }) => Promise<void>;
+  deleteOrder: (orderId: string) => Promise<void>;
   reviewPaymentSubmission: (subId: string, status: 'approved' | 'rejected', reason?: string) => Promise<void>;
   updateSettings: (newSettings: Partial<StoreSettings>) => Promise<void>;
   reviews: Review[];
@@ -1121,6 +1122,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...data, updatedAt: Date.now() } : o));
   };
 
+  const deleteOrder = async (orderId: string) => {
+    try {
+      await deleteDoc(doc(db, 'orders', orderId));
+      await logAdminAction('order_deleted', orderId, `Deleted order #${orderId}`);
+    } catch (err) {
+      console.error('Firestore delete order error:', err);
+      throw err;
+    }
+    setOrders(prev => prev.filter(o => o.id !== orderId));
+  };
+
   const trackOrder = async (orderIdOrPhone: string): Promise<Order | null> => {
     const raw = orderIdOrPhone.trim().replace(/^#/, '');
     if (!raw) return null;
@@ -1319,6 +1331,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       updateOrderStatus,
       updateOrderPaymentStatus,
       updateOrderTracking,
+      deleteOrder,
       reviewPaymentSubmission,
       updateSettings,
       reviews,

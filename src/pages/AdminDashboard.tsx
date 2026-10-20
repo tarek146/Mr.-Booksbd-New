@@ -77,7 +77,8 @@ export function AdminDashboard() {
     subscribers,
     addSubscriber,
     deleteSubscriber,
-    updateOrderTracking
+    updateOrderTracking,
+    deleteOrder
   } = useStore();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'verifications' | 'payment-methods' | 'orders' | 'products' | 'categories' | 'banners' | 'authors' | 'subscribers' | 'settings'>('overview');
@@ -1565,10 +1566,25 @@ export function AdminDashboard() {
                             <div className="text-lg font-black text-[#D71920]">৳{o.total}</div>
                             <div className="text-[10px] text-neutral-500 mt-0.5">Delivery: ৳{o.deliveryCharge}</div>
                           </div>
-                          <div className="text-right">
-                            <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-[11px] font-bold border border-emerald-200 uppercase">
-                              {o.paymentMethodName || 'COD'}
+                          <div className="text-right space-y-1">
+                            <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-[11px] font-bold border border-emerald-200 uppercase block">
+                              {o.paymentMethodName || 'Cash on Delivery'}
                             </span>
+                            <select
+                              value={o.paymentStatus}
+                              onChange={(e) => updateOrderPaymentStatus(o.id, e.target.value as any)}
+                              className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase cursor-pointer ${
+                                o.paymentStatus === 'approved' ? 'bg-emerald-100 text-emerald-800' :
+                                o.paymentStatus === 'pending_verification' ? 'bg-amber-100 text-amber-800' :
+                                o.paymentStatus === 'rejected' ? 'bg-red-100 text-red-800' :
+                                'bg-zinc-100 text-zinc-700'
+                              }`}
+                            >
+                              <option value="unpaid">Unpaid</option>
+                              <option value="pending_verification">Pending Verification</option>
+                              <option value="approved">Paid / Approved</option>
+                              <option value="rejected">Rejected</option>
+                            </select>
                           </div>
                         </div>
 
@@ -1617,11 +1633,27 @@ export function AdminDashboard() {
                             </button>
 
                             <div className="flex items-center gap-1.5 shrink-0">
-                              <button onClick={() => alert(`Order ID: ${o.id}\nCustomer: ${o.customerName}\nPhone: ${o.phone}\nAddress: ${o.address}, ${o.city}\nTotal: ৳${o.total}`)} className="p-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 cursor-pointer" title="View Details">
+                              <button onClick={() => alert(`Order ID: ${o.id}\nCustomer: ${o.customerName}\nPhone: ${o.phone}\nAddress: ${o.address}, ${o.city}\nTotal: ৳${o.total}\nPayment: ${o.paymentMethodName || 'COD'} (${o.paymentStatus})`)} className="p-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 cursor-pointer" title="View Details">
                                 👁️
                               </button>
                               <button onClick={() => window.print()} className="p-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 cursor-pointer" title="Print Invoice">
                                 🖨️
+                              </button>
+                              <button 
+                                onClick={async () => {
+                                  if (window.confirm(`Are you sure you want to delete order #${o.id}? This will permanently remove the fake or unwanted order.`)) {
+                                    try {
+                                      await deleteOrder(o.id);
+                                      setToast({ show: true, type: 'success', message: `Order #${o.id} successfully deleted.` });
+                                    } catch (err: any) {
+                                      setToast({ show: true, type: 'error', message: `Failed to delete order: ${err.message}` });
+                                    }
+                                  }
+                                }} 
+                                className="p-2 rounded-xl bg-red-50 hover:bg-red-100 text-[#D71920] cursor-pointer transition-colors" 
+                                title="Delete Order (Remove Fake/Unwanted)"
+                              >
+                                <Trash2 size={15} />
                               </button>
                             </div>
                           </div>
