@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
+import { PaymentInstructions } from '../components/PaymentInstructions';
 import { Truck, CreditCard, Copy, Check, ArrowLeft, ArrowRight } from 'lucide-react';
 
 const BANGLADESH_DISTRICTS = [
@@ -9,7 +10,7 @@ const BANGLADESH_DISTRICTS = [
 ];
 
 export function CheckoutPage() {
-  const { cart, paymentMethods, settings, createOrder, setActivePage } = useStore();
+  const { cart, paymentMethods, settings, createOrder, submitPaymentProof, setActivePage } = useStore();
   const { currentUser } = useAuth();
 
   const [name, setName] = useState(currentUser?.displayName || '');
@@ -20,13 +21,16 @@ export function CheckoutPage() {
   const [address, setAddress] = useState('');
   const [customerNote, setCustomerNote] = useState('');
 
+  // Payment Verification State
+  const [transactionId, setTransactionId] = useState('');
+  const [senderNumber, setSenderNumber] = useState('');
+
   // Delivery type: 'standard' (Home Delivery) or 'sundarban' (Sundarban Courier)
   const [deliveryType, setDeliveryType] = useState<'standard' | 'sundarban'>('standard');
 
   const [selectedPaymentId, setSelectedPaymentId] = useState<string>(
     paymentMethods.find(m => m.isActive && m.type === 'cod')?.id || paymentMethods[0]?.id || 'cod'
   );
-  const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -66,12 +70,6 @@ export function CheckoutPage() {
   const total = subtotal + deliveryCharge;
 
   const selectedMethod = paymentMethods.find(m => m.id === selectedPaymentId) || paymentMethods[0];
-
-  const handleCopyNumber = (num: string) => {
-    navigator.clipboard.writeText(num);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,6 +129,25 @@ export function CheckoutPage() {
         paymentMethodId: selectedMethod.id,
         paymentMethodName: selectedMethod.name
       });
+
+      // If online payment is selected and transaction details are provided, submit proof immediately
+      if (selectedMethod?.type !== 'cod' && transactionId.trim() && senderNumber.trim()) {
+        try {
+          await submitPaymentProof({
+            orderId,
+            userId: currentUser?.uid || ('guest-' + Date.now()),
+            customerName: cleanName,
+            customerPhone: cleanPhone,
+            providerId: selectedMethod.id,
+            providerName: selectedMethod.name,
+            transactionReference: transactionId.trim(),
+            senderIdentifier: senderNumber.trim(),
+            claimedAmount: total
+          });
+        } catch (proofErr) {
+          console.warn('Payment proof submission deferred:', proofErr);
+        }
+      }
 
       setActivePage('order-success', orderId);
     } catch (err: any) {
@@ -369,11 +386,40 @@ export function CheckoutPage() {
                           : 'border-[#E5E5E5] bg-white hover:border-zinc-400'
                       }`}
                     >
-                      <div>
-                        <h4 className="font-bold text-sm text-[#171717]">{method.name}</h4>
-                        <p className="text-[11px] text-[#5F6368]">{method.accountType || method.type}</p>
+                      <div className="flex items-center gap-3 min-w-0">
+                        {method.logoUrl ? (
+                          <img src={method.logoUrl} alt={method.name} className="w-8 h-8 object-contain rounded-lg shrink-0 border border-[#E5E5E5] p-0.5 bg-white" />
+                        ) : method.type === 'bkash' ? (
+                          <div className="w-8 h-8 rounded-lg bg-[#E2136E] text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs tracking-tighter">
+                            bKash
+                          </div>
+                        ) : method.type === 'nagad' ? (
+                          <div className="w-8 h-8 rounded-lg bg-[#F15A24] text-white font-black text-[10px] flex items-center justify-center shrink-0 shadow-xs">
+                            নগদ
+                          </div>
+                        ) : method.type === 'rocket' ? (
+                          <div className="w-8 h-8 rounded-lg bg-[#8C3494] text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs">
+                            Rocket
+                          </div>
+                        ) : method.type === 'upay' ? (
+                          <div className="w-8 h-8 rounded-lg bg-[#00A859] text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs">
+                            Upay
+                          </div>
+                        ) : method.type === 'bank' ? (
+                          <div className="w-8 h-8 rounded-lg bg-[#1E3A8A] text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs">
+                            Bank
+                          </div>
+                        ) : (
+                          <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white font-black text-[10px] flex items-center justify-center shrink-0 shadow-xs">
+                            COD
+                          </div>
+                        )}
+                        <div className="truncate">
+                          <h4 className="font-bold text-sm text-[#171717] truncate">{method.name}</h4>
+                          <p className="text-[11px] text-[#5F6368] uppercase font-semibold text-[10px] tracking-wide">{method.accountType || method.type}</p>
+                        </div>
                       </div>
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
                         isSelected ? 'border-[#D71920] bg-[#D71920] text-white' : 'border-[#CCCCCC]'
                       }`}>
                         {isSelected && <div className="w-2 h-2 bg-white rounded-full"></div>}
@@ -383,38 +429,16 @@ export function CheckoutPage() {
                 })}
               </div>
 
-              {/* Dynamic Instructions for selected method */}
-              {selectedMethod && selectedMethod.type !== 'cod' && (
-                <div className="bg-[#F7F7F8] rounded-2xl p-5 border border-[#E5E5E5] space-y-3">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div>
-                      <span className="text-[10px] font-bold text-[#D71920] uppercase tracking-wider block">Send Money Receiver Number</span>
-                      <h3 className="text-lg font-black text-[#171717] font-mono">{selectedMethod.accountNumber}</h3>
-                      <p className="text-xs text-[#5F6368]">Account Name: <strong>{selectedMethod.accountName}</strong></p>
-                    </div>
-                    <button 
-                      type="button"
-                      onClick={() => handleCopyNumber(selectedMethod.accountNumber)}
-                      className="px-3.5 py-1.5 bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/30 hover:bg-[#D71920] hover:text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
-                    >
-                      {copied ? <Check size={13} /> : <Copy size={13} />}
-                      {copied ? 'Copied!' : 'Copy Number'}
-                    </button>
-                  </div>
-
-                  <div className="pt-3 border-t border-[#E5E5E5] text-xs">
-                    <span className="font-bold text-[#171717]">Payment Steps:</span>
-                    <p className="text-[#5F6368] whitespace-pre-line mt-1 leading-relaxed">
-                      {selectedMethod.instructions}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {selectedMethod && selectedMethod.type === 'cod' && deliveryType !== 'sundarban' && (
-                <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-200 text-xs text-emerald-800 leading-relaxed">
-                  ✓ <strong>Cash on Delivery (COD) selected.</strong> Pay the courier when the package is delivered to your doorstep.
-                </div>
+              {/* Dynamic Step-by-Step Payment Instructions & Verification Inputs */}
+              {selectedMethod && (
+                <PaymentInstructions 
+                  selectedMethod={selectedMethod}
+                  totalAmount={total}
+                  transactionId={transactionId}
+                  setTransactionId={setTransactionId}
+                  senderNumber={senderNumber}
+                  setSenderNumber={setSenderNumber}
+                />
               )}
             </div>
           </div>

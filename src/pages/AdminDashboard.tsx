@@ -150,6 +150,7 @@ export function AdminDashboard() {
   const [pmAccName, setPmAccName] = useState('');
   const [pmAccNum, setPmAccNum] = useState('');
   const [pmInst, setPmInst] = useState('');
+  const [pmLogoUrl, setPmLogoUrl] = useState('');
 
   // Admin Login State
   const [adminEmail, setAdminEmail] = useState('mr.booksbd700@gmail.com');
@@ -241,6 +242,7 @@ export function AdminDashboard() {
       accountName: pmAccName,
       accountNumber: pmAccNum,
       instructions: pmInst,
+      logoUrl: pmLogoUrl.trim() || undefined,
       isActive: true,
       displayOrder: paymentMethods.length + 1
     });
@@ -248,6 +250,7 @@ export function AdminDashboard() {
     setPmAccName('');
     setPmAccNum('');
     setPmInst('');
+    setPmLogoUrl('');
     setShowAddPmModal(false);
   };
 
@@ -1359,7 +1362,7 @@ export function AdminDashboard() {
               <form onSubmit={handleCreatePaymentMethod} className="p-5 bg-[#F7F7F8] rounded-2xl border border-[#E5E5E5] space-y-3">
                 <h3 className="font-bold text-sm text-[#171717]">New Payment Gateway / Account</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <input type="text" placeholder="Method Name (e.g. bKash Merchant)" required value={pmName} onChange={e => setPmName(e.target.value)} className="px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]" />
+                  <input type="text" placeholder="Method Name (e.g. bKash Personal)" required value={pmName} onChange={e => setPmName(e.target.value)} className="px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]" />
                   <select value={pmType} onChange={e => setPmType(e.target.value as any)} className="px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]">
                     <option value="bkash">bKash</option>
                     <option value="nagad">Nagad</option>
@@ -1370,6 +1373,9 @@ export function AdminDashboard() {
                   </select>
                   <input type="text" placeholder="Account Name (e.g. MR. BOOKS BD)" required value={pmAccName} onChange={e => setPmAccName(e.target.value)} className="px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]" />
                   <input type="text" placeholder="Account / Phone Number" required value={pmAccNum} onChange={e => setPmAccNum(e.target.value)} className="px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs font-mono text-[#171717]" />
+                </div>
+                <div>
+                  <input type="text" placeholder="Custom Logo / Icon Image URL (Optional)" value={pmLogoUrl} onChange={e => setPmLogoUrl(e.target.value)} className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]" />
                 </div>
                 <textarea rows={2} placeholder="Payment instructions for customer..." required value={pmInst} onChange={e => setPmInst(e.target.value)} className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]"></textarea>
                 <div className="flex justify-end gap-2">
