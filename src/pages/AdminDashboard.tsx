@@ -55,6 +55,7 @@ export function AdminDashboard() {
     settings, 
     reviewPaymentSubmission, 
     updateOrderStatus, 
+    updateOrderPaymentStatus,
     addPaymentMethod, 
     updatePaymentMethod, 
     deletePaymentMethod,

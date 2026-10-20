@@ -89,6 +89,7 @@ interface StoreContextType {
   deleteCategory: (id: string) => Promise<void>;
 
    updateOrderStatus: (orderId: string, orderStatus: Order['orderStatus']) => Promise<void>;
+  updateOrderPaymentStatus: (orderId: string, paymentStatus: Order['paymentStatus']) => Promise<void>;
   updateOrderTracking: (orderId: string, data: { orderStatus?: Order['orderStatus']; courierName?: string; trackingCode?: string; trackingUrl?: string; trackingNotes?: string }) => Promise<void>;
   reviewPaymentSubmission: (subId: string, status: 'approved' | 'rejected', reason?: string) => Promise<void>;
   updateSettings: (newSettings: Partial<StoreSettings>) => Promise<void>;
@@ -1084,6 +1085,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, orderStatus, updatedAt: Date.now() } : o));
   };
 
+  const updateOrderPaymentStatus = async (orderId: string, paymentStatus: Order['paymentStatus']) => {
+    try {
+      const cleaned = cleanForFirestore({ paymentStatus, updatedAt: Date.now() });
+      await setDoc(doc(db, 'orders', orderId), cleaned, { merge: true });
+      await logAdminAction('order_payment_status_updated', orderId, `Changed payment status to: ${paymentStatus}`);
+    } catch (err) {
+      console.error('Firestore update order payment status error:', err);
+      throw err;
+    }
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, paymentStatus, updatedAt: Date.now() } : o));
+  };
+
   const updateOrderTracking = async (
     orderId: string, 
     data: { 
@@ -1304,6 +1317,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       updateCategory,
       deleteCategory,
       updateOrderStatus,
+      updateOrderPaymentStatus,
       updateOrderTracking,
       reviewPaymentSubmission,
       updateSettings,
