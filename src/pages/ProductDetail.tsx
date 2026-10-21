@@ -333,7 +333,7 @@ export function ProductDetail() {
                   <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed">
                     {product.type === 'book' ? (
                       <>
-                        By <strong className="text-neutral-900 font-bold">{product.author || 'Renowned Author'}</strong> • Published by {product.publisher || 'MR. BOOKS Publications'}
+                        By <strong className="text-neutral-900 font-bold">{product.author || 'Renowned Author'}</strong>
                       </>
                     ) : (
                       <>Brand: <strong className="text-neutral-900 font-bold">{product.brand || 'Stationery'}</strong></>
@@ -557,7 +557,7 @@ export function ProductDetail() {
                         </h3>
                       </div>
                       <p className="text-[11px] sm:text-xs text-neutral-500 mt-0.5 truncate pl-6">
-                        Overview, summary & publisher quality guarantees
+                        Overview, summary & book details
                       </p>
                     </div>
                     <div className={`p-1.5 rounded-full transition-all duration-200 shrink-0 ${
@@ -583,7 +583,7 @@ export function ProductDetail() {
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-neutral-100 text-[11px]">
                         <div className="p-2.5 bg-neutral-50 rounded-xl flex items-center gap-2 text-neutral-700 font-medium">
                           <ShieldCheck size={14} className="text-emerald-600 shrink-0" />
-                          <span>100% Original Publisher Copy</span>
+                          <span>100% Original Copy</span>
                         </div>
                         <div className="p-2.5 bg-neutral-50 rounded-xl flex items-center gap-2 text-neutral-700 font-medium">
                           <Truck size={14} className="text-[#D71920]" />
@@ -617,7 +617,7 @@ export function ProductDetail() {
                         </h3>
                       </div>
                       <p className="text-[11px] sm:text-xs text-neutral-500 mt-0.5 truncate pl-6">
-                        Author, publisher, format, pages, language, SKU & edition details
+                        Author, format, pages, language, SKU & edition details
                       </p>
                     </div>
                     <div className={`p-1.5 rounded-full transition-all duration-200 shrink-0 ${
@@ -666,16 +666,6 @@ export function ProductDetail() {
                           </span>
                           <span className="font-bold text-xs text-neutral-900 mt-0.5 block truncate">
                             {product.author || product.brand || 'MR. BOOKS Selected'}
-                          </span>
-                        </div>
-
-                        {/* Publisher */}
-                        <div className="p-2.5 bg-neutral-50/90 rounded-xl border border-neutral-200">
-                          <span className="text-neutral-400 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                            <Layers size={11} className="text-[#D71920]" /> Publisher
-                          </span>
-                          <span className="font-bold text-xs text-neutral-900 mt-0.5 block truncate">
-                            {product.publisher || 'MR. BOOKS Publications'}
                           </span>
                         </div>
 
