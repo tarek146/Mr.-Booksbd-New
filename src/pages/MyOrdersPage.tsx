@@ -139,7 +139,7 @@ export function MyOrdersPage() {
     e.preventDefault();
     if (!trackingInput.trim()) return;
     const query = trackingInput.trim().replace(/^#/, '');
-    const found = orders.find(o => o.id.toLowerCase() === query.toLowerCase() || o.phone.includes(query));
+    const found = orders.find(o => o.id.toLowerCase() === query.toLowerCase() || o.phone.includes(query) || (o.optionalPhone && o.optionalPhone.includes(query)));
     setSearchedOrderResult(found || null);
     setSearchAttempted(true);
   };
@@ -330,7 +330,7 @@ export function MyOrdersPage() {
                               Order #{searchedOrderResult.id}
                             </span>
                             <h4 className="font-black text-sm text-[#171717] mt-0.5">
-                              {searchedOrderResult.customerName} ({searchedOrderResult.phone})
+                              {searchedOrderResult.customerName} ({searchedOrderResult.phone}{searchedOrderResult.optionalPhone ? ` / Alt: ${searchedOrderResult.optionalPhone}` : ''})
                             </h4>
                           </div>
                           <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-bold capitalize">
@@ -367,7 +367,7 @@ export function MyOrdersPage() {
                           Order #{order.id}
                         </span>
                         <h3 className="text-lg font-black text-[#171717] mt-0.5">
-                          {order.customerName} ({order.phone})
+                          {order.customerName} ({order.phone}{order.optionalPhone ? ` / Alt: ${order.optionalPhone}` : ''})
                         </h3>
                         <p className="text-xs text-[#5F6368] mt-0.5">
                           Placed on {new Date(order.createdAt).toLocaleDateString()} • Destination: {order.district}

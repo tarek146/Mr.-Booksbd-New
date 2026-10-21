@@ -40,7 +40,11 @@ import {
   Truck,
   Flame,
   Film,
-  Play
+  Play,
+  Star,
+  ThumbsUp,
+  ThumbsDown,
+  Heart
 } from 'lucide-react';
 import { Author, Banner, Order } from '../types';
 import { AdminAnalytics } from '../components/admin/AdminAnalytics';
@@ -85,11 +89,22 @@ export function AdminDashboard() {
     reels,
     addReel,
     updateReel,
-    deleteReel
+    deleteReel,
+    reviews,
+    addProductReview,
+    updateProductReview,
+    deleteProductReview
   } = useStore();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'verifications' | 'payment-methods' | 'orders' | 'products' | 'categories' | 'banners' | 'authors' | 'subscribers' | 'settings' | 'special-offer' | 'reels'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'verifications' | 'payment-methods' | 'orders' | 'products' | 'categories' | 'banners' | 'authors' | 'subscribers' | 'settings' | 'special-offer' | 'reels' | 'reviews'>('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Admin Review Management state
+  const [adminRevProdId, setAdminRevProdId] = useState('');
+  const [adminRevUserName, setAdminRevUserName] = useState('');
+  const [adminRevRating, setAdminRevRating] = useState(5);
+  const [adminRevComment, setAdminRevComment] = useState('');
+  const [showAddAdminRevModal, setShowAddAdminRevModal] = useState(false);
 
   // Reels management state
   const [showAddReelModal, setShowAddReelModal] = useState(false);
@@ -805,6 +820,7 @@ export function AdminDashboard() {
         { id: 'banners', label: 'Hero Banners', icon: ImageIcon, count: banners.length },
         { id: 'authors', label: 'Writers & Authors', icon: Users, count: authors.length },
         { id: 'reels', label: 'Book Video Reels', icon: Film, count: reels.length },
+        { id: 'reviews', label: 'Reviews & Reactions', icon: Star, count: reviews.length },
       ]
     },
     {
@@ -1838,6 +1854,228 @@ export function AdminDashboard() {
           </div>
         )}
 
+        {/* TAB: CUSTOMER REVIEWS & REACTIONS MANAGER */}
+        {activeTab === 'reviews' && (
+          <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#EEEEEE]">
+              <div>
+                <h2 className="text-xl font-black text-[#171717] flex items-center gap-2">
+                  <Star size={20} className="text-amber-500 fill-amber-500" />
+                  <span>Customer Reviews & Real-Time Reactions Manager</span>
+                </h2>
+                <p className="text-xs text-[#5F6368] mt-0.5">
+                  Manage verified product reviews and real-time customer reaction counts (Like, Love, Dislike) synced with Firebase.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setAdminRevProdId(products[0]?.id || '');
+                  setAdminRevUserName('');
+                  setAdminRevRating(5);
+                  setAdminRevComment('');
+                  setShowAddAdminRevModal(true);
+                }}
+                className="px-4 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md cursor-pointer shrink-0"
+              >
+                <Plus size={14} /> Add Verified Review
+              </button>
+            </div>
+
+            {/* Reaction Summary KPIs */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="p-4 rounded-2xl bg-[#F7F7F8] border border-neutral-200">
+                <div className="text-[10px] font-bold uppercase text-neutral-500">Total Synced Reviews</div>
+                <div className="text-xl font-black text-neutral-900 mt-1">{reviews.length}</div>
+              </div>
+              <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200">
+                <div className="text-[10px] font-bold uppercase text-blue-700 flex items-center gap-1">
+                  <ThumbsUp size={12} /> Total Likes
+                </div>
+                <div className="text-xl font-black text-blue-700 mt-1">
+                  {reviews.reduce((sum, r) => sum + (r.likesCount || 0), 0)}
+                </div>
+              </div>
+              <div className="p-4 rounded-2xl bg-[#FFF1F2] border border-[#D71920]/25">
+                <div className="text-[10px] font-bold uppercase text-[#D71920] flex items-center gap-1">
+                  <Heart size={12} /> Total Loves
+                </div>
+                <div className="text-xl font-black text-[#D71920] mt-1">
+                  {reviews.reduce((sum, r) => sum + (r.lovesCount || 0), 0)}
+                </div>
+              </div>
+              <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200">
+                <div className="text-[10px] font-bold uppercase text-amber-800 flex items-center gap-1">
+                  <ThumbsDown size={12} /> Total Dislikes
+                </div>
+                <div className="text-xl font-black text-amber-800 mt-1">
+                  {reviews.reduce((sum, r) => sum + (r.dislikesCount || 0), 0)}
+                </div>
+              </div>
+            </div>
+
+            {/* Reviews List */}
+            {reviews.length > 0 ? (
+              <div className="space-y-3">
+                {reviews.map(rev => {
+                  const prod = products.find(p => p.id === rev.productId);
+                  return (
+                    <div key={rev.id} className="p-4 rounded-2xl border border-neutral-200 bg-[#F7F7F8] flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="space-y-1.5 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-black text-xs text-neutral-900">{rev.userName}</span>
+                          <span className="text-amber-500 font-bold text-xs">{'★'.repeat(rev.rating || 5)}</span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-neutral-200 text-neutral-600">
+                            Book: {prod?.title || rev.productId}
+                          </span>
+                        </div>
+                        <p className="text-xs text-neutral-700 italic">"{rev.comment}"</p>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-1 bg-white px-2.5 py-1.5 rounded-xl border border-blue-200 text-xs">
+                          <ThumbsUp size={12} className="text-blue-600" />
+                          <span className="text-[10px] font-bold text-neutral-500">Like:</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={rev.likesCount ?? 0}
+                            onChange={e => updateProductReview(rev.id, { likesCount: Math.max(0, Number(e.target.value) || 0) })}
+                            className="w-12 text-center font-black text-blue-600 bg-blue-50/50 rounded px-1 py-0.5"
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-1 bg-white px-2.5 py-1.5 rounded-xl border border-[#D71920]/30 text-xs">
+                          <Heart size={12} className="text-[#D71920]" />
+                          <span className="text-[10px] font-bold text-neutral-500">Love:</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={rev.lovesCount ?? 0}
+                            onChange={e => updateProductReview(rev.id, { lovesCount: Math.max(0, Number(e.target.value) || 0) })}
+                            className="w-12 text-center font-black text-[#D71920] bg-[#FFF1F2] rounded px-1 py-0.5"
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-1 bg-white px-2.5 py-1.5 rounded-xl border border-amber-200 text-xs">
+                          <ThumbsDown size={12} className="text-amber-700" />
+                          <span className="text-[10px] font-bold text-neutral-500">Dislike:</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={rev.dislikesCount ?? 0}
+                            onChange={e => updateProductReview(rev.id, { dislikesCount: Math.max(0, Number(e.target.value) || 0) })}
+                            className="w-12 text-center font-black text-amber-800 bg-amber-50 rounded px-1 py-0.5"
+                          />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => deleteProductReview(rev.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-xl border border-transparent hover:border-red-200 cursor-pointer"
+                          title="Delete Review"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="p-8 text-center bg-[#F7F7F8] rounded-2xl border border-neutral-200 text-xs text-neutral-500">
+                No custom reviews or reactions recorded in Firestore yet. When customers post reviews or react (Like / Love / Dislike) on any product page, they appear here in real time.
+              </div>
+            )}
+
+            {showAddAdminRevModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
+                <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-neutral-200 space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-neutral-200">
+                    <h3 className="font-black text-neutral-900 text-base">Add Verified Customer Review</h3>
+                    <button onClick={() => setShowAddAdminRevModal(false)} className="p-1.5 rounded-xl hover:bg-neutral-100 text-neutral-400 cursor-pointer">
+                      <X size={18} />
+                    </button>
+                  </div>
+                  <form
+                    onSubmit={async e => {
+                      e.preventDefault();
+                      if (!adminRevProdId || !adminRevUserName.trim() || !adminRevComment.trim()) return;
+                      await addProductReview({
+                        productId: adminRevProdId,
+                        userName: adminRevUserName.trim(),
+                        rating: adminRevRating,
+                        comment: adminRevComment.trim(),
+                        isVerifiedPurchase: true,
+                        likesCount: 5,
+                        lovesCount: 3,
+                        dislikesCount: 0,
+                        userReactions: {}
+                      });
+                      setShowAddAdminRevModal(false);
+                      setToast({ show: true, type: 'success', message: 'Verified review added and synced to Firebase!' });
+                    }}
+                    className="space-y-3 text-xs"
+                  >
+                    <div>
+                      <label className="block font-bold text-neutral-700 mb-1">Select Product</label>
+                      <select
+                        value={adminRevProdId}
+                        onChange={e => setAdminRevProdId(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white font-bold text-neutral-900"
+                      >
+                        {products.map(p => (
+                          <option key={p.id} value={p.id}>{p.title}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block font-bold text-neutral-700 mb-1">Customer Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={adminRevUserName}
+                        onChange={e => setAdminRevUserName(e.target.value)}
+                        placeholder="e.g. Mahmudul Hasan"
+                        className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-neutral-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-neutral-700 mb-1">Rating (1-5)</label>
+                      <select
+                        value={adminRevRating}
+                        onChange={e => setAdminRevRating(Number(e.target.value))}
+                        className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white font-bold text-neutral-900"
+                      >
+                        <option value={5}>5 Stars</option>
+                        <option value={4}>4 Stars</option>
+                        <option value={3}>3 Stars</option>
+                        <option value={2}>2 Stars</option>
+                        <option value={1}>1 Star</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block font-bold text-neutral-700 mb-1">Review Comment</label>
+                      <textarea
+                        rows={3}
+                        required
+                        value={adminRevComment}
+                        onChange={e => setAdminRevComment(e.target.value)}
+                        placeholder="Write verified customer feedback..."
+                        className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-neutral-900"
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2">
+                      <button type="button" onClick={() => setShowAddAdminRevModal(false)} className="px-4 py-2 bg-neutral-100 font-bold rounded-xl text-neutral-700 cursor-pointer">Cancel</button>
+                      <button type="submit" className="px-4 py-2 bg-[#D71920] text-white font-bold rounded-xl shadow-sm cursor-pointer">Save Review</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* TAB 4: ORDERS FULFILLMENT */}
         {activeTab === 'orders' && (
           <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
@@ -1946,7 +2184,7 @@ export function AdminDashboard() {
                   if (orderStatusFilter !== 'all' && o.orderStatus !== orderStatusFilter) return false;
                   if (orderSearchQuery) {
                     const q = orderSearchQuery.toLowerCase();
-                    return o.id.toLowerCase().includes(q) || o.customerName.toLowerCase().includes(q) || o.phone.includes(q) || o.address.toLowerCase().includes(q);
+                    return o.id.toLowerCase().includes(q) || o.customerName.toLowerCase().includes(q) || o.phone.includes(q) || (o.optionalPhone && o.optionalPhone.includes(q)) || o.address.toLowerCase().includes(q);
                   }
                   return true;
                 })
@@ -1997,9 +2235,14 @@ export function AdminDashboard() {
                         <div className="font-black text-sm text-neutral-900 flex items-center gap-1.5">
                           <span>👤 {o.customerName}</span>
                         </div>
-                        <div className="text-xs font-bold text-neutral-700 flex items-center gap-1.5">
+                        <div className="text-xs font-bold text-neutral-700 flex items-center gap-1.5 flex-wrap">
                           <span>📞 {o.phone}</span>
                           <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-extrabold">WA</span>
+                          {o.optionalPhone && (
+                            <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-bold">
+                              📱 Alt: {o.optionalPhone}
+                            </span>
+                          )}
                         </div>
                         <div className="text-xs text-neutral-600 line-clamp-2">
                           📍 {o.address}, {o.city}, {o.district}
@@ -2107,7 +2350,7 @@ export function AdminDashboard() {
                             </button>
 
                             <div className="flex items-center gap-1.5 shrink-0">
-                              <button onClick={() => alert(`Order ID: ${o.id}\nCustomer: ${o.customerName}\nPhone: ${o.phone}\nAddress: ${o.address}, ${o.city}\nTotal: ৳${o.total}\nPayment: ${o.paymentMethodName || 'COD'} (${o.paymentStatus})`)} className="p-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 cursor-pointer" title="View Details">
+                              <button onClick={() => alert(`Order ID: ${o.id}\nCustomer: ${o.customerName}\nPhone: ${o.phone}${o.optionalPhone ? `\nOptional Phone: ${o.optionalPhone}` : ''}\nAddress: ${o.address}, ${o.city}\nTotal: ৳${o.total}\nPayment: ${o.paymentMethodName || 'COD'} (${o.paymentStatus})`)} className="p-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 cursor-pointer" title="View Details">
                                 👁️
                               </button>
                               <button onClick={() => window.print()} className="p-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 cursor-pointer" title="Print Invoice">

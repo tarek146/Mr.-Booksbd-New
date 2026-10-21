@@ -22,7 +22,7 @@ export function TrackOrderPage() {
     setTimeout(() => {
       const found = orders.find(o => {
         const idMatch = o.id.toLowerCase().includes(cleanId.toLowerCase());
-        const phoneMatch = o.phone.replace(/[\s-]/g, '').includes(cleanPhone);
+        const phoneMatch = o.phone.replace(/[\s-]/g, '').includes(cleanPhone) || (o.optionalPhone && o.optionalPhone.replace(/[\s-]/g, '').includes(cleanPhone));
         return idMatch && phoneMatch;
       });
 
@@ -211,6 +211,9 @@ export function TrackOrderPage() {
                     <div className="space-y-1.5 text-neutral-600">
                       <p><strong>Name:</strong> {matchedOrder.customerName}</p>
                       <p className="flex items-center gap-1"><strong>Phone:</strong> <Phone size={12} /> {matchedOrder.phone}</p>
+                      {matchedOrder.optionalPhone && (
+                        <p className="flex items-center gap-1"><strong>Alt Phone:</strong> <Phone size={12} /> {matchedOrder.optionalPhone}</p>
+                      )}
                       <p className="flex items-start gap-1"><strong>Address:</strong> <MapPin size={12} className="shrink-0 mt-0.5" /> {matchedOrder.address}, {matchedOrder.city}, {matchedOrder.district}</p>
                       {matchedOrder.notes && (
                         <p className="pt-1 text-neutral-800"><strong>Notes:</strong> {matchedOrder.notes}</p>

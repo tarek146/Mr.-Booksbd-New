@@ -35,6 +35,7 @@ import {
 import { useAuth } from './AuthContext';
 import { cleanForFirestore, addCacheBust } from '../utils/imageCompressor';
 import { SyncTracker, REQUIRED_COLLECTIONS } from '../utils/syncManager';
+import { applyReviewReaction, ReactionType } from '../utils/reviewHelpers';
 
 interface StoreContextType {
   products: Product[];
@@ -96,7 +97,11 @@ interface StoreContextType {
   reviewPaymentSubmission: (subId: string, status: 'approved' | 'rejected', reason?: string) => Promise<void>;
   updateSettings: (newSettings: Partial<StoreSettings>) => Promise<void>;
   reviews: Review[];
+  visitorId: string;
   addProductReview: (review: Omit<Review, 'id' | 'createdAt'>) => Promise<void>;
+  reactToReview: (review: Review, reaction: ReactionType) => Promise<void>;
+  updateProductReview: (id: string, data: Partial<Review>) => Promise<void>;
+  deleteProductReview: (id: string) => Promise<void>;
 
   subscribers: Subscriber[];
   addSubscriber: (emailOrPhone: string) => Promise<{ success: boolean; message: string; isNew: boolean }>;
@@ -232,9 +237,30 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   ]);
 
+  const [guestVisitorId] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = window.localStorage.getItem('mrb_visitor_id');
+        if (saved) return saved;
+        const generated = 'vis-' + Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36);
+        window.localStorage.setItem('mrb_visitor_id', generated);
+        return generated;
+      } catch {
+        return 'vis-anon';
+      }
+    }
+    return 'vis-anon';
+  });
+
+  const visitorId = currentUser?.uid || guestVisitorId;
+
   const addProductReview = async (reviewData: Omit<Review, 'id' | 'createdAt'>) => {
     const id = 'rev-' + Date.now();
     const newRev: Review = {
+      likesCount: 0,
+      lovesCount: 0,
+      dislikesCount: 0,
+      userReactions: {},
       ...reviewData,
       id,
       createdAt: Date.now()
@@ -247,6 +273,54 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       console.error('Error adding review to Firebase:', err);
       setReviews(prev => [newRev, ...prev]);
     }
+  };
+
+  const reactToReview = async (review: Review, reaction: ReactionType) => {
+    const result = applyReviewReaction(review, visitorId, reaction);
+    const updatedReview: Review = {
+      ...review,
+      likesCount: result.likesCount,
+      lovesCount: result.lovesCount,
+      dislikesCount: result.dislikesCount,
+      userReactions: result.userReactions,
+    };
+
+    // Optimistic state update for immediate real-time responsiveness
+    setReviews(prev => {
+      const exists = prev.some(r => r.id === review.id);
+      if (exists) {
+        return prev.map(r => (r.id === review.id ? updatedReview : r));
+      }
+      return [updatedReview, ...prev];
+    });
+
+    try {
+      const cleaned = cleanForFirestore(updatedReview);
+      await setDoc(doc(db, 'reviews', review.id), cleaned, { merge: true });
+    } catch (err: any) {
+      console.warn('Error syncing review reaction to Firestore:', err);
+    }
+  };
+
+  const updateProductReview = async (id: string, data: Partial<Review>) => {
+    try {
+      const cleaned = cleanForFirestore(data);
+      await setDoc(doc(db, 'reviews', id), cleaned, { merge: true });
+      await logAdminAction('review_updated', id, `Updated review ${id}`);
+    } catch (err) {
+      console.error('Error updating review:', err);
+    }
+    setReviews(prev => prev.map(r => (r.id === id ? { ...r, ...data } : r)));
+  };
+
+  const deleteProductReview = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'reviews', id));
+      await logAdminAction('review_deleted', id, `Deleted review ${id}`);
+    } catch (err) {
+      console.error('Error deleting review:', err);
+    }
+    setReviews(prev => prev.filter(r => r.id !== id));
   };
   
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -888,6 +962,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       userId: resolvedUserId,
       customerName: orderData.customerName.trim().slice(0, 100),
       phone: orderData.phone.trim().slice(0, 25),
+      ...(orderData.optionalPhone && orderData.optionalPhone.trim()
+        ? { optionalPhone: orderData.optionalPhone.trim().slice(0, 25) }
+        : {}),
       email: (orderData.email || currentUser?.email || '').trim().slice(0, 100),
       district: orderData.district.trim().slice(0, 50),
       city: (orderData.city || '').trim().slice(0, 50),
@@ -908,7 +985,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     // 7. Atomic transaction/batch write: Save order AND deduct inventory
     const batch = writeBatch(db);
-    batch.set(doc(db, 'orders', orderId), newOrder);
+    batch.set(doc(db, 'orders', orderId), cleanForFirestore(newOrder));
 
     for (const update of stockUpdates) {
       batch.set(doc(db, 'products', update.productId), {
@@ -1209,7 +1286,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const foundLocal = orders.find(o => {
       const idMatch = o.id.toLowerCase() === raw.toLowerCase();
       const phoneDigits = o.phone.replace(/[^0-9]/g, '');
-      const phoneMatch = rawCleanDigits.length >= 6 && phoneDigits.includes(rawCleanDigits);
+      const optPhoneDigits = (o.optionalPhone || '').replace(/[^0-9]/g, '');
+      const phoneMatch = rawCleanDigits.length >= 6 && (phoneDigits.includes(rawCleanDigits) || (optPhoneDigits.length >= 6 && optPhoneDigits.includes(rawCleanDigits)));
       return idMatch || phoneMatch;
     });
     if (foundLocal) return foundLocal;
@@ -1438,7 +1516,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       reviewPaymentSubmission,
       updateSettings,
       reviews,
+      visitorId,
       addProductReview,
+      reactToReview,
+      updateProductReview,
+      deleteProductReview,
       subscribers,
       addSubscriber,
       deleteSubscriber,

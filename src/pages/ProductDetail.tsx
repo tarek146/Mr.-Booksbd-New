@@ -26,7 +26,9 @@ import {
   Award,
   Barcode,
   QrCode,
-  Edit3
+  Edit3,
+  ThumbsUp,
+  ThumbsDown
 } from 'lucide-react';
 
 function WhatsAppIcon({ className = "w-4 h-4 shrink-0" }: { className?: string }) {
@@ -54,7 +56,7 @@ function MessengerIcon({ className = "w-4 h-4 shrink-0" }: { className?: string 
 }
 
 export function ProductDetail() {
-  const { products, selectedProductId, setActivePage, addToCart, wishlist, toggleWishlist, setSelectedCategoryFilter, settings, reviews, addProductReview } = useStore();
+  const { products, selectedProductId, setActivePage, addToCart, wishlist, toggleWishlist, setSelectedCategoryFilter, settings, reviews, visitorId, addProductReview, reactToReview } = useStore();
   
   const product = products.find(p => p.id === selectedProductId) || products[0];
   const [selectedVariantId, setSelectedVariantId] = useState<string>(product?.variants?.[0]?.id || '');
@@ -84,7 +86,11 @@ export function ProductDetail() {
         rating: 5,
         comment: 'বইটির প্রিন্ট ও পেপার কোয়ালিটি এক কথায় অসাধারণ! বাইন্ডিং খুবই মজবুত। অর্ডার করার পরদিনই অক্ষত অবস্থায় ডেলিভারি পেয়েছি। ১০০% অরিজিনাল পাবলিশার্স কপি।',
         createdAt: Date.now() - 1000 * 60 * 60 * 24 * 2, // 2 days ago
-        isVerifiedPurchase: true
+        isVerifiedPurchase: true,
+        likesCount: 12,
+        lovesCount: 8,
+        dislikesCount: 0,
+        userReactions: {}
       },
       {
         id: `verified-seed-2-${product.id}`,
@@ -93,7 +99,11 @@ export function ProductDetail() {
         rating: 5,
         comment: 'Very satisfied with the authentic printing, sharp fonts, and smooth paper quality. Packaging was super secure with bubble wrap. Recommended bookstore for everyone!',
         createdAt: Date.now() - 1000 * 60 * 60 * 24 * 5, // 5 days ago
-        isVerifiedPurchase: true
+        isVerifiedPurchase: true,
+        likesCount: 9,
+        lovesCount: 6,
+        dislikesCount: 0,
+        userReactions: {}
       },
       {
         id: `verified-seed-3-${product.id}`,
@@ -102,7 +112,11 @@ export function ProductDetail() {
         rating: 5,
         comment: 'MR. BOOKS থেকে এই নিয়ে ৩য় বার বই অর্ডার করলাম। সময়মত হোম ডেলিভারি ও অরিজিনাল বই দেওয়ার জন্য আন্তরিক ধন্যবাদ। পড়ার অভিজ্ঞতা দারুণ ছিল।',
         createdAt: Date.now() - 1000 * 60 * 60 * 24 * 8, // 8 days ago
-        isVerifiedPurchase: true
+        isVerifiedPurchase: true,
+        likesCount: 15,
+        lovesCount: 11,
+        dislikesCount: 0,
+        userReactions: {}
       }
     ];
   }, [product?.id]);
@@ -873,38 +887,92 @@ export function ProductDetail() {
                             <span className="text-[10px] text-neutral-400 font-medium">Verified purchases</span>
                           </div>
 
-                          <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
-                            {displayReviews.map((rev) => (
-                              <div key={rev.id} className="p-3 bg-neutral-50/90 rounded-xl border border-neutral-200/90 space-y-1.5 shadow-2xs hover:border-neutral-300 transition-colors">
-                                <div className="flex items-center justify-between gap-1 flex-wrap">
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 rounded-full bg-[#D71920]/10 text-[#D71920] font-black text-[11px] flex items-center justify-center shrink-0">
-                                      {rev.userName ? rev.userName.charAt(0).toUpperCase() : 'U'}
+                          <div className="space-y-2.5 max-h-[420px] overflow-y-auto pr-1">
+                            {displayReviews.map((rev) => {
+                              const userReacted = rev.userReactions?.[visitorId] || null;
+                              const likesCount = rev.likesCount ?? 0;
+                              const lovesCount = rev.lovesCount ?? 0;
+                              const dislikesCount = rev.dislikesCount ?? 0;
+
+                              return (
+                                <div key={rev.id} className="p-3.5 bg-neutral-50/90 rounded-xl border border-neutral-200/90 space-y-2 shadow-2xs hover:border-neutral-300 transition-colors">
+                                  <div className="flex items-center justify-between gap-1 flex-wrap">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-6 h-6 rounded-full bg-[#D71920]/10 text-[#D71920] font-black text-[11px] flex items-center justify-center shrink-0">
+                                        {rev.userName ? rev.userName.charAt(0).toUpperCase() : 'U'}
+                                      </div>
+                                      <span className="font-bold text-xs text-neutral-900">{rev.userName}</span>
+                                      {rev.isVerifiedPurchase && (
+                                        <span className="inline-flex items-center gap-0.5 bg-emerald-50 text-emerald-700 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-emerald-200">
+                                          <CheckCircle2 size={9} /> Verified
+                                        </span>
+                                      )}
                                     </div>
-                                    <span className="font-bold text-xs text-neutral-900">{rev.userName}</span>
-                                    {rev.isVerifiedPurchase && (
-                                      <span className="inline-flex items-center gap-0.5 bg-emerald-50 text-emerald-700 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-emerald-200">
-                                        <CheckCircle2 size={9} /> Verified
-                                      </span>
-                                    )}
+                                    <div className="flex items-center text-amber-500 shrink-0">
+                                      {[...Array(5)].map((_, i) => (
+                                        <Star key={i} size={11} fill={i < rev.rating ? 'currentColor' : 'none'} />
+                                      ))}
+                                    </div>
                                   </div>
-                                  <div className="flex items-center text-amber-500 shrink-0">
-                                    {[...Array(5)].map((_, i) => (
-                                      <Star key={i} size={11} fill={i < rev.rating ? 'currentColor' : 'none'} />
-                                    ))}
+                                  <p className="text-xs text-neutral-700 leading-relaxed italic">
+                                    "{rev.comment}"
+                                  </p>
+                                  <div className="flex items-center justify-between gap-2 flex-wrap pt-1.5 border-t border-neutral-200/60">
+                                    <span className="text-[10px] text-neutral-400">
+                                      {new Date(rev.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                    </span>
+
+                                    {/* Real-Time Customer Review Reactions: Like, Love, Dislike */}
+                                    <div className="flex items-center gap-1.5">
+                                      <button
+                                        type="button"
+                                        onClick={() => reactToReview(rev, 'like')}
+                                        aria-label={`Like review by ${rev.userName}`}
+                                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer active:scale-95 ${
+                                          userReacted === 'like'
+                                            ? 'bg-blue-50 text-blue-600 border-blue-300 ring-1 ring-blue-200 shadow-2xs'
+                                            : 'bg-white text-neutral-600 border-neutral-200 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50/50'
+                                        }`}
+                                      >
+                                        <ThumbsUp size={11} className={userReacted === 'like' ? 'fill-blue-600 text-blue-600' : ''} />
+                                        <span>Like</span>
+                                        <span className="tabular-nums font-black ml-0.5">{likesCount}</span>
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => reactToReview(rev, 'love')}
+                                        aria-label={`Love review by ${rev.userName}`}
+                                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer active:scale-95 ${
+                                          userReacted === 'love'
+                                            ? 'bg-[#FFF1F2] text-[#D71920] border-[#D71920]/40 ring-1 ring-[#D71920]/20 shadow-2xs'
+                                            : 'bg-white text-neutral-600 border-neutral-200 hover:border-[#D71920]/40 hover:text-[#D71920] hover:bg-[#FFF1F2]/60'
+                                        }`}
+                                      >
+                                        <Heart size={11} className={userReacted === 'love' ? 'fill-[#D71920] text-[#D71920]' : ''} />
+                                        <span>Love</span>
+                                        <span className="tabular-nums font-black ml-0.5">{lovesCount}</span>
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => reactToReview(rev, 'dislike')}
+                                        aria-label={`Dislike review by ${rev.userName}`}
+                                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer active:scale-95 ${
+                                          userReacted === 'dislike'
+                                            ? 'bg-amber-50 text-amber-700 border-amber-300 ring-1 ring-amber-200 shadow-2xs'
+                                            : 'bg-white text-neutral-600 border-neutral-200 hover:border-amber-300 hover:text-amber-700 hover:bg-amber-50/50'
+                                        }`}
+                                      >
+                                        <ThumbsDown size={11} className={userReacted === 'dislike' ? 'fill-amber-600 text-amber-700' : ''} />
+                                        <span>Dislike</span>
+                                        <span className="tabular-nums font-black ml-0.5">{dislikesCount}</span>
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
-                                <p className="text-xs text-neutral-700 leading-relaxed italic">
-                                  "{rev.comment}"
-                                </p>
-                                <div className="flex items-center justify-between text-[10px] text-neutral-400 pt-0.5">
-                                  <span>{new Date(rev.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                                  <span className="text-emerald-600 font-medium flex items-center gap-1">
-                                    <CheckCircle2 size={10} /> Verified Purchase
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
 

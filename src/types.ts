@@ -56,6 +56,7 @@ export interface Order {
   userId: string;
   customerName: string;
   phone: string;
+  optionalPhone?: string;
   email: string;
   district: string;
   city: string;
@@ -257,6 +258,10 @@ export interface Review {
   comment: string;
   createdAt: number;
   isVerifiedPurchase?: boolean;
+  likesCount?: number;
+  lovesCount?: number;
+  dislikesCount?: number;
+  userReactions?: Record<string, 'like' | 'love' | 'dislike'>;
 }
 
 export interface Reel {

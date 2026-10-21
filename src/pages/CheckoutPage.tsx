@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
 import { PaymentInstructions } from '../components/PaymentInstructions';
-import { Truck, CreditCard, Copy, Check, ArrowLeft, ArrowRight } from 'lucide-react';
+import { validateBangladeshPhone } from '../utils/reviewHelpers';
+import { Truck, CreditCard, Copy, Check, ArrowLeft, ArrowRight, Phone } from 'lucide-react';
 
 const BANGLADESH_DISTRICTS = [
   'Dhaka', 'Gazipur', 'Narayanganj', 'Chittagong', 'Sylhet', 'Rajshahi', 
@@ -15,6 +16,7 @@ export function CheckoutPage() {
 
   const [name, setName] = useState(currentUser?.displayName || '');
   const [phone, setPhone] = useState('');
+  const [optionalPhone, setOptionalPhone] = useState('');
   const [email, setEmail] = useState(currentUser?.email || '');
   const [district, setDistrict] = useState('Dhaka');
   const [city, setCity] = useState('');
@@ -76,7 +78,8 @@ export function CheckoutPage() {
     setErrorMsg('');
 
     const cleanName = name.trim();
-    const cleanPhone = phone.trim().replace(/[\s-]/g, '');
+    const primaryPhoneCheck = validateBangladeshPhone(phone, false);
+    const optionalPhoneCheck = validateBangladeshPhone(optionalPhone, true);
     const cleanAddress = address.trim();
 
     if (cleanName.length < 2) {
@@ -84,10 +87,18 @@ export function CheckoutPage() {
       return;
     }
 
-    if (!/^(\+?8801|01)[3-9]\d{8}$/.test(cleanPhone)) {
-      setErrorMsg('Please enter a valid 11-digit Bangladesh mobile number (e.g. 01712345678).');
+    if (!primaryPhoneCheck.valid) {
+      setErrorMsg(primaryPhoneCheck.error || 'Please enter a valid 11-digit Bangladesh mobile number (e.g. 01712345678).');
       return;
     }
+
+    if (!optionalPhoneCheck.valid) {
+      setErrorMsg(optionalPhoneCheck.error || 'Please enter a valid 11-digit optional mobile number or leave it blank.');
+      return;
+    }
+
+    const cleanPhone = primaryPhoneCheck.cleaned;
+    const cleanOptionalPhone = optionalPhoneCheck.cleaned;
 
     if (cleanAddress.length < 5) {
       setErrorMsg('Please enter a detailed delivery address (minimum 5 characters).');
@@ -109,6 +120,7 @@ export function CheckoutPage() {
       const deliveryLabel = deliveryType === 'sundarban' ? 'Sundarban Courier (Prepaid)' : 'Standard Home Delivery';
       const fullNotes = [
         customerNote.trim() ? `Customer Note: ${customerNote.trim()}` : '',
+        cleanOptionalPhone ? `Alt Phone: ${cleanOptionalPhone}` : '',
         `Delivery Method: ${deliveryLabel}`
       ].filter(Boolean).join(' | ');
 
@@ -116,6 +128,7 @@ export function CheckoutPage() {
         userId: currentUser?.uid || ('guest-' + Date.now()),
         customerName: cleanName,
         phone: cleanPhone,
+        ...(cleanOptionalPhone ? { optionalPhone: cleanOptionalPhone } : {}),
         email: email.trim(),
         district,
         city: city.trim(),
@@ -216,15 +229,50 @@ export function CheckoutPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-[#5F6368] mb-1">
-                    Mobile Phone Number *
+                    Email Address (Optional)
+                  </label>
+                  <input 
+                    type="email" 
+                    value={email} 
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="name@example.com"
+                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-sm text-[#171717] focus:outline-none focus:border-[#D71920]"
+                  />
+                </div>
+              </div>
+
+              {/* Primary Phone & Optional Secondary Phone Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end p-3.5 rounded-2xl bg-[#FAFAFA] border border-[#EEEEEE]">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-[#171717] mb-1.5 flex items-center gap-1.5">
+                    <Phone size={12} className="text-[#D71920] shrink-0" />
+                    <span>Mobile Phone Number *</span>
                   </label>
                   <input 
                     type="tel" 
                     required 
                     value={phone} 
                     onChange={e => setPhone(e.target.value)}
-                    placeholder="017XXXXXXXX"
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-sm text-[#171717] focus:outline-none focus:border-[#D71920]"
+                    placeholder="017XXXXXXXX (Primary)"
+                    aria-label="Mobile Phone Number"
+                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-sm text-[#171717] font-medium focus:outline-none focus:border-[#D71920]"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-[#5F6368] mb-1.5 flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5 truncate">
+                      <Phone size={12} className="text-neutral-400 shrink-0" />
+                      <span className="truncate">Optional Phone (অপশনাল নাম্বার)</span>
+                    </span>
+                    <span className="text-[10px] font-semibold bg-neutral-200/80 text-neutral-600 px-1.5 py-0.5 rounded shrink-0">Optional</span>
+                  </label>
+                  <input 
+                    type="tel" 
+                    value={optionalPhone} 
+                    onChange={e => setOptionalPhone(e.target.value)}
+                    placeholder="018XXXXXXXX (বিকল্প নাম্বার - অপশনাল)"
+                    aria-label="Optional Phone Number"
+                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-sm text-[#171717] font-medium focus:outline-none focus:border-[#D71920]"
                   />
                 </div>
               </div>
@@ -273,31 +321,17 @@ export function CheckoutPage() {
                 ></textarea>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#5F6368] mb-1">
-                    Email Address (Optional)
-                  </label>
-                  <input 
-                    type="email" 
-                    value={email} 
-                    onChange={e => setEmail(e.target.value)}
-                    placeholder="name@example.com"
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-sm text-[#171717] focus:outline-none focus:border-[#D71920]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#5F6368] mb-1">
-                    Customer Note (কাস্টমার নোট)
-                  </label>
-                  <input 
-                    type="text" 
-                    value={customerNote} 
-                    onChange={e => setCustomerNote(e.target.value)}
-                    placeholder="Any special instruction for delivery..."
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-sm text-[#171717] focus:outline-none focus:border-[#D71920]"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#5F6368] mb-1">
+                  Customer Note (কাস্টমার নোট - Optional)
+                </label>
+                <input 
+                  type="text" 
+                  value={customerNote} 
+                  onChange={e => setCustomerNote(e.target.value)}
+                  placeholder="Any special instruction for delivery..."
+                  className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-sm text-[#171717] focus:outline-none focus:border-[#D71920]"
+                />
               </div>
             </div>
 
