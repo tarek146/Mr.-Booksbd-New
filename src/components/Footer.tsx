@@ -248,47 +248,75 @@ export function Footer() {
       )}
 
       {/* Main Footer Links */}
-      <footer className="bg-[#121212] text-zinc-300 pt-8 sm:pt-10 pb-10 sm:pb-12 border-t border-zinc-800/80 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8">
+      <footer
+        className="text-zinc-300 pt-6 sm:pt-8 pb-7 sm:pb-9 border-t border-zinc-800/80 transition-colors"
+        style={{ backgroundColor: settings.footerBgColor || '#121212' }}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4 sm:space-y-5">
           
           {/* Main Footer Links - Modern Boxed Cards */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4">
             {/* Brand Box */}
-            <div className="md:col-span-4 bg-[#1c1c1e] border border-zinc-800/90 rounded-2xl p-4 sm:p-5 space-y-3 flex flex-col justify-between shadow-sm">
+            <div
+              className="md:col-span-4 border border-white/10 rounded-2xl p-4 sm:p-4.5 space-y-2.5 flex flex-col justify-between shadow-sm"
+              style={{ backgroundColor: settings.footerCardBgColor || '#1c1c1e' }}
+            >
               <div>
-                <div className="flex items-center gap-2.5 mb-2">
-                  {(settings.footerLogoUrl && settings.footerLogoUrl.trim()) || (settings.logoUrl && settings.logoUrl.trim()) ? (
-                    <img
-                      src={(settings.footerLogoUrl && settings.footerLogoUrl.trim()) ? settings.footerLogoUrl : settings.logoUrl}
-                      alt={settings.footerBrandName || settings.storeName || 'MR. BOOKS'}
-                      className="w-8 h-8 sm:w-9 sm:h-9 object-contain rounded-xl bg-white p-0.5 shadow-xs shrink-0"
-                    />
-                  ) : (
-                    <div className="w-8 h-8 sm:w-9 sm:h-9 bg-[#D71920] rounded-xl flex items-center justify-center text-white shadow-xs shrink-0">
-                      <BookOpen size={18} />
+                {(() => {
+                  const footerLogo = (settings.footerLogoUrl && settings.footerLogoUrl.trim()) ? settings.footerLogoUrl : '';
+                  const hasFooterCustomLogo = Boolean(footerLogo);
+                  const rawFooterName = (settings.footerBrandName ?? settings.storeName ?? 'MR. BOOKS').trim();
+                  const hasFooterName = rawFooterName.length > 0;
+                  const showFooterBookIcon = !hasFooterCustomLogo && hasFooterName && settings.showFooterIcon !== false;
+                  const footerColor1 = settings.footerNameColor1 || '#FFFFFF';
+                  const footerColor2 = settings.footerNameColor2 || '#D71920';
+
+                  if (!hasFooterCustomLogo && !hasFooterName) return null;
+
+                  return (
+                    <div className="flex items-center gap-2.5 mb-2">
+                      {hasFooterCustomLogo && (
+                        <img
+                          src={footerLogo}
+                          alt={rawFooterName || 'Footer Logo'}
+                          className="h-8 sm:h-9 w-auto max-w-[140px] object-contain rounded-lg bg-white p-0.5 shadow-xs shrink-0"
+                        />
+                      )}
+                      {showFooterBookIcon && (
+                        <div
+                          className="w-8 h-8 rounded-xl flex items-center justify-center text-white shadow-xs shrink-0"
+                          style={{ backgroundColor: footerColor2 }}
+                        >
+                          <BookOpen size={17} />
+                        </div>
+                      )}
+                      {hasFooterName && (
+                        <span className="text-lg sm:text-xl font-black tracking-tight">
+                          {(() => {
+                            const parts = rawFooterName.split(/\s+/);
+                            if (parts.length <= 1) {
+                              return <span style={{ color: footerColor1 }}>{rawFooterName}</span>;
+                            }
+                            const last = parts[parts.length - 1];
+                            const first = parts.slice(0, -1).join(' ');
+                            return (
+                              <>
+                                <span style={{ color: footerColor1 }}>{first}</span>{' '}
+                                <span style={{ color: footerColor2 }}>{last}</span>
+                              </>
+                            );
+                          })()}
+                        </span>
+                      )}
                     </div>
-                  )}
-                  <span className="text-lg sm:text-xl font-black text-white tracking-tight">
-                    {(() => {
-                      const rawName = (settings.footerBrandName || settings.storeName || 'MR. BOOKS').trim();
-                      const parts = rawName.split(/\s+/);
-                      if (parts.length <= 1) return rawName;
-                      const last = parts[parts.length - 1];
-                      const first = parts.slice(0, -1).join(' ');
-                      return (
-                        <>
-                          {first} <span className="text-[#D71920]">{last}</span>
-                        </>
-                      );
-                    })()}
-                  </span>
-                </div>
+                  );
+                })()}
                 <p className="text-xs text-zinc-400 leading-relaxed">
                   {settings.footerDescription || "Bangladesh's premier online bookstore and stationery shop. Bringing knowledge, timeless literature, and premium supplies directly to your doorstep."}
                 </p>
               </div>
 
-              <div className="space-y-1.5 text-xs text-zinc-300 pt-2 border-t border-zinc-800/80">
+              <div className="space-y-1.5 text-xs text-zinc-300 pt-2 border-t border-white/10">
                 {settings.address && (
                   <div className="flex items-center gap-2">
                     <MapPin size={14} className="text-[#D71920] shrink-0" />
@@ -316,9 +344,12 @@ export function Footer() {
 
             {/* Quick Links & Categories Box */}
             <div className="md:col-span-5 grid grid-cols-2 gap-3">
-              <div className="bg-[#1c1c1e] border border-zinc-800/90 rounded-2xl p-4 sm:p-5 space-y-2.5 shadow-sm flex flex-col justify-between">
+              <div
+                className="border border-white/10 rounded-2xl p-4 sm:p-4.5 space-y-2 shadow-sm flex flex-col justify-between"
+                style={{ backgroundColor: settings.footerCardBgColor || '#1c1c1e' }}
+              >
                 <div>
-                  <h4 className="text-white font-bold text-xs uppercase tracking-wider border-b border-zinc-800 pb-2">
+                  <h4 className="text-white font-bold text-xs uppercase tracking-wider border-b border-white/10 pb-2">
                     {settings.footerQuickLinksTitle || 'QUICK LINKS'}
                   </h4>
                   <ul className="space-y-1.5 text-xs text-zinc-400 mt-2.5">
@@ -351,9 +382,12 @@ export function Footer() {
                 </div>
               </div>
 
-              <div className="bg-[#1c1c1e] border border-zinc-800/90 rounded-2xl p-4 sm:p-5 space-y-2.5 shadow-sm flex flex-col justify-between">
+              <div
+                className="border border-white/10 rounded-2xl p-4 sm:p-4.5 space-y-2 shadow-sm flex flex-col justify-between"
+                style={{ backgroundColor: settings.footerCardBgColor || '#1c1c1e' }}
+              >
                 <div>
-                  <h4 className="text-white font-bold text-xs uppercase tracking-wider border-b border-zinc-800 pb-2">
+                  <h4 className="text-white font-bold text-xs uppercase tracking-wider border-b border-white/10 pb-2">
                     {settings.footerCategoriesTitle || 'CATEGORIES'}
                   </h4>
                   <ul className="space-y-1.5 text-xs text-zinc-400 mt-2.5">
@@ -387,25 +421,28 @@ export function Footer() {
             </div>
 
             {/* Combined Payment Options (Single Banner Image) & Social Media Box */}
-            <div className="md:col-span-3 bg-[#1c1c1e] border border-zinc-800/90 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-sm flex flex-col justify-between">
+            <div
+              className="md:col-span-3 border border-white/10 rounded-2xl p-4 sm:p-4.5 space-y-3 shadow-sm flex flex-col justify-between"
+              style={{ backgroundColor: settings.footerCardBgColor || '#1c1c1e' }}
+            >
               <div>
-                <h4 className="text-white font-bold text-xs uppercase tracking-wider border-b border-zinc-800 pb-2 mb-2.5">
+                <h4 className="text-white font-bold text-xs uppercase tracking-wider border-b border-white/10 pb-2 mb-2.5">
                   {settings.footerPaymentTitle || 'Payment Options'}
                 </h4>
                 {settings.footerPaymentBannerUrl && settings.footerPaymentBannerUrl.trim() ? (
-                  <div className="bg-[#28282a] border border-zinc-700/80 rounded-xl p-2 flex items-center justify-center overflow-hidden shadow-2xs">
+                  <div className="bg-black/25 border border-white/10 rounded-xl p-2 flex items-center justify-center overflow-hidden shadow-2xs">
                     <img
                       src={settings.footerPaymentBannerUrl}
                       alt={settings.footerPaymentTitle || 'Payment Options'}
-                      className="w-full max-h-16 object-contain rounded-lg"
+                      className="w-full max-h-14 object-contain rounded-lg"
                     />
                   </div>
                 ) : (
                   <div
-                    className="bg-[#28282a] border border-zinc-700/80 rounded-xl p-2.5 flex items-center justify-center overflow-hidden shadow-2xs"
+                    className="bg-black/25 border border-white/10 rounded-xl p-2 flex items-center justify-center overflow-hidden shadow-2xs"
                     title="All supported payment methods"
                   >
-                    <svg viewBox="0 0 320 48" className="w-full h-11 object-contain" role="img" aria-label="Cash on Delivery, bKash, Nagad, Rocket, Upay, Visa">
+                    <svg viewBox="0 0 320 48" className="w-full h-10 object-contain" role="img" aria-label="Cash on Delivery, bKash, Nagad, Rocket, Upay, Visa">
                       {/* COD */}
                       <rect x="2" y="4" width="58" height="40" rx="8" fill="#16a34a" />
                       <text x="31" y="21" textAnchor="middle" fill="#ffffff" fontSize="9" fontWeight="900" fontFamily="sans-serif">CASH ON</text>
@@ -428,7 +465,7 @@ export function Footer() {
                 )}
               </div>
 
-              <div className="pt-2.5 border-t border-zinc-800/80">
+              <div className="pt-2 border-t border-white/10">
                 <h4 className="text-white font-bold text-xs uppercase tracking-wider mb-2">
                   {settings.footerSocialTitle || 'Social Media'}
                 </h4>
@@ -449,14 +486,14 @@ export function Footer() {
                           target="_blank"
                           rel="noopener noreferrer"
                           title={social.name}
-                          className="w-9 h-9 bg-[#28282a] hover:bg-[#D71920] text-zinc-300 hover:text-white rounded-xl flex items-center justify-center transition-all cursor-pointer shadow-2xs border border-zinc-700/60"
+                          className="w-8.5 h-8.5 bg-black/30 hover:bg-[#D71920] text-zinc-300 hover:text-white rounded-xl flex items-center justify-center transition-all cursor-pointer shadow-2xs border border-white/10"
                         >
                           {iconNode}
                         </a>
                       );
                     })
                   ) : (
-                    <a href="https://facebook.com" target="_blank" rel="noreferrer" title="Facebook" className="w-9 h-9 bg-[#28282a] hover:bg-[#D71920] text-zinc-300 hover:text-white rounded-xl flex items-center justify-center transition-all">
+                    <a href="https://facebook.com" target="_blank" rel="noreferrer" title="Facebook" className="w-8.5 h-8.5 bg-black/30 hover:bg-[#D71920] text-zinc-300 hover:text-white rounded-xl flex items-center justify-center transition-all">
                       <FacebookIcon />
                     </a>
                   )}
@@ -466,7 +503,10 @@ export function Footer() {
           </div>
 
           {/* Bottom Boxed Copyright Footer */}
-          <div className="bg-[#1c1c1e] border border-zinc-800/90 rounded-2xl px-5 sm:px-6 py-3.5 sm:py-4 flex flex-col sm:flex-row items-center justify-between text-xs text-zinc-400 gap-2 shadow-sm">
+          <div
+            className="border border-white/10 rounded-2xl px-4 sm:px-5 py-3 flex flex-col sm:flex-row items-center justify-between text-xs text-zinc-400 gap-1.5 shadow-sm text-center sm:text-left"
+            style={{ backgroundColor: settings.footerCardBgColor || '#1c1c1e' }}
+          >
             <p>{settings.copyrightText || `© ${new Date().getFullYear()} ${settings.storeName || 'MR. BOOKS'} Bangladesh. All rights reserved.`}</p>
             <div className="flex items-center gap-3 text-zinc-500 text-[11px]">
               <span>{settings.footerBottomTagline ?? 'Designed for book lovers in Bangladesh.'}</span>

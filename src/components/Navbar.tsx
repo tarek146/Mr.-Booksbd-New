@@ -121,17 +121,26 @@ export function Navbar() {
   const marqueeItems = activeAnnouncements.length > 0 ? activeAnnouncements : defaultMarqueeItems;
   const showAnnouncement = settings.showAnnouncementBar !== false;
 
+  const hasCustomLogo = Boolean(settings.logoUrl && settings.logoUrl.trim());
+  const rawStoreName = (settings.storeName ?? 'MR. BOOKS').trim();
+  const hasStoreName = rawStoreName.length > 0;
+  const showBookIcon = !hasCustomLogo && hasStoreName && settings.showHeaderIcon !== false;
+  const headerColor1 = settings.headerNameColor1 || '#171717';
+  const headerColor2 = settings.headerNameColor2 || '#D71920';
+
   const renderBrandTitle = (nameStr: string) => {
-    const trimmed = (nameStr || 'MR. BOOKS').trim();
+    const trimmed = nameStr.trim();
+    if (!trimmed) return null;
     const parts = trimmed.split(/\s+/);
     if (parts.length <= 1) {
-      return <span>{trimmed}</span>;
+      return <span style={{ color: headerColor1 }}>{trimmed}</span>;
     }
     const lastWord = parts[parts.length - 1];
     const firstPart = parts.slice(0, -1).join(' ');
     return (
       <>
-        {firstPart} <span className="text-[#D71920]">{lastWord}</span>
+        <span style={{ color: headerColor1 }}>{firstPart}</span>{' '}
+        <span style={{ color: headerColor2 }}>{lastWord}</span>
       </>
     );
   };
@@ -142,36 +151,42 @@ export function Navbar() {
 
         {/* Main Nav Header */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 sm:h-20 gap-2 sm:gap-4">
+          <div className="flex items-center justify-between h-14 sm:h-16 gap-2 sm:gap-4">
             
             <div className="flex items-center gap-2 sm:gap-3">
-              {/* Logo */}
+              {/* Logo & Brand Name */}
               <div 
-                className="flex items-center gap-2 sm:gap-3 cursor-pointer select-none group shrink-0" 
+                className="flex items-center gap-2 sm:gap-2.5 cursor-pointer select-none group shrink-0" 
                 onClick={() => setActivePage('home')}
               >
-                {settings.logoUrl && settings.logoUrl.trim() ? (
+                {hasCustomLogo && (
                   <img
                     src={settings.logoUrl}
-                    alt={settings.storeName || 'Store Logo'}
-                    className="w-9 h-9 sm:w-11 sm:h-11 object-contain rounded-xl bg-white border border-neutral-200 p-0.5 shadow-2xs shrink-0"
+                    alt={rawStoreName || 'Store Logo'}
+                    className="h-9 sm:h-10 w-auto max-w-[150px] object-contain rounded-lg bg-white shrink-0"
                   />
-                ) : (
-                  <div className="w-9 h-9 sm:w-11 sm:h-11 bg-[#D71920] rounded-xl flex items-center justify-center text-white shadow-md shadow-[#D71920]/20 group-hover:bg-[#C5161C] transition-colors">
-                    <BookOpen size={20} className="sm:hidden stroke-[2.2]" />
-                    <BookOpen size={22} className="hidden sm:block stroke-[2.2]" />
+                )}
+                {showBookIcon && (
+                  <div
+                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center text-white shadow-sm transition-colors shrink-0"
+                    style={{ backgroundColor: headerColor2 }}
+                  >
+                    <BookOpen size={18} className="sm:hidden stroke-[2.2]" />
+                    <BookOpen size={20} className="hidden sm:block stroke-[2.2]" />
                   </div>
                 )}
-                <div className="leading-tight">
-                  <div className="text-xl sm:text-2xl font-black tracking-tight text-neutral-900">
-                    {renderBrandTitle(settings.storeName || 'MR. BOOKS')}
-                  </div>
-                  {settings.showHeaderTagline !== false && (
-                    <div className="hidden sm:block text-[10px] uppercase font-bold tracking-widest text-neutral-500 max-w-[220px] truncate">
-                      {settings.tagline || 'Bookstore & Stationery'}
+                {hasStoreName && (
+                  <div className="leading-tight">
+                    <div className="text-lg sm:text-xl font-black tracking-tight">
+                      {renderBrandTitle(rawStoreName)}
                     </div>
-                  )}
-                </div>
+                    {settings.showHeaderTagline !== false && settings.tagline && (
+                      <div className="hidden sm:block text-[9.5px] uppercase font-bold tracking-widest text-neutral-500 max-w-[200px] truncate">
+                        {settings.tagline}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -315,19 +330,19 @@ export function Navbar() {
           </div>
 
           {/* Desktop Sub Navigation Bar */}
-          <nav className="hidden md:flex items-center justify-between border-t border-neutral-200/80 text-sm font-bold py-1">
+          <nav className="hidden md:flex items-center justify-between border-t border-neutral-200/80 text-sm font-bold py-0.5">
             <div className="flex items-center space-x-2 lg:space-x-4">
               
               {/* 1. All Categories */}
               <div 
-                className="relative py-2" 
+                className="relative py-1.5" 
                 ref={categoriesRef}
                 onMouseEnter={() => setCategoriesDropdownOpen(true)}
                 onMouseLeave={() => setCategoriesDropdownOpen(false)}
               >
                 <button 
                   onClick={() => setCategoriesDropdownOpen(!categoriesDropdownOpen)}
-                  className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer bg-[#D71920] text-white hover:bg-[#C5161C] shadow-xs"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer bg-[#D71920] text-white hover:bg-[#C5161C] shadow-xs"
                 >
                   <LayoutGrid size={15} />
                   <span>All Categories</span>
@@ -524,13 +539,13 @@ export function Navbar() {
         </div>
 
         {/* Mobile View Sub-Nav Bar (EXPLICITLY: All Categories + Sliding Announcement Bar next to it!) */}
-        <div className="md:hidden border-t border-neutral-200/80 bg-neutral-50 px-3 py-2 flex items-center gap-2 select-none">
+        <div className="md:hidden border-t border-neutral-200/80 bg-neutral-50 px-3 py-1.5 flex items-center gap-2 select-none">
           {/* All Categories Button */}
           <button 
             onClick={() => setMobileMenuOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#D71920] text-white text-xs font-bold rounded-lg shrink-0 shadow-xs cursor-pointer active:scale-95"
+            className="flex items-center gap-1.5 px-2.5 py-1 bg-[#D71920] text-white text-[11px] font-bold rounded-lg shrink-0 shadow-xs cursor-pointer active:scale-95"
           >
-            <LayoutGrid size={14} />
+            <LayoutGrid size={13} />
             <span>All Categories</span>
           </button>
 
@@ -570,25 +585,31 @@ export function Navbar() {
         {/* Mobile Navigation Drawer (Slides out smoothly when opened) */}
         {mobileMenuOpen && (
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs md:hidden flex justify-end">
-            <div className="w-80 max-w-[85vw] bg-white h-full shadow-2xl p-5 flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-200">
-              <div className="space-y-4">
+            <div className="w-80 max-w-[85vw] bg-white h-full shadow-2xl p-4 sm:p-5 flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-200">
+              <div className="space-y-3.5">
                 {/* Drawer Header */}
                 <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
                   <div className="flex items-center gap-2">
-                    {settings.logoUrl && settings.logoUrl.trim() ? (
+                    {hasCustomLogo && (
                       <img
                         src={settings.logoUrl}
-                        alt={settings.storeName || 'Logo'}
-                        className="w-8 h-8 object-contain rounded-lg bg-white border border-neutral-200 p-0.5"
+                        alt={rawStoreName || 'Logo'}
+                        className="h-8 w-auto max-w-[120px] object-contain rounded-lg bg-white"
                       />
-                    ) : (
-                      <div className="w-8 h-8 bg-[#D71920] text-white rounded-lg flex items-center justify-center font-bold">
-                        <BookOpen size={18} />
+                    )}
+                    {showBookIcon && (
+                      <div
+                        className="w-8 h-8 text-white rounded-lg flex items-center justify-center font-bold shrink-0"
+                        style={{ backgroundColor: headerColor2 }}
+                      >
+                        <BookOpen size={17} />
                       </div>
                     )}
-                    <span className="font-black text-lg text-neutral-900">
-                      {renderBrandTitle(settings.storeName || 'MR. BOOKS')}
-                    </span>
+                    {hasStoreName && (
+                      <span className="font-black text-base text-neutral-900">
+                        {renderBrandTitle(rawStoreName)}
+                      </span>
+                    )}
                   </div>
                   <button 
                     onClick={() => setMobileMenuOpen(false)}

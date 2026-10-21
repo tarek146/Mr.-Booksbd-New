@@ -227,6 +227,9 @@ export interface StoreSettings {
   bkashNumber: string;
   nagadNumber: string;
   // Header & Announcement Bar Customizations
+  showHeaderIcon?: boolean;
+  headerNameColor1?: string;
+  headerNameColor2?: string;
   showHeaderTagline?: boolean;
   showHeaderContact?: boolean;
   showAnnouncementBar?: boolean;
@@ -237,7 +240,12 @@ export interface StoreSettings {
   gaMeasurementId?: string;
   tiktokPixelId?: string;
   // Footer Customizations
+  showFooterIcon?: boolean;
   footerBrandName?: string;
+  footerNameColor1?: string;
+  footerNameColor2?: string;
+  footerBgColor?: string;
+  footerCardBgColor?: string;
   footerDescription?: string;
   footerPaymentTitle?: string;
   footerPaymentBannerUrl?: string;
