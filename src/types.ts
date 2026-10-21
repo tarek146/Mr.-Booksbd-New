@@ -186,6 +186,29 @@ export interface SocialLinkItem {
   isActive: boolean;
 }
 
+export interface AnnouncementItem {
+  id: string;
+  icon: string;
+  title: string;
+  desc: string;
+  isActive: boolean;
+}
+
+export interface FooterQuickLinkItem {
+  id: string;
+  label: string;
+  page: string;
+  isActive: boolean;
+}
+
+export interface FooterCategoryLinkItem {
+  id: string;
+  label: string;
+  category: string;
+  page?: string;
+  isActive: boolean;
+}
+
 export interface StoreSettings {
   storeName: string;
   tagline: string;
@@ -203,12 +226,28 @@ export interface StoreSettings {
   youtubeUrl: string;
   bkashNumber: string;
   nagadNumber: string;
+  // Header & Announcement Bar Customizations
+  showHeaderTagline?: boolean;
+  showHeaderContact?: boolean;
+  showAnnouncementBar?: boolean;
+  announcementItems?: AnnouncementItem[];
   // Marketing & Tracking APIs
   facebookPixelId?: string;
   facebookCapiToken?: string;
   gaMeasurementId?: string;
   tiktokPixelId?: string;
   // Footer Customizations
+  footerBrandName?: string;
+  footerDescription?: string;
+  footerPaymentTitle?: string;
+  footerPaymentBannerUrl?: string;
+  footerQuickLinksTitle?: string;
+  footerQuickLinks?: FooterQuickLinkItem[];
+  footerCategoriesTitle?: string;
+  footerCategoryLinks?: FooterCategoryLinkItem[];
+  footerSocialTitle?: string;
+  copyrightText?: string;
+  footerBottomTagline?: string;
   footerPaymentMethods?: FooterPaymentMethod[];
   socialLinks?: SocialLinkItem[];
   // Footer Subscription & Tracking Settings

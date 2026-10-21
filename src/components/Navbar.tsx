@@ -17,7 +17,8 @@ import {
   PenTool,
   Users,
   ChevronRight,
-  User
+  User,
+  Phone
 } from 'lucide-react';
 import { AuthModal } from './AuthModal';
 import { AnimatedSearchInput } from './AnimatedSearchInput';
@@ -32,7 +33,8 @@ export function Navbar() {
     wishlist, 
     searchQuery, 
     setSearchQuery,
-    products
+    products,
+    settings
   } = useStore();
   
   const { currentUser, logout } = useAuth();
@@ -103,14 +105,36 @@ export function Navbar() {
   const bookCategories = categories.filter(c => c.type === 'book');
   const stationeryCategories = categories.filter(c => c.type === 'stationery');
 
-  const marqueeItems = [
-    { icon: '⚡', title: 'SPECIAL OFFER:', desc: 'Free Delivery on orders above Tk 1,500 across Bangladesh!' },
-    { icon: '🎁', title: 'DISCOUNT COUPON:', desc: 'Use coupon code MRBOOKS10 for 10% instant discount!' },
-    { icon: '🚚', title: 'FAST SHIPPING:', desc: '24-48 Hours Express Delivery in Dhaka & 2-3 days nationwide.' },
-    { icon: '💳', title: 'EASY PAYMENT:', desc: 'Cash on Delivery, bKash, Nagad, Rocket & Bank Transfer accepted.' },
-    { icon: '📚', title: '100% ORIGINAL:', desc: 'Authentic books direct from reputed publishing houses.' },
-    { icon: '✍️', title: 'PREMIUM STATIONERY:', desc: 'Imported notebooks, fountain pens, art supplies in stock.' },
+  const defaultMarqueeItems = [
+    { id: 'ann-1', icon: '⚡', title: 'SPECIAL OFFER:', desc: 'Free Delivery on orders above Tk 1,500 across Bangladesh!', isActive: true },
+    { id: 'ann-2', icon: '🎁', title: 'DISCOUNT COUPON:', desc: 'Use coupon code MRBOOKS10 for 10% instant discount!', isActive: true },
+    { id: 'ann-3', icon: '🚚', title: 'FAST SHIPPING:', desc: '24-48 Hours Express Delivery in Dhaka & 2-3 days nationwide.', isActive: true },
+    { id: 'ann-4', icon: '💳', title: 'EASY PAYMENT:', desc: 'Cash on Delivery, bKash, Nagad, Rocket & Bank Transfer accepted.', isActive: true },
+    { id: 'ann-5', icon: '📚', title: '100% ORIGINAL:', desc: 'Authentic books direct from reputed publishing houses.', isActive: true },
+    { id: 'ann-6', icon: '✍️', title: 'PREMIUM STATIONERY:', desc: 'Imported notebooks, fountain pens, art supplies in stock.', isActive: true },
   ];
+
+  const activeAnnouncements = (settings.announcementItems && settings.announcementItems.length > 0
+    ? settings.announcementItems.filter(item => item.isActive !== false)
+    : defaultMarqueeItems
+  );
+  const marqueeItems = activeAnnouncements.length > 0 ? activeAnnouncements : defaultMarqueeItems;
+  const showAnnouncement = settings.showAnnouncementBar !== false;
+
+  const renderBrandTitle = (nameStr: string) => {
+    const trimmed = (nameStr || 'MR. BOOKS').trim();
+    const parts = trimmed.split(/\s+/);
+    if (parts.length <= 1) {
+      return <span>{trimmed}</span>;
+    }
+    const lastWord = parts[parts.length - 1];
+    const firstPart = parts.slice(0, -1).join(' ');
+    return (
+      <>
+        {firstPart} <span className="text-[#D71920]">{lastWord}</span>
+      </>
+    );
+  };
 
   return (
     <>
@@ -126,17 +150,27 @@ export function Navbar() {
                 className="flex items-center gap-2 sm:gap-3 cursor-pointer select-none group shrink-0" 
                 onClick={() => setActivePage('home')}
               >
-                <div className="w-9 h-9 sm:w-11 sm:h-11 bg-[#D71920] rounded-xl flex items-center justify-center text-white shadow-md shadow-[#D71920]/20 group-hover:bg-[#C5161C] transition-colors">
-                  <BookOpen size={20} className="sm:hidden stroke-[2.2]" />
-                  <BookOpen size={22} className="hidden sm:block stroke-[2.2]" />
-                </div>
+                {settings.logoUrl && settings.logoUrl.trim() ? (
+                  <img
+                    src={settings.logoUrl}
+                    alt={settings.storeName || 'Store Logo'}
+                    className="w-9 h-9 sm:w-11 sm:h-11 object-contain rounded-xl bg-white border border-neutral-200 p-0.5 shadow-2xs shrink-0"
+                  />
+                ) : (
+                  <div className="w-9 h-9 sm:w-11 sm:h-11 bg-[#D71920] rounded-xl flex items-center justify-center text-white shadow-md shadow-[#D71920]/20 group-hover:bg-[#C5161C] transition-colors">
+                    <BookOpen size={20} className="sm:hidden stroke-[2.2]" />
+                    <BookOpen size={22} className="hidden sm:block stroke-[2.2]" />
+                  </div>
+                )}
                 <div className="leading-tight">
                   <div className="text-xl sm:text-2xl font-black tracking-tight text-neutral-900">
-                    MR. <span className="text-[#D71920]">BOOKS</span>
+                    {renderBrandTitle(settings.storeName || 'MR. BOOKS')}
                   </div>
-                  <div className="hidden sm:block text-[10px] uppercase font-bold tracking-widest text-neutral-500">
-                    Bookstore & Stationery
-                  </div>
+                  {settings.showHeaderTagline !== false && (
+                    <div className="hidden sm:block text-[10px] uppercase font-bold tracking-widest text-neutral-500 max-w-[220px] truncate">
+                      {settings.tagline || 'Bookstore & Stationery'}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -176,8 +210,18 @@ export function Navbar() {
               )}
             </div>
 
-            {/* Actions: Wishlist, Cart, Single Sign Up / Profile button, and Mobile Menu Toggle */}
+            {/* Actions: Contact Hotline, Wishlist, Cart, Single Sign Up / Profile button, and Mobile Menu Toggle */}
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+              {settings.showHeaderContact !== false && settings.phone && (
+                <a
+                  href={`tel:${settings.phone.replace(/\s+/g, '')}`}
+                  className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full border border-neutral-200 bg-neutral-50 hover:bg-[#FFF1F2] hover:border-[#D71920]/30 text-neutral-800 hover:text-[#D71920] transition-colors text-xs font-bold"
+                  title={`Call Support: ${settings.phone}`}
+                >
+                  <Phone size={14} className="text-[#D71920] shrink-0" />
+                  <span>{settings.phone}</span>
+                </a>
+              )}
               {/* Wishlist Saved Items Button with Counter Badge */}
               <button 
                 onClick={() => setActivePage('my-orders')}
@@ -439,38 +483,42 @@ export function Navbar() {
 
             </div>
 
-            {/* Subtle Divider between Navigation Links and Announcement Ticker */}
-            <div className="h-4 w-px bg-neutral-200 mx-2 lg:mx-3 shrink-0" aria-hidden="true" />
+            {showAnnouncement && (
+              <>
+                {/* Subtle Divider between Navigation Links and Announcement Ticker */}
+                <div className="h-4 w-px bg-neutral-200 mx-2 lg:mx-3 shrink-0" aria-hidden="true" />
 
-            {/* Continuous Sliding Announcement Bar */}
-            <div 
-              className="flex-1 min-w-0 flex items-center overflow-hidden select-none py-1"
-              style={{
-                maskImage: 'linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent)',
-                WebkitMaskImage: 'linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent)'
-              }}
-            >
-              <div className="relative overflow-hidden w-full flex-1">
-                <div className="animate-marquee-continuous flex items-center text-xs space-x-6">
-                  {marqueeItems.map((item, index) => (
-                    <div key={`m1-${index}`} className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-sm shrink-0">{item.icon}</span>
-                      <span className="font-black text-[#D71920] tracking-wide uppercase text-[11px]">{item.title}</span>
-                      <span className="text-black font-bold tracking-tight text-xs">{item.desc}</span>
-                      <span className="text-neutral-300 font-bold ml-3">•</span>
+                {/* Continuous Sliding Announcement Bar */}
+                <div 
+                  className="flex-1 min-w-0 flex items-center overflow-hidden select-none py-1"
+                  style={{
+                    maskImage: 'linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent)',
+                    WebkitMaskImage: 'linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent)'
+                  }}
+                >
+                  <div className="relative overflow-hidden w-full flex-1">
+                    <div className="animate-marquee-continuous flex items-center text-xs space-x-6">
+                      {marqueeItems.map((item, index) => (
+                        <div key={`m1-${index}`} className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-sm shrink-0">{item.icon}</span>
+                          <span className="font-black text-[#D71920] tracking-wide uppercase text-[11px]">{item.title}</span>
+                          <span className="text-black font-bold tracking-tight text-xs">{item.desc}</span>
+                          <span className="text-neutral-300 font-bold ml-3">•</span>
+                        </div>
+                      ))}
+                      {marqueeItems.map((item, index) => (
+                        <div key={`m2-${index}`} className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-sm shrink-0">{item.icon}</span>
+                          <span className="font-black text-[#D71920] tracking-wide uppercase text-[11px]">{item.title}</span>
+                          <span className="text-black font-bold tracking-tight text-xs">{item.desc}</span>
+                          <span className="text-neutral-300 font-bold ml-3">•</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                  {marqueeItems.map((item, index) => (
-                    <div key={`m2-${index}`} className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-sm shrink-0">{item.icon}</span>
-                      <span className="font-black text-[#D71920] tracking-wide uppercase text-[11px]">{item.title}</span>
-                      <span className="text-black font-bold tracking-tight text-xs">{item.desc}</span>
-                      <span className="text-neutral-300 font-bold ml-3">•</span>
-                    </div>
-                  ))}
+                  </div>
                 </div>
-              </div>
-            </div>
+              </>
+            )}
 
           </nav>
         </div>
@@ -487,34 +535,36 @@ export function Navbar() {
           </button>
 
           {/* Sliding Announcement Ticker Next to All Categories on Mobile */}
-          <div 
-            className="flex-1 min-w-0 overflow-hidden"
-            style={{
-              maskImage: 'linear-gradient(to right, transparent, black 12px, black calc(100% - 12px), transparent)',
-              WebkitMaskImage: 'linear-gradient(to right, transparent, black 12px, black calc(100% - 12px), transparent)'
-            }}
-          >
-            <div className="relative overflow-hidden w-full">
-              <div className="animate-marquee-continuous flex items-center text-[11px] space-x-5">
-                {marqueeItems.map((item, index) => (
-                  <div key={`mob1-${index}`} className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-xs shrink-0">{item.icon}</span>
-                    <span className="font-extrabold text-[#D71920]">{item.title}</span>
-                    <span className="text-black font-extrabold tracking-tight">{item.desc}</span>
-                    <span className="text-neutral-300 font-bold ml-2">•</span>
-                  </div>
-                ))}
-                {marqueeItems.map((item, index) => (
-                  <div key={`mob2-${index}`} className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-xs shrink-0">{item.icon}</span>
-                    <span className="font-extrabold text-[#D71920]">{item.title}</span>
-                    <span className="text-black font-extrabold tracking-tight">{item.desc}</span>
-                    <span className="text-neutral-300 font-bold ml-2">•</span>
-                  </div>
-                ))}
+          {showAnnouncement && (
+            <div 
+              className="flex-1 min-w-0 overflow-hidden"
+              style={{
+                maskImage: 'linear-gradient(to right, transparent, black 12px, black calc(100% - 12px), transparent)',
+                WebkitMaskImage: 'linear-gradient(to right, transparent, black 12px, black calc(100% - 12px), transparent)'
+              }}
+            >
+              <div className="relative overflow-hidden w-full">
+                <div className="animate-marquee-continuous flex items-center text-[11px] space-x-5">
+                  {marqueeItems.map((item, index) => (
+                    <div key={`mob1-${index}`} className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-xs shrink-0">{item.icon}</span>
+                      <span className="font-extrabold text-[#D71920]">{item.title}</span>
+                      <span className="text-black font-extrabold tracking-tight">{item.desc}</span>
+                      <span className="text-neutral-300 font-bold ml-2">•</span>
+                    </div>
+                  ))}
+                  {marqueeItems.map((item, index) => (
+                    <div key={`mob2-${index}`} className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-xs shrink-0">{item.icon}</span>
+                      <span className="font-extrabold text-[#D71920]">{item.title}</span>
+                      <span className="text-black font-extrabold tracking-tight">{item.desc}</span>
+                      <span className="text-neutral-300 font-bold ml-2">•</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Mobile Navigation Drawer (Slides out smoothly when opened) */}
@@ -525,10 +575,20 @@ export function Navbar() {
                 {/* Drawer Header */}
                 <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-[#D71920] text-white rounded-lg flex items-center justify-center font-bold">
-                      <BookOpen size={18} />
-                    </div>
-                    <span className="font-black text-lg text-neutral-900">MR. BOOKS</span>
+                    {settings.logoUrl && settings.logoUrl.trim() ? (
+                      <img
+                        src={settings.logoUrl}
+                        alt={settings.storeName || 'Logo'}
+                        className="w-8 h-8 object-contain rounded-lg bg-white border border-neutral-200 p-0.5"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 bg-[#D71920] text-white rounded-lg flex items-center justify-center font-bold">
+                        <BookOpen size={18} />
+                      </div>
+                    )}
+                    <span className="font-black text-lg text-neutral-900">
+                      {renderBrandTitle(settings.storeName || 'MR. BOOKS')}
+                    </span>
                   </div>
                   <button 
                     onClick={() => setMobileMenuOpen(false)}
@@ -537,6 +597,15 @@ export function Navbar() {
                     <X size={20} />
                   </button>
                 </div>
+                {settings.showHeaderContact !== false && settings.phone && (
+                  <a
+                    href={`tel:${settings.phone.replace(/\s+/g, '')}`}
+                    className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/20 text-xs font-bold"
+                  >
+                    <Phone size={14} />
+                    <span>Hotline: {settings.phone}</span>
+                  </a>
+                )}
 
                 {/* Mobile Search Input */}
                 <AnimatedSearchInput 

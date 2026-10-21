@@ -47,69 +47,8 @@ const WhatsAppIcon = () => (
     <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.124-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
   </svg>
 );
-const renderPaymentIcon = (logoUrl?: string, type?: string, name?: string) => {
-  if (logoUrl) {
-    return (
-      <img 
-        src={logoUrl} 
-        alt={name || 'Payment Icon'} 
-        className="w-5 h-5 object-contain rounded shrink-0 bg-white p-0.5 border border-zinc-700/60" 
-      />
-    );
-  }
-
-  const lower = (type || name || '').toLowerCase();
-  if (lower.includes('bkash')) {
-    return (
-      <div className="w-5 h-5 rounded bg-[#E2136E] text-white font-black text-[9px] flex items-center justify-center shrink-0 shadow-2xs">
-        bK
-      </div>
-    );
-  }
-  if (lower.includes('nagad')) {
-    return (
-      <div className="w-5 h-5 rounded bg-[#F15A24] text-white font-black text-[8px] flex items-center justify-center shrink-0 shadow-2xs">
-        নগদ
-      </div>
-    );
-  }
-  if (lower.includes('rocket')) {
-    return (
-      <div className="w-5 h-5 rounded bg-[#8C3494] text-white font-black text-[9px] flex items-center justify-center shrink-0 shadow-2xs">
-        🚀
-      </div>
-    );
-  }
-  if (lower.includes('upay')) {
-    return (
-      <div className="w-5 h-5 rounded bg-[#00A859] text-white font-black text-[9px] flex items-center justify-center shrink-0 shadow-2xs">
-        up
-      </div>
-    );
-  }
-  if (lower.includes('card') || lower.includes('visa') || lower.includes('master')) {
-    return (
-      <div className="w-5 h-5 rounded bg-[#1A1F71] text-white font-black text-[8px] flex items-center justify-center shrink-0 shadow-2xs">
-        💳
-      </div>
-    );
-  }
-  if (lower.includes('bank')) {
-    return (
-      <div className="w-5 h-5 rounded bg-[#1E3A8A] text-white font-black text-[9px] flex items-center justify-center shrink-0 shadow-2xs">
-        🏦
-      </div>
-    );
-  }
-  return (
-    <div className="w-5 h-5 rounded bg-emerald-600 text-white font-black text-[8px] flex items-center justify-center shrink-0 shadow-2xs">
-      COD
-    </div>
-  );
-};
-
 export function Footer() {
-  const { paymentMethods, settings, setActivePage, setSelectedCategoryFilter, addSubscriber, trackOrder } = useStore();
+  const { settings, setActivePage, setSelectedCategoryFilter, addSubscriber, trackOrder } = useStore();
 
   // Subscription state
   const [subInput, setSubInput] = useState('');
@@ -315,156 +254,224 @@ export function Footer() {
           {/* Main Footer Links - Modern Boxed Cards */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4">
             {/* Brand Box */}
-            <div className="md:col-span-4 bg-[#1c1c1e] border border-zinc-800/90 rounded-2xl p-4 sm:p-6 space-y-3.5 flex flex-col justify-between shadow-sm">
-            <div>
-              <div className="flex items-center gap-2.5 mb-2.5">
-                <div className="w-8 h-8 sm:w-9 sm:h-9 bg-[#D71920] rounded-xl flex items-center justify-center text-white shadow-xs">
-                  <BookOpen size={18} />
+            <div className="md:col-span-4 bg-[#1c1c1e] border border-zinc-800/90 rounded-2xl p-4 sm:p-5 space-y-3 flex flex-col justify-between shadow-sm">
+              <div>
+                <div className="flex items-center gap-2.5 mb-2">
+                  {(settings.footerLogoUrl && settings.footerLogoUrl.trim()) || (settings.logoUrl && settings.logoUrl.trim()) ? (
+                    <img
+                      src={(settings.footerLogoUrl && settings.footerLogoUrl.trim()) ? settings.footerLogoUrl : settings.logoUrl}
+                      alt={settings.footerBrandName || settings.storeName || 'MR. BOOKS'}
+                      className="w-8 h-8 sm:w-9 sm:h-9 object-contain rounded-xl bg-white p-0.5 shadow-xs shrink-0"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 bg-[#D71920] rounded-xl flex items-center justify-center text-white shadow-xs shrink-0">
+                      <BookOpen size={18} />
+                    </div>
+                  )}
+                  <span className="text-lg sm:text-xl font-black text-white tracking-tight">
+                    {(() => {
+                      const rawName = (settings.footerBrandName || settings.storeName || 'MR. BOOKS').trim();
+                      const parts = rawName.split(/\s+/);
+                      if (parts.length <= 1) return rawName;
+                      const last = parts[parts.length - 1];
+                      const first = parts.slice(0, -1).join(' ');
+                      return (
+                        <>
+                          {first} <span className="text-[#D71920]">{last}</span>
+                        </>
+                      );
+                    })()}
+                  </span>
                 </div>
-                <span className="text-lg sm:text-xl font-black text-white tracking-tight">
-                  MR. <span className="text-[#D71920]">BOOKS</span>
-                </span>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  {settings.footerDescription || "Bangladesh's premier online bookstore and stationery shop. Bringing knowledge, timeless literature, and premium supplies directly to your doorstep."}
+                </p>
               </div>
-              <p className="text-xs text-zinc-400 leading-relaxed">
-                Bangladesh's premier online bookstore and stationery shop. Bringing knowledge, timeless literature, and premium supplies directly to your doorstep.
-              </p>
-            </div>
 
-            <div className="space-y-2 text-xs text-zinc-300 pt-2 border-t border-zinc-800/80">
-              <div className="flex items-center gap-2">
-                <MapPin size={14} className="text-[#D71920] shrink-0" />
-                <span className="truncate">{settings.address}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Phone size={14} className="text-[#D71920] shrink-0" />
-                <span>{settings.phone}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Mail size={14} className="text-[#D71920] shrink-0" />
-                <span className="truncate">{settings.email}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Links & Categories Box */}
-          <div className="md:col-span-5 grid grid-cols-2 gap-3">
-            <div className="bg-[#1c1c1e] border border-zinc-800/90 rounded-2xl p-4 sm:p-5 space-y-3 shadow-sm flex flex-col justify-between">
-              <div>
-                <h4 className="text-white font-bold text-xs uppercase tracking-wider border-b border-zinc-800 pb-2">
-                  QUICK LINKS
-                </h4>
-                <ul className="space-y-2 text-xs text-zinc-400 mt-2.5">
-                  <li><button onClick={() => setActivePage('home')} className="hover:text-white transition-colors cursor-pointer text-left w-full truncate">Home</button></li>
-                  <li><button onClick={() => setActivePage('books')} className="hover:text-white transition-colors cursor-pointer text-left w-full truncate">Books Catalog</button></li>
-                  <li><button onClick={() => setActivePage('stationery')} className="hover:text-white transition-colors cursor-pointer text-left w-full truncate">Stationery</button></li>
-                  <li><button onClick={() => setActivePage('authors')} className="hover:text-white transition-colors cursor-pointer text-left w-full truncate">Authors</button></li>
-                  <li><button onClick={() => setActivePage('track-order')} className="hover:text-white transition-colors cursor-pointer text-left w-full truncate">Track Orders</button></li>
-                </ul>
-              </div>
-            </div>
-
-            <div className="bg-[#1c1c1e] border border-zinc-800/90 rounded-2xl p-4 sm:p-5 space-y-3 shadow-sm flex flex-col justify-between">
-              <div>
-                <h4 className="text-white font-bold text-xs uppercase tracking-wider border-b border-zinc-800 pb-2">
-                  CATEGORIES
-                </h4>
-                <ul className="space-y-2 text-xs text-zinc-400 mt-2.5">
-                  <li><button onClick={() => { setSelectedCategoryFilter('Fiction & Literature'); setActivePage('books'); }} className="hover:text-white transition-colors cursor-pointer text-left w-full truncate">Fiction & Literature</button></li>
-                  <li><button onClick={() => { setSelectedCategoryFilter('Islamic Books'); setActivePage('books'); }} className="hover:text-white transition-colors cursor-pointer text-left w-full truncate">Islamic Books</button></li>
-                  <li><button onClick={() => { setSelectedCategoryFilter('Academic & University'); setActivePage('books'); }} className="hover:text-white transition-colors cursor-pointer text-left w-full truncate">Academic & University</button></li>
-                  <li><button onClick={() => { setSelectedCategoryFilter('Bangla Novels & Poetry'); setActivePage('books'); }} className="hover:text-white transition-colors cursor-pointer text-left w-full truncate">Bangla Novels & Poetry</button></li>
-                  <li><button onClick={() => setActivePage('stationery')} className="hover:text-white transition-colors cursor-pointer text-left w-full truncate">Diaries & Pens</button></li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          {/* Combined Payment Options & Social Media Box */}
-          <div className="md:col-span-3 bg-[#1c1c1e] border border-zinc-800/90 rounded-2xl p-4 sm:p-5 space-y-4 shadow-sm flex flex-col justify-between">
-            <div>
-              <h4 className="text-white font-bold text-xs uppercase tracking-wider border-b border-zinc-800 pb-2 mb-3">
-                Payment Options
-              </h4>
-              <div className="grid grid-cols-2 gap-2">
-                {paymentMethods && paymentMethods.length > 0 ? (
-                  paymentMethods.filter(p => p.isActive).map(method => (
-                    <div 
-                      key={method.id} 
-                      className="bg-[#28282a] border border-zinc-700/80 hover:border-[#D71920]/60 hover:bg-[#2c2c2e] p-2 sm:p-2.5 rounded-xl text-center text-xs font-bold text-zinc-200 shadow-2xs flex items-center justify-center gap-1.5 transition-all group min-w-0"
-                    >
-                      {renderPaymentIcon(method.logoUrl, method.type, method.name)}
-                      <span className="truncate group-hover:text-white transition-colors leading-none text-[10px] sm:text-[11px]">
-                        {method.name}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <>
-                    <div className="bg-[#28282a] border border-zinc-700/80 p-2 sm:p-2.5 rounded-xl text-center text-xs font-bold text-zinc-200 shadow-2xs flex items-center justify-center gap-1.5">
-                      {renderPaymentIcon('', 'bkash', 'bKash Online')}
-                      <span className="truncate text-[10px] sm:text-[11px]">bKash Online</span>
-                    </div>
-                    <div className="bg-[#28282a] border border-zinc-700/80 p-2 sm:p-2.5 rounded-xl text-center text-xs font-bold text-zinc-200 shadow-2xs flex items-center justify-center gap-1.5">
-                      {renderPaymentIcon('', 'nagad', 'Nagad Gateway')}
-                      <span className="truncate text-[10px] sm:text-[11px]">Nagad Gateway</span>
-                    </div>
-                    <div className="bg-[#28282a] border border-zinc-700/80 p-2 sm:p-2.5 rounded-xl text-center text-xs font-bold text-zinc-200 shadow-2xs flex items-center justify-center gap-1.5">
-                      {renderPaymentIcon('', 'card', 'Visa / MasterCard')}
-                      <span className="truncate text-[10px] sm:text-[11px]">Visa / MasterCard</span>
-                    </div>
-                    <div className="bg-[#28282a] border border-zinc-700/80 p-2 sm:p-2.5 rounded-xl text-center text-xs font-bold text-zinc-200 shadow-2xs flex items-center justify-center gap-1.5">
-                      {renderPaymentIcon('', 'cod', 'Cash on Delivery')}
-                      <span className="truncate text-[10px] sm:text-[11px]">Cash on Delivery</span>
-                    </div>
-                  </>
+              <div className="space-y-1.5 text-xs text-zinc-300 pt-2 border-t border-zinc-800/80">
+                {settings.address && (
+                  <div className="flex items-center gap-2">
+                    <MapPin size={14} className="text-[#D71920] shrink-0" />
+                    <span className="truncate">{settings.address}</span>
+                  </div>
+                )}
+                {settings.phone && (
+                  <div className="flex items-center gap-2">
+                    <Phone size={14} className="text-[#D71920] shrink-0" />
+                    <a href={`tel:${settings.phone.replace(/\s+/g, '')}`} className="hover:text-white transition-colors">
+                      {settings.phone}
+                    </a>
+                  </div>
+                )}
+                {settings.email && (
+                  <div className="flex items-center gap-2">
+                    <Mail size={14} className="text-[#D71920] shrink-0" />
+                    <a href={`mailto:${settings.email}`} className="truncate hover:text-white transition-colors">
+                      {settings.email}
+                    </a>
+                  </div>
                 )}
               </div>
             </div>
 
-            <div className="pt-2 border-t border-zinc-800/80">
-              <h4 className="text-white font-bold text-xs uppercase tracking-wider mb-2.5">
-                Social Media
-              </h4>
-              <div className="flex items-center justify-between gap-1.5">
-                {settings.socialLinks && settings.socialLinks.length > 0 ? (
-                  settings.socialLinks.filter(s => s.isActive).map(social => {
-                    const lower = social.name.toLowerCase();
-                    const iconNode = lower.includes('face') ? <FacebookIcon /> :
-                                     lower.includes('insta') ? <InstagramIcon /> :
-                                     lower.includes('tube') ? <YouTubeIcon /> :
-                                     lower.includes('tik') ? <TikTokIcon /> :
-                                     lower.includes('whats') || lower.includes('app') ? <WhatsAppIcon /> :
-                                     <Globe size={16} />;
-                    return (
-                      <a
-                        key={social.id}
-                        href={social.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title={social.name}
-                        className="w-9 h-9 bg-[#28282a] hover:bg-[#D71920] text-zinc-300 hover:text-white rounded-xl flex items-center justify-center transition-all cursor-pointer shadow-2xs border border-zinc-700/60"
-                      >
-                        {iconNode}
-                      </a>
-                    );
-                  })
+            {/* Quick Links & Categories Box */}
+            <div className="md:col-span-5 grid grid-cols-2 gap-3">
+              <div className="bg-[#1c1c1e] border border-zinc-800/90 rounded-2xl p-4 sm:p-5 space-y-2.5 shadow-sm flex flex-col justify-between">
+                <div>
+                  <h4 className="text-white font-bold text-xs uppercase tracking-wider border-b border-zinc-800 pb-2">
+                    {settings.footerQuickLinksTitle || 'QUICK LINKS'}
+                  </h4>
+                  <ul className="space-y-1.5 text-xs text-zinc-400 mt-2.5">
+                    {((settings.footerQuickLinks && settings.footerQuickLinks.length > 0)
+                      ? settings.footerQuickLinks.filter(l => l.isActive !== false)
+                      : [
+                          { id: 'ql-1', label: 'Home', page: 'home', isActive: true },
+                          { id: 'ql-2', label: 'Books Catalog', page: 'books', isActive: true },
+                          { id: 'ql-3', label: 'Stationery', page: 'stationery', isActive: true },
+                          { id: 'ql-4', label: 'Authors', page: 'authors', isActive: true },
+                          { id: 'ql-5', label: 'Track Orders', page: 'track-order', isActive: true },
+                        ]
+                    ).map(link => (
+                      <li key={link.id}>
+                        <button
+                          onClick={() => {
+                            if (link.page.startsWith('http')) {
+                              window.open(link.page, '_blank', 'noopener,noreferrer');
+                            } else {
+                              setActivePage(link.page);
+                            }
+                          }}
+                          className="hover:text-white transition-colors cursor-pointer text-left w-full truncate"
+                        >
+                          {link.label}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              <div className="bg-[#1c1c1e] border border-zinc-800/90 rounded-2xl p-4 sm:p-5 space-y-2.5 shadow-sm flex flex-col justify-between">
+                <div>
+                  <h4 className="text-white font-bold text-xs uppercase tracking-wider border-b border-zinc-800 pb-2">
+                    {settings.footerCategoriesTitle || 'CATEGORIES'}
+                  </h4>
+                  <ul className="space-y-1.5 text-xs text-zinc-400 mt-2.5">
+                    {((settings.footerCategoryLinks && settings.footerCategoryLinks.length > 0)
+                      ? settings.footerCategoryLinks.filter(c => c.isActive !== false)
+                      : [
+                          { id: 'cl-1', label: 'Fiction & Literature', category: 'Fiction & Literature', page: 'books', isActive: true },
+                          { id: 'cl-2', label: 'Islamic Books', category: 'Islamic Books', page: 'books', isActive: true },
+                          { id: 'cl-3', label: 'Academic & University', category: 'Academic & University', page: 'books', isActive: true },
+                          { id: 'cl-4', label: 'Bangla Novels & Poetry', category: 'Bangla Novels & Poetry', page: 'books', isActive: true },
+                          { id: 'cl-5', label: 'Diaries & Pens', category: 'all', page: 'stationery', isActive: true },
+                        ]
+                    ).map(catLink => (
+                      <li key={catLink.id}>
+                        <button
+                          onClick={() => {
+                            if (catLink.category && catLink.category !== 'all') {
+                              setSelectedCategoryFilter(catLink.category);
+                            }
+                            setActivePage(catLink.page || 'books');
+                          }}
+                          className="hover:text-white transition-colors cursor-pointer text-left w-full truncate"
+                        >
+                          {catLink.label}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Combined Payment Options (Single Banner Image) & Social Media Box */}
+            <div className="md:col-span-3 bg-[#1c1c1e] border border-zinc-800/90 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-sm flex flex-col justify-between">
+              <div>
+                <h4 className="text-white font-bold text-xs uppercase tracking-wider border-b border-zinc-800 pb-2 mb-2.5">
+                  {settings.footerPaymentTitle || 'Payment Options'}
+                </h4>
+                {settings.footerPaymentBannerUrl && settings.footerPaymentBannerUrl.trim() ? (
+                  <div className="bg-[#28282a] border border-zinc-700/80 rounded-xl p-2 flex items-center justify-center overflow-hidden shadow-2xs">
+                    <img
+                      src={settings.footerPaymentBannerUrl}
+                      alt={settings.footerPaymentTitle || 'Payment Options'}
+                      className="w-full max-h-16 object-contain rounded-lg"
+                    />
+                  </div>
                 ) : (
-                  <a href="https://facebook.com" target="_blank" rel="noreferrer" title="Facebook" className="w-9 h-9 bg-[#28282a] hover:bg-[#D71920] text-zinc-300 hover:text-white rounded-xl flex items-center justify-center transition-all">
-                    <FacebookIcon />
-                  </a>
+                  <div
+                    className="bg-[#28282a] border border-zinc-700/80 rounded-xl p-2.5 flex items-center justify-center overflow-hidden shadow-2xs"
+                    title="All supported payment methods"
+                  >
+                    <svg viewBox="0 0 320 48" className="w-full h-11 object-contain" role="img" aria-label="Cash on Delivery, bKash, Nagad, Rocket, Upay, Visa">
+                      {/* COD */}
+                      <rect x="2" y="4" width="58" height="40" rx="8" fill="#16a34a" />
+                      <text x="31" y="21" textAnchor="middle" fill="#ffffff" fontSize="9" fontWeight="900" fontFamily="sans-serif">CASH ON</text>
+                      <text x="31" y="33" textAnchor="middle" fill="#dcfce7" fontSize="8" fontWeight="800" fontFamily="sans-serif">DELIVERY</text>
+                      {/* bKash */}
+                      <rect x="66" y="4" width="58" height="40" rx="8" fill="#E2136E" />
+                      <text x="95" y="28" textAnchor="middle" fill="#ffffff" fontSize="12" fontWeight="900" fontFamily="sans-serif">bKash</text>
+                      {/* Nagad */}
+                      <rect x="130" y="4" width="58" height="40" rx="8" fill="#F37021" />
+                      <text x="159" y="28" textAnchor="middle" fill="#ffffff" fontSize="12" fontWeight="900" fontFamily="sans-serif">Nagad</text>
+                      {/* Rocket */}
+                      <rect x="194" y="4" width="58" height="40" rx="8" fill="#8C3494" />
+                      <text x="223" y="28" textAnchor="middle" fill="#ffffff" fontSize="11" fontWeight="900" fontFamily="sans-serif">Rocket</text>
+                      {/* Upay / Cards */}
+                      <rect x="258" y="4" width="60" height="40" rx="8" fill="#00529B" />
+                      <text x="288" y="22" textAnchor="middle" fill="#FFD100" fontSize="10" fontWeight="900" fontFamily="sans-serif">UPAY</text>
+                      <text x="288" y="34" textAnchor="middle" fill="#ffffff" fontSize="8" fontWeight="700" fontFamily="sans-serif">&amp; CARDS</text>
+                    </svg>
+                  </div>
                 )}
+              </div>
+
+              <div className="pt-2.5 border-t border-zinc-800/80">
+                <h4 className="text-white font-bold text-xs uppercase tracking-wider mb-2">
+                  {settings.footerSocialTitle || 'Social Media'}
+                </h4>
+                <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                  {settings.socialLinks && settings.socialLinks.length > 0 ? (
+                    settings.socialLinks.filter(s => s.isActive).map(social => {
+                      const lower = social.name.toLowerCase();
+                      const iconNode = lower.includes('face') ? <FacebookIcon /> :
+                                       lower.includes('insta') ? <InstagramIcon /> :
+                                       lower.includes('tube') ? <YouTubeIcon /> :
+                                       lower.includes('tik') ? <TikTokIcon /> :
+                                       lower.includes('whats') || lower.includes('app') ? <WhatsAppIcon /> :
+                                       <Globe size={16} />;
+                      return (
+                        <a
+                          key={social.id}
+                          href={social.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={social.name}
+                          className="w-9 h-9 bg-[#28282a] hover:bg-[#D71920] text-zinc-300 hover:text-white rounded-xl flex items-center justify-center transition-all cursor-pointer shadow-2xs border border-zinc-700/60"
+                        >
+                          {iconNode}
+                        </a>
+                      );
+                    })
+                  ) : (
+                    <a href="https://facebook.com" target="_blank" rel="noreferrer" title="Facebook" className="w-9 h-9 bg-[#28282a] hover:bg-[#D71920] text-zinc-300 hover:text-white rounded-xl flex items-center justify-center transition-all">
+                      <FacebookIcon />
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Bottom Boxed Copyright Footer */}
-        <div className="bg-[#1c1c1e] border border-zinc-800/90 rounded-2xl px-5 sm:px-6 py-3.5 sm:py-4 flex flex-col sm:flex-row items-center justify-between text-xs text-zinc-400 gap-2 shadow-sm">
-          <p>© {new Date().getFullYear()} MR. BOOKS Bangladesh. All rights reserved.</p>
-          <div className="flex items-center gap-3 text-zinc-500 text-[11px]">
-            <span>Designed for book lovers in Bangladesh.</span>
+          {/* Bottom Boxed Copyright Footer */}
+          <div className="bg-[#1c1c1e] border border-zinc-800/90 rounded-2xl px-5 sm:px-6 py-3.5 sm:py-4 flex flex-col sm:flex-row items-center justify-between text-xs text-zinc-400 gap-2 shadow-sm">
+            <p>{settings.copyrightText || `© ${new Date().getFullYear()} ${settings.storeName || 'MR. BOOKS'} Bangladesh. All rights reserved.`}</p>
+            <div className="flex items-center gap-3 text-zinc-500 text-[11px]">
+              <span>{settings.footerBottomTagline ?? 'Designed for book lovers in Bangladesh.'}</span>
+            </div>
           </div>
-        </div>
 
       </div>
 

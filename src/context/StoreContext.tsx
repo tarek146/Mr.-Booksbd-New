@@ -338,7 +338,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   
   const [settings, setSettings] = useState<StoreSettings>({
     storeName: 'MR. BOOKS',
-    tagline: 'Your Trusted Bookstore & Stationery Partner in Bangladesh',
+    tagline: 'Bookstore & Stationery',
     phone: '+880 1712-345678',
     email: 'support@mrbooksbd.com',
     address: 'Nilkhet Book Market, Dhaka - 1205, Bangladesh',
@@ -353,10 +353,44 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     youtubeUrl: 'https://youtube.com',
     bkashNumber: '01712345678',
     nagadNumber: '01812345678',
+    showHeaderTagline: true,
+    showHeaderContact: true,
+    showAnnouncementBar: true,
+    announcementItems: [
+      { id: 'ann-1', icon: '⚡', title: 'SPECIAL OFFER:', desc: 'Free Delivery on orders above Tk 1,500 across Bangladesh!', isActive: true },
+      { id: 'ann-2', icon: '🎁', title: 'DISCOUNT COUPON:', desc: 'Use coupon code MRBOOKS10 for 10% instant discount!', isActive: true },
+      { id: 'ann-3', icon: '🚚', title: 'FAST SHIPPING:', desc: '24-48 Hours Express Delivery in Dhaka & 2-3 days nationwide.', isActive: true },
+      { id: 'ann-4', icon: '💳', title: 'EASY PAYMENT:', desc: 'Cash on Delivery, bKash, Nagad, Rocket & Bank Transfer accepted.', isActive: true },
+      { id: 'ann-5', icon: '📚', title: '100% ORIGINAL:', desc: 'Authentic books direct from reputed publishing houses.', isActive: true },
+      { id: 'ann-6', icon: '✍️', title: 'PREMIUM STATIONERY:', desc: 'Imported notebooks, fountain pens, art supplies in stock.', isActive: true },
+    ],
     facebookPixelId: '123456789012345',
     facebookCapiToken: '',
     gaMeasurementId: 'G-XXXXXXXXXX',
     tiktokPixelId: 'CXXXXXXXXXXXXXXX',
+    footerBrandName: 'MR. BOOKS',
+    footerDescription: "Bangladesh's premier online bookstore and stationery shop. Bringing knowledge, timeless literature, and premium supplies directly to your doorstep.",
+    footerPaymentTitle: 'Payment Options',
+    footerPaymentBannerUrl: '',
+    footerQuickLinksTitle: 'QUICK LINKS',
+    footerQuickLinks: [
+      { id: 'ql-1', label: 'Home', page: 'home', isActive: true },
+      { id: 'ql-2', label: 'Books Catalog', page: 'books', isActive: true },
+      { id: 'ql-3', label: 'Stationery', page: 'stationery', isActive: true },
+      { id: 'ql-4', label: 'Authors', page: 'authors', isActive: true },
+      { id: 'ql-5', label: 'Track Orders', page: 'track-order', isActive: true },
+    ],
+    footerCategoriesTitle: 'CATEGORIES',
+    footerCategoryLinks: [
+      { id: 'cl-1', label: 'Fiction & Literature', category: 'Fiction & Literature', page: 'books', isActive: true },
+      { id: 'cl-2', label: 'Islamic Books', category: 'Islamic Books', page: 'books', isActive: true },
+      { id: 'cl-3', label: 'Academic & University', category: 'Academic & University', page: 'books', isActive: true },
+      { id: 'cl-4', label: 'Bangla Novels & Poetry', category: 'Bangla Novels & Poetry', page: 'books', isActive: true },
+      { id: 'cl-5', label: 'Diaries & Pens', category: 'all', page: 'stationery', isActive: true },
+    ],
+    footerSocialTitle: 'Social Media',
+    copyrightText: `© ${new Date().getFullYear()} MR. BOOKS Bangladesh. All rights reserved.`,
+    footerBottomTagline: 'Designed for book lovers in Bangladesh.',
     footerPaymentMethods: [
       { id: 'p1', name: 'bKash Online', icon: 'bkash', isActive: true },
       { id: 'p2', name: 'Nagad Gateway', icon: 'nagad', isActive: true },
@@ -406,7 +440,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   });
 
-  // Real-time SEO and OpenGraph head synchronization
+  // Real-time SEO, OpenGraph, and Favicon head synchronization
   useEffect(() => {
     if (settings.metaTitle) {
       document.title = settings.metaTitle;
@@ -438,6 +472,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
     if (settings.keywords) {
       updateMetaTag('keywords', settings.keywords, false);
+    }
+
+    // Real-time Favicon update
+    if (settings.faviconUrl && settings.faviconUrl.trim()) {
+      const favHref = settings.faviconUrl.trim();
+      const rels = ['icon', 'shortcut icon', 'apple-touch-icon'];
+      rels.forEach(rel => {
+        let link = document.querySelector(`link[rel="${rel}"]`) as HTMLLinkElement | null;
+        if (!link) {
+          link = document.createElement('link');
+          link.rel = rel;
+          document.head.appendChild(link);
+        }
+        link.href = favHref;
+      });
     }
   }, [settings]);
 

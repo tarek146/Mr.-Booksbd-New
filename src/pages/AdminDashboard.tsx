@@ -4520,25 +4520,46 @@ export function AdminDashboard() {
         {/* TAB 6: STORE SETTINGS */}
         {activeTab === 'settings' && (
           <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-[#EEEEEE]">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#EEEEEE]">
               <div>
                 <h2 className="text-xl font-black text-[#171717] flex items-center gap-2">
-                  <Settings size={20} className="text-[#D71920]" /> Store Branding & Configuration
+                  <Settings size={20} className="text-[#D71920]" /> Store Header, Footer, Favicon & General Settings
                 </h2>
                 <p className="text-xs text-[#5F6368] mt-1">
-                  Updates are saved directly to Firebase in real-time and applied immediately across the entire shop.
+                  Control your entire Header, Logo, Favicon, Announcement Bar, Footer Logo, Texts, Links, and Single Payment Banner in real-time.
                 </p>
               </div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-bold">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                Real-time Firebase Firestore Sync
+              <div className="flex items-center gap-2.5 self-start sm:self-auto">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-bold">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Real-time Firebase Sync
+                </div>
+                <button
+                  type="button"
+                  disabled={settingsSaving}
+                  onClick={async () => {
+                    setSettingsSaving(true);
+                    try {
+                      await updateSettings(settingsForm);
+                      setSettingsSuccess(true);
+                      setToast({ show: true, type: 'success', message: 'All Header, Footer & Store settings saved to Firebase!' });
+                      setTimeout(() => setSettingsSuccess(false), 3000);
+                    } finally {
+                      setSettingsSaving(false);
+                    }
+                  }}
+                  className="px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] disabled:opacity-50 text-white font-bold rounded-xl text-xs shadow-sm cursor-pointer flex items-center gap-1.5"
+                >
+                  <Check size={14} />
+                  <span>{settingsSaving ? 'Saving...' : 'Save All Changes'}</span>
+                </button>
               </div>
             </div>
 
             {settingsSuccess && (
               <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-bold flex items-center gap-2">
                 <CheckCircle2 size={16} className="text-emerald-600" />
-                Store settings successfully saved to Firebase and updated in real-time!
+                Store settings successfully saved to Firebase and updated in real-time across Header, Favicon & Footer!
               </div>
             )}
 
@@ -4549,116 +4570,867 @@ export function AdminDashboard() {
                 try {
                   await updateSettings(settingsForm);
                   setSettingsSuccess(true);
+                  setToast({ show: true, type: 'success', message: 'Store settings saved to Firebase!' });
                   setTimeout(() => setSettingsSuccess(false), 3000);
                 } finally {
                   setSettingsSaving(false);
                 }
               }}
-              className="space-y-6"
+              className="space-y-8"
             >
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-xs">
-                <div>
-                  <label className="block font-bold uppercase text-[#5F6368] mb-1">Store Name</label>
-                  <input 
-                    type="text" 
-                    required
-                    value={settingsForm.storeName || ''} 
-                    onChange={e => setSettingsForm(prev => ({ ...prev, storeName: e.target.value }))}
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
-                  />
+              {/* SECTION 1: HEADER BRANDING, LOGO, FAVICON & CONTACT */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-black text-[#171717] uppercase tracking-wider flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#D71920]"></span>
+                    1. Header Section, Logo, Website Favicon & Contact Details
+                  </h3>
+                  <span className="text-[10px] font-bold text-[#D71920] bg-[#FFF1F2] border border-[#D71920]/20 px-2.5 py-0.5 rounded-full">
+                    Header & Browser Tab Control
+                  </span>
                 </div>
-                <div>
-                  <label className="block font-bold uppercase text-[#5F6368] mb-1">Tagline</label>
-                  <input 
-                    type="text" 
-                    value={settingsForm.tagline || ''} 
-                    onChange={e => setSettingsForm(prev => ({ ...prev, tagline: e.target.value }))}
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
-                  />
+
+                {/* Logo & Favicon Upload Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Header Logo Upload Card */}
+                  <div className="p-4 rounded-2xl bg-[#F7F7F8] border border-neutral-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="font-black text-xs text-neutral-900 block">Header Brand Logo</span>
+                        <span className="text-[11px] text-neutral-500">Displayed in the top navigation bar & mobile drawer</span>
+                      </div>
+                      {settingsForm.logoUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setSettingsForm(prev => ({ ...prev, logoUrl: '' }))}
+                          className="text-[11px] font-bold text-red-600 hover:underline cursor-pointer"
+                        >
+                          Reset to Default Icon
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-14 h-14 rounded-2xl bg-white border border-neutral-200 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
+                        {settingsForm.logoUrl ? (
+                          <img src={settingsForm.logoUrl} alt="Header Logo Preview" className="w-full h-full object-contain p-1" />
+                        ) : (
+                          <div className="w-10 h-10 bg-[#D71920] rounded-xl flex items-center justify-center text-white">
+                            <BookOpen size={20} />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <label className="px-3 py-1.5 bg-[#D71920] hover:bg-[#B9151B] text-white rounded-xl text-xs font-bold cursor-pointer inline-flex items-center gap-1.5 shadow-2xs transition-colors">
+                            <Upload size={13} />
+                            <span>Upload Logo</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                try {
+                                  const dataUrl = await compressImageFile(file, 400, 0.88);
+                                  setSettingsForm(prev => ({ ...prev, logoUrl: dataUrl }));
+                                } catch (err) {
+                                  console.error('Logo upload error:', err);
+                                }
+                              }}
+                            />
+                          </label>
+                          <span className="text-[10px] text-neutral-500">PNG, JPG, SVG or WebP</span>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Or paste Header Logo URL (https://...)"
+                          value={settingsForm.logoUrl || ''}
+                          onChange={e => setSettingsForm(prev => ({ ...prev, logoUrl: e.target.value }))}
+                          className="w-full px-3 py-1.5 rounded-xl border border-neutral-300 bg-white text-xs text-neutral-900"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Website Favicon Upload Card */}
+                  <div className="p-4 rounded-2xl bg-[#F7F7F8] border border-neutral-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="font-black text-xs text-neutral-900 block">Website Favicon (Browser Tab Icon)</span>
+                        <span className="text-[11px] text-neutral-500">Updates your website's browser tab icon immediately</span>
+                      </div>
+                      {settingsForm.faviconUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setSettingsForm(prev => ({ ...prev, faviconUrl: '' }))}
+                          className="text-[11px] font-bold text-red-600 hover:underline cursor-pointer"
+                        >
+                          Remove Favicon
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-14 h-14 rounded-2xl bg-white border border-neutral-200 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
+                        {settingsForm.faviconUrl ? (
+                          <img src={settingsForm.faviconUrl} alt="Favicon Preview" className="w-9 h-9 object-contain" />
+                        ) : (
+                          <div className="w-9 h-9 bg-neutral-100 rounded-lg flex items-center justify-center text-neutral-400 text-[10px] font-black">
+                            ICO
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <label className="px-3 py-1.5 bg-[#171717] hover:bg-neutral-800 text-white rounded-xl text-xs font-bold cursor-pointer inline-flex items-center gap-1.5 shadow-2xs transition-colors">
+                            <Upload size={13} />
+                            <span>Upload Favicon</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                try {
+                                  const dataUrl = await compressImageFile(file, 128, 0.92);
+                                  setSettingsForm(prev => ({ ...prev, faviconUrl: dataUrl }));
+                                } catch (err) {
+                                  console.error('Favicon upload error:', err);
+                                }
+                              }}
+                            />
+                          </label>
+                          <span className="text-[10px] text-neutral-500">Square icon (PNG / ICO / SVG)</span>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Or paste Favicon Image URL (https://...)"
+                          value={settingsForm.faviconUrl || ''}
+                          onChange={e => setSettingsForm(prev => ({ ...prev, faviconUrl: e.target.value }))}
+                          className="w-full px-3 py-1.5 rounded-xl border border-neutral-300 bg-white text-xs text-neutral-900"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block font-bold uppercase text-[#5F6368] mb-1">Hotline Phone</label>
-                  <input 
-                    type="text" 
-                    required
-                    value={settingsForm.phone || ''} 
-                    onChange={e => setSettingsForm(prev => ({ ...prev, phone: e.target.value }))}
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
-                  />
+
+                {/* Store Name, Tagline, Contact Phone, Email, Address */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs pt-1">
+                  <div>
+                    <label className="block font-bold uppercase text-[#5F6368] mb-1">Header Store Name</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={settingsForm.storeName || ''} 
+                      onChange={e => setSettingsForm(prev => ({ ...prev, storeName: e.target.value }))}
+                      placeholder="e.g. MR. BOOKS"
+                      className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717] font-bold" 
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block font-bold uppercase text-[#5F6368]">Header Sub-Title / Tagline</label>
+                      <label className="flex items-center gap-1.5 text-[11px] font-bold text-neutral-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={settingsForm.showHeaderTagline !== false}
+                          onChange={e => setSettingsForm(prev => ({ ...prev, showHeaderTagline: e.target.checked }))}
+                          className="w-3.5 h-3.5 accent-[#D71920]"
+                        />
+                        <span>Show in Header</span>
+                      </label>
+                    </div>
+                    <input 
+                      type="text" 
+                      value={settingsForm.tagline || ''} 
+                      onChange={e => setSettingsForm(prev => ({ ...prev, tagline: e.target.value }))}
+                      placeholder="e.g. Bookstore & Stationery"
+                      className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block font-bold uppercase text-[#5F6368]">Header & Footer Contact Number</label>
+                      <label className="flex items-center gap-1.5 text-[11px] font-bold text-neutral-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={settingsForm.showHeaderContact !== false}
+                          onChange={e => setSettingsForm(prev => ({ ...prev, showHeaderContact: e.target.checked }))}
+                          className="w-3.5 h-3.5 accent-[#D71920]"
+                        />
+                        <span>Show in Header</span>
+                      </label>
+                    </div>
+                    <input 
+                      type="text" 
+                      required
+                      value={settingsForm.phone || ''} 
+                      onChange={e => setSettingsForm(prev => ({ ...prev, phone: e.target.value }))}
+                      placeholder="e.g. +880 1712-345678"
+                      className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717] font-bold" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold uppercase text-[#5F6368] mb-1">Support Email</label>
+                    <input 
+                      type="email" 
+                      value={settingsForm.email || ''} 
+                      onChange={e => setSettingsForm(prev => ({ ...prev, email: e.target.value }))}
+                      className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block font-bold uppercase text-[#5F6368] mb-1">Physical Store Address (Shown in Footer & Invoices)</label>
+                    <input 
+                      type="text" 
+                      value={settingsForm.address || ''} 
+                      onChange={e => setSettingsForm(prev => ({ ...prev, address: e.target.value }))}
+                      className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block font-bold uppercase text-[#5F6368] mb-1">Support Email</label>
-                  <input 
-                    type="email" 
-                    value={settingsForm.email || ''} 
-                    onChange={e => setSettingsForm(prev => ({ ...prev, email: e.target.value }))}
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
-                  />
+              </div>
+
+              {/* SECTION 2: HEADER ANNOUNCEMENT BAR (MARQUEE TICKER) */}
+              <div className="pt-6 border-t border-[#EEEEEE] space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-sm font-black text-[#171717] uppercase tracking-wider flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                      2. Header Announcement Bar (Sliding Ticker Messages)
+                    </h3>
+                    <p className="text-xs text-[#5F6368] mt-0.5">
+                      Add, edit, or toggle announcements that scroll smoothly in your website header on both desktop and mobile.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 text-xs font-bold text-neutral-800 bg-[#F7F7F8] px-3 py-1.5 rounded-xl border border-neutral-200 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={settingsForm.showAnnouncementBar !== false}
+                        onChange={e => setSettingsForm(prev => ({ ...prev, showAnnouncementBar: e.target.checked }))}
+                        className="w-4 h-4 accent-[#D71920]"
+                      />
+                      <span>Show Announcement Bar</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const current = settingsForm.announcementItems || [];
+                        setSettingsForm(prev => ({
+                          ...prev,
+                          announcementItems: [
+                            ...current,
+                            {
+                              id: 'ann-' + Date.now(),
+                              icon: '🔥',
+                              title: 'NEW UPDATE:',
+                              desc: 'Write your announcement text here...',
+                              isActive: true
+                            }
+                          ]
+                        }));
+                      }}
+                      className="px-3 py-1.5 bg-[#D71920] hover:bg-[#B9151B] text-white rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer shadow-2xs"
+                    >
+                      <Plus size={13} /> Add Message
+                    </button>
+                  </div>
                 </div>
-                <div className="sm:col-span-2">
-                  <label className="block font-bold uppercase text-[#5F6368] mb-1">Physical Address</label>
-                  <input 
-                    type="text" 
-                    value={settingsForm.address || ''} 
-                    onChange={e => setSettingsForm(prev => ({ ...prev, address: e.target.value }))}
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
-                  />
+
+                <div className="space-y-2">
+                  {(settingsForm.announcementItems || []).map((item, idx) => (
+                    <div key={item.id || idx} className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center bg-[#F7F7F8] p-2.5 rounded-xl border border-[#E5E5E5] text-xs">
+                      <div className="sm:col-span-1">
+                        <input
+                          type="text"
+                          value={item.icon}
+                          onChange={e => {
+                            const updated = [...(settingsForm.announcementItems || [])];
+                            updated[idx] = { ...updated[idx], icon: e.target.value };
+                            setSettingsForm(prev => ({ ...prev, announcementItems: updated }));
+                          }}
+                          placeholder="⚡"
+                          className="w-full px-2 py-1.5 text-center rounded-lg border border-neutral-300 bg-white font-bold"
+                          title="Emoji / Icon"
+                        />
+                      </div>
+                      <div className="sm:col-span-3">
+                        <input
+                          type="text"
+                          value={item.title}
+                          onChange={e => {
+                            const updated = [...(settingsForm.announcementItems || [])];
+                            updated[idx] = { ...updated[idx], title: e.target.value };
+                            setSettingsForm(prev => ({ ...prev, announcementItems: updated }));
+                          }}
+                          placeholder="SPECIAL OFFER:"
+                          className="w-full px-3 py-1.5 rounded-lg border border-neutral-300 bg-white font-black text-[#D71920]"
+                          title="Highlight Label"
+                        />
+                      </div>
+                      <div className="sm:col-span-6">
+                        <input
+                          type="text"
+                          value={item.desc}
+                          onChange={e => {
+                            const updated = [...(settingsForm.announcementItems || [])];
+                            updated[idx] = { ...updated[idx], desc: e.target.value };
+                            setSettingsForm(prev => ({ ...prev, announcementItems: updated }));
+                          }}
+                          placeholder="Announcement details..."
+                          className="w-full px-3 py-1.5 rounded-lg border border-neutral-300 bg-white font-semibold text-neutral-900"
+                        />
+                      </div>
+                      <div className="sm:col-span-2 flex items-center justify-end gap-2">
+                        <label className="flex items-center gap-1 text-[11px] font-bold text-neutral-700 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={item.isActive !== false}
+                            onChange={e => {
+                              const updated = [...(settingsForm.announcementItems || [])];
+                              updated[idx] = { ...updated[idx], isActive: e.target.checked };
+                              setSettingsForm(prev => ({ ...prev, announcementItems: updated }));
+                            }}
+                            className="w-3.5 h-3.5 accent-[#D71920]"
+                          />
+                          <span>Active</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = (settingsForm.announcementItems || []).filter((_, i) => i !== idx);
+                            setSettingsForm(prev => ({ ...prev, announcementItems: updated }));
+                          }}
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg cursor-pointer"
+                          title="Remove Announcement"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div>
-                  <label className="block font-bold uppercase text-[#5F6368] mb-1">Inside Dhaka Delivery Fee (৳)</label>
-                  <input 
-                    type="number" 
-                    required
-                    value={settingsForm.insideDhakaCharge ?? 60} 
-                    onChange={e => setSettingsForm(prev => ({ ...prev, insideDhakaCharge: Number(e.target.value) }))}
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
-                  />
+              </div>
+
+              {/* SECTION 3: DELIVERY & LOGISTICS CHARGES */}
+              <div className="pt-6 border-t border-[#EEEEEE] space-y-4">
+                <h3 className="text-sm font-black text-[#171717] uppercase tracking-wider flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
+                  3. Delivery Charges & Payment Numbers
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                  <div>
+                    <label className="block font-bold uppercase text-[#5F6368] mb-1">Inside Dhaka Delivery Fee (৳)</label>
+                    <input 
+                      type="number" 
+                      required
+                      value={settingsForm.insideDhakaCharge ?? 60} 
+                      onChange={e => setSettingsForm(prev => ({ ...prev, insideDhakaCharge: Number(e.target.value) }))}
+                      className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold uppercase text-[#5F6368] mb-1">Outside Dhaka Delivery Fee (৳)</label>
+                    <input 
+                      type="number" 
+                      required
+                      value={settingsForm.outsideDhakaCharge ?? 120} 
+                      onChange={e => setSettingsForm(prev => ({ ...prev, outsideDhakaCharge: Number(e.target.value) }))}
+                      className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold uppercase text-[#5F6368] mb-1">Sundarban Courier Fee (৳)</label>
+                    <input 
+                      type="number" 
+                      value={settingsForm.sundarbanDeliveryCharge ?? 120} 
+                      onChange={e => setSettingsForm(prev => ({ ...prev, sundarbanDeliveryCharge: Number(e.target.value) }))}
+                      className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold uppercase text-[#5F6368] mb-1">Extra Weight Charge / Kg (৳)</label>
+                    <input 
+                      type="number" 
+                      value={settingsForm.extraWeightChargePerKg ?? 20} 
+                      onChange={e => setSettingsForm(prev => ({ ...prev, extraWeightChargePerKg: Number(e.target.value) }))}
+                      className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold uppercase text-[#5F6368] mb-1">Free Delivery Minimum Order (৳)</label>
+                    <input 
+                      type="number" 
+                      value={settingsForm.freeShippingThreshold ?? 2000} 
+                      onChange={e => setSettingsForm(prev => ({ ...prev, freeShippingThreshold: Number(e.target.value) }))}
+                      className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold uppercase text-[#5F6368] mb-1">Official bKash Number</label>
+                    <input 
+                      type="text" 
+                      value={settingsForm.bkashNumber || ''} 
+                      onChange={e => setSettingsForm(prev => ({ ...prev, bkashNumber: e.target.value }))}
+                      className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block font-bold uppercase text-[#5F6368] mb-1">Outside Dhaka Delivery Fee (৳)</label>
-                  <input 
-                    type="number" 
-                    required
-                    value={settingsForm.outsideDhakaCharge ?? 120} 
-                    onChange={e => setSettingsForm(prev => ({ ...prev, outsideDhakaCharge: Number(e.target.value) }))}
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
-                  />
+              </div>
+
+              {/* SECTION 4: COMPLETE FOOTER CONTROL & SINGLE PAYMENT BANNER IMAGE */}
+              <div className="pt-6 border-t border-[#EEEEEE] space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-sm font-black text-[#171717] uppercase tracking-wider flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#D71920]"></span>
+                      4. Complete Footer Section & Single Payment Banner Control
+                    </h3>
+                    <p className="text-xs text-[#5F6368] mt-0.5">
+                      Customize the Footer Logo, Brand Text, Single Payment Options Picture (uploaded like a logo), Quick Links, Categories, Social Media, and Copyright.
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-bold text-white bg-[#1c1c1e] px-3 py-1 rounded-full self-start sm:self-auto">
+                    Full Footer Customization
+                  </span>
                 </div>
-                <div>
-                  <label className="block font-bold uppercase text-[#5F6368] mb-1">Sundarban Courier Fee (৳)</label>
-                  <input 
-                    type="number" 
-                    value={settingsForm.sundarbanDeliveryCharge ?? 120} 
-                    onChange={e => setSettingsForm(prev => ({ ...prev, sundarbanDeliveryCharge: Number(e.target.value) }))}
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
-                  />
+
+                {/* Row 1: Footer Logo Upload + Single Payment Methods Banner Upload (Like a Logo) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Footer Logo Upload Card */}
+                  <div className="p-4 rounded-2xl bg-[#F7F7F8] border border-neutral-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="font-black text-xs text-neutral-900 block">Footer Logo</span>
+                        <span className="text-[11px] text-neutral-500">Shown in the left brand card of the footer</span>
+                      </div>
+                      {settingsForm.footerLogoUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setSettingsForm(prev => ({ ...prev, footerLogoUrl: '' }))}
+                          className="text-[11px] font-bold text-red-600 hover:underline cursor-pointer"
+                        >
+                          Reset Footer Logo
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-14 h-14 rounded-2xl bg-[#1c1c1e] border border-zinc-700 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
+                        {settingsForm.footerLogoUrl || settingsForm.logoUrl ? (
+                          <img
+                            src={settingsForm.footerLogoUrl || settingsForm.logoUrl}
+                            alt="Footer Logo Preview"
+                            className="w-full h-full object-contain p-1.5"
+                          />
+                        ) : (
+                          <div className="w-9 h-9 bg-[#D71920] rounded-xl flex items-center justify-center text-white">
+                            <BookOpen size={18} />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <label className="px-3 py-1.5 bg-[#D71920] hover:bg-[#B9151B] text-white rounded-xl text-xs font-bold cursor-pointer inline-flex items-center gap-1.5 shadow-2xs transition-colors">
+                            <Upload size={13} />
+                            <span>Upload Footer Logo</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                try {
+                                  const dataUrl = await compressImageFile(file, 400, 0.88);
+                                  setSettingsForm(prev => ({ ...prev, footerLogoUrl: dataUrl }));
+                                } catch (err) {
+                                  console.error('Footer logo upload error:', err);
+                                }
+                              }}
+                            />
+                          </label>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Or paste Footer Logo URL (https://...)"
+                          value={settingsForm.footerLogoUrl || ''}
+                          onChange={e => setSettingsForm(prev => ({ ...prev, footerLogoUrl: e.target.value }))}
+                          className="w-full px-3 py-1.5 rounded-xl border border-neutral-300 bg-white text-xs text-neutral-900"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Single Payment Methods Banner Picture Upload Card (Like a Logo) */}
+                  <div className="p-4 rounded-2xl bg-[#FFF1F2]/60 border border-[#D71920]/25 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="font-black text-xs text-[#D71920] block">Footer Payment Methods Picture (Single Image Upload)</span>
+                        <span className="text-[11px] text-neutral-600">Upload 1 single banner image containing all your payment methods</span>
+                      </div>
+                      {settingsForm.footerPaymentBannerUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setSettingsForm(prev => ({ ...prev, footerPaymentBannerUrl: '' }))}
+                          className="text-[11px] font-bold text-red-600 hover:underline cursor-pointer"
+                        >
+                          Reset Default Strip
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Dark Footer Preview Box */}
+                    <div className="bg-[#1c1c1e] border border-zinc-800 rounded-xl p-2.5 flex items-center justify-center min-h-[54px]">
+                      {settingsForm.footerPaymentBannerUrl ? (
+                        <img
+                          src={settingsForm.footerPaymentBannerUrl}
+                          alt="Payment Methods Banner Preview"
+                          className="max-h-14 w-full object-contain rounded"
+                        />
+                      ) : (
+                        <span className="text-[11px] text-zinc-400 font-semibold">
+                          Default Compact Single-Row Payment Banner Active (Upload custom image below)
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                      <label className="px-3.5 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white rounded-xl text-xs font-bold cursor-pointer inline-flex items-center justify-center gap-1.5 shadow-2xs shrink-0 transition-colors">
+                        <Upload size={13} />
+                        <span>Upload Payment Picture</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            try {
+                              const dataUrl = await compressImageFile(file, 900, 0.88);
+                              setSettingsForm(prev => ({ ...prev, footerPaymentBannerUrl: dataUrl }));
+                            } catch (err) {
+                              console.error('Payment banner upload error:', err);
+                            }
+                          }}
+                        />
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Or paste Payment Banner Image URL (https://...)"
+                        value={settingsForm.footerPaymentBannerUrl || ''}
+                        onChange={e => setSettingsForm(prev => ({ ...prev, footerPaymentBannerUrl: e.target.value }))}
+                        className="flex-1 px-3 py-2 rounded-xl border border-neutral-300 bg-white text-xs text-neutral-900"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block font-bold uppercase text-[#5F6368] mb-1">Extra Weight Charge / Kg (৳)</label>
-                  <input 
-                    type="number" 
-                    value={settingsForm.extraWeightChargePerKg ?? 20} 
-                    onChange={e => setSettingsForm(prev => ({ ...prev, extraWeightChargePerKg: Number(e.target.value) }))}
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
-                  />
+
+                {/* Row 2: Footer Brand Name, Description, Column Headings & Copyright Texts */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <label className="block font-bold uppercase text-[#5F6368] mb-1">Footer Brand Title</label>
+                    <input
+                      type="text"
+                      value={settingsForm.footerBrandName ?? settingsForm.storeName ?? 'MR. BOOKS'}
+                      onChange={e => setSettingsForm(prev => ({ ...prev, footerBrandName: e.target.value }))}
+                      placeholder="e.g. MR. BOOKS"
+                      className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717] font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold uppercase text-[#5F6368] mb-1">Payment Box Heading</label>
+                    <input
+                      type="text"
+                      value={settingsForm.footerPaymentTitle ?? 'Payment Options'}
+                      onChange={e => setSettingsForm(prev => ({ ...prev, footerPaymentTitle: e.target.value }))}
+                      placeholder="Payment Options"
+                      className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717] font-bold"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block font-bold uppercase text-[#5F6368] mb-1">Footer Brand Description Paragraph</label>
+                    <textarea
+                      rows={2}
+                      value={settingsForm.footerDescription ?? "Bangladesh's premier online bookstore and stationery shop. Bringing knowledge, timeless literature, and premium supplies directly to your doorstep."}
+                      onChange={e => setSettingsForm(prev => ({ ...prev, footerDescription: e.target.value }))}
+                      className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold uppercase text-[#5F6368] mb-1">Bottom Copyright Text</label>
+                    <input
+                      type="text"
+                      value={settingsForm.copyrightText ?? `© ${new Date().getFullYear()} MR. BOOKS Bangladesh. All rights reserved.`}
+                      onChange={e => setSettingsForm(prev => ({ ...prev, copyrightText: e.target.value }))}
+                      className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold uppercase text-[#5F6368] mb-1">Bottom Right Tagline</label>
+                    <input
+                      type="text"
+                      value={settingsForm.footerBottomTagline ?? 'Designed for book lovers in Bangladesh.'}
+                      onChange={e => setSettingsForm(prev => ({ ...prev, footerBottomTagline: e.target.value }))}
+                      className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block font-bold uppercase text-[#5F6368] mb-1">Free Delivery Minimum Order (৳)</label>
-                  <input 
-                    type="number" 
-                    value={settingsForm.freeShippingThreshold ?? 2000} 
-                    onChange={e => setSettingsForm(prev => ({ ...prev, freeShippingThreshold: Number(e.target.value) }))}
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
-                  />
+
+                {/* Row 3: Editable Quick Links & Editable Category Links */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Footer Quick Links Editor */}
+                  <div className="p-4 rounded-2xl bg-[#F7F7F8] border border-neutral-200 space-y-3 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-black text-neutral-900 uppercase">Footer Column 1: Quick Links</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const current = settingsForm.footerQuickLinks || [];
+                          setSettingsForm(prev => ({
+                            ...prev,
+                            footerQuickLinks: [
+                              ...current,
+                              { id: 'ql-' + Date.now(), label: 'New Link', page: 'books', isActive: true }
+                            ]
+                          }));
+                        }}
+                        className="px-2.5 py-1 bg-[#D71920] text-white rounded-lg font-bold text-[11px] flex items-center gap-1 cursor-pointer"
+                      >
+                        <Plus size={12} /> Add Link
+                      </button>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-neutral-500 mb-1">Column Title</label>
+                      <input
+                        type="text"
+                        value={settingsForm.footerQuickLinksTitle ?? 'QUICK LINKS'}
+                        onChange={e => setSettingsForm(prev => ({ ...prev, footerQuickLinksTitle: e.target.value }))}
+                        className="w-full px-3 py-1.5 rounded-lg border border-neutral-300 bg-white font-bold"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      {(settingsForm.footerQuickLinks || []).map((ql, idx) => (
+                        <div key={ql.id || idx} className="flex items-center gap-2 bg-white p-2 rounded-xl border border-neutral-200">
+                          <input
+                            type="text"
+                            value={ql.label}
+                            onChange={e => {
+                              const updated = [...(settingsForm.footerQuickLinks || [])];
+                              updated[idx] = { ...updated[idx], label: e.target.value };
+                              setSettingsForm(prev => ({ ...prev, footerQuickLinks: updated }));
+                            }}
+                            placeholder="Label"
+                            className="flex-1 min-w-0 px-2.5 py-1 rounded-lg border border-neutral-300 text-xs font-bold"
+                          />
+                          <input
+                            type="text"
+                            value={ql.page}
+                            onChange={e => {
+                              const updated = [...(settingsForm.footerQuickLinks || [])];
+                              updated[idx] = { ...updated[idx], page: e.target.value };
+                              setSettingsForm(prev => ({ ...prev, footerQuickLinks: updated }));
+                            }}
+                            placeholder="home / books / https://..."
+                            className="w-28 px-2.5 py-1 rounded-lg border border-neutral-300 text-[11px]"
+                            title="Page route (home, books, stationery, authors, track-order) or full URL"
+                          />
+                          <input
+                            type="checkbox"
+                            checked={ql.isActive !== false}
+                            onChange={e => {
+                              const updated = [...(settingsForm.footerQuickLinks || [])];
+                              updated[idx] = { ...updated[idx], isActive: e.target.checked };
+                              setSettingsForm(prev => ({ ...prev, footerQuickLinks: updated }));
+                            }}
+                            className="w-3.5 h-3.5 accent-[#D71920]"
+                            title="Show Link"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = (settingsForm.footerQuickLinks || []).filter((_, i) => i !== idx);
+                              setSettingsForm(prev => ({ ...prev, footerQuickLinks: updated }));
+                            }}
+                            className="p-1 text-red-600 hover:bg-red-50 rounded cursor-pointer"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Footer Categories Column Editor */}
+                  <div className="p-4 rounded-2xl bg-[#F7F7F8] border border-neutral-200 space-y-3 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-black text-neutral-900 uppercase">Footer Column 2: Categories</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const current = settingsForm.footerCategoryLinks || [];
+                          setSettingsForm(prev => ({
+                            ...prev,
+                            footerCategoryLinks: [
+                              ...current,
+                              { id: 'cl-' + Date.now(), label: 'New Category', category: 'Islamic Books', page: 'books', isActive: true }
+                            ]
+                          }));
+                        }}
+                        className="px-2.5 py-1 bg-[#D71920] text-white rounded-lg font-bold text-[11px] flex items-center gap-1 cursor-pointer"
+                      >
+                        <Plus size={12} /> Add Category
+                      </button>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-neutral-500 mb-1">Column Title</label>
+                      <input
+                        type="text"
+                        value={settingsForm.footerCategoriesTitle ?? 'CATEGORIES'}
+                        onChange={e => setSettingsForm(prev => ({ ...prev, footerCategoriesTitle: e.target.value }))}
+                        className="w-full px-3 py-1.5 rounded-lg border border-neutral-300 bg-white font-bold"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      {(settingsForm.footerCategoryLinks || []).map((cl, idx) => (
+                        <div key={cl.id || idx} className="flex items-center gap-2 bg-white p-2 rounded-xl border border-neutral-200">
+                          <input
+                            type="text"
+                            value={cl.label}
+                            onChange={e => {
+                              const updated = [...(settingsForm.footerCategoryLinks || [])];
+                              updated[idx] = { ...updated[idx], label: e.target.value };
+                              setSettingsForm(prev => ({ ...prev, footerCategoryLinks: updated }));
+                            }}
+                            placeholder="Display Label"
+                            className="flex-1 min-w-0 px-2.5 py-1 rounded-lg border border-neutral-300 text-xs font-bold"
+                          />
+                          <input
+                            type="text"
+                            value={cl.category}
+                            onChange={e => {
+                              const updated = [...(settingsForm.footerCategoryLinks || [])];
+                              updated[idx] = { ...updated[idx], category: e.target.value };
+                              setSettingsForm(prev => ({ ...prev, footerCategoryLinks: updated }));
+                            }}
+                            placeholder="Category Name"
+                            className="w-28 px-2.5 py-1 rounded-lg border border-neutral-300 text-[11px]"
+                            title="Category name to filter"
+                          />
+                          <input
+                            type="checkbox"
+                            checked={cl.isActive !== false}
+                            onChange={e => {
+                              const updated = [...(settingsForm.footerCategoryLinks || [])];
+                              updated[idx] = { ...updated[idx], isActive: e.target.checked };
+                              setSettingsForm(prev => ({ ...prev, footerCategoryLinks: updated }));
+                            }}
+                            className="w-3.5 h-3.5 accent-[#D71920]"
+                            title="Show Category"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = (settingsForm.footerCategoryLinks || []).filter((_, i) => i !== idx);
+                              setSettingsForm(prev => ({ ...prev, footerCategoryLinks: updated }));
+                            }}
+                            className="p-1 text-red-600 hover:bg-red-50 rounded cursor-pointer"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block font-bold uppercase text-[#5F6368] mb-1">Official bKash Number</label>
-                  <input 
-                    type="text" 
-                    value={settingsForm.bkashNumber || ''} 
-                    onChange={e => setSettingsForm(prev => ({ ...prev, bkashNumber: e.target.value }))}
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]" 
-                  />
+
+                {/* Row 4: Footer Social Media Links List */}
+                <div className="p-4 rounded-2xl bg-[#F7F7F8] border border-neutral-200 space-y-3 text-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-3">
+                      <span className="font-black text-neutral-900 uppercase">Footer Social Media Links</span>
+                      <input
+                        type="text"
+                        value={settingsForm.footerSocialTitle ?? 'Social Media'}
+                        onChange={e => setSettingsForm(prev => ({ ...prev, footerSocialTitle: e.target.value }))}
+                        placeholder="Social Media Heading"
+                        className="px-3 py-1 rounded-lg border border-neutral-300 bg-white font-bold text-xs"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const current = settingsForm.socialLinks || [];
+                        setSettingsForm(prev => ({
+                          ...prev,
+                          socialLinks: [
+                            ...current,
+                            { id: 'soc-' + Date.now(), name: 'Facebook', url: 'https://facebook.com', icon: 'facebook', isActive: true }
+                          ]
+                        }));
+                      }}
+                      className="px-3 py-1.5 bg-[#D71920] text-white rounded-xl font-bold text-[11px] flex items-center gap-1 cursor-pointer self-start sm:self-auto"
+                    >
+                      <Plus size={12} /> Add Social Link
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {(settingsForm.socialLinks || []).map((soc, idx) => (
+                      <div key={soc.id || idx} className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center bg-white p-2.5 rounded-xl border border-[#E5E5E5]">
+                        <input 
+                          type="text"
+                          placeholder="Platform Name (e.g. Facebook)"
+                          value={soc.name}
+                          onChange={e => {
+                            const updated = [...(settingsForm.socialLinks || [])];
+                            updated[idx] = { ...updated[idx], name: e.target.value };
+                            setSettingsForm(prev => ({ ...prev, socialLinks: updated }));
+                          }}
+                          className="sm:col-span-4 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-bold"
+                        />
+                        <input 
+                          type="text"
+                          placeholder="URL (https://...)"
+                          value={soc.url}
+                          onChange={e => {
+                            const updated = [...(settingsForm.socialLinks || [])];
+                            updated[idx] = { ...updated[idx], url: e.target.value };
+                            setSettingsForm(prev => ({ ...prev, socialLinks: updated }));
+                          }}
+                          className="sm:col-span-6 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-semibold"
+                        />
+                        <div className="sm:col-span-2 flex items-center justify-end gap-2">
+                          <label className="flex items-center gap-1 text-xs font-semibold cursor-pointer">
+                            <input 
+                              type="checkbox"
+                              checked={soc.isActive}
+                              onChange={e => {
+                                const updated = [...(settingsForm.socialLinks || [])];
+                                updated[idx] = { ...updated[idx], isActive: e.target.checked };
+                                setSettingsForm(prev => ({ ...prev, socialLinks: updated }));
+                              }}
+                              className="w-4 h-4 accent-[#D71920]"
+                            />
+                            <span>Active</span>
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = (settingsForm.socialLinks || []).filter((_, i) => i !== idx);
+                              setSettingsForm(prev => ({ ...prev, socialLinks: updated }));
+                            }}
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg cursor-pointer"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -4666,7 +5438,7 @@ export function AdminDashboard() {
               <div className="pt-6 border-t border-[#EEEEEE] space-y-4">
                 <h3 className="text-sm font-black text-[#171717] uppercase tracking-wider flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
-                  Marketing & Conversion Tracking APIs (Facebook CAPI, GA4, TikTok)
+                  5. Marketing & Conversion Tracking APIs (Facebook CAPI, GA4, TikTok)
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   <div>
@@ -4709,95 +5481,6 @@ export function AdminDashboard() {
                       className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
                     />
                   </div>
-                </div>
-              </div>
-
-              {/* Footer Payment Methods & Social Media Management */}
-              <div className="pt-6 border-t border-[#EEEEEE] space-y-4">
-                <h3 className="text-sm font-black text-[#171717] uppercase tracking-wider flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
-                  Footer Payment Options & Social Media Manager
-                </h3>
-                <p className="text-xs text-[#5F6368]">
-                  Manage the payment option badges and social media links displayed in your website footer.
-                </p>
-
-                {/* Footer Payment Methods List */}
-                <div className="space-y-2">
-                  <label className="block font-bold text-xs text-slate-700">Footer Payment Options</label>
-                  {(settingsForm.footerPaymentMethods || []).map((pm, idx) => (
-                    <div key={pm.id} className="flex items-center gap-3 bg-[#F7F7F8] p-2.5 rounded-xl border border-[#E5E5E5]">
-                      <input 
-                        type="text"
-                        value={pm.name}
-                        onChange={e => {
-                          const updated = [...(settingsForm.footerPaymentMethods || [])];
-                          updated[idx].name = e.target.value;
-                          setSettingsForm(prev => ({ ...prev, footerPaymentMethods: updated }));
-                        }}
-                        className="flex-1 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-bold"
-                      />
-                      <label className="flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
-                        <input 
-                          type="checkbox"
-                          checked={pm.isActive}
-                          onChange={e => {
-                            const updated = [...(settingsForm.footerPaymentMethods || [])];
-                            updated[idx].isActive = e.target.checked;
-                            setSettingsForm(prev => ({ ...prev, footerPaymentMethods: updated }));
-                          }}
-                          className="w-4 h-4 accent-[#D71920]"
-                        />
-                        Show in Footer
-                      </label>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Footer Social Media Links List */}
-                <div className="space-y-2 pt-2">
-                  <label className="block font-bold text-xs text-slate-700">Footer Social Media Links ("Our Social Media")</label>
-                  {(settingsForm.socialLinks || []).map((soc, idx) => (
-                    <div key={soc.id} className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-[#F7F7F8] p-2.5 rounded-xl border border-[#E5E5E5]">
-                      <input 
-                        type="text"
-                        placeholder="Platform Name (e.g. Facebook)"
-                        value={soc.name}
-                        onChange={e => {
-                          const updated = [...(settingsForm.socialLinks || [])];
-                          updated[idx].name = e.target.value;
-                          setSettingsForm(prev => ({ ...prev, socialLinks: updated }));
-                        }}
-                        className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-bold"
-                      />
-                      <input 
-                        type="text"
-                        placeholder="URL (https://...)"
-                        value={soc.url}
-                        onChange={e => {
-                          const updated = [...(settingsForm.socialLinks || [])];
-                          updated[idx].url = e.target.value;
-                          setSettingsForm(prev => ({ ...prev, socialLinks: updated }));
-                        }}
-                        className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-semibold"
-                      />
-                      <div className="flex items-center justify-between">
-                        <label className="flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
-                          <input 
-                            type="checkbox"
-                            checked={soc.isActive}
-                            onChange={e => {
-                              const updated = [...(settingsForm.socialLinks || [])];
-                              updated[idx].isActive = e.target.checked;
-                              setSettingsForm(prev => ({ ...prev, socialLinks: updated }));
-                            }}
-                            className="w-4 h-4 accent-[#D71920]"
-                          />
-                          Active
-                        </label>
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </div>
 
