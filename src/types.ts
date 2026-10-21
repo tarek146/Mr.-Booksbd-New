@@ -112,6 +112,8 @@ export interface PaymentMethodConfig {
   id: string;
   name: string; // e.g. "bKash Personal", "Nagad Merchant", "City Bank Transfer"
   type: 'bkash' | 'nagad' | 'rocket' | 'upay' | 'bank' | 'cod';
+  subtitle?: string; // e.g. "হাতে পেয়ে মূল্য পরিশোধ", "বিকাশ সেন্ড মানি"
+  badgeText?: string; // e.g. "5% OFF"
   accountName: string;
   accountNumber: string;
   accountType?: 'Personal' | 'Merchant' | 'Agent';

@@ -49,6 +49,8 @@ import {
 import { Author, Banner, Order } from '../types';
 import { AdminAnalytics } from '../components/admin/AdminAnalytics';
 import { compressImageFile } from '../utils/imageCompressor';
+import { sortPaymentMethods, getPaymentMethodDisplayMeta } from '../utils/reviewHelpers';
+import { PaymentBrandIcon } from '../components/PaymentInstructions';
 
 export function AdminDashboard() {
   const { currentUser, isAdmin, loading: authLoading, signIn, logout } = useAuth();
@@ -1362,77 +1364,127 @@ export function AdminDashboard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {paymentMethods.map(pm => (
-                <div key={pm.id} className="p-5 rounded-2xl border border-[#E5E5E5] bg-[#F7F7F8] space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      {pm.logoUrl ? (
-                        <img src={pm.logoUrl} alt={pm.name} className="w-8 h-8 object-contain rounded-lg border border-[#E5E5E5] bg-white p-0.5 shrink-0 shadow-2xs" />
-                      ) : pm.type === 'bkash' ? (
-                        <div className="w-8 h-8 rounded-lg bg-[#E2136E] text-white font-black text-[10px] flex items-center justify-center shrink-0 shadow-2xs">bKash</div>
-                      ) : pm.type === 'nagad' ? (
-                        <div className="w-8 h-8 rounded-lg bg-[#F15A24] text-white font-black text-[9px] flex items-center justify-center shrink-0 shadow-2xs">নগদ</div>
-                      ) : pm.type === 'rocket' ? (
-                        <div className="w-8 h-8 rounded-lg bg-[#8C3494] text-white font-black text-[10px] flex items-center justify-center shrink-0 shadow-2xs">Rocket</div>
-                      ) : (
-                        <div className="w-8 h-8 rounded-lg bg-zinc-800 text-white font-black text-[10px] flex items-center justify-center shrink-0 shadow-2xs">{pm.type.toUpperCase()}</div>
-                      )}
+              {sortPaymentMethods(paymentMethods).map((pm, idx) => {
+                const meta = getPaymentMethodDisplayMeta(pm);
+                return (
+                  <div key={pm.id} className="p-5 rounded-2xl border border-[#E5E5E5] bg-[#F7F7F8] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <PaymentBrandIcon method={pm} size="sm" />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded">
+                              #{idx + 1}
+                            </span>
+                            <h3 className="font-bold text-sm text-[#171717]">{meta.displayTitle}</h3>
+                            {meta.badgeText && (
+                              <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-[#FF8A00] to-[#E2136E] text-white text-[9px] font-black">
+                                🔥 {meta.badgeText}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] font-bold uppercase text-[#D71920]">{pm.type} • {meta.displaySubtitle}</span>
+                        </div>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${pm.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-200 text-zinc-600'}`}>
+                        {pm.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+
+                    {/* Editable Account Number, Subtitle & Promo Badge */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
                       <div>
-                        <h3 className="font-bold text-sm text-[#171717]">{pm.name}</h3>
-                        <span className="text-[10px] font-bold uppercase text-[#D71920]">{pm.type}</span>
+                        <label className="block text-[10px] font-bold text-[#5F6368] uppercase mb-1">
+                          Account / Number
+                        </label>
+                        <input
+                          type="text"
+                          value={pm.accountNumber || ''}
+                          onChange={e => updatePaymentMethod(pm.id, { accountNumber: e.target.value })}
+                          className="w-full px-2.5 py-1.5 rounded-lg border border-[#E5E5E5] bg-white text-xs font-mono font-bold text-[#171717]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-[#5F6368] uppercase mb-1">
+                          Subtitle (সাবটাইটেল)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder={meta.displaySubtitle}
+                          value={pm.subtitle ?? meta.displaySubtitle}
+                          onChange={e => updatePaymentMethod(pm.id, { subtitle: e.target.value })}
+                          className="w-full px-2.5 py-1.5 rounded-lg border border-[#E5E5E5] bg-white text-xs text-[#171717]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-[#5F6368] uppercase mb-1">
+                          Promo Badge (e.g. 5% OFF)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 5% OFF"
+                          value={pm.badgeText ?? meta.badgeText}
+                          onChange={e => updatePaymentMethod(pm.id, { badgeText: e.target.value })}
+                          className="w-full px-2.5 py-1.5 rounded-lg border border-[#E5E5E5] bg-white text-xs font-bold text-[#E2136E]"
+                        />
                       </div>
                     </div>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${pm.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-200 text-zinc-600'}`}>
-                      {pm.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </div>
 
-                  <p className="text-xs font-mono font-bold text-[#171717]">
-                    {pm.accountNumber} <span className="font-sans font-normal text-[#5F6368]">({pm.accountName})</span>
-                  </p>
-                  <p className="text-xs text-[#777777] line-clamp-2">{pm.instructions}</p>
-
-                  {/* Icon Image Management Row */}
-                  <div className="p-2.5 rounded-xl bg-white border border-[#E5E5E5] space-y-1.5 text-xs">
-                    <label className="block text-[10px] font-bold text-[#5F6368] uppercase tracking-wider">
-                      Icon / Logo (আইকন / লোগো আপলোড)
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <input 
-                        type="text" 
-                        placeholder="Icon Image URL..." 
-                        value={pm.logoUrl || ''} 
-                        onChange={e => updatePaymentMethod(pm.id, { logoUrl: e.target.value })}
-                        className="flex-1 px-3 py-1.5 rounded-lg border border-[#E5E5E5] bg-[#F7F7F8] text-xs text-[#171717]"
-                      />
-                      <label className="px-3 py-1.5 bg-[#FFF1F2] hover:bg-[#D71920] text-[#D71920] hover:text-white font-bold rounded-lg border border-[#D71920]/30 text-[11px] cursor-pointer transition-all shrink-0">
-                        Upload Icon
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          className="hidden" 
-                          onChange={e => handlePmIconFileUpload(e, pm.id)} 
-                        />
+                    {/* Editable Popup Instructions */}
+                    <div>
+                      <label className="block text-[10px] font-bold text-[#5F6368] uppercase mb-1">
+                        Popup Payment Instructions (পপআপ নির্দেশনা)
                       </label>
+                      <textarea
+                        rows={2}
+                        value={pm.instructions || meta.instructionText}
+                        onChange={e => updatePaymentMethod(pm.id, { instructions: e.target.value })}
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-[#E5E5E5] bg-white text-xs text-[#171717]"
+                      />
+                    </div>
+
+                    {/* Icon Image Management Row */}
+                    <div className="p-2.5 rounded-xl bg-white border border-[#E5E5E5] space-y-1.5 text-xs">
+                      <label className="block text-[10px] font-bold text-[#5F6368] uppercase tracking-wider">
+                        Icon / Logo (আইকন / লোগো আপলোড)
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="text" 
+                          placeholder="Custom Icon Image URL (leave empty for default brand icon)..." 
+                          value={meta.customLogoUrl || ''} 
+                          onChange={e => updatePaymentMethod(pm.id, { logoUrl: e.target.value })}
+                          className="flex-1 px-3 py-1.5 rounded-lg border border-[#E5E5E5] bg-[#F7F7F8] text-xs text-[#171717]"
+                        />
+                        <label className="px-3 py-1.5 bg-[#FFF1F2] hover:bg-[#D71920] text-[#D71920] hover:text-white font-bold rounded-lg border border-[#D71920]/30 text-[11px] cursor-pointer transition-all shrink-0">
+                          Upload Icon
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={e => handlePmIconFileUpload(e, pm.id)} 
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex items-center justify-between border-t border-[#E5E5E5]">
+                      <button 
+                        onClick={() => updatePaymentMethod(pm.id, { isActive: !pm.isActive })}
+                        className="text-xs font-bold text-[#D71920] hover:underline cursor-pointer"
+                      >
+                        {pm.isActive ? 'Deactivate' : 'Activate'}
+                      </button>
+                      <button 
+                        onClick={() => deletePaymentMethod(pm.id)}
+                        className="text-xs text-red-600 hover:text-red-700 flex items-center gap-1 cursor-pointer"
+                      >
+                        <Trash2 size={12} /> Remove
+                      </button>
                     </div>
                   </div>
-
-                  <div className="pt-2 flex items-center justify-between border-t border-[#E5E5E5]">
-                    <button 
-                      onClick={() => updatePaymentMethod(pm.id, { isActive: !pm.isActive })}
-                      className="text-xs font-bold text-[#D71920] hover:underline cursor-pointer"
-                    >
-                      {pm.isActive ? 'Deactivate' : 'Activate'}
-                    </button>
-                    <button 
-                      onClick={() => deletePaymentMethod(pm.id)}
-                      className="text-xs text-red-600 hover:text-red-700 flex items-center gap-1 cursor-pointer"
-                    >
-                      <Trash2 size={12} /> Remove
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {showAddPmModal && (

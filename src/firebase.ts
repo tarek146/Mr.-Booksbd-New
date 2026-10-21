@@ -23,60 +23,68 @@ export const ADMIN_EMAIL = 'mr.booksbd700@gmail.com';
 
 export const DEFAULT_PAYMENT_METHODS: PaymentMethodConfig[] = [
   {
+    id: 'cod',
+    name: 'Cash on Delivery (COD)',
+    type: 'cod',
+    subtitle: 'হাতে পেয়ে মূল্য পরিশোধ',
+    badgeText: '',
+    accountName: 'Cash on Delivery',
+    accountNumber: 'N/A',
+    instructions: 'বই হাতে পেয়ে ডেলিভারি ম্যানের কাছে নগদ অর্থ পরিশোধ করুন। (সারাদেশে ক্যাশ অন ডেলিভারি সুবিধা রয়েছে)',
+    isActive: true,
+    displayOrder: 1
+  },
+  {
     id: 'bkash-personal',
-    name: 'bKash Personal',
+    name: 'বিকাশ',
     type: 'bkash',
+    subtitle: 'বিকাশ সেন্ড মানি',
+    badgeText: '5% OFF',
     accountName: 'MR. BOOKS Official',
     accountNumber: '01712345678',
     accountType: 'Personal',
-    instructions: '1. Go to your bKash app or dial *247#.\n2. Choose "Send Money".\n3. Enter receiver number: 01712345678.\n4. Enter exact amount.\n5. Save the Transaction ID (TrxID) and enter it below.',
+    instructions: 'বিকাশ অ্যাপ অথবা *247# ডায়াল করে নির্ধারিত নম্বরে Send Money করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।',
     isActive: true,
-    displayOrder: 1,
-    logoUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=80'
+    displayOrder: 2
   },
   {
     id: 'nagad-personal',
-    name: 'Nagad Personal',
+    name: 'নগদ',
     type: 'nagad',
+    subtitle: 'নগদ সেন্ড মানি',
+    badgeText: '5% OFF',
     accountName: 'MR. BOOKS BD',
     accountNumber: '01812345678',
     accountType: 'Personal',
-    instructions: '1. Open Nagad App or dial *167#.\n2. Select Send Money.\n3. Enter account number: 01812345678.\n4. Enter amount and PIN.\n5. Copy Transaction ID (TrxID) after confirmation.',
+    instructions: 'নগদ অ্যাপ অথবা *167# ডায়াল করে নির্ধারিত নম্বরে Send Money করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।',
     isActive: true,
-    displayOrder: 2,
-    logoUrl: 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=100&auto=format&fit=crop&q=80'
+    displayOrder: 3
   },
   {
     id: 'rocket-personal',
-    name: 'Rocket Mobile',
+    name: 'রকেট',
     type: 'rocket',
+    subtitle: 'রকেট সেন্ড মানি',
+    badgeText: '5% OFF',
     accountName: 'MR. BOOKS Account',
     accountNumber: '019123456789',
     accountType: 'Personal',
-    instructions: '1. Dial *322# or use Rocket App.\n2. Select Send Money.\n3. Enter account number: 019123456789.\n4. Enter amount and enter PIN.\n5. Save Txn ID.',
+    instructions: 'রকেট অ্যাপ অথবা *322# ডায়াল করে নির্ধারিত নম্বরে Send Money করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।',
     isActive: true,
-    displayOrder: 3
+    displayOrder: 4
   },
   {
     id: 'bank-transfer',
     name: 'Bank Transfer (DBBL / EBL)',
     type: 'bank',
+    subtitle: 'ব্যাংক একাউন্টে পেমেন্ট',
+    badgeText: '',
     accountName: 'MR. BOOKS ENTERPRISE',
     accountNumber: '123-110-456789',
     bankName: 'Eastern Bank PLC',
     branchName: 'Gulshan Branch, Dhaka',
     routingNumber: '095261234',
-    instructions: 'Transfer the exact order amount to our Eastern Bank account.\nAccount Name: MR. BOOKS ENTERPRISE\nA/C No: 123-110-456789\nRouting: 095261234\nUpload bank receipt or transaction reference after payment.',
-    isActive: true,
-    displayOrder: 4
-  },
-  {
-    id: 'cod',
-    name: 'Cash on Delivery (COD)',
-    type: 'cod',
-    accountName: 'Cash on Delivery',
-    accountNumber: 'N/A',
-    instructions: 'Pay with cash when your book or stationery package is delivered to your doorstep. (Available across Bangladesh)',
+    instructions: 'নির্ধারিত ব্যাংক একাউন্টে মোট টাকার পরিমাণ ট্রান্সফার করে ট্রানজেকশন রেফারেন্স বা রিসিপ্ট আইডি নিচে দিন।',
     isActive: true,
     displayOrder: 5
   }

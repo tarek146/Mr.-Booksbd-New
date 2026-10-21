@@ -1,9 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
-import { PaymentInstructions } from '../components/PaymentInstructions';
-import { validateBangladeshPhone } from '../utils/reviewHelpers';
-import { Truck, CreditCard, Copy, Check, ArrowLeft, ArrowRight, Phone } from 'lucide-react';
+import { PaymentInstructions, PaymentBrandIcon } from '../components/PaymentInstructions';
+import {
+  validateBangladeshPhone,
+  sortPaymentMethods,
+  getPaymentMethodDisplayMeta,
+  validatePaymentTransactionPopup,
+} from '../utils/reviewHelpers';
+import { PaymentMethodConfig } from '../types';
+import { Truck, CreditCard, Check, ArrowLeft, ArrowRight, Phone } from 'lucide-react';
 
 const BANGLADESH_DISTRICTS = [
   'Dhaka', 'Gazipur', 'Narayanganj', 'Chittagong', 'Sylhet', 'Rajshahi', 
@@ -23,32 +29,79 @@ export function CheckoutPage() {
   const [address, setAddress] = useState('');
   const [customerNote, setCustomerNote] = useState('');
 
-  // Payment Verification State
+  // Payment Verification & Popup Modal State
   const [transactionId, setTransactionId] = useState('');
   const [senderNumber, setSenderNumber] = useState('');
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isPaymentSubmitted, setIsPaymentSubmitted] = useState(false);
 
   // Delivery type: 'standard' (Home Delivery) or 'sundarban' (Sundarban Courier)
   const [deliveryType, setDeliveryType] = useState<'standard' | 'sundarban'>('standard');
 
+  // Deterministically sorted payment methods: Cash on Delivery (COD) 1st -> bKash 2nd -> Nagad -> Rocket -> Upay -> Bank
+  const sortedPaymentMethods = useMemo(() => {
+    return sortPaymentMethods(
+      paymentMethods.filter(
+        m =>
+          m.isActive &&
+          (deliveryType !== 'sundarban' ||
+            m.type !== 'cod' ||
+            settings.sundarbanForcesPrepayment === false)
+      )
+    );
+  }, [paymentMethods, deliveryType, settings.sundarbanForcesPrepayment]);
+
   const [selectedPaymentId, setSelectedPaymentId] = useState<string>(
-    paymentMethods.find(m => m.isActive && m.type === 'cod')?.id || paymentMethods[0]?.id || 'cod'
+    () =>
+      paymentMethods.find(m => m.isActive && m.type === 'cod')?.id ||
+      paymentMethods[0]?.id ||
+      'cod'
   );
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // If Sundarban is selected and prepayment is enforced, ensure COD is deselected and pick first online payment method
+  // Ensure COD is selected by default when payment methods finish loading on Standard Delivery
+  useEffect(() => {
+    if (sortedPaymentMethods.length === 0) return;
+    const exists = sortedPaymentMethods.some(m => m.id === selectedPaymentId);
+    if (!exists) {
+      const codMethod = sortedPaymentMethods.find(m => m.type === 'cod');
+      setSelectedPaymentId(codMethod?.id || sortedPaymentMethods[0].id);
+    }
+  }, [sortedPaymentMethods, selectedPaymentId]);
+
+  const handleSelectPaymentMethod = (method: PaymentMethodConfig) => {
+    const isSwitchingMethod = selectedPaymentId !== method.id;
+    setSelectedPaymentId(method.id);
+    setErrorMsg('');
+
+    if (method.type === 'cod') {
+      setIsPaymentModalOpen(false);
+      setIsPaymentSubmitted(false);
+    } else {
+      if (isSwitchingMethod) {
+        setIsPaymentSubmitted(false);
+      }
+      setIsPaymentModalOpen(true);
+    }
+  };
+
+  // If Sundarban is selected and prepayment is enforced, ensure COD is deselected and pick first online payment method (bKash)
   const handleDeliveryTypeChange = (type: 'standard' | 'sundarban') => {
     setDeliveryType(type);
     if (type === 'sundarban' && settings.sundarbanForcesPrepayment !== false) {
-      const onlineMethod = paymentMethods.find(m => m.isActive && m.type !== 'cod');
+      const onlineMethod = sortPaymentMethods(paymentMethods).find(
+        m => m.isActive && m.type !== 'cod'
+      );
       if (onlineMethod) {
         setSelectedPaymentId(onlineMethod.id);
+        setIsPaymentModalOpen(true);
       }
     }
   };
 
   // Calculate form completion percentage parameter (25% each for Name, Phone, Address, District/City)
-  const completionPercentage = React.useMemo(() => {
+  const completionPercentage = useMemo(() => {
     let score = 0;
     if (name.trim().length >= 2) score += 25;
     if (/^(\+?8801|01)[3-9]\d{8}$/.test(phone.trim().replace(/[\s-]/g, ''))) score += 25;
@@ -71,7 +124,10 @@ export function CheckoutPage() {
   const deliveryCharge = baseDelivery + extraWeightCharge;
   const total = subtotal + deliveryCharge;
 
-  const selectedMethod = paymentMethods.find(m => m.id === selectedPaymentId) || paymentMethods[0];
+  const selectedMethod =
+    sortedPaymentMethods.find(m => m.id === selectedPaymentId) ||
+    sortedPaymentMethods[0] ||
+    paymentMethods[0];
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,6 +164,23 @@ export function CheckoutPage() {
     if (deliveryType === 'sundarban' && settings.sundarbanForcesPrepayment !== false && selectedMethod?.type === 'cod') {
       setErrorMsg('Sundarban Courier Delivery requires advance online payment (bKash/Nagad/Card). Cash on Delivery is disabled for Sundarban.');
       return;
+    }
+
+    // For online/manual payment methods, ensure the user submitted their transaction details via the popup Done button
+    if (selectedMethod && selectedMethod.type !== 'cod') {
+      const popupCheck = validatePaymentTransactionPopup(
+        selectedMethod.type,
+        senderNumber,
+        transactionId
+      );
+      if (!popupCheck.valid || !isPaymentSubmitted) {
+        setIsPaymentModalOpen(true);
+        setErrorMsg(
+          popupCheck.error ||
+            'অনুগ্রহ করে পপআপে ট্রানজেকশন তথ্য পূরণ করে "Done" বাটনে ক্লিক করুন, তারপর অর্ডার কনফার্ম করুন।'
+        );
+        return;
+      }
     }
 
     if (cart.length === 0) {
@@ -391,87 +464,85 @@ export function CheckoutPage() {
               )}
             </div>
 
-            {/* Manual Payment Method Selection */}
+            {/* Payment Method Selection (Ordered: COD -> bKash -> Nagad -> Rocket -> Others) */}
             <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 sm:p-8 shadow-xs space-y-5">
-              <div className="flex items-center gap-3 pb-4 border-b border-[#EEEEEE]">
-                <div className="w-10 h-10 bg-[#FFF1F2] text-[#D71920] rounded-xl flex items-center justify-center">
-                  <CreditCard size={20} />
+              <div className="space-y-1 pb-3 border-b border-[#EEEEEE]">
+                <div className="flex items-center gap-2.5">
+                  <CreditCard size={20} className="text-[#F15A24] shrink-0" />
+                  <h2 className="text-lg font-black text-[#171717]">Select Payment Method</h2>
                 </div>
-                <div>
-                  <h2 className="text-lg font-black text-[#171717]">Payment Method</h2>
-                  <p className="text-xs text-[#5F6368]">
-                    {deliveryType === 'sundarban' 
-                      ? 'Select Online Payment Method (Sundarban Courier requires advance payment)'
-                      : 'Select manual payment method or Cash on Delivery'}
-                  </p>
-                </div>
+                <p className="text-xs text-[#5F6368]">
+                  {deliveryType === 'sundarban'
+                    ? 'Select Online Payment Method (Sundarban Courier requires advance payment)'
+                    : 'Cash on Delivery or Mobile Banking (bKash / Nagad / Rocket)'}
+                </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {paymentMethods.filter(m => m.isActive && (deliveryType !== 'sundarban' || m.type !== 'cod' || settings.sundarbanForcesPrepayment === false)).map(method => {
+              <div
+                data-testid="payment-methods-grid"
+                className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1"
+              >
+                {sortedPaymentMethods.map(method => {
                   const isSelected = selectedPaymentId === method.id;
+                  const meta = getPaymentMethodDisplayMeta(method);
                   return (
-                    <div 
+                    <div
                       key={method.id}
-                      onClick={() => setSelectedPaymentId(method.id)}
-                      className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between ${
-                        isSelected 
-                          ? 'border-[#D71920] bg-[#FFF1F2] shadow-xs' 
-                          : 'border-[#E5E5E5] bg-white hover:border-zinc-400'
+                      data-testid={`payment-card-${method.type}`}
+                      onClick={() => handleSelectPaymentMethod(method)}
+                      className={`relative p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between gap-3 ${
+                        isSelected
+                          ? 'border-[#E2136E] bg-[#FFF5F9]/70 shadow-xs ring-2 ring-[#E2136E]/10'
+                          : 'border-slate-200/90 bg-white hover:border-slate-300'
                       }`}
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        {method.logoUrl ? (
-                          <img src={method.logoUrl} alt={method.name} className="w-8 h-8 object-contain rounded-lg shrink-0 border border-[#E5E5E5] p-0.5 bg-white" />
-                        ) : method.type === 'bkash' ? (
-                          <div className="w-8 h-8 rounded-lg bg-[#E2136E] text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs tracking-tighter">
-                            bKash
-                          </div>
-                        ) : method.type === 'nagad' ? (
-                          <div className="w-8 h-8 rounded-lg bg-[#F15A24] text-white font-black text-[10px] flex items-center justify-center shrink-0 shadow-xs">
-                            নগদ
-                          </div>
-                        ) : method.type === 'rocket' ? (
-                          <div className="w-8 h-8 rounded-lg bg-[#8C3494] text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs">
-                            Rocket
-                          </div>
-                        ) : method.type === 'upay' ? (
-                          <div className="w-8 h-8 rounded-lg bg-[#00A859] text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs">
-                            Upay
-                          </div>
-                        ) : method.type === 'bank' ? (
-                          <div className="w-8 h-8 rounded-lg bg-[#1E3A8A] text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs">
-                            Bank
-                          </div>
-                        ) : (
-                          <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white font-black text-[10px] flex items-center justify-center shrink-0 shadow-xs">
-                            COD
-                          </div>
-                        )}
+                      {/* Top-right Promo Badge (e.g., 🔥 5% OFF) */}
+                      {meta.badgeText && (
+                        <span className="absolute -top-2.5 right-3.5 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-[#FF8A00] via-[#F15A24] to-[#E2136E] text-white text-[10px] font-black tracking-wide shadow-xs flex items-center gap-1 z-10">
+                          <span>🔥</span>
+                          <span>{meta.badgeText}</span>
+                        </span>
+                      )}
+
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <PaymentBrandIcon method={method} size="md" />
                         <div className="truncate">
-                          <h4 className="font-bold text-sm text-[#171717] truncate">{method.name}</h4>
-                          <p className="text-[11px] text-[#5F6368] uppercase font-semibold text-[10px] tracking-wide">{method.accountType || method.type}</p>
+                          <h4 className="font-black text-[15px] text-slate-900 leading-snug truncate">
+                            {meta.displayTitle}
+                          </h4>
+                          <p className="text-xs text-slate-500 truncate mt-0.5">
+                            {meta.displaySubtitle}
+                          </p>
                         </div>
                       </div>
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                        isSelected ? 'border-[#D71920] bg-[#D71920] text-white' : 'border-[#CCCCCC]'
-                      }`}>
-                        {isSelected && <div className="w-2 h-2 bg-white rounded-full"></div>}
+
+                      <div
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                          isSelected
+                            ? 'border-[#E2136E] bg-[#E2136E] text-white'
+                            : 'border-slate-300 bg-white'
+                        }`}
+                      >
+                        {isSelected && <Check size={12} strokeWidth={3} />}
                       </div>
                     </div>
                   );
                 })}
               </div>
 
-              {/* Dynamic Step-by-Step Payment Instructions & Verification Inputs */}
+              {/* Dynamic Payment Instructions Popup Modal & Status Summary */}
               {selectedMethod && (
-                <PaymentInstructions 
+                <PaymentInstructions
                   selectedMethod={selectedMethod}
                   totalAmount={total}
                   transactionId={transactionId}
                   setTransactionId={setTransactionId}
                   senderNumber={senderNumber}
                   setSenderNumber={setSenderNumber}
+                  isModalOpen={isPaymentModalOpen}
+                  setIsModalOpen={setIsPaymentModalOpen}
+                  isPaymentSubmitted={isPaymentSubmitted}
+                  setIsPaymentSubmitted={setIsPaymentSubmitted}
                 />
               )}
             </div>
