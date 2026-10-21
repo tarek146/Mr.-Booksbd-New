@@ -480,7 +480,7 @@ export function CheckoutPage() {
 
               <div
                 data-testid="payment-methods-grid"
-                className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1"
+                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5 pt-1"
               >
                 {sortedPaymentMethods.map(method => {
                   const isSelected = selectedPaymentId === method.id;
@@ -490,40 +490,40 @@ export function CheckoutPage() {
                       key={method.id}
                       data-testid={`payment-card-${method.type}`}
                       onClick={() => handleSelectPaymentMethod(method)}
-                      className={`relative p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between gap-3 ${
+                      className={`relative p-2.5 rounded-xl border-2 cursor-pointer transition-all flex flex-col justify-between gap-2 ${
                         isSelected
-                          ? 'border-[#E2136E] bg-[#FFF5F9]/70 shadow-xs ring-2 ring-[#E2136E]/10'
+                          ? 'border-[#D71920] bg-[#FFF1F2]/70 shadow-2xs ring-2 ring-[#D71920]/10'
                           : 'border-slate-200/90 bg-white hover:border-slate-300'
                       }`}
                     >
-                      {/* Top-right Promo Badge (e.g., 🔥 5% OFF) */}
+                      {/* Optional Top-right Promo Badge (only if set from Admin Panel) */}
                       {meta.badgeText && (
-                        <span className="absolute -top-2.5 right-3.5 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-[#FF8A00] via-[#F15A24] to-[#E2136E] text-white text-[10px] font-black tracking-wide shadow-xs flex items-center gap-1 z-10">
+                        <span className="absolute -top-2 right-2 px-1.5 py-0.5 rounded-full bg-gradient-to-r from-[#FF8A00] via-[#F15A24] to-[#E2136E] text-white text-[9px] font-black tracking-wide shadow-2xs flex items-center gap-0.5 z-10">
                           <span>🔥</span>
                           <span>{meta.badgeText}</span>
                         </span>
                       )}
 
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        <PaymentBrandIcon method={method} size="md" />
-                        <div className="truncate">
-                          <h4 className="font-black text-[15px] text-slate-900 leading-snug truncate">
-                            {meta.displayTitle}
-                          </h4>
-                          <p className="text-xs text-slate-500 truncate mt-0.5">
-                            {meta.displaySubtitle}
-                          </p>
+                      <div className="flex items-center justify-between gap-1.5">
+                        <PaymentBrandIcon method={method} size="sm" />
+                        <div
+                          className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                            isSelected
+                              ? 'border-[#D71920] bg-[#D71920] text-white'
+                              : 'border-slate-300 bg-white'
+                          }`}
+                        >
+                          {isSelected && <Check size={10} strokeWidth={3} />}
                         </div>
                       </div>
 
-                      <div
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
-                          isSelected
-                            ? 'border-[#E2136E] bg-[#E2136E] text-white'
-                            : 'border-slate-300 bg-white'
-                        }`}
-                      >
-                        {isSelected && <Check size={12} strokeWidth={3} />}
+                      <div className="min-w-0">
+                        <h4 className="font-black text-xs text-slate-900 leading-tight truncate">
+                          {meta.displayTitle}
+                        </h4>
+                        <p className="text-[10px] text-slate-500 leading-tight truncate mt-0.5">
+                          {meta.displaySubtitle}
+                        </p>
                       </div>
                     </div>
                   );

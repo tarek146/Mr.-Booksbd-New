@@ -110,19 +110,23 @@ export interface PaymentSubmission {
 
 export interface PaymentMethodConfig {
   id: string;
-  name: string; // e.g. "bKash Personal", "Nagad Merchant", "City Bank Transfer"
+  name: string; // e.g. "বিকাশ", "নগদ", "ক্যাশ অন ডেলিভারি"
+  englishName?: string; // e.g. "bKash", "Nagad", "Cash on Delivery"
   type: 'bkash' | 'nagad' | 'rocket' | 'upay' | 'bank' | 'cod';
   subtitle?: string; // e.g. "হাতে পেয়ে মূল্য পরিশোধ", "বিকাশ সেন্ড মানি"
-  badgeText?: string; // e.g. "5% OFF"
+  badgeText?: string; // Optional offer badge set from Admin Panel (empty by default)
   accountName: string;
   accountNumber: string;
-  accountType?: 'Personal' | 'Merchant' | 'Agent';
+  accountType?: 'Personal' | 'Merchant' | 'Agent' | 'None';
+  requireTrxId?: boolean;
+  requireSenderPhone?: boolean;
   bankName?: string;
   branchName?: string;
   routingNumber?: string;
   instructions: string;
   isActive: boolean;
   displayOrder: number;
+  customOrder?: boolean;
   logoUrl?: string;
 }
 

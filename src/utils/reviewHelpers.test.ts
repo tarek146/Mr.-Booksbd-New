@@ -82,7 +82,7 @@ test('validateBangladeshPhone validates primary and optional phone numbers prope
   assert.equal(validateBangladeshPhone('12345', true).valid, false);
 });
 
-test('sortPaymentMethods places Cash on Delivery first, bKash second, followed by Nagad, Rocket, Upay, and Bank', () => {
+test('sortPaymentMethods places Cash on Delivery first, bKash second, followed by Nagad, Rocket, Upay, and Bank, and respects Admin customOrder', () => {
   const unsorted: PaymentMethodConfig[] = [
     { id: 'bank-transfer', name: 'Bank Transfer', type: 'bank', accountName: 'MRB', accountNumber: '123', instructions: '', isActive: true, displayOrder: 1 },
     { id: 'nagad-personal', name: 'Nagad Personal', type: 'nagad', accountName: 'MRB', accountNumber: '018', instructions: '', isActive: true, displayOrder: 2 },
@@ -93,9 +93,14 @@ test('sortPaymentMethods places Cash on Delivery first, bKash second, followed b
 
   const sorted = sortPaymentMethods(unsorted);
   assert.deepEqual(sorted.map(m => m.type), ['cod', 'bkash', 'nagad', 'rocket', 'bank']);
+
+  // When Admin reorders via Up/Down arrows (customOrder: true)
+  const adminReordered = unsorted.map((m, idx) => ({ ...m, customOrder: true, displayOrder: idx + 1 }));
+  const customSorted = sortPaymentMethods(adminReordered);
+  assert.deepEqual(customSorted.map(m => m.type), ['bank', 'nagad', 'cod', 'rocket', 'bkash']);
 });
 
-test('getPaymentMethodDisplayMeta provides Bengali labels, 5% OFF badge, and filters legacy unsplash stock urls', () => {
+test('getPaymentMethodDisplayMeta provides Bengali labels, empty badgeText by default, custom badgeText when set by Admin, and filters legacy unsplash stock urls', () => {
   const bkashMethod: PaymentMethodConfig = {
     id: 'bkash-personal',
     name: 'bKash Personal',
@@ -110,9 +115,13 @@ test('getPaymentMethodDisplayMeta provides Bengali labels, 5% OFF badge, and fil
 
   const meta = getPaymentMethodDisplayMeta(bkashMethod);
   assert.equal(meta.displayTitle, 'বিকাশ');
+  assert.equal(meta.englishName, 'bKash');
   assert.equal(meta.displaySubtitle, 'বিকাশ সেন্ড মানি');
-  assert.equal(meta.badgeText, '5% OFF');
+  assert.equal(meta.badgeText, '');
   assert.equal(meta.customLogoUrl, undefined);
+
+  const bkashWithAdminOffer = getPaymentMethodDisplayMeta({ ...bkashMethod, badgeText: '5% OFF' });
+  assert.equal(bkashWithAdminOffer.badgeText, '5% OFF');
 });
 
 test('validatePaymentTransactionPopup validates sender number and TrxID on popup Done click', () => {

@@ -93,11 +93,19 @@ const PAYMENT_TYPE_PRIORITY: Record<PaymentMethodConfig['type'], number> = {
 
 /**
  * Deterministic payment method sorting:
- * Guarantees Cash on Delivery (cod) is always 1st, followed by bKash (2nd),
+ * Respects Admin customOrder when reordered via Up/Down controls,
+ * otherwise guarantees Cash on Delivery (cod) is 1st, followed by bKash (2nd),
  * then Nagad, Rocket, Upay, and Bank Transfer.
  */
 export function sortPaymentMethods(methods: PaymentMethodConfig[]): PaymentMethodConfig[] {
   return [...methods].sort((a, b) => {
+    if (a.customOrder && b.customOrder) {
+      const orderA = Number(a.displayOrder ?? 99);
+      const orderB = Number(b.displayOrder ?? 99);
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+    }
     const prioA = PAYMENT_TYPE_PRIORITY[a.type] ?? 99;
     const prioB = PAYMENT_TYPE_PRIORITY[b.type] ?? 99;
     if (prioA !== prioB) {
@@ -118,13 +126,17 @@ const LEGACY_PLACEHOLDER_LOGOS = [
 ];
 
 /**
- * Returns normalized display title, subtitle, promo badge, instruction text,
- * and custom logo URL for a payment method card & popup modal.
+ * Returns normalized display title, English name, subtitle, optional promo badge (empty by default),
+ * account type, requirement flags, instruction text, and custom logo URL.
  */
 export function getPaymentMethodDisplayMeta(method: PaymentMethodConfig): {
   displayTitle: string;
+  englishName: string;
   displaySubtitle: string;
   badgeText: string;
+  accountType: 'Personal' | 'Merchant' | 'Agent' | 'None';
+  requireTrxId: boolean;
+  requireSenderPhone: boolean;
   instructionText: string;
   customLogoUrl?: string;
 } {
@@ -140,22 +152,33 @@ export function getPaymentMethodDisplayMeta(method: PaymentMethodConfig): {
     method.name === 'Rocket Mobile' ||
     method.name === 'Bank Transfer (DBBL / EBL)';
 
+  const badgeText = (method.badgeText || '').trim();
+
   switch (method.type) {
     case 'cod':
       return {
         displayTitle: isDefaultName ? 'ক্যাশ অন ডেলিভারি' : method.name,
+        englishName: method.englishName || 'Cash on Delivery',
         displaySubtitle: method.subtitle || 'হাতে পেয়ে মূল্য পরিশোধ',
-        badgeText: method.badgeText ?? '',
+        badgeText,
+        accountType: method.accountType || 'None',
+        requireTrxId: method.requireTrxId ?? false,
+        requireSenderPhone: method.requireSenderPhone ?? false,
         instructionText:
-          method.instructions ||
-          'বই হাতে পেয়ে ডেলিভারি ম্যানের কাছে নগদ অর্থ পরিশোধ করুন।',
+          method.instructions && !method.instructions.startsWith('Pay with cash')
+            ? method.instructions
+            : 'বই হাতে পেয়ে ডেলিভারি ম্যানের কাছে নগদ অর্থ পরিশোধ করুন।',
         customLogoUrl,
       };
     case 'bkash':
       return {
         displayTitle: isDefaultName ? 'বিকাশ' : method.name,
+        englishName: method.englishName || 'bKash',
         displaySubtitle: method.subtitle || 'বিকাশ সেন্ড মানি',
-        badgeText: method.badgeText !== undefined ? method.badgeText : '5% OFF',
+        badgeText,
+        accountType: method.accountType || 'Personal',
+        requireTrxId: method.requireTrxId ?? true,
+        requireSenderPhone: method.requireSenderPhone ?? true,
         instructionText:
           method.instructions && !method.instructions.startsWith('1. Go to your bKash app')
             ? method.instructions
@@ -165,8 +188,12 @@ export function getPaymentMethodDisplayMeta(method: PaymentMethodConfig): {
     case 'nagad':
       return {
         displayTitle: isDefaultName ? 'নগদ' : method.name,
+        englishName: method.englishName || 'Nagad',
         displaySubtitle: method.subtitle || 'নগদ সেন্ড মানি',
-        badgeText: method.badgeText !== undefined ? method.badgeText : '5% OFF',
+        badgeText,
+        accountType: method.accountType || 'Personal',
+        requireTrxId: method.requireTrxId ?? true,
+        requireSenderPhone: method.requireSenderPhone ?? true,
         instructionText:
           method.instructions && !method.instructions.startsWith('1. Open Nagad App')
             ? method.instructions
@@ -176,8 +203,12 @@ export function getPaymentMethodDisplayMeta(method: PaymentMethodConfig): {
     case 'rocket':
       return {
         displayTitle: isDefaultName ? 'রকেট' : method.name,
+        englishName: method.englishName || 'Rocket',
         displaySubtitle: method.subtitle || 'রকেট সেন্ড মানি',
-        badgeText: method.badgeText !== undefined ? method.badgeText : '5% OFF',
+        badgeText,
+        accountType: method.accountType || 'Personal',
+        requireTrxId: method.requireTrxId ?? true,
+        requireSenderPhone: method.requireSenderPhone ?? true,
         instructionText:
           method.instructions && !method.instructions.startsWith('1. Dial *322#')
             ? method.instructions
@@ -187,8 +218,12 @@ export function getPaymentMethodDisplayMeta(method: PaymentMethodConfig): {
     case 'upay':
       return {
         displayTitle: isDefaultName ? 'উপায়' : method.name,
+        englishName: method.englishName || 'Upay',
         displaySubtitle: method.subtitle || 'উপায় সেন্ড মানি',
-        badgeText: method.badgeText !== undefined ? method.badgeText : '5% OFF',
+        badgeText,
+        accountType: method.accountType || 'Personal',
+        requireTrxId: method.requireTrxId ?? true,
+        requireSenderPhone: method.requireSenderPhone ?? true,
         instructionText:
           method.instructions ||
           'উপায় অ্যাপ অথবা *268# ডায়াল করে নির্ধারিত নম্বরে Send Money করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।',
@@ -198,8 +233,12 @@ export function getPaymentMethodDisplayMeta(method: PaymentMethodConfig): {
     default:
       return {
         displayTitle: isDefaultName ? 'ব্যাংক ট্রান্সফার' : method.name,
+        englishName: method.englishName || 'Bank Transfer',
         displaySubtitle: method.subtitle || 'ব্যাংক একাউন্টে পেমেন্ট',
-        badgeText: method.badgeText ?? '',
+        badgeText,
+        accountType: method.accountType || 'Merchant',
+        requireTrxId: method.requireTrxId ?? true,
+        requireSenderPhone: method.requireSenderPhone ?? true,
         instructionText:
           method.instructions && !method.instructions.startsWith('Transfer the exact order amount')
             ? method.instructions

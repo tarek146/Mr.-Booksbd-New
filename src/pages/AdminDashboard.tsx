@@ -44,9 +44,14 @@ import {
   Star,
   ThumbsUp,
   ThumbsDown,
-  Heart
+  Heart,
+  ArrowUp,
+  ArrowDown,
+  Sparkles,
+  Phone
 } from 'lucide-react';
-import { Author, Banner, Order } from '../types';
+import { Author, Banner, Order, PaymentMethodConfig } from '../types';
+import { DEFAULT_PAYMENT_METHODS } from '../firebase';
 import { AdminAnalytics } from '../components/admin/AdminAnalytics';
 import { compressImageFile } from '../utils/imageCompressor';
 import { sortPaymentMethods, getPaymentMethodDisplayMeta } from '../utils/reviewHelpers';
@@ -163,12 +168,19 @@ export function AdminDashboard() {
   // New & Editing Payment Method modal state
   const [showAddPmModal, setShowAddPmModal] = useState(false);
   const [editingPmId, setEditingPmId] = useState<string | null>(null);
-  const [pmName, setPmName] = useState('');
+  const [pmName, setPmName] = useState('বিকাশ');
+  const [pmEnglishName, setPmEnglishName] = useState('bKash');
   const [pmType, setPmType] = useState<'bkash' | 'nagad' | 'rocket' | 'upay' | 'bank' | 'cod'>('bkash');
-  const [pmAccName, setPmAccName] = useState('');
+  const [pmSubtitle, setPmSubtitle] = useState('বিকাশ সেন্ড মানি');
+  const [pmBadgeText, setPmBadgeText] = useState('');
+  const [pmAccountType, setPmAccountType] = useState<'Personal' | 'Merchant' | 'Agent' | 'None'>('Personal');
+  const [pmAccName, setPmAccName] = useState('MR. BOOKS Official');
   const [pmAccNum, setPmAccNum] = useState('');
+  const [pmRequireTrxId, setPmRequireTrxId] = useState(true);
+  const [pmRequireSenderPhone, setPmRequireSenderPhone] = useState(true);
   const [pmInst, setPmInst] = useState('');
   const [pmLogoUrl, setPmLogoUrl] = useState('');
+  const [pmIsActive, setPmIsActive] = useState(true);
 
   // Admin Login State
   const [adminEmail, setAdminEmail] = useState('mr.booksbd700@gmail.com');
@@ -250,26 +262,199 @@ export function AdminDashboard() {
     }
   }, [toast]);
 
-  const handleCreatePaymentMethod = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const id = pmType + '-' + Date.now();
-    await addPaymentMethod({
-      id,
-      name: pmName,
-      type: pmType,
-      accountName: pmAccName,
-      accountNumber: pmAccNum,
-      instructions: pmInst,
-      logoUrl: pmLogoUrl.trim() || undefined,
-      isActive: true,
-      displayOrder: paymentMethods.length + 1
-    });
-    setPmName('');
-    setPmAccName('');
-    setPmAccNum('');
-    setPmInst('');
+  const openPmTemplateModal = (template: 'bkash' | 'nagad' | 'rocket' | 'cod' | 'upay' | 'bank' | 'custom') => {
+    setEditingPmId(null);
+    setPmBadgeText('');
     setPmLogoUrl('');
-    setShowAddPmModal(false);
+    setPmIsActive(true);
+
+    switch (template) {
+      case 'bkash':
+        setPmType('bkash');
+        setPmName('বিকাশ');
+        setPmEnglishName('bKash');
+        setPmSubtitle('বিকাশ সেন্ড মানি');
+        setPmAccountType('Personal');
+        setPmAccName('MR. BOOKS Official');
+        setPmAccNum('01712345678');
+        setPmRequireTrxId(true);
+        setPmRequireSenderPhone(true);
+        setPmInst('বিকাশ অ্যাপ অথবা *247# ডায়াল করে নির্ধারিত নম্বরে Send Money করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।');
+        break;
+      case 'nagad':
+        setPmType('nagad');
+        setPmName('নগদ');
+        setPmEnglishName('Nagad');
+        setPmSubtitle('নগদ সেন্ড মানি');
+        setPmAccountType('Personal');
+        setPmAccName('MR. BOOKS BD');
+        setPmAccNum('01812345678');
+        setPmRequireTrxId(true);
+        setPmRequireSenderPhone(true);
+        setPmInst('নগদ অ্যাপ অথবা *167# ডায়াল করে নির্ধারিত নম্বরে Send Money করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।');
+        break;
+      case 'rocket':
+        setPmType('rocket');
+        setPmName('রকেট');
+        setPmEnglishName('Rocket');
+        setPmSubtitle('রকেট সেন্ড মানি');
+        setPmAccountType('Personal');
+        setPmAccName('MR. BOOKS Account');
+        setPmAccNum('019123456789');
+        setPmRequireTrxId(true);
+        setPmRequireSenderPhone(true);
+        setPmInst('রকেট অ্যাপ অথবা *322# ডায়াল করে নির্ধারিত নম্বরে Send Money করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।');
+        break;
+      case 'cod':
+        setPmType('cod');
+        setPmName('ক্যাশ অন ডেলিভারি');
+        setPmEnglishName('Cash on Delivery');
+        setPmSubtitle('হাতে পেয়ে মূল্য পরিশোধ');
+        setPmAccountType('None');
+        setPmAccName('Cash on Delivery');
+        setPmAccNum('N/A');
+        setPmRequireTrxId(false);
+        setPmRequireSenderPhone(false);
+        setPmInst('বই হাতে পেয়ে ডেলিভারি ম্যানের কাছে নগদ অর্থ পরিশোধ করুন।');
+        break;
+      case 'upay':
+        setPmType('upay');
+        setPmName('উপায়');
+        setPmEnglishName('Upay');
+        setPmSubtitle('উপায় সেন্ড মানি');
+        setPmAccountType('Personal');
+        setPmAccName('MR. BOOKS Official');
+        setPmAccNum('01712345678');
+        setPmRequireTrxId(true);
+        setPmRequireSenderPhone(true);
+        setPmInst('উপায় অ্যাপ অথবা *268# ডায়াল করে নির্ধারিত নম্বরে Send Money করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।');
+        break;
+      case 'bank':
+        setPmType('bank');
+        setPmName('ব্যাংক ট্রান্সফার');
+        setPmEnglishName('Bank Transfer');
+        setPmSubtitle('ব্যাংক একাউন্টে পেমেন্ট');
+        setPmAccountType('Merchant');
+        setPmAccName('MR. BOOKS ENTERPRISE');
+        setPmAccNum('123-110-456789');
+        setPmRequireTrxId(true);
+        setPmRequireSenderPhone(true);
+        setPmInst('নির্ধারিত ব্যাংক একাউন্টে মোট টাকার পরিমাণ ট্রান্সফার করে ট্রানজেকশন রেফারেন্স বা রিসিপ্ট আইডি নিচে দিন।');
+        break;
+      case 'custom':
+      default:
+        setPmType('bkash');
+        setPmName('');
+        setPmEnglishName('');
+        setPmSubtitle('');
+        setPmAccountType('Personal');
+        setPmAccName('MR. BOOKS');
+        setPmAccNum('');
+        setPmRequireTrxId(true);
+        setPmRequireSenderPhone(true);
+        setPmInst('');
+        break;
+    }
+
+    setShowAddPmModal(true);
+  };
+
+  const openEditPmModal = (pm: PaymentMethodConfig) => {
+    const meta = getPaymentMethodDisplayMeta(pm);
+    setEditingPmId(pm.id);
+    setPmType(pm.type);
+    setPmName(meta.displayTitle);
+    setPmEnglishName(meta.englishName);
+    setPmSubtitle(meta.displaySubtitle);
+    setPmBadgeText(meta.badgeText);
+    setPmAccountType(meta.accountType);
+    setPmAccName(pm.accountName || 'MR. BOOKS');
+    setPmAccNum(pm.accountNumber || '');
+    setPmRequireTrxId(meta.requireTrxId);
+    setPmRequireSenderPhone(meta.requireSenderPhone);
+    setPmInst(meta.instructionText);
+    setPmLogoUrl(meta.customLogoUrl || '');
+    setPmIsActive(pm.isActive);
+    setShowAddPmModal(true);
+  };
+
+  const handleSavePaymentMethod = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const payload: Partial<PaymentMethodConfig> = {
+        name: pmName.trim() || 'পেমেন্ট মেথড',
+        englishName: pmEnglishName.trim() || pmType.toUpperCase(),
+        type: pmType,
+        subtitle: pmSubtitle.trim(),
+        badgeText: pmBadgeText.trim(),
+        accountType: pmType === 'cod' ? 'None' : pmAccountType,
+        accountName: pmAccName.trim() || 'MR. BOOKS',
+        accountNumber: pmType === 'cod' ? 'N/A' : pmAccNum.trim(),
+        requireTrxId: pmType === 'cod' ? false : pmRequireTrxId,
+        requireSenderPhone: pmType === 'cod' ? false : pmRequireSenderPhone,
+        instructions: pmInst.trim(),
+        logoUrl: pmLogoUrl.trim() || '',
+        isActive: pmIsActive,
+      };
+
+      if (editingPmId) {
+        await updatePaymentMethod(editingPmId, payload);
+        setToast({ show: true, type: 'success', message: 'Payment method updated and synced to Firestore!' });
+      } else {
+        const id = pmType + '-' + Date.now();
+        await addPaymentMethod({
+          ...(payload as PaymentMethodConfig),
+          id,
+          displayOrder: paymentMethods.length + 1,
+        });
+        setToast({ show: true, type: 'success', message: 'New payment method added and synced to Firestore!' });
+      }
+      setShowAddPmModal(false);
+      setEditingPmId(null);
+    } catch (err: any) {
+      setToast({ show: true, type: 'error', message: err.message || 'Failed to save payment method' });
+    }
+  };
+
+  const handleMovePaymentMethod = async (index: number, direction: 'up' | 'down') => {
+    const sorted = sortPaymentMethods(paymentMethods);
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= sorted.length) return;
+
+    const reordered = [...sorted];
+    const [moved] = reordered.splice(index, 1);
+    reordered.splice(targetIndex, 0, moved);
+
+    try {
+      await Promise.all(
+        reordered.map((item, idx) =>
+          updatePaymentMethod(item.id, {
+            displayOrder: idx + 1,
+            customOrder: true,
+          })
+        )
+      );
+      setToast({ show: true, type: 'success', message: 'Payment method order updated in real-time!' });
+    } catch (err: any) {
+      setToast({ show: true, type: 'error', message: 'Failed to reorder payment methods' });
+    }
+  };
+
+  const handleResetPaymentMethodsToDefaults = async () => {
+    try {
+      const defaultIds = new Set(DEFAULT_PAYMENT_METHODS.map(d => d.id));
+      for (const existing of paymentMethods) {
+        if (!defaultIds.has(existing.id)) {
+          await deletePaymentMethod(existing.id);
+        }
+      }
+      for (const def of DEFAULT_PAYMENT_METHODS) {
+        await addPaymentMethod({ ...def, customOrder: false, badgeText: '' });
+      }
+      setToast({ show: true, type: 'success', message: 'Payment methods reset to clean defaults!' });
+    } catch (err: any) {
+      setToast({ show: true, type: 'error', message: 'Failed to reset payment methods' });
+    }
   };
 
   const handlePmIconFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEditForId?: string) => {
@@ -1345,141 +1530,251 @@ export function AdminDashboard() {
           </div>
         )}
 
-        {/* TAB 3: PAYMENT METHODS */}
+        {/* TAB 3: PAYMENT METHODS CONFIGURATION */}
         {activeTab === 'payment-methods' && (
-          <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-[#EEEEEE]">
-              <div>
-                <h2 className="text-xl font-black text-[#171717]">Admin Payment Accounts</h2>
-                <p className="text-xs text-[#5F6368] mt-0.5">
-                  Configure merchant and personal numbers shown to customers at checkout.
-                </p>
+          <div className="space-y-5">
+            {/* Top Header Banner Card */}
+            <div className="bg-white border border-[#E5E5E5] rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="flex items-start sm:items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/20 flex items-center justify-center shrink-0 shadow-2xs">
+                  <CreditCard size={24} />
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <h2 className="text-lg sm:text-xl font-black text-[#171717]">
+                      Payment Methods Configuration
+                    </h2>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Firestore Synced
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#5F6368] mt-1">
+                    Manage bKash, Nagad, Rocket, Cash on Delivery, or configure new methods
+                  </p>
+                </div>
               </div>
-              <button 
-                onClick={() => setShowAddPmModal(true)}
-                className="px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md cursor-pointer"
+
+              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleResetPaymentMethodsToDefaults}
+                  className="px-4 py-2.5 bg-[#F7F7F8] hover:bg-neutral-200/80 text-[#171717] border border-[#E5E5E5] rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <RefreshCw size={14} className="text-[#5F6368]" />
+                  <span>Reset to Defaults</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openPmTemplateModal('custom')}
+                  data-testid="add-payment-method-btn"
+                  className="px-4 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-[#D71920]/20 cursor-pointer transition-all"
+                >
+                  <Plus size={15} />
+                  <span>Add Payment Method</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Templates Bar */}
+            <div className="bg-white border border-[#E5E5E5] rounded-2xl px-4 py-3.5 shadow-2xs flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[#5F6368] mr-1">
+                <Sparkles size={14} className="text-[#D71920]" />
+                <span>Quick Templates:</span>
+              </div>
+
+              {[
+                { key: 'bkash', label: 'bKash', dotColor: 'bg-[#E2136E]' },
+                { key: 'nagad', label: 'Nagad', dotColor: 'bg-[#F7941D]' },
+                { key: 'rocket', label: 'Rocket', dotColor: 'bg-[#8C3494]' },
+                { key: 'cod', label: 'Cash on Delivery', dotColor: 'bg-[#00A651]' },
+                { key: 'upay', label: 'Upay', dotColor: 'bg-[#0054A6]' },
+                { key: 'bank', label: 'Bank Transfer', dotColor: 'bg-[#1E3A8A]' },
+              ].map(tpl => (
+                <button
+                  key={tpl.key}
+                  type="button"
+                  onClick={() => openPmTemplateModal(tpl.key as any)}
+                  className="px-3 py-1.5 rounded-xl bg-[#F7F7F8] hover:bg-[#FFF1F2] text-[#171717] hover:text-[#D71920] border border-[#E5E5E5] hover:border-[#D71920]/30 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <Plus size={12} className="text-[#5F6368]" />
+                  <span className={`w-2 h-2 rounded-full ${tpl.dotColor}`}></span>
+                  <span>{tpl.label}</span>
+                </button>
+              ))}
+
+              <button
+                type="button"
+                onClick={() => openPmTemplateModal('custom')}
+                className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#FFF1F2] text-[#5F6368] hover:text-[#D71920] border border-dashed border-neutral-300 hover:border-[#D71920]/40 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all"
               >
-                <Plus size={14} /> Add Payment Method
+                <Plus size={12} />
+                <span>Custom Payment Method</span>
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {sortPaymentMethods(paymentMethods).map((pm, idx) => {
+            {/* Serial Payment Methods List */}
+            <div className="space-y-3" data-testid="admin-payment-methods-list">
+              {sortPaymentMethods(paymentMethods).map((pm, idx, arr) => {
                 const meta = getPaymentMethodDisplayMeta(pm);
+                const showAccountLine =
+                  pm.type !== 'cod' && pm.accountNumber && pm.accountNumber !== 'N/A';
+
                 return (
-                  <div key={pm.id} className="p-5 rounded-2xl border border-[#E5E5E5] bg-[#F7F7F8] space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <PaymentBrandIcon method={pm} size="sm" />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-black bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded">
-                              #{idx + 1}
+                  <div
+                    key={pm.id}
+                    data-testid={`admin-pm-row-${pm.type}`}
+                    className="bg-white hover:bg-[#FAFAFA] border border-[#E5E5E5] hover:border-[#D71920]/30 rounded-2xl p-4 sm:p-5 shadow-2xs transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+                  >
+                    {/* Left: Reorder Arrows + Brand Icon + Method Info */}
+                    <div className="flex items-start sm:items-center gap-3.5 min-w-0 flex-1">
+                      {/* Up / Down Serial Reorder Buttons */}
+                      <div className="flex flex-col items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          disabled={idx === 0}
+                          onClick={() => handleMovePaymentMethod(idx, 'up')}
+                          title="Move Up"
+                          className="p-1 rounded-lg border border-[#E5E5E5] bg-[#F7F7F8] hover:bg-[#FFF1F2] hover:text-[#D71920] hover:border-[#D71920]/30 text-neutral-500 disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-colors"
+                        >
+                          <ArrowUp size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={idx === arr.length - 1}
+                          onClick={() => handleMovePaymentMethod(idx, 'down')}
+                          title="Move Down"
+                          className="p-1 rounded-lg border border-[#E5E5E5] bg-[#F7F7F8] hover:bg-[#FFF1F2] hover:text-[#D71920] hover:border-[#D71920]/30 text-neutral-500 disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-colors"
+                        >
+                          <ArrowDown size={12} />
+                        </button>
+                      </div>
+
+                      {/* Brand Icon */}
+                      <PaymentBrandIcon method={pm} size="lg" />
+
+                      {/* Center Details */}
+                      <div className="space-y-1.5 min-w-0 flex-1">
+                        {/* Line 1: Title + English Name + Status & Config Pills */}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-black text-sm sm:text-base text-[#171717]">
+                            {meta.displayTitle}{' '}
+                            <span className="font-bold text-[#5F6368]">
+                              ({meta.englishName})
                             </span>
-                            <h3 className="font-bold text-sm text-[#171717]">{meta.displayTitle}</h3>
-                            {meta.badgeText && (
-                              <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-[#FF8A00] to-[#E2136E] text-white text-[9px] font-black">
-                                🔥 {meta.badgeText}
+                          </h3>
+
+                          {/* Active / Inactive Badge */}
+                          <span
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-black border ${
+                              pm.isActive
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : 'bg-neutral-100 text-neutral-500 border-neutral-200'
+                            }`}
+                          >
+                            {pm.isActive ? 'Active' : 'Inactive'}
+                          </span>
+
+                          {/* Account Type Pill (Personal / Merchant / Agent) */}
+                          {meta.accountType !== 'None' && (
+                            <span className="px-2 py-0.5 rounded-md bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/20 text-[10px] font-bold">
+                              {meta.accountType}
+                            </span>
+                          )}
+
+                          {/* Optional Promo Offer Badge (Only shown when configured by Admin!) */}
+                          {meta.badgeText && (
+                            <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-black flex items-center gap-1">
+                              <span>🔥</span>
+                              <span>{meta.badgeText}</span>
+                            </span>
+                          )}
+
+                          {/* Requirement Pills */}
+                          {meta.requireTrxId && (
+                            <span className="px-2 py-0.5 rounded-md bg-[#F7F7F8] text-[#5F6368] border border-[#E5E5E5] text-[10px] font-bold">
+                              TrxID
+                            </span>
+                          )}
+                          {meta.requireSenderPhone && (
+                            <span className="px-2 py-0.5 rounded-md bg-[#F7F7F8] text-[#5F6368] border border-[#E5E5E5] text-[10px] font-bold">
+                              Sender Phone
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Line 2: Account Number & Subtitle */}
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-[#5F6368]">
+                          {showAccountLine && (
+                            <>
+                              <span className="inline-flex items-center gap-1 font-mono font-bold text-[#D71920] bg-[#FFF1F2] px-2 py-0.5 rounded-md border border-[#D71920]/15">
+                                <Phone size={11} />
+                                <span>{pm.accountNumber}</span>
                               </span>
-                            )}
-                          </div>
-                          <span className="text-[10px] font-bold uppercase text-[#D71920]">{pm.type} • {meta.displaySubtitle}</span>
+                              <span className="text-neutral-300">•</span>
+                            </>
+                          )}
+                          <span className="font-semibold text-[#5F6368]">
+                            {meta.displaySubtitle}
+                          </span>
+                        </div>
+
+                        {/* Line 3: Instructions Preview */}
+                        <div className="text-[11px] text-[#5F6368] italic bg-[#F7F7F8] px-3 py-1.5 rounded-xl border border-[#EEEEEE] truncate">
+                          <span className="font-semibold not-italic text-[#171717]">
+                            Instructions:{' '}
+                          </span>
+                          {meta.instructionText}
                         </div>
                       </div>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${pm.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-200 text-zinc-600'}`}>
-                        {pm.isActive ? 'Active' : 'Inactive'}
-                      </span>
                     </div>
 
-                    {/* Editable Account Number, Subtitle & Promo Badge */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
-                      <div>
-                        <label className="block text-[10px] font-bold text-[#5F6368] uppercase mb-1">
-                          Account / Number
-                        </label>
-                        <input
-                          type="text"
-                          value={pm.accountNumber || ''}
-                          onChange={e => updatePaymentMethod(pm.id, { accountNumber: e.target.value })}
-                          className="w-full px-2.5 py-1.5 rounded-lg border border-[#E5E5E5] bg-white text-xs font-mono font-bold text-[#171717]"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-[#5F6368] uppercase mb-1">
-                          Subtitle (সাবটাইটেল)
-                        </label>
-                        <input
-                          type="text"
-                          placeholder={meta.displaySubtitle}
-                          value={pm.subtitle ?? meta.displaySubtitle}
-                          onChange={e => updatePaymentMethod(pm.id, { subtitle: e.target.value })}
-                          className="w-full px-2.5 py-1.5 rounded-lg border border-[#E5E5E5] bg-white text-xs text-[#171717]"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-[#5F6368] uppercase mb-1">
-                          Promo Badge (e.g. 5% OFF)
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="e.g. 5% OFF"
-                          value={pm.badgeText ?? meta.badgeText}
-                          onChange={e => updatePaymentMethod(pm.id, { badgeText: e.target.value })}
-                          className="w-full px-2.5 py-1.5 rounded-lg border border-[#E5E5E5] bg-white text-xs font-bold text-[#E2136E]"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Editable Popup Instructions */}
-                    <div>
-                      <label className="block text-[10px] font-bold text-[#5F6368] uppercase mb-1">
-                        Popup Payment Instructions (পপআপ নির্দেশনা)
-                      </label>
-                      <textarea
-                        rows={2}
-                        value={pm.instructions || meta.instructionText}
-                        onChange={e => updatePaymentMethod(pm.id, { instructions: e.target.value })}
-                        className="w-full px-2.5 py-1.5 rounded-lg border border-[#E5E5E5] bg-white text-xs text-[#171717]"
-                      />
-                    </div>
-
-                    {/* Icon Image Management Row */}
-                    <div className="p-2.5 rounded-xl bg-white border border-[#E5E5E5] space-y-1.5 text-xs">
-                      <label className="block text-[10px] font-bold text-[#5F6368] uppercase tracking-wider">
-                        Icon / Logo (আইকন / লোগো আপলোড)
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <input 
-                          type="text" 
-                          placeholder="Custom Icon Image URL (leave empty for default brand icon)..." 
-                          value={meta.customLogoUrl || ''} 
-                          onChange={e => updatePaymentMethod(pm.id, { logoUrl: e.target.value })}
-                          className="flex-1 px-3 py-1.5 rounded-lg border border-[#E5E5E5] bg-[#F7F7F8] text-xs text-[#171717]"
-                        />
-                        <label className="px-3 py-1.5 bg-[#FFF1F2] hover:bg-[#D71920] text-[#D71920] hover:text-white font-bold rounded-lg border border-[#D71920]/30 text-[11px] cursor-pointer transition-all shrink-0">
-                          Upload Icon
-                          <input 
-                            type="file" 
-                            accept="image/*" 
-                            className="hidden" 
-                            onChange={e => handlePmIconFileUpload(e, pm.id)} 
-                          />
-                        </label>
-                      </div>
-                    </div>
-
-                    <div className="pt-2 flex items-center justify-between border-t border-[#E5E5E5]">
-                      <button 
-                        onClick={() => updatePaymentMethod(pm.id, { isActive: !pm.isActive })}
-                        className="text-xs font-bold text-[#D71920] hover:underline cursor-pointer"
+                    {/* Right: Active Toggle + Edit Modal Trigger + Delete */}
+                    <div className="flex items-center justify-end gap-2 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-[#EEEEEE]">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await updatePaymentMethod(pm.id, { isActive: !pm.isActive });
+                          setToast({
+                            show: true,
+                            type: 'success',
+                            message: `${meta.displayTitle} ${!pm.isActive ? 'activated' : 'deactivated'}!`,
+                          });
+                        }}
+                        className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border cursor-pointer transition-all ${
+                          pm.isActive
+                            ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
+                            : 'bg-[#F7F7F8] hover:bg-neutral-200 text-neutral-600 border-[#E5E5E5]'
+                        }`}
                       >
-                        {pm.isActive ? 'Deactivate' : 'Activate'}
+                        <Check size={13} className={pm.isActive ? 'text-emerald-600' : 'text-neutral-400'} />
+                        <span>{pm.isActive ? 'Active' : 'Inactive'}</span>
                       </button>
-                      <button 
-                        onClick={() => deletePaymentMethod(pm.id)}
-                        className="text-xs text-red-600 hover:text-red-700 flex items-center gap-1 cursor-pointer"
+
+                      <button
+                        type="button"
+                        onClick={() => openEditPmModal(pm)}
+                        data-testid={`edit-pm-${pm.type}`}
+                        title="Edit Payment Method & Offer Badge"
+                        className="p-2.5 rounded-xl bg-[#F7F7F8] hover:bg-[#FFF1F2] text-[#171717] hover:text-[#D71920] border border-[#E5E5E5] hover:border-[#D71920]/30 cursor-pointer transition-colors"
                       >
-                        <Trash2 size={12} /> Remove
+                        <Edit2 size={15} />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await deletePaymentMethod(pm.id);
+                          setToast({
+                            show: true,
+                            type: 'success',
+                            message: 'Payment method removed from Firestore.',
+                          });
+                        }}
+                        title="Delete Payment Method"
+                        className="p-2.5 rounded-xl bg-red-50/70 hover:bg-red-100 text-[#D71920] border border-red-200/60 cursor-pointer transition-colors"
+                      >
+                        <Trash2 size={15} />
                       </button>
                     </div>
                   </div>
@@ -1487,40 +1782,283 @@ export function AdminDashboard() {
               })}
             </div>
 
+            {/* Add / Edit Payment Method Modal */}
             {showAddPmModal && (
-              <form onSubmit={handleCreatePaymentMethod} className="p-5 bg-[#F7F7F8] rounded-2xl border border-[#E5E5E5] space-y-3">
-                <h3 className="font-bold text-sm text-[#171717]">New Payment Gateway / Account</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <input type="text" placeholder="Method Name (e.g. bKash Personal)" required value={pmName} onChange={e => setPmName(e.target.value)} className="px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]" />
-                  <select value={pmType} onChange={e => setPmType(e.target.value as any)} className="px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]">
-                    <option value="bkash">bKash</option>
-                    <option value="nagad">Nagad</option>
-                    <option value="rocket">Rocket</option>
-                    <option value="upay">Upay</option>
-                    <option value="bank">Bank</option>
-                    <option value="cod">COD</option>
-                  </select>
-                  <input type="text" placeholder="Account Name (e.g. MR. BOOKS BD)" required value={pmAccName} onChange={e => setPmAccName(e.target.value)} className="px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]" />
-                  <input type="text" placeholder="Account / Phone Number" required value={pmAccNum} onChange={e => setPmAccNum(e.target.value)} className="px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs font-mono text-[#171717]" />
-                </div>
-                <div className="space-y-1">
-                  <label className="block text-[10px] font-bold uppercase text-[#5F6368] tracking-wider">
-                    Custom Icon / Logo Image (Optional)
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input type="text" placeholder="Custom Logo / Icon Image URL" value={pmLogoUrl} onChange={e => setPmLogoUrl(e.target.value)} className="flex-1 px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]" />
-                    <label className="px-3.5 py-2 bg-[#FFF1F2] hover:bg-[#D71920] text-[#D71920] hover:text-white font-bold rounded-xl border border-[#D71920]/30 text-xs cursor-pointer transition-all shrink-0">
-                      Upload File
-                      <input type="file" accept="image/*" className="hidden" onChange={e => handlePmIconFileUpload(e)} />
-                    </label>
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
+                <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-7 shadow-2xl border border-[#E5E5E5] space-y-5 my-8 max-h-[92vh] overflow-y-auto">
+                  <div className="flex items-center justify-between pb-3.5 border-b border-[#EEEEEE]">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/20 flex items-center justify-center">
+                        <CreditCard size={20} />
+                      </div>
+                      <div>
+                        <h3 className="font-black text-base text-[#171717]">
+                          {editingPmId ? 'Edit Payment Method' : 'Configure Payment Method'}
+                        </h3>
+                        <p className="text-[11px] text-[#5F6368]">
+                          Customize account number, subtitle, promo offer badge, icon, and popup instructions
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAddPmModal(false);
+                        setEditingPmId(null);
+                      }}
+                      className="p-1.5 rounded-xl hover:bg-neutral-100 text-neutral-400 hover:text-neutral-800 cursor-pointer"
+                    >
+                      <X size={18} />
+                    </button>
                   </div>
+
+                  <form onSubmit={handleSavePaymentMethod} className="space-y-4 text-xs">
+                    {/* Row 1: Gateway Type & Account Type */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      <div>
+                        <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
+                          Gateway Type *
+                        </label>
+                        <select
+                          value={pmType}
+                          onChange={e => {
+                            const nextType = e.target.value as PaymentMethodConfig['type'];
+                            setPmType(nextType);
+                            if (nextType === 'cod') {
+                              setPmAccountType('None');
+                              setPmRequireTrxId(false);
+                              setPmRequireSenderPhone(false);
+                            }
+                          }}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] font-bold text-[#171717] focus:outline-none focus:border-[#D71920]"
+                        >
+                          <option value="bkash">bKash (বিকাশ)</option>
+                          <option value="nagad">Nagad (নগদ)</option>
+                          <option value="rocket">Rocket (রকেট)</option>
+                          <option value="cod">Cash on Delivery (COD)</option>
+                          <option value="upay">Upay (উপায়)</option>
+                          <option value="bank">Bank Transfer (ব্যাংক)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
+                          Account Type Badge
+                        </label>
+                        <select
+                          value={pmAccountType}
+                          onChange={e => setPmAccountType(e.target.value as any)}
+                          disabled={pmType === 'cod'}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] font-bold text-[#171717] disabled:opacity-50 focus:outline-none focus:border-[#D71920]"
+                        >
+                          <option value="Personal">Personal</option>
+                          <option value="Merchant">Merchant</option>
+                          <option value="Agent">Agent</option>
+                          <option value="None">None</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Row 2: Display Name (Bangla) & English Name */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      <div>
+                        <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
+                          Display Title (বাংলা নাম) *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. বিকাশ / ক্যাশ অন ডেলিভারি"
+                          value={pmName}
+                          onChange={e => setPmName(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-white font-bold text-[#171717] focus:outline-none focus:border-[#D71920]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
+                          English Name
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. bKash / Cash on Delivery"
+                          value={pmEnglishName}
+                          onChange={e => setPmEnglishName(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-white font-bold text-[#171717] focus:outline-none focus:border-[#D71920]"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Row 3: Account Number & Subtitle */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      <div>
+                        <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
+                          Account / Wallet Number {pmType !== 'cod' ? '*' : ''}
+                        </label>
+                        <input
+                          type="text"
+                          required={pmType !== 'cod'}
+                          disabled={pmType === 'cod'}
+                          placeholder={pmType === 'cod' ? 'N/A' : '017XXXXXXXX'}
+                          value={pmType === 'cod' ? 'N/A' : pmAccNum}
+                          onChange={e => setPmAccNum(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-white font-mono font-bold text-[#171717] disabled:bg-neutral-100 focus:outline-none focus:border-[#D71920]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
+                          Subtitle (সাবটাইটেল)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. বিকাশ সেন্ড মানি"
+                          value={pmSubtitle}
+                          onChange={e => setPmSubtitle(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-[#171717] focus:outline-none focus:border-[#D71920]"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Row 4: Optional Promo Offer Badge (e.g. 5% OFF) */}
+                    <div className="p-3.5 rounded-2xl bg-[#FFF1F2]/60 border border-[#D71920]/20 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="font-bold text-[#171717] uppercase tracking-wider text-[10px] flex items-center gap-1.5">
+                          <span>🔥 Optional Offer Badge (অফার ব্যাজ - অপশনাল)</span>
+                        </label>
+                        {pmBadgeText && (
+                          <button
+                            type="button"
+                            onClick={() => setPmBadgeText('')}
+                            className="text-[10px] font-bold text-[#D71920] hover:underline cursor-pointer"
+                          >
+                            Remove Offer Badge
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          placeholder="Leave blank for no badge, or type e.g. 5% OFF / 10% Cashback"
+                          value={pmBadgeText}
+                          onChange={e => setPmBadgeText(e.target.value)}
+                          data-testid="pm-badge-input"
+                          className="flex-1 px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white font-bold text-[#D71920] focus:outline-none focus:border-[#D71920]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setPmBadgeText('5% OFF')}
+                          className="px-3 py-2 rounded-xl bg-white hover:bg-[#FFF1F2] text-[#171717] border border-[#E5E5E5] text-[11px] font-bold cursor-pointer shrink-0"
+                        >
+                          + 5% OFF
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-[#5F6368]">
+                        If left blank, no offer badge will be shown on the checkout card.
+                      </p>
+                    </div>
+
+                    {/* Row 5: Verification Checkboxes */}
+                    {pmType !== 'cod' && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-[#F7F7F8] border border-[#E5E5E5]">
+                        <label className="flex items-center gap-2.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={pmRequireTrxId}
+                            onChange={e => setPmRequireTrxId(e.target.checked)}
+                            className="w-4 h-4 accent-[#D71920] rounded"
+                          />
+                          <span className="font-bold text-[#171717]">Require Transaction ID (TrxID)</span>
+                        </label>
+
+                        <label className="flex items-center gap-2.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={pmRequireSenderPhone}
+                            onChange={e => setPmRequireSenderPhone(e.target.checked)}
+                            className="w-4 h-4 accent-[#D71920] rounded"
+                          />
+                          <span className="font-bold text-[#171717]">Require Sender Phone Number</span>
+                        </label>
+                      </div>
+                    )}
+
+                    {/* Row 6: Custom Brand Icon / Logo Upload */}
+                    <div className="p-3.5 rounded-2xl bg-[#F7F7F8] border border-[#E5E5E5] space-y-2">
+                      <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px]">
+                        Custom Icon / Logo (Optional)
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          placeholder="Custom Icon URL (leave blank for built-in vector icon)"
+                          value={pmLogoUrl}
+                          onChange={e => setPmLogoUrl(e.target.value)}
+                          className="flex-1 px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717] focus:outline-none focus:border-[#D71920]"
+                        />
+                        <label className="px-3.5 py-2 bg-[#FFF1F2] hover:bg-[#D71920] text-[#D71920] hover:text-white font-bold rounded-xl border border-[#D71920]/30 text-xs cursor-pointer transition-all shrink-0 flex items-center gap-1.5">
+                          <Upload size={13} />
+                          <span>Upload</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={e => handlePmIconFileUpload(e)}
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Row 7: Popup Instructions */}
+                    <div>
+                      <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
+                        Payment Instructions (পেমেন্ট নির্দেশনা) *
+                      </label>
+                      <textarea
+                        rows={2}
+                        required
+                        placeholder="বিকাশ অ্যাপ অথবা *247# ডায়াল করে নির্ধারিত নম্বরে Send Money করুন..."
+                        value={pmInst}
+                        onChange={e => setPmInst(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-[#171717] focus:outline-none focus:border-[#D71920]"
+                      />
+                    </div>
+
+                    {/* Footer Buttons */}
+                    <div className="flex items-center justify-between pt-3 border-t border-[#EEEEEE]">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={pmIsActive}
+                          onChange={e => setPmIsActive(e.target.checked)}
+                          className="w-4 h-4 accent-[#D71920] rounded"
+                        />
+                        <span className="font-bold text-[#171717]">Active on Checkout</span>
+                      </label>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowAddPmModal(false);
+                            setEditingPmId(null);
+                          }}
+                          className="px-4 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-[#171717] font-bold rounded-xl cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-5 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl shadow-md shadow-[#D71920]/20 cursor-pointer flex items-center gap-1.5"
+                        >
+                          <Check size={14} />
+                          <span>{editingPmId ? 'Save Changes' : 'Add Payment Method'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </form>
                 </div>
-                <textarea rows={2} placeholder="Payment instructions for customer..." required value={pmInst} onChange={e => setPmInst(e.target.value)} className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]"></textarea>
-                <div className="flex justify-end gap-2">
-                  <button type="button" onClick={() => setShowAddPmModal(false)} className="px-4 py-1.5 bg-white text-xs font-bold rounded-lg border border-[#E5E5E5] cursor-pointer">Cancel</button>
-                  <button type="submit" className="px-4 py-1.5 bg-[#D71920] text-white text-xs font-bold rounded-lg shadow-sm cursor-pointer">Save Account</button>
-                </div>
-              </form>
+              </div>
             )}
           </div>
         )}
