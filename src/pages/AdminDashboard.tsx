@@ -143,8 +143,9 @@ export function AdminDashboard() {
   const [authorPhoto, setAuthorPhoto] = useState('');
   const [authorBooksCount, setAuthorBooksCount] = useState(25);
 
-  // New Payment Method modal state
+  // New & Editing Payment Method modal state
   const [showAddPmModal, setShowAddPmModal] = useState(false);
+  const [editingPmId, setEditingPmId] = useState<string | null>(null);
   const [pmName, setPmName] = useState('');
   const [pmType, setPmType] = useState<'bkash' | 'nagad' | 'rocket' | 'upay' | 'bank' | 'cod'>('bkash');
   const [pmAccName, setPmAccName] = useState('');
@@ -252,6 +253,24 @@ export function AdminDashboard() {
     setPmInst('');
     setPmLogoUrl('');
     setShowAddPmModal(false);
+  };
+
+  const handlePmIconFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEditForId?: string) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const compressed = await compressImageFile(file, 400, 400, 0.85);
+        if (isEditForId) {
+          await updatePaymentMethod(isEditForId, { logoUrl: compressed });
+          setToast({ show: true, type: 'success', message: 'Payment method icon updated successfully!' });
+        } else {
+          setPmLogoUrl(compressed);
+          setToast({ show: true, type: 'success', message: 'Icon attached successfully!' });
+        }
+      } catch (err: any) {
+        setToast({ show: true, type: 'error', message: err.message || 'Failed to upload icon' });
+      }
+    }
   };
 
   const handleCreateProduct = async (e: React.FormEvent) => {
@@ -1328,18 +1347,60 @@ export function AdminDashboard() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {paymentMethods.map(pm => (
-                <div key={pm.id} className="p-5 rounded-2xl border border-[#E5E5E5] bg-[#F7F7F8] space-y-2.5">
+                <div key={pm.id} className="p-5 rounded-2xl border border-[#E5E5E5] bg-[#F7F7F8] space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase text-[#D71920]">{pm.type}</span>
+                    <div className="flex items-center gap-2.5">
+                      {pm.logoUrl ? (
+                        <img src={pm.logoUrl} alt={pm.name} className="w-8 h-8 object-contain rounded-lg border border-[#E5E5E5] bg-white p-0.5 shrink-0 shadow-2xs" />
+                      ) : pm.type === 'bkash' ? (
+                        <div className="w-8 h-8 rounded-lg bg-[#E2136E] text-white font-black text-[10px] flex items-center justify-center shrink-0 shadow-2xs">bKash</div>
+                      ) : pm.type === 'nagad' ? (
+                        <div className="w-8 h-8 rounded-lg bg-[#F15A24] text-white font-black text-[9px] flex items-center justify-center shrink-0 shadow-2xs">নগদ</div>
+                      ) : pm.type === 'rocket' ? (
+                        <div className="w-8 h-8 rounded-lg bg-[#8C3494] text-white font-black text-[10px] flex items-center justify-center shrink-0 shadow-2xs">Rocket</div>
+                      ) : (
+                        <div className="w-8 h-8 rounded-lg bg-zinc-800 text-white font-black text-[10px] flex items-center justify-center shrink-0 shadow-2xs">{pm.type.toUpperCase()}</div>
+                      )}
+                      <div>
+                        <h3 className="font-bold text-sm text-[#171717]">{pm.name}</h3>
+                        <span className="text-[10px] font-bold uppercase text-[#D71920]">{pm.type}</span>
+                      </div>
+                    </div>
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${pm.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-200 text-zinc-600'}`}>
                       {pm.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </div>
-                  <h3 className="font-bold text-base text-[#171717]">{pm.name}</h3>
+
                   <p className="text-xs font-mono font-bold text-[#171717]">
                     {pm.accountNumber} <span className="font-sans font-normal text-[#5F6368]">({pm.accountName})</span>
                   </p>
                   <p className="text-xs text-[#777777] line-clamp-2">{pm.instructions}</p>
+
+                  {/* Icon Image Management Row */}
+                  <div className="p-2.5 rounded-xl bg-white border border-[#E5E5E5] space-y-1.5 text-xs">
+                    <label className="block text-[10px] font-bold text-[#5F6368] uppercase tracking-wider">
+                      Icon / Logo (আইকন / লোগো আপলোড)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="Icon Image URL..." 
+                        value={pm.logoUrl || ''} 
+                        onChange={e => updatePaymentMethod(pm.id, { logoUrl: e.target.value })}
+                        className="flex-1 px-3 py-1.5 rounded-lg border border-[#E5E5E5] bg-[#F7F7F8] text-xs text-[#171717]"
+                      />
+                      <label className="px-3 py-1.5 bg-[#FFF1F2] hover:bg-[#D71920] text-[#D71920] hover:text-white font-bold rounded-lg border border-[#D71920]/30 text-[11px] cursor-pointer transition-all shrink-0">
+                        Upload Icon
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          onChange={e => handlePmIconFileUpload(e, pm.id)} 
+                        />
+                      </label>
+                    </div>
+                  </div>
+
                   <div className="pt-2 flex items-center justify-between border-t border-[#E5E5E5]">
                     <button 
                       onClick={() => updatePaymentMethod(pm.id, { isActive: !pm.isActive })}
@@ -1374,8 +1435,17 @@ export function AdminDashboard() {
                   <input type="text" placeholder="Account Name (e.g. MR. BOOKS BD)" required value={pmAccName} onChange={e => setPmAccName(e.target.value)} className="px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]" />
                   <input type="text" placeholder="Account / Phone Number" required value={pmAccNum} onChange={e => setPmAccNum(e.target.value)} className="px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs font-mono text-[#171717]" />
                 </div>
-                <div>
-                  <input type="text" placeholder="Custom Logo / Icon Image URL (Optional)" value={pmLogoUrl} onChange={e => setPmLogoUrl(e.target.value)} className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]" />
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold uppercase text-[#5F6368] tracking-wider">
+                    Custom Icon / Logo Image (Optional)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input type="text" placeholder="Custom Logo / Icon Image URL" value={pmLogoUrl} onChange={e => setPmLogoUrl(e.target.value)} className="flex-1 px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]" />
+                    <label className="px-3.5 py-2 bg-[#FFF1F2] hover:bg-[#D71920] text-[#D71920] hover:text-white font-bold rounded-xl border border-[#D71920]/30 text-xs cursor-pointer transition-all shrink-0">
+                      Upload File
+                      <input type="file" accept="image/*" className="hidden" onChange={e => handlePmIconFileUpload(e)} />
+                    </label>
+                  </div>
                 </div>
                 <textarea rows={2} placeholder="Payment instructions for customer..." required value={pmInst} onChange={e => setPmInst(e.target.value)} className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]"></textarea>
                 <div className="flex justify-end gap-2">
