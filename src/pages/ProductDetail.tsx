@@ -41,10 +41,10 @@ function WhatsAppIcon({ className = "w-4 h-4 shrink-0" }: { className?: string }
   );
 }
 
-function TelegramIcon({ className = "w-4 h-4 shrink-0" }: { className?: string }) {
+function InstagramIcon({ className = "w-4 h-4 shrink-0" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.054 5.56-5.022c.24-.213-.054-.334-.373-.121l-6.869 4.326-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.458c.538-.196 1.006.128.832.923z" />
+      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
     </svg>
   );
 }
@@ -526,16 +526,16 @@ export function ProductDetail() {
                   <span className="text-[10px] sm:text-xs tracking-tight truncate leading-none">Call</span>
                 </a>
 
-                {/* 3. Telegram Button */}
+                {/* 3. Instagram Button */}
                 <a 
-                  href={settings?.telegramUrl?.startsWith('http') ? settings.telegramUrl : (settings?.telegramUrl ? `https://t.me/${settings.telegramUrl.replace(/^@/, '')}` : 'https://t.me/mrbooksbd')}
+                  href={settings?.instagramUrl?.startsWith('http') ? settings.instagramUrl : (settings?.instagramUrl ? `https://instagram.com/${settings.instagramUrl.replace(/^@/, '')}` : 'https://instagram.com/mrbooksbd')}
                   target="_blank"
                   rel="noreferrer"
-                  className="py-1.5 px-1 sm:py-2 sm:px-1.5 bg-[#EAF6FD] hover:bg-[#D7EFFB] text-[#0088CC] border border-[#BFECF8] rounded-xl font-black flex items-center justify-center gap-1 sm:gap-1.5 transition-all shadow-2xs text-center group cursor-pointer active:scale-95"
-                  title="Contact on Telegram"
+                  className="py-1.5 px-1 sm:py-2 sm:px-1.5 bg-[#FDF2F8] hover:bg-[#FCE7F3] text-[#DB2777] border border-[#FBCFE8] rounded-xl font-black flex items-center justify-center gap-1 sm:gap-1.5 transition-all shadow-2xs text-center group cursor-pointer active:scale-95"
+                  title="Contact on Instagram"
                 >
-                  <TelegramIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#229ED9] shrink-0 group-hover:scale-110 transition-transform" />
-                  <span className="text-[10px] sm:text-xs tracking-tight truncate leading-none">Telegram</span>
+                  <InstagramIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#E1306C] shrink-0 group-hover:scale-110 transition-transform" />
+                  <span className="text-[10px] sm:text-xs tracking-tight truncate leading-none">Instagram</span>
                 </a>
 
                 {/* 4. Messenger Button */}
