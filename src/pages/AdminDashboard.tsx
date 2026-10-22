@@ -50,7 +50,9 @@ import {
   Sparkles,
   Phone,
   FileText,
-  ShoppingCart
+  ShoppingCart,
+  Moon,
+  Sun
 } from 'lucide-react';
 import { Author, Banner, BookPreviewPage, Order, PaymentMethodConfig } from '../types';
 import { DEFAULT_PAYMENT_METHODS } from '../firebase';
@@ -5955,6 +5957,46 @@ export function AdminDashboard() {
                       ))}
                     </div>
                   </div>
+
+                  {/* Row 5: Theme & Dark Mode Settings */}
+                  <div className="p-3.5 rounded-xl bg-[#F7F7F8] border border-neutral-200 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <span className="font-black text-xs text-neutral-900 flex items-center gap-1.5">
+                          <Moon size={14} className="text-[#D71920]" />
+                          5. ডার্ক থিম ও ডিসপ্লে কন্ট্রোল (Dark & Day Theme Settings)
+                        </span>
+                        <span className="text-[11px] text-neutral-500">
+                          ওয়েবসাইটে ডার্ক থিম সুইচার বাটন অন/অফ রাখুন। ডিফল্টভাবে ভিজিটরদের জন্য অলওয়েজ ডে থিম (লাইট মোড) থাকবে।
+                        </span>
+                      </div>
+                      <label className="flex items-center gap-2 text-xs font-bold text-neutral-800 bg-white px-3 py-1.5 rounded-xl border border-neutral-300 cursor-pointer shadow-2xs">
+                        <input
+                          type="checkbox"
+                          checked={settingsForm.enableThemeToggle !== false}
+                          onChange={e => setSettingsForm(prev => ({ ...prev, enableThemeToggle: e.target.checked }))}
+                          className="w-4 h-4 accent-[#D71920]"
+                        />
+                        <span>থিম সুইচার সক্রিয় (Enable Theme Toggle)</span>
+                      </label>
+                    </div>
+                    <div className="p-3 rounded-xl bg-white border border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                      <div className="space-y-0.5">
+                        <div className="font-bold text-neutral-800 flex items-center gap-1.5">
+                          <Sun size={13} className="text-amber-500" />
+                          <span>ডিফল্ট পার্মানেন্ট থিম: <strong>ডে থিম (লাইট মোড)</strong></span>
+                        </div>
+                        <p className="text-[11px] text-neutral-500">
+                          ভিজিটররা চাইলে হেডারের চাঁদ বা সূর্য আইকনে ক্লিক করে এক ক্লিকে সম্পূর্ণ ওয়েবসাইটকে প্রিমিয়াম ডার্ক মোডে পরিবর্তন করতে পারবেন।
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-black border border-emerald-200">
+                          ✓ লাল ব্র্যান্ড অ্যাকসেন্ট সংরক্ষিত (#D71920)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -5967,27 +6009,26 @@ export function AdminDashboard() {
                   <div className="p-3.5 rounded-xl bg-[#F7F7F8] border border-neutral-200 space-y-3 text-xs">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-neutral-200">
                       <div>
-                        <span className="font-black text-neutral-900 block">1. Footer Color Theme & Live Preview</span>
+                        <span className="font-black text-neutral-900 block">1. Footer Color Theme (Day Mode & Dark Mode)</span>
                         <span className="text-[11px] text-neutral-500">
-                          Change the Footer background color and card color anytime from the Admin Panel
+                          Dynamically configure Footer colors for both Light/Day Mode and Dark Theme. Saved in Firebase.
                         </span>
                       </div>
 
                       {/* Quick Preset Color Themes */}
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[10px] font-bold text-neutral-500 mr-1">Presets:</span>
+                        <span className="text-[10px] font-bold text-neutral-500 mr-1">Dark Presets:</span>
                         {[
+                          { label: 'Deep Obsidian', bg: '#070A0F', card: '#0E1420' },
                           { label: 'Classic Dark', bg: '#121212', card: '#1c1c1e' },
-                          { label: 'Deep Black', bg: '#09090b', card: '#141417' },
-                          { label: 'Midnight Navy', bg: '#0f172a', card: '#1e293b' },
-                          { label: 'Crimson Dark', bg: '#1a090b', card: '#291014' },
-                          { label: 'Forest Dark', bg: '#091912', card: '#11281e' }
+                          { label: 'Midnight Navy', bg: '#0b1120', card: '#131e33' },
+                          { label: 'Crimson Night', bg: '#170a0c', card: '#251216' }
                         ].map(preset => (
                           <button
                             key={preset.label}
                             type="button"
-                            onClick={() => setSettingsForm(prev => ({ ...prev, footerBgColor: preset.bg, footerCardBgColor: preset.card }))}
-                            className="px-2 py-1 rounded-lg border border-neutral-300 bg-white hover:border-[#D71920] text-[10px] font-bold flex items-center gap-1.5 cursor-pointer"
+                            onClick={() => setSettingsForm(prev => ({ ...prev, footerDarkBgColor: preset.bg, footerDarkCardBgColor: preset.card }))}
+                            className="px-2 py-1 rounded-lg border border-neutral-300 bg-white hover:border-[#D71920] text-[10px] font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
                           >
                             <span className="w-3 h-3 rounded-full border border-black/20" style={{ backgroundColor: preset.bg }} />
                             <span>{preset.label}</span>
@@ -5996,103 +6037,152 @@ export function AdminDashboard() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-                      {/* Main Footer Background Color Picker */}
-                      <div className="md:col-span-3">
-                        <label className="block font-bold text-[#5F6368] uppercase text-[11px] mb-1">Footer Background Color</label>
-                        <div className="flex items-center gap-2 bg-white border border-neutral-300 rounded-xl px-2.5 py-1.5">
-                          <input
-                            type="color"
-                            value={settingsForm.footerBgColor || '#121212'}
-                            onChange={e => setSettingsForm(prev => ({ ...prev, footerBgColor: e.target.value }))}
-                            className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent p-0"
-                          />
-                          <input
-                            type="text"
-                            value={settingsForm.footerBgColor || '#121212'}
-                            onChange={e => setSettingsForm(prev => ({ ...prev, footerBgColor: e.target.value }))}
-                            className="w-full text-xs font-mono font-bold text-neutral-800 focus:outline-none"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Footer Box/Card Color Picker */}
-                      <div className="md:col-span-3">
-                        <label className="block font-bold text-[#5F6368] uppercase text-[11px] mb-1">Footer Box / Card Color</label>
-                        <div className="flex items-center gap-2 bg-white border border-neutral-300 rounded-xl px-2.5 py-1.5">
-                          <input
-                            type="color"
-                            value={settingsForm.footerCardBgColor || '#1c1c1e'}
-                            onChange={e => setSettingsForm(prev => ({ ...prev, footerCardBgColor: e.target.value }))}
-                            className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent p-0"
-                          />
-                          <input
-                            type="text"
-                            value={settingsForm.footerCardBgColor || '#1c1c1e'}
-                            onChange={e => setSettingsForm(prev => ({ ...prev, footerCardBgColor: e.target.value }))}
-                            className="w-full text-xs font-mono font-bold text-neutral-800 focus:outline-none"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Live Mini Footer Preview Card */}
-                      <div className="md:col-span-6">
-                        <div
-                          className="p-2.5 rounded-xl border border-neutral-300 flex items-center justify-between gap-3"
-                          style={{ backgroundColor: settingsForm.footerBgColor || '#121212' }}
-                        >
-                          <div
-                            className="px-3 py-2 rounded-lg border border-white/10 flex items-center gap-2 flex-1"
-                            style={{ backgroundColor: settingsForm.footerCardBgColor || '#1c1c1e' }}
+                    <div className="space-y-4">
+                      {/* Section A: Light / Day Mode Footer Colors */}
+                      <div className="p-3.5 rounded-xl bg-white border border-neutral-200 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-neutral-800 flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                            Day Mode Footer (Light Theme)
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setSettingsForm(prev => ({ ...prev, footerBgColor: '#F8FAFC', footerCardBgColor: '#FFFFFF' }))}
+                            className="text-[11px] font-bold text-neutral-500 hover:text-neutral-800 hover:underline cursor-pointer"
                           >
-                            {(() => {
-                              const hasLogo = isValidImageUrl(settingsForm.footerLogoUrl);
-                              const rawName = (settingsForm.footerBrandName ?? '').trim();
-                              const hasName = rawName.length > 0;
-                              const showIcon = !hasLogo && hasName && settingsForm.showFooterIcon !== false;
-                              const c1 = settingsForm.footerNameColor1 || '#FFFFFF';
-                              const c2 = settingsForm.footerNameColor2 || '#D71920';
-
-                              if (!hasLogo && !hasName) {
-                                return <span className="text-[11px] italic text-zinc-400">Empty Footer Brand</span>;
-                              }
-
-                              return (
-                                <>
-                                  {hasLogo && (
-                                    <img
-                                      src={settingsForm.footerLogoUrl}
-                                      alt=""
-                                      onError={() => setSettingsForm(prev => ({ ...prev, footerLogoUrl: '' }))}
-                                      className="h-7 w-auto max-w-[100px] object-contain rounded bg-white p-0.5"
-                                    />
-                                  )}
-                                  {showIcon && (
-                                    <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white shrink-0" style={{ backgroundColor: c2 }}>
-                                      <BookOpen size={14} />
-                                    </div>
-                                  )}
-                                  {hasName && (
-                                    <span className="font-black text-sm tracking-tight">
-                                      {(() => {
-                                        const parts = rawName.split(/\s+/);
-                                        if (parts.length <= 1) return <span style={{ color: c1 }}>{rawName}</span>;
-                                        const last = parts[parts.length - 1];
-                                        const first = parts.slice(0, -1).join(' ');
-                                        return (
-                                          <>
-                                            <span style={{ color: c1 }}>{first}</span>{' '}
-                                            <span style={{ color: c2 }}>{last}</span>
-                                          </>
-                                        );
-                                      })()}
-                                    </span>
-                                  )}
-                                </>
-                              );
-                            })()}
+                            Reset Light Defaults
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                          <div className="md:col-span-3">
+                            <label className="block font-bold text-[#5F6368] uppercase text-[10.5px] mb-1">Day Footer Background</label>
+                            <div className="flex items-center gap-2 bg-neutral-50 border border-neutral-300 rounded-xl px-2.5 py-1.5">
+                              <input
+                                type="color"
+                                value={settingsForm.footerBgColor || '#F8FAFC'}
+                                onChange={e => setSettingsForm(prev => ({ ...prev, footerBgColor: e.target.value }))}
+                                className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent p-0"
+                              />
+                              <input
+                                type="text"
+                                value={settingsForm.footerBgColor || '#F8FAFC'}
+                                onChange={e => setSettingsForm(prev => ({ ...prev, footerBgColor: e.target.value }))}
+                                className="w-full text-xs font-mono font-bold text-neutral-800 focus:outline-none bg-transparent"
+                              />
+                            </div>
                           </div>
-                          <span className="text-[10px] font-bold text-zinc-400 pr-1 shrink-0">Live Footer Preview</span>
+
+                          <div className="md:col-span-3">
+                            <label className="block font-bold text-[#5F6368] uppercase text-[10.5px] mb-1">Day Card / Box Background</label>
+                            <div className="flex items-center gap-2 bg-neutral-50 border border-neutral-300 rounded-xl px-2.5 py-1.5">
+                              <input
+                                type="color"
+                                value={settingsForm.footerCardBgColor || '#FFFFFF'}
+                                onChange={e => setSettingsForm(prev => ({ ...prev, footerCardBgColor: e.target.value }))}
+                                className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent p-0"
+                              />
+                              <input
+                                type="text"
+                                value={settingsForm.footerCardBgColor || '#FFFFFF'}
+                                onChange={e => setSettingsForm(prev => ({ ...prev, footerCardBgColor: e.target.value }))}
+                                className="w-full text-xs font-mono font-bold text-neutral-800 focus:outline-none bg-transparent"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Day Preview */}
+                          <div className="md:col-span-6">
+                            <div
+                              className="p-2.5 rounded-xl border border-neutral-200 flex items-center justify-between gap-2 shadow-2xs"
+                              style={{ backgroundColor: settingsForm.footerBgColor || '#F8FAFC' }}
+                            >
+                              <div
+                                className="px-3 py-1.5 rounded-lg border border-neutral-200 flex items-center gap-2 flex-1 shadow-2xs"
+                                style={{ backgroundColor: settingsForm.footerCardBgColor || '#FFFFFF' }}
+                              >
+                                <span className="font-black text-xs tracking-tight text-neutral-900">
+                                  <span>MR. </span>
+                                  <span className="text-[#D71920]">BOOKS</span>
+                                </span>
+                                <span className="text-[10px] text-neutral-500 truncate">Day Theme Preview</span>
+                              </div>
+                              <span className="text-[10px] font-bold text-neutral-400 shrink-0">Day</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Section B: Dark Mode Footer Colors */}
+                      <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-3 text-white">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-full bg-indigo-400"></span>
+                            Dark Mode Footer (Dark Theme)
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setSettingsForm(prev => ({ ...prev, footerDarkBgColor: '#070A0F', footerDarkCardBgColor: '#0E1420' }))}
+                            className="text-[11px] font-bold text-slate-400 hover:text-white hover:underline cursor-pointer"
+                          >
+                            Reset Dark Defaults
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                          <div className="md:col-span-3">
+                            <label className="block font-bold text-slate-400 uppercase text-[10.5px] mb-1">Dark Footer Background</label>
+                            <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-1.5">
+                              <input
+                                type="color"
+                                value={settingsForm.footerDarkBgColor || '#070A0F'}
+                                onChange={e => setSettingsForm(prev => ({ ...prev, footerDarkBgColor: e.target.value }))}
+                                className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent p-0"
+                              />
+                              <input
+                                type="text"
+                                value={settingsForm.footerDarkBgColor || '#070A0F'}
+                                onChange={e => setSettingsForm(prev => ({ ...prev, footerDarkBgColor: e.target.value }))}
+                                className="w-full text-xs font-mono font-bold text-white focus:outline-none bg-transparent"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="md:col-span-3">
+                            <label className="block font-bold text-slate-400 uppercase text-[10.5px] mb-1">Dark Card / Box Background</label>
+                            <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-1.5">
+                              <input
+                                type="color"
+                                value={settingsForm.footerDarkCardBgColor || '#0E1420'}
+                                onChange={e => setSettingsForm(prev => ({ ...prev, footerDarkCardBgColor: e.target.value }))}
+                                className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent p-0"
+                              />
+                              <input
+                                type="text"
+                                value={settingsForm.footerDarkCardBgColor || '#0E1420'}
+                                onChange={e => setSettingsForm(prev => ({ ...prev, footerDarkCardBgColor: e.target.value }))}
+                                className="w-full text-xs font-mono font-bold text-white focus:outline-none bg-transparent"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Dark Preview */}
+                          <div className="md:col-span-6">
+                            <div
+                              className="p-2.5 rounded-xl border border-white/10 flex items-center justify-between gap-2 shadow-2xs"
+                              style={{ backgroundColor: settingsForm.footerDarkBgColor || '#070A0F' }}
+                            >
+                              <div
+                                className="px-3 py-1.5 rounded-lg border border-white/10 flex items-center gap-2 flex-1 shadow-2xs"
+                                style={{ backgroundColor: settingsForm.footerDarkCardBgColor || '#0E1420' }}
+                              >
+                                <span className="font-black text-xs tracking-tight text-white">
+                                  <span>MR. </span>
+                                  <span className="text-[#D71920]">BOOKS</span>
+                                </span>
+                                <span className="text-[10px] text-zinc-400 truncate">Dark Theme Preview</span>
+                              </div>
+                              <span className="text-[10px] font-bold text-zinc-400 shrink-0">Dark</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>

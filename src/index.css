@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: 'Plus Jakarta Sans', 'Hind Siliguri', system-ui, -apple-system, sans-serif;
   --color-brand-red: #D71920;
@@ -21,21 +23,267 @@
   }
 
   html {
-    background-color: #FFFFFF !important;
-    color: #111827 !important;
+    background-color: #FFFFFF;
+    color: #111827;
   }
 
   body {
-    background-color: #FFFFFF !important;
-    color: #111827 !important;
+    background-color: #FFFFFF;
+    color: #111827;
     font-family: 'Plus Jakarta Sans', 'Hind Siliguri', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     min-height: 100vh;
   }
+
+  /* Full Dark Mode Root Overrides */
+  html.dark,
+  html[data-theme="dark"] {
+    color-scheme: dark;
+    background-color: #0B0F17 !important;
+    color: #F8FAFC !important;
+  }
+
+  html.dark body,
+  html[data-theme="dark"] body {
+    background-color: #0B0F17 !important;
+    color: #F8FAFC !important;
+  }
 }
 
-/* Custom smooth scrollbar */
+/* ========================================================================= */
+/* PRODUCTION-GRADE COMPREHENSIVE DARK MODE STYLES                           */
+/* All white areas transition to high-end dark slate; RED remains RED.       */
+/* ========================================================================= */
+
+.dark {
+  /* Surfaces & Backgrounds */
+  --bg-page: #0B0F17;
+  --bg-card: #121722;
+  --bg-subtle: #161C28;
+  --bg-elevated: #1B2332;
+  --border-card: #222D3E;
+  --border-subtle: #1A2230;
+  --text-primary: #F8FAFC;
+  --text-secondary: #CBD5E1;
+  --text-muted: #94A3B8;
+}
+
+/* Page background and main router containers */
+.dark .bg-white {
+  background-color: #121722 !important;
+}
+
+.dark .bg-\[\#FAFAFA\],
+.dark .bg-\[\#F7F7F8\],
+.dark .bg-\[\#F9FAFB\],
+.dark .bg-neutral-50,
+.dark .bg-gray-50,
+.dark .bg-slate-50 {
+  background-color: #0F141F !important;
+}
+
+.dark .bg-neutral-100,
+.dark .bg-gray-100,
+.dark .bg-slate-100 {
+  background-color: #161C28 !important;
+}
+
+.dark .bg-neutral-200,
+.dark .bg-gray-200 {
+  background-color: #1E2738 !important;
+}
+
+/* Cards & Modals in Dark Mode */
+.dark .bg-white\/95,
+.dark .bg-white\/90,
+.dark .bg-white\/80 {
+  background-color: rgba(18, 23, 34, 0.95) !important;
+}
+
+/* Typography in Dark Mode */
+.dark .text-\[\#171717\],
+.dark .text-\[\#111827\],
+.dark .text-neutral-900,
+.dark .text-gray-900,
+.dark .text-slate-900 {
+  color: #F8FAFC !important;
+}
+
+.dark .text-neutral-800,
+.dark .text-gray-800,
+.dark .text-slate-800 {
+  color: #E2E8F0 !important;
+}
+
+.dark .text-neutral-700,
+.dark .text-gray-700,
+.dark .text-slate-700,
+.dark .text-\[\#4B5563\] {
+  color: #CBD5E1 !important;
+}
+
+.dark .text-neutral-600,
+.dark .text-gray-600,
+.dark .text-slate-600,
+.dark .text-\[\#5F6368\],
+.dark .text-\[\#777777\] {
+  color: #94A3B8 !important;
+}
+
+.dark .text-neutral-500,
+.dark .text-gray-500,
+.dark .text-slate-500 {
+  color: #94A3B8 !important;
+}
+
+.dark .text-neutral-400,
+.dark .text-gray-400 {
+  color: #64748B !important;
+}
+
+/* Borders in Dark Mode */
+.dark .border-neutral-100,
+.dark .border-gray-100,
+.dark .border-slate-100 {
+  border-color: #1A2230 !important;
+}
+
+.dark .border-neutral-200,
+.dark .border-gray-200,
+.dark .border-slate-200,
+.dark .border-\[\#E5E5E5\],
+.dark .border-\[\#EEEEEE\],
+.dark .border-\[\#E5E7EB\],
+.dark .border-\[\#F0F0F0\] {
+  border-color: #222D3E !important;
+}
+
+.dark .divide-neutral-100 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-neutral-200 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-\[\#EEEEEE\] > :not([hidden]) ~ :not([hidden]) {
+  border-color: #222D3E !important;
+}
+
+/* Brand Red Strict Preservation */
+/* Primary red backgrounds and texts remain 100% vibrant red */
+.dark .bg-\[\#D71920\],
+.dark .bg-red-600 {
+  background-color: #D71920 !important;
+}
+
+.dark .text-\[\#D71920\],
+.dark .text-red-600 {
+  color: #D71920 !important;
+}
+
+.dark .border-\[\#D71920\],
+.dark .border-red-600 {
+  border-color: #D71920 !important;
+}
+
+/* Soft Red Backgrounds: In dark mode, transform from pale pink to elegant deep crimson tint */
+.dark .bg-\[\#FFF1F2\],
+.dark .bg-red-50 {
+  background-color: rgba(215, 25, 32, 0.16) !important;
+}
+
+.dark .border-\[\#FEE2E2\],
+.dark .border-\[\#FECDD3\],
+.dark .border-red-200,
+.dark .border-red-100 {
+  border-color: rgba(215, 25, 32, 0.35) !important;
+}
+
+/* Form Controls (Inputs, Textarea, Selects) in Dark Mode */
+.dark input:not([type="checkbox"]):not([type="radio"]),
+.dark textarea,
+.dark select {
+  background-color: #161C28 !important;
+  border-color: #2B374C !important;
+  color: #F8FAFC !important;
+}
+
+.dark input:focus:not([type="checkbox"]):not([type="radio"]),
+.dark textarea:focus,
+.dark select:focus {
+  border-color: #D71920 !important;
+  box-shadow: 0 0 0 2px rgba(215, 25, 32, 0.25) !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #64748B !important;
+}
+
+/* Elevate Shadows to Rich Dark Tone */
+.dark .shadow-xs,
+.dark .shadow-sm,
+.dark .shadow-md,
+.dark .shadow-lg,
+.dark .shadow-xl,
+.dark .shadow-2xl {
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.45) !important;
+}
+
+/* Single Product Detail & Checkout specific dark styling adjustments */
+.dark .bg-neutral-50\/90,
+.dark .bg-neutral-50\/80,
+.dark [class*="bg-neutral-50"] {
+  background-color: #161C28 !important;
+  border-color: #222D3E !important;
+}
+
+.dark .bg-emerald-50\/80,
+.dark .bg-emerald-50,
+.dark [class*="bg-emerald-50"] {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+.dark .text-emerald-900,
+.dark .text-emerald-950 {
+  color: #A7F3D0 !important;
+}
+
+.dark .text-emerald-800,
+.dark .text-emerald-700 {
+  color: #6EE7B7 !important;
+}
+
+.dark .bg-zinc-100 {
+  background-color: #1E2738 !important;
+  color: #E2E8F0 !important;
+}
+
+.dark .product-spec-table th,
+.dark table th {
+  background-color: #161C28 !important;
+  color: #CBD5E1 !important;
+  border-color: #222D3E !important;
+}
+
+.dark .product-spec-table td,
+.dark table td {
+  border-color: #222D3E !important;
+  color: #F8FAFC !important;
+}
+
+.dark .bg-white\/95 {
+  background-color: rgba(18, 23, 34, 0.95) !important;
+}
+
+/* Smooth Transition for Theme Toggling */
+html,
+body,
+nav,
+main,
+section,
+footer {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Custom smooth scrollbar (Light & Dark aware) */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -49,6 +297,16 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #D71920;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #0B0F17 !important;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #222D3E !important;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #D71920 !important;
 }
 
 /* Continuous sliding announcement bar marquee */

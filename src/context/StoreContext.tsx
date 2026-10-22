@@ -37,6 +37,7 @@ import { cleanForFirestore, addCacheBust, sanitizeImageUrl, isValidImageUrl } fr
 import { SyncTracker, REQUIRED_COLLECTIONS } from '../utils/syncManager';
 import { applyReviewReaction, ReactionType } from '../utils/reviewHelpers';
 import { dedupeById } from '../utils/videoReelHelpers';
+import { getInitialTheme, persistThemeChoice, applyThemeToDom, toggleTheme as toggleThemeHelper } from '../utils/themeHelpers';
 
 function sanitizeStoreSettings<T extends Partial<StoreSettings>>(st: T): T {
   const copy: Partial<StoreSettings> = { ...st };
@@ -76,6 +77,7 @@ interface StoreContextType {
   setSelectedCategoryFilter: (cat: string) => void;
   setSearchQuery: (query: string) => void;
   setDarkMode: (dark: boolean) => void;
+  toggleDarkMode: () => void;
   
   addToCart: (product: Product, variantId: string, quantity: number) => void;
   removeFromCart: (variantId: string) => void;
@@ -315,8 +317,29 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   
-  const [darkMode] = useState<boolean>(false);
-  const setDarkMode = (_dark: boolean) => {};
+  const [darkMode, setDarkModeState] = useState<boolean>(() => {
+    return getInitialTheme() === 'dark';
+  });
+
+  const setDarkMode = (dark: boolean) => {
+    setDarkModeState(dark);
+    persistThemeChoice(dark ? 'dark' : 'light');
+    applyThemeToDom(dark);
+  };
+
+  const toggleDarkMode = () => {
+    setDarkModeState(prev => {
+      const next = toggleThemeHelper(prev);
+      persistThemeChoice(next ? 'dark' : 'light');
+      applyThemeToDom(next);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    applyThemeToDom(darkMode);
+  }, [darkMode]);
+
   const [isLoading, setIsLoading] = useState<boolean>(true);
   
   const [settings, setSettings] = useState<StoreSettings>({
@@ -341,6 +364,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     headerNameColor2: '#D71920',
     showHeaderTagline: true,
     showHeaderContact: true,
+    enableThemeToggle: true,
+    allowDarkMode: true,
     showAnnouncementBar: true,
     announcementItems: [
       { id: 'ann-1', icon: '⚡', title: 'SPECIAL OFFER:', desc: 'Free Delivery on orders above Tk 1,500 across Bangladesh!', isActive: true },
@@ -1571,6 +1596,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setSelectedCategoryFilter,
       setSearchQuery,
       setDarkMode,
+      toggleDarkMode,
       addToCart,
       removeFromCart,
       updateCartQuantity,

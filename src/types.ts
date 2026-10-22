@@ -250,6 +250,9 @@ export interface StoreSettings {
   showHeaderContact?: boolean;
   showAnnouncementBar?: boolean;
   announcementItems?: AnnouncementItem[];
+  // Dark Theme & Display Customizations
+  enableThemeToggle?: boolean;
+  allowDarkMode?: boolean;
   // Marketing & Tracking APIs
   facebookPixelId?: string;
   facebookCapiToken?: string;
@@ -262,6 +265,8 @@ export interface StoreSettings {
   footerNameColor2?: string;
   footerBgColor?: string;
   footerCardBgColor?: string;
+  footerDarkBgColor?: string;
+  footerDarkCardBgColor?: string;
   footerDescription?: string;
   footerPaymentTitle?: string;
   footerPaymentBannerUrl?: string;

@@ -51,9 +51,9 @@ function MainRouter() {
           <AdminDashboard />
         </React.Suspense>
       ) : (
-        <div className="bg-white text-[#171717] min-h-screen flex flex-col font-sans antialiased selection:bg-[#FFF1F2] selection:text-[#D71920] pb-14 md:pb-0">
+        <div className="bg-white dark:bg-[#0B0F17] text-[#171717] dark:text-[#F8FAFC] min-h-screen flex flex-col font-sans antialiased selection:bg-[#FFF1F2] selection:text-[#D71920] pb-14 md:pb-0 transition-colors duration-200">
           <Navbar />
-          <main className="flex-1 bg-white">
+          <main className="flex-1 bg-white dark:bg-[#0B0F17] transition-colors duration-200">
             {activePage === 'home' && <Home />}
             {(activePage === 'books' || activePage === 'shop') && <BooksPage />}
             {activePage === 'stationery' && <StationeryPage />}

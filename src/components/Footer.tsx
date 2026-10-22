@@ -49,7 +49,27 @@ const WhatsAppIcon = () => (
   </svg>
 );
 export function Footer() {
-  const { settings, setActivePage, setSelectedCategoryFilter, addSubscriber, trackOrder } = useStore();
+  const { settings, setActivePage, setSelectedCategoryFilter, addSubscriber, trackOrder, darkMode } = useStore();
+
+  const isDark = darkMode;
+
+  // Adaptive Footer Colors:
+  // In Dark Mode: switches to deep obsidian (#070A0F) with dark cards (#0E1420), white text & red accents
+  // In Day Mode: clean elegant Day mode (#F8FAFC) with white cards (#FFFFFF) and crisp typography
+  const footerBg = isDark
+    ? (settings.footerDarkBgColor || '#070A0F')
+    : (settings.footerBgColor && settings.footerBgColor !== '#121212' && settings.footerBgColor !== '#000000' ? settings.footerBgColor : '#F8FAFC');
+
+  const footerCardBg = isDark
+    ? (settings.footerDarkCardBgColor || '#0E1420')
+    : (settings.footerCardBgColor && settings.footerCardBgColor !== '#1c1c1e' ? settings.footerCardBgColor : '#FFFFFF');
+
+  const footerCardBorder = isDark ? 'border-[#1E293B]' : 'border-neutral-200/90 shadow-2xs';
+  const footerDivider = isDark ? 'border-[#1E293B]' : 'border-neutral-200/80';
+  const footerText = isDark ? 'text-zinc-300' : 'text-neutral-600';
+  const footerMutedText = isDark ? 'text-zinc-400' : 'text-neutral-500';
+  const footerHeading = isDark ? 'text-white' : 'text-neutral-900';
+  const footerLinkHover = isDark ? 'hover:text-white' : 'hover:text-[#D71920]';
 
   // Subscription state
   const [subInput, setSubInput] = useState('');
@@ -117,33 +137,43 @@ export function Footer() {
 
   return (
     <>
-      {/* Phone, Tablet & PC Minimal White Subscription & Real-Time Tracking Strip */}
+      {/* Phone, Tablet & PC Minimal Subscription & Real-Time Tracking Strip */}
       {(showSubscription || showTracking) && (
-        <section className="bg-white border-t border-b border-gray-100 py-3 sm:py-3.5 transition-colors">
+        <section className={`border-t border-b py-3 sm:py-3.5 transition-colors ${
+          isDark ? 'bg-[#0B0F17] border-[#1E2838]' : 'bg-white border-gray-100'
+        }`}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className={`grid ${showSubscription && showTracking ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'} gap-2.5 sm:gap-3.5`}>
               
-              {/* 1. VIP Book Club & Offers Subscription Card (Ultra-Minimal, White) */}
+              {/* 1. VIP Book Club & Offers Subscription Card */}
               {showSubscription && (
-                <div className="bg-white border border-gray-200/90 hover:border-gray-300 rounded-xl p-2.5 sm:p-3 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between gap-2 group">
+                <div className={`border rounded-xl p-2.5 sm:p-3 transition-all flex flex-col justify-between gap-2 group ${
+                  isDark
+                    ? 'bg-[#121722] border-[#222D3E] shadow-sm'
+                    : 'bg-white border-gray-200/90 hover:border-gray-300 shadow-2xs hover:shadow-xs'
+                }`}>
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-6 h-6 sm:w-6.5 sm:h-6.5 rounded-lg bg-red-50 text-[#D71920] border border-red-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <div className="w-6 h-6 sm:w-6.5 sm:h-6.5 rounded-lg bg-red-50 dark:bg-red-950/40 text-[#D71920] border border-red-100 dark:border-red-900/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                         <Gift size={13} />
                       </div>
-                      <h3 className="font-bold text-gray-900 text-[11.5px] sm:text-[13px] tracking-tight truncate">
+                      <h3 className={`font-bold text-[11.5px] sm:text-[13px] tracking-tight truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
                         {(settings.subscriptionTitle || 'Join MR. BOOKS Readers Club').replace(/BOOKSReaders/g, 'BOOKS Readers')}
                       </h3>
                     </div>
 
-                    <span className="inline-flex items-center gap-1 text-[9.5px] sm:text-[10.5px] font-bold text-[#D71920] bg-red-50 border border-red-100 px-2 py-0.5 rounded-full shrink-0">
+                    <span className="inline-flex items-center gap-1 text-[9.5px] sm:text-[10.5px] font-bold text-[#D71920] bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900/40 px-2 py-0.5 rounded-full shrink-0">
                       <Sparkles size={10} /> {settings.subscriptionDiscountBadge || '10% OFF'}
                     </span>
                   </div>
 
                   {/* Sleek Integrated Compact Subscription Form */}
                   <form onSubmit={handleSubscribe} className="space-y-1">
-                    <div className="flex items-center bg-gray-50/70 hover:bg-gray-50 focus-within:bg-white border border-gray-200 focus-within:border-[#D71920] focus-within:ring-2 focus-within:ring-[#D71920]/10 rounded-lg p-0.5 sm:p-1 transition-all">
+                    <div className={`flex items-center border rounded-lg p-0.5 sm:p-1 transition-all ${
+                      isDark
+                        ? 'bg-[#161C28] border-[#2B374C] focus-within:border-[#D71920]'
+                        : 'bg-gray-50/70 hover:bg-gray-50 focus-within:bg-white border-gray-200 focus-within:border-[#D71920]'
+                    }`}>
                       <div className="pl-2 pr-1 text-gray-400 pointer-events-none flex items-center shrink-0">
                         <Mail size={13} />
                       </div>
@@ -153,7 +183,9 @@ export function Footer() {
                         onChange={e => { setSubInput(e.target.value); setSubMessage(null); }}
                         placeholder="Email or Mobile (017...)"
                         disabled={subLoading}
-                        className="w-full bg-transparent px-1.5 py-1 text-gray-900 placeholder:text-gray-400 text-xs focus:outline-none"
+                        className={`w-full bg-transparent px-1.5 py-1 text-xs focus:outline-none ${
+                          isDark ? 'text-white placeholder:text-neutral-500' : 'text-gray-900 placeholder:text-gray-400'
+                        }`}
                       />
                       <button
                         type="submit"
@@ -185,20 +217,24 @@ export function Footer() {
                 </div>
               )}
 
-              {/* 2. Real-Time Order Tracking Card (Ultra-Minimal, White) */}
+              {/* 2. Real-Time Order Tracking Card */}
               {showTracking && (
-                <div className="bg-white border border-gray-200/90 hover:border-gray-300 rounded-xl p-2.5 sm:p-3 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between gap-2 group">
+                <div className={`border rounded-xl p-2.5 sm:p-3 transition-all flex flex-col justify-between gap-2 group ${
+                  isDark
+                    ? 'bg-[#121722] border-[#222D3E] shadow-sm'
+                    : 'bg-white border-gray-200/90 hover:border-gray-300 shadow-2xs hover:shadow-xs'
+                }`}>
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-6 h-6 sm:w-6.5 sm:h-6.5 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <div className="w-6 h-6 sm:w-6.5 sm:h-6.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                         <Truck size={13} />
                       </div>
-                      <h3 className="font-bold text-gray-900 text-xs sm:text-[13px] tracking-tight truncate">
+                      <h3 className={`font-bold text-xs sm:text-[13px] tracking-tight truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
                         {settings.trackingTitle || 'Real-Time Order Tracking'}
                       </h3>
                     </div>
 
-                    <span className="inline-flex items-center gap-1 text-[10px] sm:text-[10.5px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full shrink-0">
+                    <span className="inline-flex items-center gap-1 text-[10px] sm:text-[10.5px] font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/40 px-2 py-0.5 rounded-full shrink-0">
                       <span className="relative flex h-1.5 w-1.5">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
@@ -209,7 +245,11 @@ export function Footer() {
 
                   {/* Sleek Integrated Compact Tracking Form */}
                   <form onSubmit={handleTrackSubmit} className="space-y-1">
-                    <div className="flex items-center bg-gray-50/70 hover:bg-gray-50 focus-within:bg-white border border-gray-200 focus-within:border-gray-800 focus-within:ring-2 focus-within:ring-gray-300/30 rounded-lg p-0.5 sm:p-1 transition-all">
+                    <div className={`flex items-center border rounded-lg p-0.5 sm:p-1 transition-all ${
+                      isDark
+                        ? 'bg-[#161C28] border-[#2B374C] focus-within:border-[#D71920]'
+                        : 'bg-gray-50/70 hover:bg-gray-50 focus-within:bg-white border-gray-200 focus-within:border-gray-800'
+                    }`}>
                       <div className="pl-2 pr-1 text-gray-400 pointer-events-none flex items-center shrink-0">
                         <Package size={13} />
                       </div>
@@ -219,19 +259,21 @@ export function Footer() {
                         onChange={e => { setTrackInput(e.target.value); setTrackError(null); }}
                         placeholder="Order ID (#ORD-...) or Mobile"
                         disabled={trackLoading}
-                        className="w-full bg-transparent px-1.5 py-1 text-gray-900 placeholder:text-gray-400 text-xs focus:outline-none"
+                        className={`w-full bg-transparent px-1.5 py-1 text-xs focus:outline-none ${
+                          isDark ? 'text-white placeholder:text-neutral-500' : 'text-gray-900 placeholder:text-gray-400'
+                        }`}
                       />
                       <button
                         type="submit"
                         disabled={trackLoading || !trackInput.trim()}
-                        className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-gray-900 hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium rounded-md text-[11px] sm:text-xs flex items-center gap-1 transition-all shadow-2xs shrink-0 cursor-pointer active:scale-95"
+                        className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-[#D71920] hover:bg-[#b8141a] disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium rounded-md text-[11px] sm:text-xs flex items-center gap-1 transition-all shadow-2xs shrink-0 cursor-pointer active:scale-95"
                       >
                         {trackLoading ? (
                           <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                         ) : (
                           <>
-                            <Search size={11} />
                             <span>Track</span>
+                            <ArrowRight size={11} />
                           </>
                         )}
                       </button>
@@ -262,8 +304,8 @@ export function Footer() {
 
       {/* Main Footer Links */}
       <footer
-        className="text-zinc-300 pt-6 sm:pt-8 pb-7 sm:pb-9 border-t border-zinc-800/80 transition-colors"
-        style={{ backgroundColor: settings.footerBgColor || '#121212' }}
+        className={`pt-6 sm:pt-8 pb-7 sm:pb-9 border-t transition-colors ${footerText} ${isDark ? 'border-[#1E2838]' : 'border-neutral-200/80'}`}
+        style={{ backgroundColor: footerBg }}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4 sm:space-y-5">
           
@@ -271,8 +313,8 @@ export function Footer() {
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4">
             {/* Brand Box */}
             <div
-              className="md:col-span-4 border border-white/10 rounded-2xl p-4 sm:p-4.5 space-y-2.5 flex flex-col justify-between shadow-sm"
-              style={{ backgroundColor: settings.footerCardBgColor || '#1c1c1e' }}
+              className={`md:col-span-4 border rounded-2xl p-4 sm:p-4.5 space-y-2.5 flex flex-col justify-between shadow-sm transition-colors ${footerCardBorder}`}
+              style={{ backgroundColor: footerCardBg }}
             >
               <div>
                 {(() => {
@@ -281,7 +323,9 @@ export function Footer() {
                   const rawFooterName = (settings.footerBrandName ?? settings.storeName ?? 'MR. BOOKS').trim();
                   const hasFooterName = rawFooterName.length > 0;
                   const showFooterBookIcon = !hasFooterCustomLogo && hasFooterName && settings.showFooterIcon !== false;
-                  const footerColor1 = settings.footerNameColor1 || '#FFFFFF';
+                  const footerColor1 = isDark
+                    ? '#FFFFFF'
+                    : (settings.footerNameColor1 && settings.footerNameColor1 !== '#FFFFFF' ? settings.footerNameColor1 : '#171717');
                   const footerColor2 = settings.footerNameColor2 || '#D71920';
 
                   if (!hasFooterCustomLogo && !hasFooterName) return null;
@@ -325,12 +369,12 @@ export function Footer() {
                     </div>
                   );
                 })()}
-                <p className="text-xs text-zinc-400 leading-relaxed">
+                <p className={`text-xs leading-relaxed ${footerMutedText}`}>
                   {settings.footerDescription || "Bangladesh's premier online bookstore and stationery shop. Bringing knowledge, timeless literature, and premium supplies directly to your doorstep."}
                 </p>
               </div>
 
-              <div className="space-y-1.5 text-xs text-zinc-300 pt-2 border-t border-white/10">
+              <div className={`space-y-1.5 text-xs pt-2 border-t ${footerDivider} ${footerMutedText}`}>
                 {settings.address && (
                   <div className="flex items-center gap-2">
                     <MapPin size={14} className="text-[#D71920] shrink-0" />
@@ -340,7 +384,7 @@ export function Footer() {
                 {settings.phone && (
                   <div className="flex items-center gap-2">
                     <Phone size={14} className="text-[#D71920] shrink-0" />
-                    <a href={`tel:${settings.phone.replace(/\s+/g, '')}`} className="hover:text-white transition-colors">
+                    <a href={`tel:${settings.phone.replace(/\s+/g, '')}`} className={`${footerLinkHover} transition-colors`}>
                       {settings.phone}
                     </a>
                   </div>
@@ -348,7 +392,7 @@ export function Footer() {
                 {settings.email && (
                   <div className="flex items-center gap-2">
                     <Mail size={14} className="text-[#D71920] shrink-0" />
-                    <a href={`mailto:${settings.email}`} className="truncate hover:text-white transition-colors">
+                    <a href={`mailto:${settings.email}`} className={`truncate ${footerLinkHover} transition-colors`}>
                       {settings.email}
                     </a>
                   </div>
@@ -359,14 +403,14 @@ export function Footer() {
             {/* Quick Links & Categories Box */}
             <div className="md:col-span-5 grid grid-cols-2 gap-3">
               <div
-                className="border border-white/10 rounded-2xl p-4 sm:p-4.5 space-y-2 shadow-sm flex flex-col justify-between"
-                style={{ backgroundColor: settings.footerCardBgColor || '#1c1c1e' }}
+                className={`border rounded-2xl p-4 sm:p-4.5 space-y-2 shadow-sm flex flex-col justify-between transition-colors ${footerCardBorder}`}
+                style={{ backgroundColor: footerCardBg }}
               >
                 <div>
-                  <h4 className="text-white font-bold text-xs uppercase tracking-wider border-b border-white/10 pb-2">
+                  <h4 className={`font-bold text-xs uppercase tracking-wider border-b pb-2 ${footerHeading} ${footerDivider}`}>
                     {settings.footerQuickLinksTitle || 'QUICK LINKS'}
                   </h4>
-                  <ul className="space-y-1.5 text-xs text-zinc-400 mt-2.5">
+                  <ul className={`space-y-1.5 text-xs mt-2.5 ${footerMutedText}`}>
                     {((settings.footerQuickLinks && settings.footerQuickLinks.length > 0)
                       ? settings.footerQuickLinks.filter(l => l.isActive !== false)
                       : [
@@ -386,7 +430,7 @@ export function Footer() {
                               setActivePage(link.page);
                             }
                           }}
-                          className="hover:text-white transition-colors cursor-pointer text-left w-full truncate"
+                          className={`${footerLinkHover} transition-colors cursor-pointer text-left w-full truncate`}
                         >
                           {link.label}
                         </button>
@@ -397,14 +441,14 @@ export function Footer() {
               </div>
 
               <div
-                className="border border-white/10 rounded-2xl p-4 sm:p-4.5 space-y-2 shadow-sm flex flex-col justify-between"
-                style={{ backgroundColor: settings.footerCardBgColor || '#1c1c1e' }}
+                className={`border rounded-2xl p-4 sm:p-4.5 space-y-2 shadow-sm flex flex-col justify-between transition-colors ${footerCardBorder}`}
+                style={{ backgroundColor: footerCardBg }}
               >
                 <div>
-                  <h4 className="text-white font-bold text-xs uppercase tracking-wider border-b border-white/10 pb-2">
+                  <h4 className={`font-bold text-xs uppercase tracking-wider border-b pb-2 ${footerHeading} ${footerDivider}`}>
                     {settings.footerCategoriesTitle || 'CATEGORIES'}
                   </h4>
-                  <ul className="space-y-1.5 text-xs text-zinc-400 mt-2.5">
+                  <ul className={`space-y-1.5 text-xs mt-2.5 ${footerMutedText}`}>
                     {((settings.footerCategoryLinks && settings.footerCategoryLinks.length > 0)
                       ? settings.footerCategoryLinks.filter(c => c.isActive !== false)
                       : [
@@ -423,7 +467,7 @@ export function Footer() {
                             }
                             setActivePage(catLink.page || 'books');
                           }}
-                          className="hover:text-white transition-colors cursor-pointer text-left w-full truncate"
+                          className={`${footerLinkHover} transition-colors cursor-pointer text-left w-full truncate`}
                         >
                           {catLink.label}
                         </button>
@@ -436,15 +480,17 @@ export function Footer() {
 
             {/* Combined Payment Options (Single Banner Image) & Social Media Box */}
             <div
-              className="md:col-span-3 border border-white/10 rounded-2xl p-4 sm:p-4.5 space-y-3 shadow-sm flex flex-col justify-between"
-              style={{ backgroundColor: settings.footerCardBgColor || '#1c1c1e' }}
+              className={`md:col-span-3 border rounded-2xl p-4 sm:p-4.5 space-y-3 shadow-sm flex flex-col justify-between transition-colors ${footerCardBorder}`}
+              style={{ backgroundColor: footerCardBg }}
             >
               <div>
-                <h4 className="text-white font-bold text-xs uppercase tracking-wider border-b border-white/10 pb-2 mb-2.5">
+                <h4 className={`font-bold text-xs uppercase tracking-wider border-b pb-2 mb-2.5 ${footerHeading} ${footerDivider}`}>
                   {settings.footerPaymentTitle || 'Payment Options'}
                 </h4>
                 {isValidImageUrl(settings.footerPaymentBannerUrl) && !paymentBannerError ? (
-                  <div className="bg-black/25 border border-white/10 rounded-xl p-2 flex items-center justify-center overflow-hidden shadow-2xs">
+                  <div className={`border rounded-xl p-2 flex items-center justify-center overflow-hidden shadow-2xs ${
+                    isDark ? 'bg-black/35 border-[#1E293B]' : 'bg-neutral-50 border-neutral-200'
+                  }`}>
                     <img
                       src={settings.footerPaymentBannerUrl}
                       alt={settings.footerPaymentTitle || 'Payment Options'}
@@ -454,7 +500,9 @@ export function Footer() {
                   </div>
                 ) : (
                   <div
-                    className="bg-black/25 border border-white/10 rounded-xl p-2 flex items-center justify-center overflow-hidden shadow-2xs"
+                    className={`border rounded-xl p-2 flex items-center justify-center overflow-hidden shadow-2xs ${
+                      isDark ? 'bg-black/35 border-[#1E293B]' : 'bg-neutral-50 border-neutral-200'
+                    }`}
                     title="All supported payment methods"
                   >
                     <svg viewBox="0 0 320 48" className="w-full h-10 object-contain" role="img" aria-label="Cash on Delivery, bKash, Nagad, Rocket, Upay, Visa">
@@ -480,8 +528,8 @@ export function Footer() {
                 )}
               </div>
 
-              <div className="pt-2 border-t border-white/10">
-                <h4 className="text-white font-bold text-xs uppercase tracking-wider mb-2">
+              <div className={`pt-2 border-t ${footerDivider}`}>
+                <h4 className={`font-bold text-xs uppercase tracking-wider mb-2 ${footerHeading}`}>
                   {settings.footerSocialTitle || 'Social Media'}
                 </h4>
                 <div className="flex items-center justify-between gap-1.5 flex-wrap">
@@ -501,14 +549,28 @@ export function Footer() {
                           target="_blank"
                           rel="noopener noreferrer"
                           title={social.name}
-                          className="w-8.5 h-8.5 bg-black/30 hover:bg-[#D71920] text-zinc-300 hover:text-white rounded-xl flex items-center justify-center transition-all cursor-pointer shadow-2xs border border-white/10"
+                          className={`w-8.5 h-8.5 rounded-xl flex items-center justify-center transition-all cursor-pointer shadow-2xs border ${
+                            isDark
+                              ? 'bg-black/40 hover:bg-[#D71920] text-zinc-300 hover:text-white border-[#1E293B]'
+                              : 'bg-neutral-100 hover:bg-[#D71920] text-neutral-600 hover:text-white border-neutral-200'
+                          }`}
                         >
                           {iconNode}
                         </a>
                       );
                     })
                   ) : (
-                    <a href="https://facebook.com" target="_blank" rel="noreferrer" title="Facebook" className="w-8.5 h-8.5 bg-black/30 hover:bg-[#D71920] text-zinc-300 hover:text-white rounded-xl flex items-center justify-center transition-all">
+                    <a
+                      href="https://facebook.com"
+                      target="_blank"
+                      rel="noreferrer"
+                      title="Facebook"
+                      className={`w-8.5 h-8.5 rounded-xl flex items-center justify-center transition-all ${
+                        isDark
+                          ? 'bg-black/40 hover:bg-[#D71920] text-zinc-300 hover:text-white border border-[#1E293B]'
+                          : 'bg-neutral-100 hover:bg-[#D71920] text-neutral-600 hover:text-white border border-neutral-200'
+                      }`}
+                    >
                       <FacebookIcon />
                     </a>
                   )}
@@ -519,11 +581,11 @@ export function Footer() {
 
           {/* Bottom Boxed Copyright Footer */}
           <div
-            className="border border-white/10 rounded-2xl px-4 sm:px-5 py-3 flex flex-col sm:flex-row items-center justify-between text-xs text-zinc-400 gap-1.5 shadow-sm text-center sm:text-left"
-            style={{ backgroundColor: settings.footerCardBgColor || '#1c1c1e' }}
+            className={`border rounded-2xl px-4 sm:px-5 py-3 flex flex-col sm:flex-row items-center justify-between text-xs gap-1.5 shadow-sm text-center sm:text-left transition-colors ${footerCardBorder} ${footerMutedText}`}
+            style={{ backgroundColor: footerCardBg }}
           >
-            <p>{settings.copyrightText || `© ${new Date().getFullYear()} ${settings.storeName || 'MR. BOOKS'} Bangladesh. All rights reserved.`}</p>
-            <div className="flex items-center gap-3 text-zinc-500 text-[11px]">
+            <p className={footerMutedText}>{settings.copyrightText || `© ${new Date().getFullYear()} ${settings.storeName || 'MR. BOOKS'} Bangladesh. All rights reserved.`}</p>
+            <div className={`flex items-center gap-3 text-[11px] ${footerMutedText}`}>
               <span>{settings.footerBottomTagline ?? 'Designed for book lovers in Bangladesh.'}</span>
             </div>
           </div>

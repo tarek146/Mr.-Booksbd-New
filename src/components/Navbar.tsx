@@ -18,7 +18,9 @@ import {
   Users,
   ChevronRight,
   User,
-  Phone
+  Phone,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { AuthModal } from './AuthModal';
 import { AnimatedSearchInput } from './AnimatedSearchInput';
@@ -35,7 +37,9 @@ export function Navbar() {
     searchQuery, 
     setSearchQuery,
     products,
-    settings
+    settings,
+    darkMode,
+    toggleDarkMode
   } = useStore();
   
   const { currentUser, logout } = useAuth();
@@ -131,7 +135,17 @@ export function Navbar() {
   const rawStoreName = (settings.storeName ?? 'MR. BOOKS').trim();
   const hasStoreName = rawStoreName.length > 0;
   const showBookIcon = !hasCustomLogo && hasStoreName && settings.showHeaderIcon !== false;
-  const headerColor1 = settings.headerNameColor1 || '#171717';
+
+  const isDarkText = (colorStr: string) => {
+    const s = (colorStr || '').toLowerCase().trim();
+    return s === '#171717' || s === '#111827' || s === '#000000' || s === '#000' || s === 'black' || s === '#1f2937';
+  };
+
+  // In Dark Mode, the first word automatically becomes crisp white (#FFFFFF)
+  // so "MR." is vividly clear against the dark header, while "BOOKS" remains brand red (#D71920).
+  const headerColor1 = darkMode
+    ? (isDarkText(settings.headerNameColor1 || '#171717') ? '#FFFFFF' : (settings.headerNameColor1 || '#FFFFFF'))
+    : (settings.headerNameColor1 || '#171717');
   const headerColor2 = settings.headerNameColor2 || '#D71920';
 
   const renderBrandTitle = (nameStr: string) => {
@@ -188,7 +202,7 @@ export function Navbar() {
                       {renderBrandTitle(rawStoreName)}
                     </div>
                     {settings.showHeaderTagline !== false && settings.tagline && (
-                      <div className="hidden sm:block text-[9.5px] uppercase font-bold tracking-widest text-neutral-500 max-w-[200px] truncate">
+                      <div className="hidden sm:block text-[9.5px] uppercase font-bold tracking-widest text-neutral-500 dark:text-neutral-200 max-w-[200px] truncate">
                         {settings.tagline}
                       </div>
                     )}
@@ -244,10 +258,33 @@ export function Navbar() {
                   <span>{settings.phone}</span>
                 </a>
               )}
-              {/* Wishlist Saved Items Button with Counter Badge */}
+
+              {/* Theme Toggle Button (Day / Dark Mode) - PC / Tablet only (Mobile has it inside the menu drawer) */}
+              {settings.enableThemeToggle !== false && (
+                <button
+                  type="button"
+                  onClick={toggleDarkMode}
+                  data-testid="theme-toggle-btn"
+                  title={darkMode ? 'ডে মোডে ফিরুন (Switch to Day Mode)' : 'ডার্ক মোড চালু করুন (Switch to Dark Mode)'}
+                  aria-label={darkMode ? 'Switch to Day Mode' : 'Switch to Dark Mode'}
+                  className={`hidden md:flex relative p-2 sm:p-2.5 rounded-full border transition-all items-center justify-center cursor-pointer shadow-2xs group ${
+                    darkMode
+                      ? 'border-amber-400/50 bg-[#161C28] text-amber-400 hover:border-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.25)]'
+                      : 'border-neutral-200 bg-white hover:bg-[#FFF1F2] hover:text-[#D71920] hover:border-[#D71920]/40 text-neutral-700'
+                  }`}
+                >
+                  {darkMode ? (
+                    <Sun size={18} className="group-hover:rotate-90 transition-transform duration-300" />
+                  ) : (
+                    <Moon size={18} className="group-hover:-rotate-12 transition-transform duration-300" />
+                  )}
+                </button>
+              )}
+
+              {/* Wishlist Saved Items Button with Counter Badge - PC / Tablet only */}
               <button 
                 onClick={() => setActivePage('my-orders')}
-                className="relative p-2 sm:p-2.5 rounded-full border border-neutral-200 bg-white hover:bg-[#FFF1F2] hover:text-[#D71920] text-neutral-700 transition-colors flex cursor-pointer"
+                className="hidden md:flex relative p-2 sm:p-2.5 rounded-full border border-neutral-200 bg-white hover:bg-[#FFF1F2] hover:text-[#D71920] text-neutral-700 transition-colors cursor-pointer"
                 title={`Saved Wishlist Items (${wishlist.length})`}
                 aria-label={`Wishlist (${wishlist.length} items saved)`}
               >
@@ -524,16 +561,16 @@ export function Navbar() {
                         <div key={`m1-${index}`} className="flex items-center gap-1.5 shrink-0">
                           <span className="text-sm shrink-0">{item.icon}</span>
                           <span className="font-black text-[#D71920] tracking-wide uppercase text-[11px]">{item.title}</span>
-                          <span className="text-black font-bold tracking-tight text-xs">{item.desc}</span>
-                          <span className="text-neutral-300 font-bold ml-3">•</span>
+                          <span className="text-neutral-900 dark:text-white font-bold tracking-tight text-xs">{item.desc}</span>
+                          <span className="text-neutral-300 dark:text-neutral-600 font-bold ml-3">•</span>
                         </div>
                       ))}
                       {marqueeItems.map((item, index) => (
                         <div key={`m2-${index}`} className="flex items-center gap-1.5 shrink-0">
                           <span className="text-sm shrink-0">{item.icon}</span>
                           <span className="font-black text-[#D71920] tracking-wide uppercase text-[11px]">{item.title}</span>
-                          <span className="text-black font-bold tracking-tight text-xs">{item.desc}</span>
-                          <span className="text-neutral-300 font-bold ml-3">•</span>
+                          <span className="text-neutral-900 dark:text-white font-bold tracking-tight text-xs">{item.desc}</span>
+                          <span className="text-neutral-300 dark:text-neutral-600 font-bold ml-3">•</span>
                         </div>
                       ))}
                     </div>
@@ -571,16 +608,16 @@ export function Navbar() {
                     <div key={`mob1-${index}`} className="flex items-center gap-1.5 shrink-0">
                       <span className="text-xs shrink-0">{item.icon}</span>
                       <span className="font-extrabold text-[#D71920]">{item.title}</span>
-                      <span className="text-black font-extrabold tracking-tight">{item.desc}</span>
-                      <span className="text-neutral-300 font-bold ml-2">•</span>
+                      <span className="text-neutral-900 dark:text-white font-extrabold tracking-tight">{item.desc}</span>
+                      <span className="text-neutral-300 dark:text-neutral-600 font-bold ml-2">•</span>
                     </div>
                   ))}
                   {marqueeItems.map((item, index) => (
                     <div key={`mob2-${index}`} className="flex items-center gap-1.5 shrink-0">
                       <span className="text-xs shrink-0">{item.icon}</span>
                       <span className="font-extrabold text-[#D71920]">{item.title}</span>
-                      <span className="text-black font-extrabold tracking-tight">{item.desc}</span>
-                      <span className="text-neutral-300 font-bold ml-2">•</span>
+                      <span className="text-neutral-900 dark:text-white font-extrabold tracking-tight">{item.desc}</span>
+                      <span className="text-neutral-300 dark:text-neutral-600 font-bold ml-2">•</span>
                     </div>
                   ))}
                 </div>
@@ -634,6 +671,51 @@ export function Navbar() {
                     <span>Hotline: {settings.phone}</span>
                   </a>
                 )}
+
+                {/* Quick Preferences & Wishlist Box for Mobile Menu */}
+                <div className="flex items-center justify-between gap-2 p-3 bg-neutral-50 rounded-2xl border border-neutral-200">
+                  <div className="flex items-center gap-2">
+                    {/* Theme Toggle in Mobile Menu */}
+                    {settings.enableThemeToggle !== false && (
+                      <button
+                        type="button"
+                        onClick={toggleDarkMode}
+                        aria-label={darkMode ? 'Switch to Day Mode' : 'Switch to Dark Mode'}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-2xs ${
+                          darkMode
+                            ? 'border-amber-400/50 bg-[#161C28] text-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.2)]'
+                            : 'border-neutral-200 bg-white hover:bg-neutral-100 text-neutral-800'
+                        }`}
+                      >
+                        {darkMode ? (
+                          <>
+                            <Sun size={16} className="text-amber-400" />
+                            <span>Day Mode</span>
+                          </>
+                        ) : (
+                          <>
+                            <Moon size={16} className="text-neutral-700" />
+                            <span>Dark Mode</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Wishlist Button in Mobile Menu */}
+                  <button 
+                    onClick={() => { setActivePage('my-orders'); setMobileMenuOpen(false); }}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-100 text-neutral-800 text-xs font-bold transition-colors cursor-pointer relative"
+                  >
+                    <Heart size={16} className={wishlist.length > 0 ? "text-[#D71920] fill-[#D71920]" : "text-neutral-600"} />
+                    <span>Wishlist</span>
+                    {wishlist.length > 0 && (
+                      <span className="min-w-[18px] h-[18px] px-1 bg-[#D71920] text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-xs">
+                        {wishlist.length}
+                      </span>
+                    )}
+                  </button>
+                </div>
 
                 {/* Mobile Search Input */}
                 <AnimatedSearchInput 
@@ -768,6 +850,37 @@ export function Navbar() {
                       Track Orders & Payments
                     </button>
                   </div>
+
+                  {/* Theme Switcher in Mobile Drawer */}
+                  {settings.enableThemeToggle !== false && (
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={toggleDarkMode}
+                        data-testid="mobile-theme-toggle-btn"
+                        className={`w-full flex items-center justify-between p-3 rounded-2xl border transition-all cursor-pointer ${
+                          darkMode
+                            ? 'bg-[#161C28] border-amber-400/30 text-white'
+                            : 'bg-neutral-50 hover:bg-neutral-100 border-neutral-200 text-neutral-800'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          {darkMode ? (
+                            <Sun size={18} className="text-amber-400" />
+                          ) : (
+                            <Moon size={18} className="text-neutral-700" />
+                          )}
+                          <div className="text-left">
+                            <div className="text-xs font-black">{darkMode ? 'ডার্ক মোড সক্রিয়' : 'ডে মোড (লাইট)'}</div>
+                            <div className="text-[10px] text-neutral-400">{darkMode ? 'ডার্ক থিম রানিং' : 'ডিফল্ট ডে থিম'}</div>
+                          </div>
+                        </div>
+                        <span className="text-[11px] font-black px-2.5 py-1 rounded-xl bg-[#D71920] text-white shadow-xs">
+                          {darkMode ? 'Switch to Day' : 'Switch to Dark'}
+                        </span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 

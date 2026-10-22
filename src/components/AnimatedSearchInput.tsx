@@ -70,14 +70,14 @@ export function AnimatedSearchInput({
             if (onFocus) onFocus();
           }}
           onBlur={() => setIsFocused(false)}
-          className={`w-full pl-9 ${showSubmitButton ? 'pr-20' : 'pr-8'} py-2 bg-neutral-50 border border-neutral-200 rounded-full text-xs font-medium text-[#171717] focus:outline-none focus:bg-white focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/15 transition-all ${inputClassName}`}
+          className={`w-full pl-9 ${showSubmitButton ? 'pr-20' : 'pr-8'} py-2 bg-neutral-50 dark:bg-[#161C28] border border-neutral-200 dark:border-[#2B374C] rounded-full text-xs font-medium text-[#171717] dark:text-white focus:outline-none focus:bg-white dark:focus:bg-[#1A2234] focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/15 transition-all ${inputClassName}`}
         />
 
         {/* Vertical Sliding Placeholder Text Overlay */}
         {showOverlay && (
           <div className="absolute left-9 right-20 top-1/2 -translate-y-1/2 overflow-hidden h-5 pointer-events-none flex items-center select-none z-0">
             <span 
-              className={`text-xs text-neutral-400 font-normal truncate block transition-all duration-300 ease-in-out transform ${
+              className={`text-xs text-neutral-400 dark:text-neutral-300 font-normal truncate block transition-all duration-300 ease-in-out transform ${
                 isAnimatingOut 
                   ? '-translate-y-full opacity-0' 
                   : 'translate-y-0 opacity-100'
