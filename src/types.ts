@@ -10,6 +10,14 @@ export interface ProductVariant {
   image?: string;
 }
 
+export interface BookPreviewPage {
+  id: string;
+  pageNumber: number;
+  title?: string;
+  content?: string;
+  imageUrl?: string;
+}
+
 export interface Product {
   id: string;
   type: ProductType;
@@ -25,6 +33,9 @@ export interface Product {
   pages?: number;
   edition?: string;
   brand?: string; // for stationery
+  material?: string;
+  dimensions?: string;
+  colorModel?: string;
   images: string[];
   price: number; // base or default variant price
   previousPrice?: number;
@@ -36,6 +47,11 @@ export interface Product {
   isFeatured?: boolean;
   isOriginalBadge?: boolean;
   deliveryEstimate?: string;
+  // Book Preview / "একটু পড়ে দেখুন" (Read Inside & PDF Pages)
+  previewHighlightTitle?: string;
+  previewHighlightSubtitle?: string;
+  previewIntro?: string;
+  previewPages?: BookPreviewPage[];
   createdAt: number;
 }
 

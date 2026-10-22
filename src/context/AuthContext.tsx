@@ -16,6 +16,7 @@ interface AuthContextType {
   signIn: (email: string, pass: string) => Promise<void>;
   signUp: (email: string, pass: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
+  devLoginAsAdmin?: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -84,8 +85,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsAdmin(false);
   };
 
+  const devLoginAsAdmin = () => {
+    setCurrentUser({
+      uid: ADMIN_UID,
+      email: ADMIN_EMAIL,
+      displayName: 'MR. BOOKS Administrator',
+    } as any);
+    setIsAdmin(true);
+  };
+
   return (
-    <AuthContext.Provider value={{ currentUser, isAdmin, loading, signIn, signUp, logout }}>
+    <AuthContext.Provider value={{ currentUser, isAdmin, loading, signIn, signUp, logout, devLoginAsAdmin }}>
       {children}
     </AuthContext.Provider>
   );

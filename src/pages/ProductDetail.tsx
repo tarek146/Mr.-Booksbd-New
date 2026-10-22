@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { ProductCard } from '../components/ProductCard';
+import { BookPageReader } from '../components/BookPageReader';
+import { getEffectiveBookPreviewPages, toBanglaDigits } from '../utils/bookPreviewHelpers';
 import { Review } from '../types';
 import { 
   Star, 
@@ -612,146 +614,86 @@ export function ProductDetail() {
                   )}
                 </div>
 
-                {/* Accordion 2: Full Specification */}
-                <div className={`rounded-2xl border transition-all duration-200 overflow-hidden bg-white ${
-                  activeAccordion === 'specifications' 
-                    ? 'border-[#D71920]/40 ring-1 ring-[#D71920]/15 shadow-xs' 
-                    : 'border-neutral-200 hover:border-neutral-300 shadow-2xs'
-                }`}>
-                  <button
-                    type="button"
-                    onClick={() => toggleAccordion('specifications')}
-                    className="w-full p-3 sm:p-3.5 text-left flex items-center justify-between gap-2.5 hover:bg-neutral-50/70 transition-colors cursor-pointer group"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <BookOpen size={16} className={activeAccordion === 'specifications' ? 'text-[#D71920]' : 'text-neutral-500'} />
-                        <h3 className={`text-sm sm:text-[15px] font-bold ${activeAccordion === 'specifications' ? 'text-[#D71920]' : 'text-neutral-900 group-hover:text-neutral-950'}`}>
-                          Full Specification
-                        </h3>
-                      </div>
-                      <p className="text-[11px] sm:text-xs text-neutral-500 mt-0.5 truncate pl-6">
-                        Author, format, pages, language, SKU & edition details
-                      </p>
-                    </div>
-                    <div className={`p-1.5 rounded-full transition-all duration-200 shrink-0 ${
-                      activeAccordion === 'specifications' ? 'bg-[#FFF1F2] text-[#D71920] rotate-90' : 'bg-neutral-100 text-neutral-400 group-hover:text-neutral-600'
-                    }`}>
-                      <ChevronRight size={14} className="stroke-[2.5]" />
-                    </div>
-                  </button>
+                {/* Accordion 2: Highlighted Book Preview & Page Slide Reader ("বইয়ের কিছু অংশ পড়ুন / একটু পড়ে দেখুন") */}
+                {(() => {
+                  const previewPagesList = getEffectiveBookPreviewPages(product);
+                  const isPreviewOpen = activeAccordion === 'specifications';
+                  const highlightTitle =
+                    product.previewHighlightTitle?.trim() ||
+                    (product.type === 'book'
+                      ? 'বইয়ের কিছু অংশ পড়ুন (একটু পড়ে দেখুন)'
+                      : 'বিস্তারিত প্রিভিউ ও তথ্য দেখুন');
+                  const highlightSubtitle =
+                    product.previewHighlightSubtitle?.trim() ||
+                    (product.type === 'book'
+                      ? `বইয়ের কিছুটা পড়তে পারেন এখানে • ${toBanglaDigits(previewPagesList.length)}টি পৃষ্ঠা স্লাইড করে পড়ুন`
+                      : 'পৃষ্ঠা স্লাইড করে বিস্তারিত তথ্য দেখুন');
 
-                  {activeAccordion === 'specifications' && (
-                    <div className="px-3.5 sm:px-4 pb-4 pt-1 border-t border-neutral-100 space-y-3 text-xs text-neutral-700 animate-in fade-in duration-200">
-                      <div className="flex items-center justify-between pt-1">
-                        <span className="font-bold text-neutral-900 text-xs flex items-center gap-1.5">
-                          <BookOpen size={14} className="text-[#D71920]" /> Complete Technical Specs
-                        </span>
-                        <span className="text-[11px] font-bold text-neutral-600 bg-neutral-100 px-2.5 py-0.5 rounded-full">
-                          Active: {activeVariant.name}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2 text-xs">
-                        {/* SKU Code */}
-                        <div className="p-2.5 bg-neutral-50/90 rounded-xl border border-neutral-200">
-                          <span className="text-neutral-400 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                            <QrCode size={11} className="text-[#D71920]" /> SKU Code
-                          </span>
-                          <span className="font-mono font-bold text-xs text-neutral-900 mt-0.5 block truncate">
-                            {activeVariant.sku || 'MB-STK-001'}
-                          </span>
-                        </div>
-
-                        {/* Format / Edition */}
-                        <div className="p-2.5 bg-neutral-50/90 rounded-xl border border-neutral-200">
-                          <span className="text-neutral-400 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                            <Tag size={11} className="text-[#D71920]" /> Format / Binding
-                          </span>
-                          <span className="font-bold text-xs text-[#D71920] mt-0.5 block truncate">
-                            {activeVariant.name}
-                          </span>
-                        </div>
-
-                        {/* Author / Brand */}
-                        <div className="p-2.5 bg-neutral-50/90 rounded-xl border border-neutral-200">
-                          <span className="text-neutral-400 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                            <Award size={11} className="text-[#D71920]" /> {product.type === 'book' ? 'Author' : 'Brand'}
-                          </span>
-                          <span className="font-bold text-xs text-neutral-900 mt-0.5 block truncate">
-                            {product.author || product.brand || 'MR. BOOKS Selected'}
-                          </span>
-                        </div>
-
-                        {/* ISBN */}
-                        {product.isbn && (
-                          <div className="p-2.5 bg-neutral-50/90 rounded-xl border border-neutral-200">
-                            <span className="text-neutral-400 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                              <Barcode size={11} className="text-[#D71920]" /> ISBN
-                            </span>
-                            <span className="font-mono font-bold text-xs text-neutral-900 mt-0.5 block truncate">
-                              {product.isbn}
-                            </span>
+                  return (
+                    <div
+                      className={`rounded-2xl border-2 transition-all duration-300 overflow-hidden ${
+                        isPreviewOpen
+                          ? 'border-[#D71920] ring-2 ring-[#D71920]/20 bg-white shadow-md'
+                          : 'border-[#D71920]/45 hover:border-[#D71920] bg-gradient-to-r from-[#FFF5F5] via-white to-[#FFF9F5] shadow-sm'
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        data-testid="toggle-book-preview-btn"
+                        onClick={() => toggleAccordion('specifications')}
+                        className="w-full p-3.5 sm:p-4 text-left flex items-center justify-between gap-3 hover:bg-[#FFF1F2]/40 transition-colors cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all shadow-xs ${
+                              isPreviewOpen
+                                ? 'bg-[#D71920] text-white'
+                                : 'bg-[#D71920]/12 text-[#D71920] group-hover:bg-[#D71920] group-hover:text-white border border-[#D71920]/25'
+                            }`}
+                          >
+                            <BookOpen size={19} />
                           </div>
-                        )}
 
-                        {/* Total Pages */}
-                        {product.pages && (
-                          <div className="p-2.5 bg-neutral-50/90 rounded-xl border border-neutral-200">
-                            <span className="text-neutral-400 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                              <FileText size={11} className="text-[#D71920]" /> Pages
-                            </span>
-                            <span className="font-bold text-xs text-neutral-900 mt-0.5 block tabular-nums">
-                              {product.pages} Pages
-                            </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="text-sm sm:text-[15px] font-black text-[#D71920] tracking-tight">
+                                {highlightTitle}
+                              </h3>
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#D71920] text-white text-[10px] font-extrabold shadow-2xs">
+                                <Sparkles size={10} />
+                                <span>একটু পড়ে দেখুন</span>
+                              </span>
+                            </div>
+                            <p className="text-[11px] sm:text-xs text-neutral-600 font-medium mt-0.5 truncate">
+                              {highlightSubtitle}
+                            </p>
                           </div>
-                        )}
-
-                        {/* Language */}
-                        <div className="p-2.5 bg-neutral-50/90 rounded-xl border border-neutral-200">
-                          <span className="text-neutral-400 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                            <Globe size={11} className="text-[#D71920]" /> Language
-                          </span>
-                          <span className="font-bold text-xs text-neutral-900 mt-0.5 block">
-                            {product.language || 'Bangla'}
-                          </span>
                         </div>
 
-                        {/* Edition */}
-                        {product.edition && (
-                          <div className="p-2.5 bg-neutral-50/90 rounded-xl border border-neutral-200">
-                            <span className="text-neutral-400 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                              <Award size={11} className="text-[#D71920]" /> Edition
-                            </span>
-                            <span className="font-bold text-xs text-neutral-900 mt-0.5 block truncate">
-                              {product.edition}
-                            </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white border border-[#D71920]/30 text-[#D71920] text-[11px] font-extrabold shadow-2xs group-hover:bg-[#FFF1F2] transition-colors">
+                            <span>{isPreviewOpen ? 'বন্ধ করুন' : 'পৃষ্ঠা উল্টান'}</span>
+                          </span>
+                          <div
+                            className={`p-1.5 rounded-full transition-all duration-200 shrink-0 ${
+                              isPreviewOpen
+                                ? 'bg-[#D71920] text-white rotate-90 shadow-xs'
+                                : 'bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/25 group-hover:bg-[#D71920] group-hover:text-white'
+                            }`}
+                          >
+                            <ChevronRight size={15} className="stroke-[2.5]" />
                           </div>
-                        )}
-
-                        {/* Delivery Time */}
-                        <div className="p-2.5 bg-neutral-50/90 rounded-xl border border-neutral-200">
-                          <span className="text-neutral-400 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                            <Truck size={11} className="text-[#D71920]" /> Delivery
-                          </span>
-                          <span className="font-bold text-xs text-neutral-900 mt-0.5 block truncate">
-                            {product.deliveryEstimate || '24-48 Hours'}
-                          </span>
                         </div>
+                      </button>
 
-                        {/* Guarantee */}
-                        <div className="p-2.5 bg-emerald-50/80 rounded-xl border border-emerald-200 col-span-2 sm:col-span-1">
-                          <span className="text-emerald-700 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                            <ShieldCheck size={11} className="text-emerald-600" /> Guarantee
-                          </span>
-                          <span className="font-bold text-xs text-emerald-800 mt-0.5 block">
-                            100% Original Publisher Copy
-                          </span>
+                      {isPreviewOpen && (
+                        <div className="px-3.5 sm:px-4 pb-4 pt-3 border-t border-[#D71920]/15 bg-gradient-to-b from-[#FFFCFA] to-white animate-in fade-in duration-200">
+                          <BookPageReader product={product} />
                         </div>
-                      </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  );
+                })()}
 
                 {/* Accordion 3: Customer Reviews */}
                 <div className={`rounded-2xl border transition-all duration-200 overflow-hidden bg-white ${

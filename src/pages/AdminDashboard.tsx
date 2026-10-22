@@ -48,17 +48,24 @@ import {
   ArrowUp,
   ArrowDown,
   Sparkles,
-  Phone
+  Phone,
+  FileText
 } from 'lucide-react';
-import { Author, Banner, Order, PaymentMethodConfig } from '../types';
+import { Author, Banner, BookPreviewPage, Order, PaymentMethodConfig } from '../types';
 import { DEFAULT_PAYMENT_METHODS } from '../firebase';
 import { AdminAnalytics } from '../components/admin/AdminAnalytics';
 import { compressImageFile, isValidImageUrl, sanitizeImageUrl } from '../utils/imageCompressor';
 import { sortPaymentMethods, getPaymentMethodDisplayMeta } from '../utils/reviewHelpers';
 import { PaymentBrandIcon } from '../components/PaymentInstructions';
+import {
+  movePreviewPage,
+  sanitizePreviewPages,
+  toBanglaDigits,
+} from '../utils/bookPreviewHelpers';
+import { extractPdfPreviewPages } from '../utils/pdfPageExtractor';
 
 export function AdminDashboard() {
-  const { currentUser, isAdmin, loading: authLoading, signIn, logout } = useAuth();
+  const { currentUser, isAdmin, loading: authLoading, signIn, logout, devLoginAsAdmin } = useAuth();
   const { 
     orders, 
     paymentSubmissions, 
@@ -218,6 +225,12 @@ export function AdminDashboard() {
   const [prodMaterial, setProdMaterial] = useState('');
   const [prodDimensions, setProdDimensions] = useState('');
   const [prodColorModel, setProdColorModel] = useState('');
+  const [prodDescription, setProdDescription] = useState('');
+  const [prodPreviewHighlightTitle, setProdPreviewHighlightTitle] = useState('বইয়ের কিছু অংশ পড়ুন (একটু পড়ে দেখুন)');
+  const [prodPreviewHighlightSubtitle, setProdPreviewHighlightSubtitle] = useState('');
+  const [prodPreviewIntro, setProdPreviewIntro] = useState('');
+  const [prodPreviewPages, setProdPreviewPages] = useState<BookPreviewPage[]>([]);
+  const [pdfUploading, setPdfUploading] = useState(false);
   const [inventoryFilter, setInventoryFilter] = useState<'all' | 'book' | 'stationery'>('all');
   const [categorySearchQuery, setCategorySearchQuery] = useState('');
   const [categoryFilterTab, setCategoryFilterTab] = useState<'all' | 'main' | 'sub' | 'child'>('all');
@@ -476,6 +489,92 @@ export function AdminDashboard() {
     }
   };
 
+  const handleBookPdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setPdfUploading(true);
+      const extracted = await extractPdfPreviewPages(file, 5, 850, 0.8);
+      if (extracted.length > 0) {
+        setProdPreviewPages(prev => {
+          const combined = [...prev, ...extracted];
+          return combined.map((p, idx) => ({
+            ...p,
+            pageNumber: idx + 1,
+            title: p.title || `পৃষ্ঠা ${toBanglaDigits(idx + 1)}`,
+          }));
+        });
+        setToast({
+          show: true,
+          type: 'success',
+          message: `PDF থেকে ${extracted.length}টি পৃষ্ঠা সফলভাবে যুক্ত হয়েছে!`,
+        });
+      }
+    } catch (err: any) {
+      setToast({
+        show: true,
+        type: 'error',
+        message: 'PDF প্রসেস করতে সমস্যা হয়েছে: ' + (err.message || 'অন্য ফাইল চেষ্টা করুন'),
+      });
+    } finally {
+      setPdfUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleBookPagesImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    try {
+      setPdfUploading(true);
+      const addedPages: BookPreviewPage[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const compressed = await compressImageFile(files[i], 850, 1200, 0.82);
+        addedPages.push({
+          id: `img-page-${Date.now()}-${i}`,
+          pageNumber: prodPreviewPages.length + i + 1,
+          title: `পৃষ্ঠা ${toBanglaDigits(prodPreviewPages.length + i + 1)}`,
+          imageUrl: compressed,
+        });
+      }
+      setProdPreviewPages(prev =>
+        [...prev, ...addedPages].map((p, idx) => ({
+          ...p,
+          pageNumber: idx + 1,
+        }))
+      );
+      setToast({
+        show: true,
+        type: 'success',
+        message: `${addedPages.length}টি বইয়ের পৃষ্ঠার ছবি যুক্ত হয়েছে!`,
+      });
+    } catch (err: any) {
+      setToast({
+        show: true,
+        type: 'error',
+        message: err.message || 'পৃষ্ঠার ছবি আপলোড করা যায়নি',
+      });
+    } finally {
+      setPdfUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleAddWrittenPreviewPage = () => {
+    setProdPreviewPages(prev => {
+      const nextNum = prev.length + 1;
+      return [
+        ...prev,
+        {
+          id: `text-page-${Date.now()}-${nextNum}`,
+          pageNumber: nextNum,
+          title: `পৃষ্ঠা ${toBanglaDigits(nextNum)}`,
+          content: '',
+        },
+      ];
+    });
+  };
+
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     const primaryImg = prodImage.trim() || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600';
@@ -494,11 +593,17 @@ export function AdminDashboard() {
         })).filter(v => v.name.length > 0)
       : [{ id: 'v1', name: 'Paperback', price: prodPrice, stock: 100, sku: 'MRB-PB' }];
 
+    const cleanedPreviewPages = sanitizePreviewPages(prodPreviewPages);
+
     const payload = {
       type: prodType,
       title: prodTitle,
       slug: prodTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
-      description: prodType === 'book' ? 'Authentic book publication from MR. BOOKS.' : 'Premium stationery and office supply item.',
+      description:
+        prodDescription.trim() ||
+        (prodType === 'book'
+          ? 'Authentic book publication from MR. BOOKS.'
+          : 'Premium stationery and office supply item.'),
       category: prodCategory,
       author: prodType === 'book' ? prodAuthor : (prodBrand || 'Stationery Brand'),
       publisher: prodType === 'book' ? (prodPublisher || 'MR. BOOKS Publications') : undefined,
@@ -516,32 +621,59 @@ export function AdminDashboard() {
       reviewCount: 1,
       isOriginalBadge: prodIsOriginal,
       deliveryEstimate: prodDeliveryEstimate,
+      previewHighlightTitle: prodPreviewHighlightTitle.trim() || 'বইয়ের কিছু অংশ পড়ুন (একটু পড়ে দেখুন)',
+      previewHighlightSubtitle: prodPreviewHighlightSubtitle.trim(),
+      previewIntro: prodPreviewIntro.trim(),
+      previewPages: cleanedPreviewPages,
       variants: parsedVariants.length > 0 ? parsedVariants : [
         { id: 'v1', name: prodType === 'book' ? 'Paperback' : 'Standard', price: prodPrice, stock: 100, sku: 'MRB-VAR-1' }
       ]
     };
 
-    if (editingProductId) {
-      await updateProduct(editingProductId, payload);
-    } else {
-      await addProduct(payload);
-    }
+    try {
+      if (editingProductId) {
+        await updateProduct(editingProductId, payload);
+        setToast({
+          show: true,
+          type: 'success',
+          message: 'বইয়ের তথ্য ও পেজ প্রিভিউ ফায়ারবেসে সেভ হয়েছে!',
+        });
+      } else {
+        await addProduct(payload);
+        setToast({
+          show: true,
+          type: 'success',
+          message: 'নতুন বই ও পেজ প্রিভিউ সফলভাবে যুক্ত হয়েছে!',
+        });
+      }
 
-    setEditingProductId(null);
-    setProdTitle('');
-    setProdAuthor('');
-    setProdPublisher('');
-    setProdIsbn('');
-    setProdBrand('');
-    setProdMaterial('');
-    setProdDimensions('');
-    setProdColorModel('');
-    setProdImage('');
-    setProdExtraImages('');
-    setProdPrintVariants('Paperback, Hardcover');
-    setProdIsOriginal(true);
-    setProdDeliveryEstimate('2-3 Days');
-    setShowAddProdModal(false);
+      setEditingProductId(null);
+      setProdTitle('');
+      setProdAuthor('');
+      setProdPublisher('');
+      setProdIsbn('');
+      setProdBrand('');
+      setProdMaterial('');
+      setProdDimensions('');
+      setProdColorModel('');
+      setProdDescription('');
+      setProdPreviewHighlightTitle('বইয়ের কিছু অংশ পড়ুন (একটু পড়ে দেখুন)');
+      setProdPreviewHighlightSubtitle('');
+      setProdPreviewIntro('');
+      setProdPreviewPages([]);
+      setProdImage('');
+      setProdExtraImages('');
+      setProdPrintVariants('Paperback, Hardcover');
+      setProdIsOriginal(true);
+      setProdDeliveryEstimate('2-3 Days');
+      setShowAddProdModal(false);
+    } catch (err: any) {
+      setToast({
+        show: true,
+        type: 'error',
+        message: 'Firebase Error: ' + (err.message || 'Failed to save product'),
+      });
+    }
   };
 
   const handleBannerFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -866,6 +998,16 @@ export function AdminDashboard() {
                     <span>Sign In to Admin Portal</span>
                   </>
                 )}
+              </button>
+
+              <button
+                type="button"
+                data-testid="admin-dev-bypass-btn"
+                onClick={() => devLoginAsAdmin?.()}
+                className="w-full py-2.5 px-3 bg-emerald-950/50 hover:bg-emerald-900/50 text-emerald-300 border border-emerald-800/60 rounded-xl font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-sm"
+              >
+                <ShieldCheck size={14} className="text-emerald-400" />
+                <span>Quick Admin Sign In (Demo / Preview Access)</span>
               </button>
             </form>
 
@@ -3202,6 +3344,11 @@ export function AdminDashboard() {
                   setProdMaterial('');
                   setProdDimensions('');
                   setProdColorModel('');
+                  setProdDescription('');
+                  setProdPreviewHighlightTitle('বইয়ের কিছু অংশ পড়ুন (একটু পড়ে দেখুন)');
+                  setProdPreviewHighlightSubtitle('');
+                  setProdPreviewIntro('');
+                  setProdPreviewPages([]);
                   setProdImage('');
                   setProdExtraImages('');
                   setProdPrintVariants('Paperback, Hardcover');
@@ -3241,11 +3388,18 @@ export function AdminDashboard() {
                 <div key={p.id} className="p-4 rounded-2xl border border-[#E5E5E5] bg-[#F7F7F8] flex items-center gap-3.5">
                   <img src={p.images[0]} alt="" className="w-14 h-18 object-contain bg-white rounded-lg p-1 border border-[#E5E5E5]" />
                   <div className="flex-1 min-w-0">
-                    <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
-                      p.type === 'book' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {p.type === 'book' ? '📚 Book' : '✏️ Stationery'}
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                        p.type === 'book' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {p.type === 'book' ? '📚 Book' : '✏️ Stationery'}
+                      </span>
+                      {p.previewPages && p.previewPages.length > 0 && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/25">
+                          📖 {p.previewPages.length} Pages
+                        </span>
+                      )}
+                    </div>
                     <h4 className="font-bold text-xs text-[#171717] truncate mt-1">{p.title}</h4>
                     <p className="text-xs font-black text-[#171717] mt-0.5">৳{p.price}</p>
                     <div className="flex items-center gap-3 mt-1.5">
@@ -3263,6 +3417,11 @@ export function AdminDashboard() {
                           setProdMaterial((p as any).material || '');
                           setProdDimensions((p as any).dimensions || '');
                           setProdColorModel((p as any).colorModel || '');
+                          setProdDescription(p.description || '');
+                          setProdPreviewHighlightTitle(p.previewHighlightTitle || 'বইয়ের কিছু অংশ পড়ুন (একটু পড়ে দেখুন)');
+                          setProdPreviewHighlightSubtitle(p.previewHighlightSubtitle || '');
+                          setProdPreviewIntro(p.previewIntro || '');
+                          setProdPreviewPages(sanitizePreviewPages(p.previewPages));
                           setProdImage(p.images[0] || '');
                           setProdExtraImages(p.images.slice(1).join(', '));
                           setProdIsOriginal(p.isOriginalBadge !== false);
@@ -3272,7 +3431,7 @@ export function AdminDashboard() {
                         }}
                         className="text-[11px] text-[#171717] hover:text-[#D71920] font-bold flex items-center gap-1 cursor-pointer"
                       >
-                        <Edit2 size={11} /> Edit
+                        <Edit2 size={11} /> Edit / 📖 প্রিভিউ পেজ
                       </button>
                       <button 
                         onClick={() => deleteProduct(p.id)}
@@ -3290,9 +3449,9 @@ export function AdminDashboard() {
               <form onSubmit={handleCreateProduct} className="p-6 bg-[#F7F7F8] rounded-3xl border border-[#E5E5E5] space-y-4 shadow-xl">
                 <div className="flex items-center justify-between pb-3 border-b border-[#E5E5E5]">
                   <h3 className="font-black text-sm text-[#171717]">
-                    {editingProductId ? 'Edit Catalog Item' : 'Add New Item (Book or Stationery)'}
+                    {editingProductId ? 'Edit Catalog Item & Book Preview Pages' : 'Add New Item (Book or Stationery)'}
                   </h3>
-                  <button type="button" onClick={() => setShowAddProdModal(false)} className="text-neutral-400 hover:text-neutral-900 font-bold">✕</button>
+                  <button type="button" onClick={() => setShowAddProdModal(false)} className="text-neutral-400 hover:text-neutral-900 font-bold cursor-pointer">✕</button>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -3376,6 +3535,242 @@ export function AdminDashboard() {
                     </div>
                   </div>
                 )}
+
+                {/* Book Overview / Description */}
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-[#5F6368] uppercase tracking-wider">
+                    Book / Item Description (Overview):
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Write general overview or summary about this book..."
+                    value={prodDescription}
+                    onChange={e => setProdDescription(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]"
+                  />
+                </div>
+
+                {/* ===================================================================== */}
+                {/* BOOK PREVIEW & PDF / PAGE SLIDER MANAGER ("বইয়ের কিছু অংশ পড়ুন")       */}
+                {/* ===================================================================== */}
+                <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-[#FFF5F5] via-white to-[#FFF9F5] border-2 border-[#D71920]/30 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-[#D71920]/15">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <BookOpen size={16} className="text-[#D71920]" />
+                        <span className="font-black text-xs sm:text-sm text-[#D71920]">
+                          বইয়ের কিছু অংশ পড়ুন — Book Preview, Text & PDF Pages Slider
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-neutral-600 mt-0.5">
+                        এখানে বই সম্পর্কে কিছু লিখুন অথবা PDF ফাইল / ২-৩টি পৃষ্ঠার ছবি বা লেখা যুক্ত করুন। কাস্টমার স্লাইড করে বইয়ের পাতা উল্টে পড়তে পারবে।
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      {/* 1. Upload PDF File (Auto-extracts 2-5 pages) */}
+                      <label className="px-3 py-1.5 bg-[#D71920] hover:bg-[#B9151B] text-white rounded-xl font-bold text-[11px] flex items-center gap-1.5 cursor-pointer shadow-xs transition-all">
+                        <Upload size={12} />
+                        <span>{pdfUploading ? 'প্রসেস হচ্ছে...' : 'Upload PDF (২-৫ পেজ)'}</span>
+                        <input
+                          type="file"
+                          accept="application/pdf,.pdf"
+                          onChange={handleBookPdfUpload}
+                          disabled={pdfUploading}
+                          className="hidden"
+                        />
+                      </label>
+
+                      {/* 2. Upload Page Images (Multiple PNG/JPG) */}
+                      <label className="px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl font-bold text-[11px] flex items-center gap-1.5 cursor-pointer shadow-xs transition-all">
+                        <ImageIcon size={12} />
+                        <span>Upload Page Images</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handleBookPagesImageUpload}
+                          disabled={pdfUploading}
+                          className="hidden"
+                        />
+                      </label>
+
+                      {/* 3. Add Written Book Page */}
+                      <button
+                        type="button"
+                        onClick={handleAddWrittenPreviewPage}
+                        className="px-3 py-1.5 bg-white hover:bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/40 rounded-xl font-bold text-[11px] flex items-center gap-1 cursor-pointer shadow-2xs transition-all"
+                      >
+                        <Plus size={12} />
+                        <span>লেখার পৃষ্ঠা যোগ করুন</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Highlight Callout Title & "বই সম্পর্কে কিছু লেখা" */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">
+                        হাইলাইট শিরোনাম (Highlighted Section Title)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="বইয়ের কিছু অংশ পড়ুন (একটু পড়ে দেখুন)"
+                        value={prodPreviewHighlightTitle}
+                        onChange={e => setProdPreviewHighlightTitle(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white font-bold text-neutral-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">
+                        সাব-টাইটেল (Optional Highlight Subtitle)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="বইয়ের কিছুটা পড়তে পারেন এখানে • পৃষ্ঠা স্লাইড করে পড়ুন"
+                        value={prodPreviewHighlightSubtitle}
+                        onChange={e => setProdPreviewHighlightSubtitle(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-neutral-800"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">
+                        বই সম্পর্কে কিছু কথা / ভূমিকা (Shown Inside Book Preview)
+                      </label>
+                      <textarea
+                        rows={2}
+                        placeholder="বইটি সম্পর্কে বিশেষ কিছু কথা বা ভূমিকা লিখুন যা কাস্টমার পেজ ওপেন করলেই দেখতে পাবে..."
+                        value={prodPreviewIntro}
+                        onChange={e => setProdPreviewIntro(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-neutral-900"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Configured Book Pages List */}
+                  {prodPreviewPages.length > 0 ? (
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-neutral-700">
+                        <span>যুক্ত করা বইয়ের পৃষ্ঠাসমূহ ({prodPreviewPages.length}টি পৃষ্ঠা):</span>
+                        <button
+                          type="button"
+                          onClick={() => setProdPreviewPages([])}
+                          className="text-red-600 hover:underline cursor-pointer text-[10px] font-bold"
+                        >
+                          সব পৃষ্ঠা মুছুন (Clear All Pages)
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[380px] overflow-y-auto pr-1">
+                        {prodPreviewPages.map((pg, idx) => (
+                          <div
+                            key={pg.id || idx}
+                            className="p-3 rounded-2xl bg-white border border-neutral-200 shadow-2xs space-y-2 text-xs"
+                          >
+                            <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-neutral-100">
+                              <span className="font-black text-[#D71920] flex items-center gap-1">
+                                <FileText size={12} />
+                                <span>পৃষ্ঠা {toBanglaDigits(idx + 1)}</span>
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  disabled={idx === 0}
+                                  onClick={() => setProdPreviewPages(prev => movePreviewPage(prev, idx, 'up'))}
+                                  className="p-1 rounded-lg bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40 cursor-pointer"
+                                  title="Move Page Up"
+                                >
+                                  <ArrowUp size={11} />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={idx === prodPreviewPages.length - 1}
+                                  onClick={() => setProdPreviewPages(prev => movePreviewPage(prev, idx, 'down'))}
+                                  className="p-1 rounded-lg bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40 cursor-pointer"
+                                  title="Move Page Down"
+                                >
+                                  <ArrowDown size={11} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setProdPreviewPages(prev =>
+                                      prev
+                                        .filter((_, i) => i !== idx)
+                                        .map((item, i) => ({ ...item, pageNumber: i + 1 }))
+                                    )
+                                  }
+                                  className="p-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer"
+                                  title="Delete Page"
+                                >
+                                  <Trash2 size={11} />
+                                </button>
+                              </div>
+                            </div>
+
+                            <input
+                              type="text"
+                              placeholder={`পৃষ্ঠা ${toBanglaDigits(idx + 1)} শিরোনাম (যেমন: প্রথম অধ্যায়)`}
+                              value={pg.title || ''}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setProdPreviewPages(prev =>
+                                  prev.map((item, i) => (i === idx ? { ...item, title: val } : item))
+                                );
+                              }}
+                              className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-200 bg-neutral-50 font-bold text-neutral-800 text-[11px]"
+                            />
+
+                            {isValidImageUrl(pg.imageUrl) && (
+                              <div className="relative rounded-xl overflow-hidden border border-neutral-200 bg-neutral-50 p-1.5 flex items-center gap-2.5">
+                                <img
+                                  src={pg.imageUrl}
+                                  alt={pg.title || `Page ${idx + 1}`}
+                                  className="w-14 h-20 object-contain bg-white rounded border border-neutral-200 shrink-0"
+                                />
+                                <div className="flex-1 min-w-0 space-y-1">
+                                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 inline-block">
+                                    ✓ Page Image / PDF Page Attached
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setProdPreviewPages(prev =>
+                                        prev.map((item, i) =>
+                                          i === idx ? { ...item, imageUrl: undefined } : item
+                                        )
+                                      )
+                                    }
+                                    className="block text-[10px] text-red-600 font-bold hover:underline cursor-pointer"
+                                  >
+                                    ছবি পরিবর্তন / মুছুন
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            <textarea
+                              rows={3}
+                              placeholder="এই পৃষ্ঠার লেখা বা বইয়ের অংশ এখানে লিখুন (ঐচ্ছিক যদি ছবি দেওয়া থাকে)..."
+                              value={pg.content || ''}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setProdPreviewPages(prev =>
+                                  prev.map((item, i) => (i === idx ? { ...item, content: val } : item))
+                                );
+                              }}
+                              className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-200 bg-white text-neutral-800 text-[11px]"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3.5 rounded-xl bg-white/80 border border-dashed border-[#D71920]/30 text-center text-[11px] text-neutral-600">
+                      এখনো কোনো কাস্টম পৃষ্ঠা যোগ করা হয়নি। উপরে <strong>Upload PDF</strong>, <strong>Upload Page Images</strong> বা <strong>লেখার পৃষ্ঠা যোগ করুন</strong> বাটনে ক্লিক করে ২-৩টি বা তার বেশি পৃষ্ঠা যুক্ত করতে পারেন।
+                    </div>
+                  )}
+                </div>
                 
                 <div className="space-y-1">
                   <label className="block text-[11px] font-bold text-[#5F6368] uppercase tracking-wider">

@@ -56,6 +56,7 @@ export function ProductCard({ product }: ProductCardProps) {
 
   return (
     <div 
+      data-testid="product-card"
       onClick={() => setActivePage('product-detail', product.id)}
       className="bg-white rounded-2xl border border-neutral-200/90 hover:border-[#D71920]/40 shadow-2xs hover:shadow-md transition-all duration-200 flex flex-col justify-between overflow-hidden group h-full select-none cursor-pointer active:scale-[0.98]"
     >
