@@ -36,6 +36,7 @@ import { useAuth } from './AuthContext';
 import { cleanForFirestore, addCacheBust, sanitizeImageUrl, isValidImageUrl } from '../utils/imageCompressor';
 import { SyncTracker, REQUIRED_COLLECTIONS } from '../utils/syncManager';
 import { applyReviewReaction, ReactionType } from '../utils/reviewHelpers';
+import { dedupeById } from '../utils/videoReelHelpers';
 
 function sanitizeStoreSettings<T extends Partial<StoreSettings>>(st: T): T {
   const copy: Partial<StoreSettings> = { ...st };
@@ -217,41 +218,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [paymentSubmissions, setPaymentSubmissions] = useState<PaymentSubmission[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
-  const [reels, setReels] = useState<Reel[]>([
-    {
-      id: 'reel-1',
-      title: 'প্যারাডক্সিক্যাল সাজিদ ২ রিভিউ ও বই পরিচিতি',
-      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-hands-opening-a-book-in-a-library-41584-large.mp4',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600',
-      productId: 'prod-1',
-      viewsCount: 1420,
-      likesCount: 380,
-      isActive: true,
-      createdAt: Date.now() - 3600000
-    },
-    {
-      id: 'reel-2',
-      title: 'ইসলামিক বই কালেকশন আনবক্সিং ভিডিও',
-      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-close-up-of-a-person-reading-a-book-41583-large.mp4',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=600',
-      productId: 'prod-2',
-      viewsCount: 2890,
-      likesCount: 650,
-      isActive: true,
-      createdAt: Date.now() - 7200000
-    },
-    {
-      id: 'reel-3',
-      title: 'প্রিমিয়াম স্টেশনারি ও জার্নাল রিভিউ',
-      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-turning-pages-of-a-book-41585-large.mp4',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?w=600',
-      productId: 'prod-3',
-      viewsCount: 1950,
-      likesCount: 420,
-      isActive: true,
-      createdAt: Date.now() - 10800000
-    }
-  ]);
+  const [reels, setReels] = useState<Reel[]>([]);
 
   const [guestVisitorId] = useState<string>(() => {
     if (typeof window !== 'undefined') {
@@ -284,10 +251,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     try {
       const cleaned = cleanForFirestore(newRev);
       await setDoc(doc(db, 'reviews', id), cleaned);
-      setReviews(prev => [newRev, ...prev]);
+      setReviews(prev => dedupeById([newRev, ...prev.filter(r => r.id !== id)]));
     } catch (err: any) {
       console.error('Error adding review to Firebase:', err);
-      setReviews(prev => [newRev, ...prev]);
+      setReviews(prev => dedupeById([newRev, ...prev.filter(r => r.id !== id)]));
     }
   };
 
@@ -577,14 +544,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     async function initializeStore() {
       try {
         // Fetch fresh authoritative data directly from Cloud Firestore servers
-        const [prodSnap, catSnap, authSnap, bannerSnap, paySnap, setSnap, revSnap] = await Promise.all([
+        const [prodSnap, catSnap, authSnap, bannerSnap, paySnap, setSnap, revSnap, reelSnap] = await Promise.all([
           getDocsFromServer(collection(db, 'products')),
           getDocsFromServer(collection(db, 'categories')),
           getDocsFromServer(collection(db, 'authors')),
           getDocsFromServer(collection(db, 'banners')),
           getDocsFromServer(collection(db, 'payment_methods')),
           getDocFromServer(doc(db, 'settings', 'general')),
-          getDocsFromServer(collection(db, 'reviews'))
+          getDocsFromServer(collection(db, 'reviews')),
+          getDocsFromServer(collection(db, 'reels'))
         ]);
 
         if (!isMounted) return;
@@ -625,20 +593,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         } else {
           setReviews([]);
         }
+        if (reelSnap && !reelSnap.empty) {
+          setReels(dedupeById(reelSnap.docs.map(d => ({ ...d.data(), id: d.id } as Reel))));
+        } else {
+          setReels([]);
+        }
 
         setIsLoading(false);
       } catch (err: any) {
         console.warn('Initial server fetch notice, falling back to cache if available:', err?.message);
         try {
           tracker.setOffline(true);
-          const [prodSnap, catSnap, authSnap, bannerSnap, paySnap, setSnap, revSnap] = await Promise.all([
+          const [prodSnap, catSnap, authSnap, bannerSnap, paySnap, setSnap, revSnap, reelSnap] = await Promise.all([
             getDocs(collection(db, 'products')),
             getDocs(collection(db, 'categories')),
             getDocs(collection(db, 'authors')),
             getDocs(collection(db, 'banners')),
             getDocs(collection(db, 'payment_methods')),
             getDoc(doc(db, 'settings', 'general')),
-            getDocs(collection(db, 'reviews'))
+            getDocs(collection(db, 'reviews')),
+            getDocs(collection(db, 'reels'))
           ]);
 
           if (!isMounted) return;
@@ -654,6 +628,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
           if (revSnap && !revSnap.empty) {
             setReviews(revSnap.docs.map(d => ({ ...d.data(), id: d.id } as Review)));
+          } else {
+            setReviews([]);
+          }
+          if (reelSnap && !reelSnap.empty) {
+            setReels(dedupeById(reelSnap.docs.map(d => ({ ...d.data(), id: d.id } as Reel))));
+          } else {
+            setReels([]);
           }
         } catch (fallbackErr) {
           console.error('Fallback query error:', fallbackErr);
@@ -815,7 +796,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       { includeMetadataChanges: true },
       (snapshot) => {
         if (!snapshot.empty) {
-          setReels(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Reel)));
+          setReels(dedupeById(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Reel))));
+        } else {
+          setReels([]);
         }
       },
       (err) => {
@@ -1531,7 +1514,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addReel = async (reelData: Omit<Reel, 'id' | 'createdAt'>) => {
-    const id = 'reel-' + Date.now();
+    const id = 'reel-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
     const newReel: Reel = {
       ...reelData,
       id,
@@ -1543,7 +1526,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.error('Error adding reel:', err);
     }
-    setReels(prev => [newReel, ...prev]);
+    setReels(prev => dedupeById([newReel, ...prev.filter(r => r.id !== id)]));
   };
 
   const updateReel = async (id: string, data: Partial<Reel>) => {
@@ -1553,7 +1536,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.error('Error updating reel:', err);
     }
-    setReels(prev => prev.map(r => r.id === id ? { ...r, ...data } : r));
+    setReels(prev => dedupeById(prev.map(r => r.id === id ? { ...r, ...data } : r)));
   };
 
   const deleteReel = async (id: string) => {

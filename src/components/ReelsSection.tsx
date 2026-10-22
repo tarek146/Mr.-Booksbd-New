@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Play, ChevronLeft, ChevronRight, X, Heart, Eye, ShoppingCart, Film } from 'lucide-react';
 import { Reel } from '../types';
+import { extractYouTubeVideoId, isDirectVideoUrl } from '../utils/videoReelHelpers';
 
 export function ReelsSection() {
   const { reels, products, setActivePage, addToCart } = useStore();
@@ -27,26 +28,17 @@ export function ReelsSection() {
     const cleanUrl = url.trim();
 
     // YouTube / YouTube Shorts
-    if (cleanUrl.includes('youtube.com') || cleanUrl.includes('youtu.be')) {
-      let videoId = '';
-      if (cleanUrl.includes('/shorts/')) {
-        videoId = cleanUrl.split('/shorts/')[1]?.split('?')[0] || '';
-      } else if (cleanUrl.includes('watch?v=')) {
-        videoId = cleanUrl.split('watch?v=')[1]?.split('&')[0] || '';
-      } else if (cleanUrl.includes('youtu.be/')) {
-        videoId = cleanUrl.split('youtu.be/')[1]?.split('?')[0] || '';
-      }
-      if (videoId) {
-        return (
-          <iframe
-            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`}
-            title="Video Reel"
-            className="w-full h-full rounded-2xl"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          />
-        );
-      }
+    const ytId = extractYouTubeVideoId(cleanUrl);
+    if (ytId) {
+      return (
+        <iframe
+          src={`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=0&rel=0&playsinline=1`}
+          title="Video Reel"
+          className="w-full h-full rounded-2xl"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      );
     }
 
     // Direct MP4 / Video link
@@ -55,6 +47,8 @@ export function ReelsSection() {
         src={cleanUrl}
         controls
         autoPlay
+        playsInline
+        preload="auto"
         className="w-full h-full object-cover rounded-2xl"
       />
     );
@@ -102,19 +96,47 @@ export function ReelsSection() {
         >
           {activeReels.map(reel => {
             const linkedProduct = reel.productId ? products.find(p => p.id === reel.productId) : null;
+            const ytId = extractYouTubeVideoId(reel.videoUrl);
+            const effectiveThumb = reel.thumbnailUrl || (ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : '');
+            const isDirect = isDirectVideoUrl(reel.videoUrl);
 
             return (
               <div
                 key={reel.id}
                 onClick={() => setActiveModalReel(reel)}
-                className="w-[140px] sm:w-[160px] md:w-[175px] h-[240px] sm:h-[270px] shrink-0 snap-start relative rounded-2xl overflow-hidden cursor-pointer group/card shadow-sm hover:shadow-xl transition-all duration-300 border border-neutral-200/80 bg-black"
+                className="w-[140px] sm:w-[160px] md:w-[175px] h-[240px] sm:h-[270px] shrink-0 snap-start relative rounded-2xl overflow-hidden cursor-pointer group/card shadow-sm hover:shadow-xl transition-all duration-300 border border-neutral-200/80 bg-neutral-950"
               >
-                {/* Thumbnail Background */}
-                <img
-                  src={reel.thumbnailUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400'}
-                  alt={reel.title}
-                  className="w-full h-full object-cover opacity-85 group-hover/card:scale-105 group-hover/card:opacity-95 transition-all duration-300"
-                />
+                {/* Thumbnail Background / Video Preview */}
+                {effectiveThumb ? (
+                  <img
+                    src={effectiveThumb}
+                    alt={reel.title}
+                    className="w-full h-full object-cover opacity-90 group-hover/card:scale-105 group-hover/card:opacity-100 transition-all duration-300"
+                  />
+                ) : isDirect ? (
+                  <video
+                    src={reel.videoUrl}
+                    muted
+                    loop
+                    playsInline
+                    preload="metadata"
+                    className="w-full h-full object-cover opacity-90 group-hover/card:scale-105 group-hover/card:opacity-100 transition-all duration-300"
+                    onMouseEnter={(e) => {
+                      try { e.currentTarget.play(); } catch {}
+                    }}
+                    onMouseLeave={(e) => {
+                      try {
+                        e.currentTarget.pause();
+                        e.currentTarget.currentTime = 0;
+                      } catch {}
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-neutral-900 flex flex-col items-center justify-center p-3 text-center text-neutral-400">
+                    <Film size={26} className="text-[#D71920] mb-2" />
+                    <span className="text-[10px] font-bold text-white line-clamp-2">{reel.title}</span>
+                  </div>
+                )}
 
                 {/* Gradient Overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />

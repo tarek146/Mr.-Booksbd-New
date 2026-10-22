@@ -49,7 +49,8 @@ import {
   ArrowDown,
   Sparkles,
   Phone,
-  FileText
+  FileText,
+  ShoppingCart
 } from 'lucide-react';
 import { Author, Banner, BookPreviewPage, Order, PaymentMethodConfig } from '../types';
 import { DEFAULT_PAYMENT_METHODS } from '../firebase';
@@ -63,6 +64,13 @@ import {
   toBanglaDigits,
 } from '../utils/bookPreviewHelpers';
 import { extractPdfPreviewPages } from '../utils/pdfPageExtractor';
+import {
+  extractYouTubeVideoId,
+  getYouTubeThumbnailUrl,
+  isDirectVideoUrl,
+  searchProductsForReel,
+  captureVideoFrame
+} from '../utils/videoReelHelpers';
 
 export function AdminDashboard() {
   const { currentUser, isAdmin, loading: authLoading, signIn, logout, devLoginAsAdmin } = useAuth();
@@ -127,6 +135,10 @@ export function AdminDashboard() {
   const [reelVideoUrl, setReelVideoUrl] = useState('');
   const [reelThumbnailUrl, setReelThumbnailUrl] = useState('');
   const [reelProductId, setReelProductId] = useState('');
+  const [reelProductSearchQuery, setReelProductSearchQuery] = useState('');
+  const [isExtractingThumbnail, setIsExtractingThumbnail] = useState(false);
+  const [thumbnailSourceNote, setThumbnailSourceNote] = useState('');
+  const [isSubmittingReel, setIsSubmittingReel] = useState(false);
 
   // Subscribers management state
   const [subSearchQuery, setSubSearchQuery] = useState('');
@@ -2459,76 +2471,126 @@ export function AdminDashboard() {
               </div>
               <button
                 type="button"
+                data-testid="add-new-reel-btn"
                 onClick={() => {
                   setEditingReelId(null);
                   setReelTitle('');
                   setReelVideoUrl('');
                   setReelThumbnailUrl('');
                   setReelProductId('');
+                  setReelProductSearchQuery('');
+                  setThumbnailSourceNote('');
                   setShowAddReelModal(true);
                 }}
-                className="px-4 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md cursor-pointer shrink-0"
+                className="px-4 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md cursor-pointer shrink-0 transition-transform active:scale-95"
               >
                 <Plus size={14} /> Add New Video Reel
               </button>
             </div>
 
             {/* Reels Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {reels.map(reel => {
-                const linkedProduct = reel.productId ? products.find(p => p.id === reel.productId) : null;
-                return (
-                  <div key={reel.id} className="p-4 rounded-2xl border border-neutral-200 bg-[#F7F7F8] space-y-3 flex flex-col justify-between">
-                    <div className="space-y-2">
-                      <div className="relative w-full h-44 rounded-xl overflow-hidden bg-black border border-neutral-200">
-                        <img src={reel.thumbnailUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400'} alt="" className="w-full h-full object-cover opacity-80" />
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-9 h-9 rounded-full bg-white/30 backdrop-blur-md text-white flex items-center justify-center">
-                            <Play size={16} fill="currentColor" className="ml-0.5" />
+            <div data-testid="admin-reels-manager" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {reels.length === 0 ? (
+                <div className="col-span-full p-8 text-center bg-neutral-50 border border-dashed border-neutral-300 rounded-3xl space-y-3">
+                  <div className="w-12 h-12 bg-red-50 text-[#D71920] rounded-2xl flex items-center justify-center mx-auto">
+                    <Film size={22} />
+                  </div>
+                  <h3 className="font-bold text-sm text-neutral-800">এখনো কোনো ভিডিও রিল যুক্ত করা হয়নি</h3>
+                  <p className="text-xs text-neutral-500 max-w-sm mx-auto">
+                    ইউটিউব শর্টস বা সরাসরি ভিডিও রিল আপলোড করতে উপরের "+ Add New Video Reel" বাটনে ক্লিক করুন।
+                  </p>
+                </div>
+              ) : (
+                reels.map(reel => {
+                  const linkedProduct = reel.productId ? products.find(p => p.id === reel.productId) : null;
+                  const ytId = extractYouTubeVideoId(reel.videoUrl);
+                  const effectiveThumb = reel.thumbnailUrl || (ytId ? getYouTubeThumbnailUrl(ytId) : '');
+                  const isDirect = isDirectVideoUrl(reel.videoUrl);
+
+                  return (
+                    <div 
+                      key={reel.id} 
+                      data-testid="admin-reel-card"
+                      className="p-4 rounded-2xl border border-neutral-200 bg-[#F7F7F8] space-y-3 flex flex-col justify-between shadow-2xs hover:shadow-md transition-shadow"
+                    >
+                      <div className="space-y-2">
+                        <div className="relative w-full h-44 rounded-xl overflow-hidden bg-neutral-950 border border-neutral-200">
+                          {effectiveThumb ? (
+                            <img src={effectiveThumb} alt="" className="w-full h-full object-cover opacity-90" />
+                          ) : isDirect ? (
+                            <video src={reel.videoUrl} muted preload="metadata" className="w-full h-full object-cover opacity-90" />
+                          ) : (
+                            <div className="w-full h-full bg-neutral-900 flex flex-col items-center justify-center text-neutral-400 p-2 text-center">
+                              <Film size={26} className="text-[#D71920] mb-1" />
+                              <span className="text-[10px] font-bold text-white truncate max-w-full">{reel.title}</span>
+                            </div>
+                          )}
+
+                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <div className="w-9 h-9 rounded-full bg-white/30 backdrop-blur-md text-white flex items-center justify-center shadow">
+                              <Play size={16} fill="currentColor" className="ml-0.5" />
+                            </div>
                           </div>
+                          <span className={`absolute top-2 right-2 px-2 py-0.5 rounded text-[10px] font-bold ${reel.isActive !== false ? 'bg-emerald-500 text-white' : 'bg-zinc-600 text-white'}`}>
+                            {reel.isActive !== false ? 'Active' : 'Inactive'}
+                          </span>
                         </div>
-                        <span className={`absolute top-2 right-2 px-2 py-0.5 rounded text-[10px] font-bold ${reel.isActive !== false ? 'bg-emerald-500 text-white' : 'bg-zinc-600 text-white'}`}>
-                          {reel.isActive !== false ? 'Active' : 'Inactive'}
-                        </span>
+
+                        <h3 className="font-bold text-xs text-neutral-900 line-clamp-2">{reel.title}</h3>
+                        <p className="text-[10px] font-mono text-neutral-500 truncate" title={reel.videoUrl}>🎥 {reel.videoUrl}</p>
+
+                        {linkedProduct && (
+                          <div className="p-2 rounded-lg bg-white border border-neutral-200 flex items-center gap-2 text-[11px]">
+                            <img src={linkedProduct.images[0]} alt="" className="w-7 h-7 rounded object-cover" />
+                            <div className="truncate font-bold text-neutral-800">{linkedProduct.title} (৳{linkedProduct.price})</div>
+                          </div>
+                        )}
                       </div>
 
-                      <h3 className="font-bold text-xs text-neutral-900 line-clamp-2">{reel.title}</h3>
-                      <p className="text-[10px] font-mono text-neutral-500 truncate" title={reel.videoUrl}>🎥 {reel.videoUrl}</p>
-
-                      {linkedProduct && (
-                        <div className="p-2 rounded-lg bg-white border border-neutral-200 flex items-center gap-2 text-[11px]">
-                          <img src={linkedProduct.images[0]} alt="" className="w-7 h-7 rounded object-cover" />
-                          <div className="truncate font-bold text-neutral-800">{linkedProduct.title} (৳{linkedProduct.price})</div>
-                        </div>
-                      )}
+                      <div className="pt-2 border-t border-neutral-200 flex items-center justify-between">
+                        <button
+                          type="button"
+                          onClick={() => updateReel(reel.id, { isActive: !reel.isActive })}
+                          className="text-xs font-bold text-[#D71920] hover:underline cursor-pointer"
+                        >
+                          {reel.isActive !== false ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button
+                          type="button"
+                          data-testid="admin-remove-reel-btn"
+                          onClick={async () => {
+                            if (window.confirm('Are you sure you want to permanently delete this reel?')) {
+                              await deleteReel(reel.id);
+                              setToast({ show: true, type: 'success', message: 'ভিডিও রিলটি স্থায়ীভাবে ডিলিট করা হয়েছে!' });
+                            }
+                          }}
+                          className="text-xs text-red-600 hover:text-red-700 font-bold flex items-center gap-1 cursor-pointer"
+                        >
+                          <Trash2 size={13} /> Remove
+                        </button>
+                      </div>
                     </div>
-
-                    <div className="pt-2 border-t border-neutral-200 flex items-center justify-between">
-                      <button
-                        onClick={() => updateReel(reel.id, { isActive: !reel.isActive })}
-                        className="text-xs font-bold text-[#D71920] hover:underline cursor-pointer"
-                      >
-                        {reel.isActive !== false ? 'Deactivate' : 'Activate'}
-                      </button>
-                      <button
-                        onClick={() => deleteReel(reel.id)}
-                        className="text-xs text-red-600 hover:text-red-700 flex items-center gap-1 cursor-pointer"
-                      >
-                        <Trash2 size={13} /> Remove
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
 
             {/* Add / Edit Reel Modal */}
             {showAddReelModal && (
               <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-200">
-                <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-neutral-200 space-y-4">
+                <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-neutral-200 space-y-4 max-h-[90vh] overflow-y-auto">
                   <div className="flex items-center justify-between pb-3 border-b border-neutral-200">
-                    <h3 className="font-black text-neutral-900 text-base">Add New Video Reel</h3>
-                    <button onClick={() => setShowAddReelModal(false)} className="p-1.5 rounded-xl hover:bg-neutral-100 text-neutral-400 hover:text-neutral-700 cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-red-50 text-[#D71920] flex items-center justify-center">
+                        <Film size={16} />
+                      </div>
+                      <h3 className="font-black text-neutral-900 text-base">Add New Video Reel</h3>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => setShowAddReelModal(false)} 
+                      className="p-1.5 rounded-xl hover:bg-neutral-100 text-neutral-400 hover:text-neutral-700 cursor-pointer"
+                    >
                       <X size={18} />
                     </button>
                   </div>
@@ -2536,79 +2598,337 @@ export function AdminDashboard() {
                   <form
                     onSubmit={async (e) => {
                       e.preventDefault();
-                      if (!reelTitle || !reelVideoUrl) {
-                        alert('Please fill in title and video URL');
+                      if (isSubmittingReel) return;
+
+                      if (!reelTitle.trim() || !reelVideoUrl.trim()) {
+                        alert('দয়া করে রিলের টাইটেল এবং ভিডিও লিংক দিন');
                         return;
                       }
-                      await addReel({
-                        title: reelTitle.trim(),
-                        videoUrl: reelVideoUrl.trim(),
-                        thumbnailUrl: reelThumbnailUrl.trim() || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600',
-                        productId: reelProductId || undefined,
-                        viewsCount: Math.floor(800 + Math.random() * 2000),
-                        likesCount: Math.floor(200 + Math.random() * 600),
-                        isActive: true
-                      });
-                      setShowAddReelModal(false);
-                      setToast({ show: true, type: 'success', message: 'Video Reel published successfully!' });
+
+                      setIsSubmittingReel(true);
+                      try {
+                        // Calculate final thumbnail: user thumbnail > auto-extracted YouTube thumbnail > captured frame
+                        let finalThumb = reelThumbnailUrl.trim();
+                        if (!finalThumb) {
+                          const ytId = extractYouTubeVideoId(reelVideoUrl);
+                          if (ytId) {
+                            finalThumb = getYouTubeThumbnailUrl(ytId);
+                          } else if (isDirectVideoUrl(reelVideoUrl)) {
+                            try {
+                              finalThumb = await captureVideoFrame(reelVideoUrl, 0.5);
+                            } catch {
+                              finalThumb = '';
+                            }
+                          }
+                        }
+
+                        await addReel({
+                          title: reelTitle.trim(),
+                          videoUrl: reelVideoUrl.trim(),
+                          thumbnailUrl: finalThumb, // NO unsplash fallback!
+                          productId: reelProductId || undefined,
+                          viewsCount: Math.floor(1200 + Math.random() * 2500),
+                          likesCount: Math.floor(300 + Math.random() * 800),
+                          isActive: true
+                        });
+
+                        setShowAddReelModal(false);
+                        setToast({ show: true, type: 'success', message: 'ভিডিও রিল সফলভাবে পাবলিশ করা হয়েছে!' });
+                      } catch (err: any) {
+                        alert('Error saving reel: ' + (err?.message || 'Failed'));
+                      } finally {
+                        setIsSubmittingReel(false);
+                      }
                     }}
-                    className="space-y-3 text-xs"
+                    className="space-y-4 text-xs"
                   >
+                    {/* Reel Title */}
                     <div>
-                      <label className="block font-bold text-neutral-700 mb-1">Reel Title / Caption</label>
+                      <label className="block font-bold text-neutral-700 mb-1">
+                        রিলসের শিরোনাম / ক্যাপশন (Reel Title) <span className="text-red-500">*</span>
+                      </label>
                       <input
                         type="text"
                         required
-                        placeholder="e.g. নতুন বুক রিভিউ ভিডিও"
+                        data-testid="reel-title-input"
+                        placeholder="যেমন: প্যারাডক্সিক্যাল সাজিদ ২ বুক রিভিউ"
                         value={reelTitle}
                         onChange={e => setReelTitle(e.target.value)}
-                        className="w-full px-3.5 py-2 rounded-xl border border-neutral-300 bg-white font-bold text-neutral-900"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-300 bg-white font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920]"
                       />
                     </div>
 
+                    {/* Video Link / URL with Auto-Thumbnail on input */}
                     <div>
-                      <label className="block font-bold text-neutral-700 mb-1">Video Link / URL (MP4 / YouTube Shorts / Facebook Embed)</label>
+                      <label className="block font-bold text-neutral-700 mb-1 flex items-center justify-between">
+                        <span>ভিডিও লিংক / URL (YouTube Shorts / MP4 / WebM) <span className="text-red-500">*</span></span>
+                        {isExtractingThumbnail && (
+                          <span className="text-[10px] text-[#D71920] font-bold flex items-center gap-1 animate-pulse">
+                            <span className="w-2 h-2 rounded-full bg-[#D71920] animate-ping" />
+                            থাম্বনেইল সংগ্রহ হচ্ছে...
+                          </span>
+                        )}
+                      </label>
                       <input
                         type="text"
                         required
-                        placeholder="e.g. https://assets.mixkit.co/.../video.mp4 or https://youtube.com/shorts/..."
+                        data-testid="reel-video-url-input"
+                        placeholder="https://youtube.com/shorts/... অথবা https://.../video.mp4"
                         value={reelVideoUrl}
-                        onChange={e => setReelVideoUrl(e.target.value)}
-                        className="w-full px-3.5 py-2 rounded-xl border border-neutral-300 bg-white font-mono text-neutral-900"
+                        onChange={async (e) => {
+                          const val = e.target.value;
+                          setReelVideoUrl(val);
+                          const clean = val.trim();
+                          if (!clean) return;
+
+                          // Auto-extract YouTube Shorts / YouTube thumbnail
+                          const ytId = extractYouTubeVideoId(clean);
+                          if (ytId) {
+                            const ytThumb = getYouTubeThumbnailUrl(ytId);
+                            setReelThumbnailUrl(ytThumb);
+                            setThumbnailSourceNote('YouTube ভিডিও থেকে স্বয়ংক্রিয়ভাবে থাম্বনেইল নেওয়া হয়েছে');
+                            return;
+                          }
+
+                          // Auto-extract frame from direct MP4 / WebM
+                          if (isDirectVideoUrl(clean)) {
+                            try {
+                              setIsExtractingThumbnail(true);
+                              const frame = await captureVideoFrame(clean, 0.5);
+                              setReelThumbnailUrl(frame);
+                              setThumbnailSourceNote('ভিডিও থেকে স্বয়ংক্রিয়ভাবে থাম্বনেইল ফ্রেম তৈরি হয়েছে');
+                            } catch (err) {
+                              console.warn('Frame extraction notice:', err);
+                              setThumbnailSourceNote('ভিডিও থেকে সরাসরি ফ্রেম প্লে হবে');
+                            } finally {
+                              setIsExtractingThumbnail(false);
+                            }
+                          }
+                        }}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-300 bg-white font-mono text-neutral-900 focus:outline-none focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920]"
                       />
-                      <p className="text-[10px] text-neutral-500 mt-1">
-                        Paste direct MP4 link, YouTube Shorts URL, or embed video URL from Facebook/YouTube.
+                      <p className="text-[11px] text-neutral-500 mt-1">
+                        ইউটিউব শর্টস (YouTube Shorts) বা সরাসরি MP4 ভিডিও লিংক পেস্ট করুন।
                       </p>
                     </div>
 
-                    <div>
-                      <label className="block font-bold text-neutral-700 mb-1">Thumbnail Cover Image URL</label>
-                      <input
-                        type="text"
-                        placeholder="https://images.unsplash.com/..."
-                        value={reelThumbnailUrl}
-                        onChange={e => setReelThumbnailUrl(e.target.value)}
-                        className="w-full px-3.5 py-2 rounded-xl border border-neutral-300 bg-white text-neutral-900"
-                      />
+                    {/* Auto-Captured Video Thumbnail Section & Custom Upload */}
+                    <div className="p-3.5 bg-neutral-50 border border-neutral-200 rounded-2xl space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <label className="font-bold text-neutral-800 text-xs flex items-center gap-1.5">
+                          <Eye size={13} className="text-[#D71920]" />
+                          <span>ভিডিও থাম্বনেইল (Auto Video Thumbnail)</span>
+                        </label>
+                        {reelThumbnailUrl && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReelThumbnailUrl('');
+                              setThumbnailSourceNote('');
+                            }}
+                            className="text-[10px] text-red-600 hover:underline cursor-pointer"
+                          >
+                            থাম্বনেইল মুছুন
+                          </button>
+                        )}
+                      </div>
+
+                      {reelThumbnailUrl ? (
+                        <div className="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-neutral-200">
+                          <img
+                            src={reelThumbnailUrl}
+                            alt="Cover Thumbnail"
+                            className="w-14 h-18 rounded-lg object-cover border border-neutral-200 shrink-0"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold">
+                              ✓ ভিডিও থেকে স্বয়ংক্রিয় থাম্বনেইল সংগৃহীত
+                            </span>
+                            <p className="text-[11px] text-neutral-500 mt-1 line-clamp-1">
+                              {thumbnailSourceNote || 'ভিডিওর প্রথম ফ্রেম কভার হিসেবে সেট করা হয়েছে'}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-[11px] text-neutral-500 leading-relaxed">
+                          ভিডিও লিংক দিলে এই ভিডিও থেকেই অটোমেটিক্যালি থাম্বনেইল নিয়ে নিবে। আলাদা কোনো থাম্বনেইল না দিলে কোনো ডামি ছবি আসবে না।
+                        </div>
+                      )}
+
+                      {/* Optional Custom Cover Upload */}
+                      <div className="pt-2 border-t border-neutral-200/80 flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-semibold text-neutral-600">চাইলে কাস্টম কভার ছবিও আপলোড করতে পারেন:</span>
+                        <label className="px-3 py-1.5 bg-white border border-neutral-300 hover:border-[#D71920] rounded-xl text-[11px] font-bold text-neutral-700 hover:text-[#D71920] cursor-pointer transition-colors shrink-0 shadow-2xs">
+                          <span>ছবি বাছুন</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                try {
+                                  const compressed = await compressImageFile(file, 720, 1280, 0.82);
+                                  setReelThumbnailUrl(compressed);
+                                  setThumbnailSourceNote('কাস্টম কভার ছবি আপলোড করা হয়েছে');
+                                } catch (err: any) {
+                                  alert('Image error: ' + err.message);
+                                }
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
                     </div>
 
-                    <div>
-                      <label className="block font-bold text-neutral-700 mb-1">Linked Book / Product (For Instant Buy Button)</label>
-                      <select
-                        value={reelProductId}
-                        onChange={e => setReelProductId(e.target.value)}
-                        className="w-full px-3.5 py-2 rounded-xl border border-neutral-300 bg-white font-bold text-neutral-900"
+                    {/* Searchable Product Picker */}
+                    <div className="space-y-1.5">
+                      <label className="block font-bold text-neutral-700 text-xs flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <ShoppingCart size={13} className="text-[#D71920]" />
+                          <span>রিলসের সাথে যুক্ত বই / প্রোডাক্ট (Linked Product for Buy Button)</span>
+                        </span>
+                        {reelProductId && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReelProductId('');
+                              setReelProductSearchQuery('');
+                            }}
+                            className="text-[11px] text-red-600 hover:underline cursor-pointer"
+                          >
+                            রিমুভ করুন
+                          </button>
+                        )}
+                      </label>
+
+                      {(() => {
+                        const linked = reelProductId ? products.find(p => p.id === reelProductId) : null;
+                        const filtered = searchProductsForReel(products, reelProductSearchQuery);
+
+                        if (linked) {
+                          return (
+                            <div className="p-3 bg-red-50/70 border border-red-200 rounded-2xl flex items-center justify-between gap-3 shadow-2xs">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <img
+                                  src={linked.images[0]}
+                                  alt=""
+                                  className="w-10 h-10 rounded-xl object-cover border border-red-200 bg-white shrink-0"
+                                />
+                                <div className="min-w-0">
+                                  <div className="text-xs font-bold text-neutral-900 truncate">{linked.title}</div>
+                                  <div className="text-[11px] text-neutral-500 truncate">
+                                    {linked.author || linked.category} • <strong className="text-[#D71920]">৳{linked.price}</strong>
+                                  </div>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReelProductId('');
+                                  setReelProductSearchQuery('');
+                                }}
+                                className="p-1.5 rounded-lg bg-white border border-red-200 text-red-600 hover:bg-red-600 hover:text-white transition-colors cursor-pointer shrink-0"
+                                title="বই পরিবর্তন বা রিমুভ করুন"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="space-y-2">
+                            <div className="relative">
+                              <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+                              <input
+                                type="text"
+                                data-testid="reel-product-search-input"
+                                value={reelProductSearchQuery}
+                                onChange={e => setReelProductSearchQuery(e.target.value)}
+                                placeholder="বইয়ের নাম বা লেখক লিখে সার্চ করুন..."
+                                className="w-full pl-9 pr-3.5 py-2 rounded-xl border border-neutral-300 bg-white text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920]"
+                              />
+                            </div>
+
+                            <div className="max-h-36 overflow-y-auto border border-neutral-200 rounded-xl bg-white divide-y divide-neutral-100 shadow-inner">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReelProductId('');
+                                  setReelProductSearchQuery('');
+                                }}
+                                className="w-full p-2 text-left text-xs font-semibold text-neutral-600 hover:bg-neutral-50 flex items-center justify-between cursor-pointer"
+                              >
+                                <span>কোনো নির্দিষ্ট বই নেই (সাধারণ বুক রিভিউ / শর্টস)</span>
+                                <span className="text-[10px] text-neutral-400">General Reel</span>
+                              </button>
+
+                              {filtered.length === 0 ? (
+                                <div className="p-3 text-center text-xs text-neutral-400">
+                                  "{reelProductSearchQuery}" দিয়ে কোনো বই পাওয়া যায়নি।
+                                </div>
+                              ) : (
+                                filtered.map(p => (
+                                  <button
+                                    key={p.id}
+                                    type="button"
+                                    data-testid={`select-reel-prod-${p.id}`}
+                                    onClick={() => {
+                                      setReelProductId(p.id);
+                                      setReelProductSearchQuery('');
+                                    }}
+                                    className="w-full p-2 text-left flex items-center justify-between gap-2.5 hover:bg-red-50/50 transition-colors cursor-pointer group"
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <img
+                                        src={p.images[0]}
+                                        alt=""
+                                        className="w-8 h-8 rounded-lg object-cover border border-neutral-200 bg-neutral-50 shrink-0"
+                                      />
+                                      <div className="min-w-0">
+                                        <div className="text-xs font-bold text-neutral-900 group-hover:text-[#D71920] truncate">
+                                          {p.title}
+                                        </div>
+                                        <div className="text-[10px] text-neutral-500 truncate">
+                                          {p.author || p.category}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <span className="text-xs font-black text-[#D71920] shrink-0">৳{p.price}</span>
+                                  </button>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex justify-end gap-2 pt-3 border-t border-neutral-200">
+                      <button 
+                        type="button" 
+                        onClick={() => setShowAddReelModal(false)} 
+                        className="px-4 py-2 bg-neutral-100 hover:bg-neutral-200 font-bold rounded-xl text-neutral-700 cursor-pointer"
                       >
-                        <option value="">None (General Review)</option>
-                        {products.map(p => (
-                          <option key={p.id} value={p.id}>{p.title} (৳{p.price})</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="flex justify-end gap-2 pt-2 border-t border-neutral-200">
-                      <button type="button" onClick={() => setShowAddReelModal(false)} className="px-4 py-2 bg-neutral-100 font-bold rounded-xl text-neutral-700 cursor-pointer">Cancel</button>
-                      <button type="submit" className="px-5 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl shadow-md cursor-pointer">Publish Reel</button>
+                        Cancel
+                      </button>
+                      <button 
+                        type="submit" 
+                        disabled={isSubmittingReel}
+                        data-testid="submit-reel-btn"
+                        className="px-5 py-2 bg-[#D71920] hover:bg-[#B9151B] disabled:opacity-50 text-white font-bold rounded-xl shadow-md cursor-pointer flex items-center gap-1.5 transition-all"
+                      >
+                        {isSubmittingReel ? (
+                          <>
+                            <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            <span>Publishing...</span>
+                          </>
+                        ) : (
+                          <span>Publish Reel</span>
+                        )}
+                      </button>
                     </div>
                   </form>
                 </div>
