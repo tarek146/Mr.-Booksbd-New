@@ -1,4 +1,5 @@
 import { Review, PaymentMethodConfig } from '../types';
+import { isValidImageUrl } from './imageCompressor';
 
 export type ReactionType = 'like' | 'love' | 'dislike';
 
@@ -142,7 +143,7 @@ export function getPaymentMethodDisplayMeta(method: PaymentMethodConfig): {
 } {
   const rawLogo = (method.logoUrl || '').trim();
   const isLegacyPlaceholder = LEGACY_PLACEHOLDER_LOGOS.some(url => rawLogo.startsWith(url));
-  const customLogoUrl = rawLogo && !isLegacyPlaceholder ? rawLogo : undefined;
+  const customLogoUrl = isValidImageUrl(rawLogo) && !isLegacyPlaceholder ? rawLogo : undefined;
 
   const isDefaultName =
     !method.name ||

@@ -26,7 +26,7 @@ function MainRouter() {
   return (
     <>
       {/* Full-Screen Branded Splash Loading Screen during Initial Data Sync */}
-      {isLoading && (
+      {isLoading && activePage !== 'admin' && (
         <div className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center p-6 text-center select-none transition-opacity duration-300">
           <div className="w-16 h-16 bg-[#D71920] text-white rounded-2xl flex items-center justify-center text-2xl font-black shadow-lg mb-4 animate-bounce">
             MB

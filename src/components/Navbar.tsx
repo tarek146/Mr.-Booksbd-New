@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { AuthModal } from './AuthModal';
 import { AnimatedSearchInput } from './AnimatedSearchInput';
+import { isValidImageUrl } from '../utils/imageCompressor';
 
 export function Navbar() {
   const { 
@@ -121,7 +122,12 @@ export function Navbar() {
   const marqueeItems = activeAnnouncements.length > 0 ? activeAnnouncements : defaultMarqueeItems;
   const showAnnouncement = settings.showAnnouncementBar !== false;
 
-  const hasCustomLogo = Boolean(settings.logoUrl && settings.logoUrl.trim());
+  const [logoImgError, setLogoImgError] = useState(false);
+  useEffect(() => {
+    setLogoImgError(false);
+  }, [settings.logoUrl]);
+
+  const hasCustomLogo = isValidImageUrl(settings.logoUrl) && !logoImgError;
   const rawStoreName = (settings.storeName ?? 'MR. BOOKS').trim();
   const hasStoreName = rawStoreName.length > 0;
   const showBookIcon = !hasCustomLogo && hasStoreName && settings.showHeaderIcon !== false;
@@ -163,6 +169,7 @@ export function Navbar() {
                   <img
                     src={settings.logoUrl}
                     alt={rawStoreName || 'Store Logo'}
+                    onError={() => setLogoImgError(true)}
                     className="h-9 sm:h-10 w-auto max-w-[150px] object-contain rounded-lg bg-white shrink-0"
                   />
                 )}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
 import { 
   BookOpen, 
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { OrderTrackingModal } from './OrderTrackingModal';
 import { Order } from '../types';
+import { isValidImageUrl } from '../utils/imageCompressor';
 
 const FacebookIcon = () => (
   <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
@@ -60,6 +61,18 @@ export function Footer() {
   const [trackLoading, setTrackLoading] = useState(false);
   const [trackError, setTrackError] = useState<string | null>(null);
   const [activeTrackingOrder, setActiveTrackingOrder] = useState<Order | null>(null);
+
+  // Image error fallback states
+  const [footerLogoError, setFooterLogoError] = useState(false);
+  const [paymentBannerError, setPaymentBannerError] = useState(false);
+
+  useEffect(() => {
+    setFooterLogoError(false);
+  }, [settings.footerLogoUrl]);
+
+  useEffect(() => {
+    setPaymentBannerError(false);
+  }, [settings.footerPaymentBannerUrl]);
 
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -263,8 +276,8 @@ export function Footer() {
             >
               <div>
                 {(() => {
-                  const footerLogo = (settings.footerLogoUrl && settings.footerLogoUrl.trim()) ? settings.footerLogoUrl : '';
-                  const hasFooterCustomLogo = Boolean(footerLogo);
+                  const hasFooterCustomLogo = isValidImageUrl(settings.footerLogoUrl) && !footerLogoError;
+                  const footerLogo = hasFooterCustomLogo ? settings.footerLogoUrl!.trim() : '';
                   const rawFooterName = (settings.footerBrandName ?? settings.storeName ?? 'MR. BOOKS').trim();
                   const hasFooterName = rawFooterName.length > 0;
                   const showFooterBookIcon = !hasFooterCustomLogo && hasFooterName && settings.showFooterIcon !== false;
@@ -279,6 +292,7 @@ export function Footer() {
                         <img
                           src={footerLogo}
                           alt={rawFooterName || 'Footer Logo'}
+                          onError={() => setFooterLogoError(true)}
                           className="h-8 sm:h-9 w-auto max-w-[140px] object-contain rounded-lg bg-white p-0.5 shadow-xs shrink-0"
                         />
                       )}
@@ -429,11 +443,12 @@ export function Footer() {
                 <h4 className="text-white font-bold text-xs uppercase tracking-wider border-b border-white/10 pb-2 mb-2.5">
                   {settings.footerPaymentTitle || 'Payment Options'}
                 </h4>
-                {settings.footerPaymentBannerUrl && settings.footerPaymentBannerUrl.trim() ? (
+                {isValidImageUrl(settings.footerPaymentBannerUrl) && !paymentBannerError ? (
                   <div className="bg-black/25 border border-white/10 rounded-xl p-2 flex items-center justify-center overflow-hidden shadow-2xs">
                     <img
                       src={settings.footerPaymentBannerUrl}
                       alt={settings.footerPaymentTitle || 'Payment Options'}
+                      onError={() => setPaymentBannerError(true)}
                       className="w-full max-h-14 object-contain rounded-lg"
                     />
                   </div>

@@ -53,7 +53,7 @@ import {
 import { Author, Banner, Order, PaymentMethodConfig } from '../types';
 import { DEFAULT_PAYMENT_METHODS } from '../firebase';
 import { AdminAnalytics } from '../components/admin/AdminAnalytics';
-import { compressImageFile } from '../utils/imageCompressor';
+import { compressImageFile, isValidImageUrl, sanitizeImageUrl } from '../utils/imageCompressor';
 import { sortPaymentMethods, getPaymentMethodDisplayMeta } from '../utils/reviewHelpers';
 import { PaymentBrandIcon } from '../components/PaymentInstructions';
 
@@ -1985,28 +1985,58 @@ export function AdminDashboard() {
                     )}
 
                     {/* Row 6: Custom Brand Icon / Logo Upload */}
-                    <div className="p-3.5 rounded-2xl bg-[#F7F7F8] border border-[#E5E5E5] space-y-2">
-                      <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px]">
-                        Custom Icon / Logo (Optional)
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          placeholder="Custom Icon URL (leave blank for built-in vector icon)"
-                          value={pmLogoUrl}
-                          onChange={e => setPmLogoUrl(e.target.value)}
-                          className="flex-1 px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717] focus:outline-none focus:border-[#D71920]"
-                        />
-                        <label className="px-3.5 py-2 bg-[#FFF1F2] hover:bg-[#D71920] text-[#D71920] hover:text-white font-bold rounded-xl border border-[#D71920]/30 text-xs cursor-pointer transition-all shrink-0 flex items-center gap-1.5">
-                          <Upload size={13} />
-                          <span>Upload</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={e => handlePmIconFileUpload(e)}
-                          />
+                    <div className="p-3.5 rounded-2xl bg-[#F7F7F8] border border-[#E5E5E5] space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px]">
+                          Custom Icon / Logo (Optional)
                         </label>
+                        {isValidImageUrl(pmLogoUrl) && (
+                          <button
+                            type="button"
+                            onClick={() => setPmLogoUrl('')}
+                            className="text-[10px] font-bold text-[#D71920] hover:underline cursor-pointer"
+                          >
+                            Remove Custom Icon (Use Default Vector)
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <PaymentBrandIcon
+                          method={{
+                            id: editingPmId || 'pm-preview',
+                            name: pmName || 'Preview',
+                            type: pmType,
+                            accountName: pmAccName,
+                            accountNumber: pmAccNum,
+                            instructions: pmInst,
+                            isActive: pmIsActive,
+                            displayOrder: 1,
+                            logoUrl: isValidImageUrl(pmLogoUrl) ? pmLogoUrl : '',
+                          }}
+                          size="lg"
+                        />
+                        <div className="flex-1 flex items-center gap-2">
+                          <input
+                            type="text"
+                            placeholder="Custom Icon URL (leave blank for built-in vector icon)"
+                            value={isValidImageUrl(pmLogoUrl) ? pmLogoUrl : ''}
+                            onChange={e => setPmLogoUrl(sanitizeImageUrl(e.target.value))}
+                            className="flex-1 px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717] focus:outline-none focus:border-[#D71920]"
+                          />
+                          <label className="px-3.5 py-2 bg-[#FFF1F2] hover:bg-[#D71920] text-[#D71920] hover:text-white font-bold rounded-xl border border-[#D71920]/30 text-xs cursor-pointer transition-all shrink-0 flex items-center gap-1.5">
+                            <Upload size={13} />
+                            <span>Upload</span>
+                            <input
+                              type="file"
+                              accept="image/*,.ico,.svg"
+                              className="hidden"
+                              onChange={e => {
+                                handlePmIconFileUpload(e);
+                                e.target.value = '';
+                              }}
+                            />
+                          </label>
+                        </div>
                       </div>
                     </div>
 
@@ -4738,7 +4768,7 @@ export function AdminDashboard() {
                     {/* Simulated Header Preview Pill */}
                     <div className="px-4 py-2 rounded-xl bg-white border border-neutral-200 shadow-2xs flex items-center gap-2.5 self-start sm:self-auto">
                       {(() => {
-                        const hasLogo = Boolean(settingsForm.logoUrl && settingsForm.logoUrl.trim());
+                        const hasLogo = isValidImageUrl(settingsForm.logoUrl);
                         const rawName = (settingsForm.storeName ?? '').trim();
                         const hasName = rawName.length > 0;
                         const showIcon = !hasLogo && hasName && settingsForm.showHeaderIcon !== false;
@@ -4755,6 +4785,7 @@ export function AdminDashboard() {
                               <img
                                 src={settingsForm.logoUrl}
                                 alt="Logo Preview"
+                                onError={() => setSettingsForm(prev => ({ ...prev, logoUrl: '' }))}
                                 className="h-8 w-auto max-w-[120px] object-contain rounded"
                               />
                             )}
@@ -4804,10 +4835,14 @@ export function AdminDashboard() {
                           <span className="font-black text-xs text-neutral-900 block">1. Header Brand Logo (Optional)</span>
                           <span className="text-[11px] text-neutral-500">Upload a custom logo image for the top header</span>
                         </div>
-                        {settingsForm.logoUrl && (
+                        {isValidImageUrl(settingsForm.logoUrl) && (
                           <button
                             type="button"
-                            onClick={() => setSettingsForm(prev => ({ ...prev, logoUrl: '' }))}
+                            onClick={async () => {
+                              setSettingsForm(prev => ({ ...prev, logoUrl: '' }));
+                              await updateSettings({ logoUrl: '' });
+                              setToast({ show: true, type: 'success', message: 'Header logo removed!' });
+                            }}
                             className="text-[11px] font-bold text-red-600 hover:underline cursor-pointer"
                           >
                             Remove Logo
@@ -4817,8 +4852,13 @@ export function AdminDashboard() {
 
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-xl bg-white border border-neutral-200 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
-                          {settingsForm.logoUrl ? (
-                            <img src={settingsForm.logoUrl} alt="Header Logo Preview" className="w-full h-full object-contain p-1" />
+                          {isValidImageUrl(settingsForm.logoUrl) ? (
+                            <img
+                              src={settingsForm.logoUrl}
+                              alt="Header Logo Preview"
+                              onError={() => setSettingsForm(prev => ({ ...prev, logoUrl: '' }))}
+                              className="w-full h-full object-contain p-1"
+                            />
                           ) : (
                             <span className="text-[10px] font-bold text-neutral-400">No Logo</span>
                           )}
@@ -4830,16 +4870,20 @@ export function AdminDashboard() {
                               <span>Upload Logo</span>
                               <input
                                 type="file"
-                                accept="image/*"
+                                accept="image/*,.svg,.ico"
                                 className="hidden"
                                 onChange={async (e) => {
                                   const file = e.target.files?.[0];
+                                  e.target.value = '';
                                   if (!file) return;
                                   try {
-                                    const dataUrl = await compressImageFile(file, 400, 0.88);
+                                    const dataUrl = await compressImageFile(file, 400, 400, 0.9);
                                     setSettingsForm(prev => ({ ...prev, logoUrl: dataUrl }));
-                                  } catch (err) {
+                                    await updateSettings({ logoUrl: dataUrl });
+                                    setToast({ show: true, type: 'success', message: 'Header logo uploaded & saved in real-time!' });
+                                  } catch (err: any) {
                                     console.error('Logo upload error:', err);
+                                    setToast({ show: true, type: 'error', message: err?.message || 'Failed to upload logo' });
                                   }
                                 }}
                               />
@@ -4849,8 +4893,8 @@ export function AdminDashboard() {
                           <input
                             type="text"
                             placeholder="Or paste Header Logo URL (https://...)"
-                            value={settingsForm.logoUrl || ''}
-                            onChange={e => setSettingsForm(prev => ({ ...prev, logoUrl: e.target.value }))}
+                            value={isValidImageUrl(settingsForm.logoUrl) ? settingsForm.logoUrl : ''}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, logoUrl: sanitizeImageUrl(e.target.value) }))}
                             className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-300 bg-white text-xs text-neutral-900"
                           />
                         </div>
@@ -4864,10 +4908,14 @@ export function AdminDashboard() {
                           <span className="font-black text-xs text-neutral-900 block">2. Website Favicon (Browser Tab Icon)</span>
                           <span className="text-[11px] text-neutral-500">Add or change your website's browser tab icon</span>
                         </div>
-                        {settingsForm.faviconUrl && (
+                        {isValidImageUrl(settingsForm.faviconUrl) && (
                           <button
                             type="button"
-                            onClick={() => setSettingsForm(prev => ({ ...prev, faviconUrl: '' }))}
+                            onClick={async () => {
+                              setSettingsForm(prev => ({ ...prev, faviconUrl: '' }));
+                              await updateSettings({ faviconUrl: '' });
+                              setToast({ show: true, type: 'success', message: 'Favicon removed!' });
+                            }}
                             className="text-[11px] font-bold text-red-600 hover:underline cursor-pointer"
                           >
                             Remove Favicon
@@ -4877,8 +4925,13 @@ export function AdminDashboard() {
 
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-xl bg-white border border-neutral-200 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
-                          {settingsForm.faviconUrl ? (
-                            <img src={settingsForm.faviconUrl} alt="Favicon Preview" className="w-8 h-8 object-contain" />
+                          {isValidImageUrl(settingsForm.faviconUrl) ? (
+                            <img
+                              src={settingsForm.faviconUrl}
+                              alt="Favicon Preview"
+                              onError={() => setSettingsForm(prev => ({ ...prev, faviconUrl: '' }))}
+                              className="w-8 h-8 object-contain"
+                            />
                           ) : (
                             <div className="w-8 h-8 bg-neutral-100 rounded-lg flex items-center justify-center text-neutral-400 text-[10px] font-black">
                               ICO
@@ -4892,27 +4945,31 @@ export function AdminDashboard() {
                               <span>Upload Favicon</span>
                               <input
                                 type="file"
-                                accept="image/*"
+                                accept="image/*,.ico,.svg"
                                 className="hidden"
                                 onChange={async (e) => {
                                   const file = e.target.files?.[0];
+                                  e.target.value = '';
                                   if (!file) return;
                                   try {
-                                    const dataUrl = await compressImageFile(file, 128, 0.92);
+                                    const dataUrl = await compressImageFile(file, 128, 128, 0.92);
                                     setSettingsForm(prev => ({ ...prev, faviconUrl: dataUrl }));
-                                  } catch (err) {
+                                    await updateSettings({ faviconUrl: dataUrl });
+                                    setToast({ show: true, type: 'success', message: 'Favicon uploaded & updated in browser tab!' });
+                                  } catch (err: any) {
                                     console.error('Favicon upload error:', err);
+                                    setToast({ show: true, type: 'error', message: err?.message || 'Failed to upload favicon' });
                                   }
                                 }}
                               />
                             </label>
-                            <span className="text-[10px] text-neutral-500">Square PNG / ICO</span>
+                            <span className="text-[10px] text-neutral-500">Square PNG / ICO / SVG</span>
                           </div>
                           <input
                             type="text"
                             placeholder="Or paste Favicon Image URL (https://...)"
-                            value={settingsForm.faviconUrl || ''}
-                            onChange={e => setSettingsForm(prev => ({ ...prev, faviconUrl: e.target.value }))}
+                            value={isValidImageUrl(settingsForm.faviconUrl) ? settingsForm.faviconUrl : ''}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, faviconUrl: sanitizeImageUrl(e.target.value) }))}
                             className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-300 bg-white text-xs text-neutral-900"
                           />
                         </div>
@@ -5274,7 +5331,7 @@ export function AdminDashboard() {
                             style={{ backgroundColor: settingsForm.footerCardBgColor || '#1c1c1e' }}
                           >
                             {(() => {
-                              const hasLogo = Boolean(settingsForm.footerLogoUrl && settingsForm.footerLogoUrl.trim());
+                              const hasLogo = isValidImageUrl(settingsForm.footerLogoUrl);
                               const rawName = (settingsForm.footerBrandName ?? '').trim();
                               const hasName = rawName.length > 0;
                               const showIcon = !hasLogo && hasName && settingsForm.showFooterIcon !== false;
@@ -5288,7 +5345,12 @@ export function AdminDashboard() {
                               return (
                                 <>
                                   {hasLogo && (
-                                    <img src={settingsForm.footerLogoUrl} alt="" className="h-7 w-auto max-w-[100px] object-contain rounded bg-white p-0.5" />
+                                    <img
+                                      src={settingsForm.footerLogoUrl}
+                                      alt=""
+                                      onError={() => setSettingsForm(prev => ({ ...prev, footerLogoUrl: '' }))}
+                                      className="h-7 w-auto max-w-[100px] object-contain rounded bg-white p-0.5"
+                                    />
                                   )}
                                   {showIcon && (
                                     <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white shrink-0" style={{ backgroundColor: c2 }}>
@@ -5330,10 +5392,14 @@ export function AdminDashboard() {
                           <span className="font-black text-xs text-neutral-900 block">2. Footer Brand Logo (Optional)</span>
                           <span className="text-[11px] text-neutral-500">Upload a custom logo for the footer brand box</span>
                         </div>
-                        {settingsForm.footerLogoUrl && (
+                        {isValidImageUrl(settingsForm.footerLogoUrl) && (
                           <button
                             type="button"
-                            onClick={() => setSettingsForm(prev => ({ ...prev, footerLogoUrl: '' }))}
+                            onClick={async () => {
+                              setSettingsForm(prev => ({ ...prev, footerLogoUrl: '' }));
+                              await updateSettings({ footerLogoUrl: '' });
+                              setToast({ show: true, type: 'success', message: 'Footer logo removed!' });
+                            }}
                             className="text-[11px] font-bold text-red-600 hover:underline cursor-pointer"
                           >
                             Remove Footer Logo
@@ -5343,8 +5409,13 @@ export function AdminDashboard() {
 
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-xl bg-[#1c1c1e] border border-zinc-700 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
-                          {settingsForm.footerLogoUrl ? (
-                            <img src={settingsForm.footerLogoUrl} alt="Footer Logo" className="w-full h-full object-contain p-1" />
+                          {isValidImageUrl(settingsForm.footerLogoUrl) ? (
+                            <img
+                              src={settingsForm.footerLogoUrl}
+                              alt="Footer Logo"
+                              onError={() => setSettingsForm(prev => ({ ...prev, footerLogoUrl: '' }))}
+                              className="w-full h-full object-contain p-1"
+                            />
                           ) : (
                             <span className="text-[10px] font-bold text-zinc-400">No Logo</span>
                           )}
@@ -5356,16 +5427,20 @@ export function AdminDashboard() {
                               <span>Upload Footer Logo</span>
                               <input
                                 type="file"
-                                accept="image/*"
+                                accept="image/*,.svg,.ico"
                                 className="hidden"
                                 onChange={async (e) => {
                                   const file = e.target.files?.[0];
+                                  e.target.value = '';
                                   if (!file) return;
                                   try {
-                                    const dataUrl = await compressImageFile(file, 400, 0.88);
+                                    const dataUrl = await compressImageFile(file, 400, 400, 0.9);
                                     setSettingsForm(prev => ({ ...prev, footerLogoUrl: dataUrl }));
-                                  } catch (err) {
+                                    await updateSettings({ footerLogoUrl: dataUrl });
+                                    setToast({ show: true, type: 'success', message: 'Footer logo uploaded & saved in real-time!' });
+                                  } catch (err: any) {
                                     console.error('Footer logo upload error:', err);
+                                    setToast({ show: true, type: 'error', message: err?.message || 'Failed to upload footer logo' });
                                   }
                                 }}
                               />
@@ -5374,8 +5449,8 @@ export function AdminDashboard() {
                           <input
                             type="text"
                             placeholder="Or paste Footer Logo URL (https://...)"
-                            value={settingsForm.footerLogoUrl || ''}
-                            onChange={e => setSettingsForm(prev => ({ ...prev, footerLogoUrl: e.target.value }))}
+                            value={isValidImageUrl(settingsForm.footerLogoUrl) ? settingsForm.footerLogoUrl : ''}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, footerLogoUrl: sanitizeImageUrl(e.target.value) }))}
                             className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-300 bg-white text-xs text-neutral-900"
                           />
                         </div>
@@ -5389,10 +5464,14 @@ export function AdminDashboard() {
                           <span className="font-black text-xs text-[#171717] block">3. Payment Methods Single Picture</span>
                           <span className="text-[11px] text-[#5F6368]">Upload one combined image for all payment methods</span>
                         </div>
-                        {settingsForm.footerPaymentBannerUrl && (
+                        {isValidImageUrl(settingsForm.footerPaymentBannerUrl) && (
                           <button
                             type="button"
-                            onClick={() => setSettingsForm(prev => ({ ...prev, footerPaymentBannerUrl: '' }))}
+                            onClick={async () => {
+                              setSettingsForm(prev => ({ ...prev, footerPaymentBannerUrl: '' }));
+                              await updateSettings({ footerPaymentBannerUrl: '' });
+                              setToast({ show: true, type: 'success', message: 'Payment methods picture removed!' });
+                            }}
                             className="text-[11px] font-bold text-red-600 hover:underline cursor-pointer"
                           >
                             Remove Picture
@@ -5402,8 +5481,13 @@ export function AdminDashboard() {
 
                       <div className="flex items-center gap-3">
                         <div className="w-24 h-12 rounded-xl bg-[#1c1c1e] border border-zinc-700 flex items-center justify-center overflow-hidden shrink-0 p-1 shadow-2xs">
-                          {settingsForm.footerPaymentBannerUrl ? (
-                            <img src={settingsForm.footerPaymentBannerUrl} alt="Payment Banner" className="w-full h-full object-contain" />
+                          {isValidImageUrl(settingsForm.footerPaymentBannerUrl) ? (
+                            <img
+                              src={settingsForm.footerPaymentBannerUrl}
+                              alt="Payment Banner"
+                              onError={() => setSettingsForm(prev => ({ ...prev, footerPaymentBannerUrl: '' }))}
+                              className="w-full h-full object-contain"
+                            />
                           ) : (
                             <span className="text-[9px] font-bold text-zinc-400 text-center leading-tight">Default Strip</span>
                           )}
@@ -5415,16 +5499,20 @@ export function AdminDashboard() {
                               <span>Upload Payment Picture</span>
                               <input
                                 type="file"
-                                accept="image/*"
+                                accept="image/*,.svg"
                                 className="hidden"
                                 onChange={async (e) => {
                                   const file = e.target.files?.[0];
+                                  e.target.value = '';
                                   if (!file) return;
                                   try {
-                                    const dataUrl = await compressImageFile(file, 700, 0.90);
+                                    const dataUrl = await compressImageFile(file, 800, 300, 0.92);
                                     setSettingsForm(prev => ({ ...prev, footerPaymentBannerUrl: dataUrl }));
-                                  } catch (err) {
+                                    await updateSettings({ footerPaymentBannerUrl: dataUrl });
+                                    setToast({ show: true, type: 'success', message: 'Payment methods picture uploaded & saved!' });
+                                  } catch (err: any) {
                                     console.error('Payment banner upload error:', err);
+                                    setToast({ show: true, type: 'error', message: err?.message || 'Failed to upload payment picture' });
                                   }
                                 }}
                               />
@@ -5433,8 +5521,8 @@ export function AdminDashboard() {
                           <input
                             type="text"
                             placeholder="Or paste Payment Banner Image URL (https://...)"
-                            value={settingsForm.footerPaymentBannerUrl || ''}
-                            onChange={e => setSettingsForm(prev => ({ ...prev, footerPaymentBannerUrl: e.target.value }))}
+                            value={isValidImageUrl(settingsForm.footerPaymentBannerUrl) ? settingsForm.footerPaymentBannerUrl : ''}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, footerPaymentBannerUrl: sanitizeImageUrl(e.target.value) }))}
                             className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-300 bg-white text-xs text-neutral-900"
                           />
                         </div>

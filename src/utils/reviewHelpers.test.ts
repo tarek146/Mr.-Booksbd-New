@@ -7,6 +7,7 @@ import {
   getPaymentMethodDisplayMeta,
   validatePaymentTransactionPopup,
 } from './reviewHelpers';
+import { isValidImageUrl, sanitizeImageUrl } from './imageCompressor';
 import { Review, PaymentMethodConfig } from '../types';
 
 const baseReview: Review = {
@@ -122,6 +123,21 @@ test('getPaymentMethodDisplayMeta provides Bengali labels, empty badgeText by de
 
   const bkashWithAdminOffer = getPaymentMethodDisplayMeta({ ...bkashMethod, badgeText: '5% OFF' });
   assert.equal(bkashWithAdminOffer.badgeText, '5% OFF');
+
+  // Corrupted "data:," logoUrl is rejected so PaymentBrandIcon uses built-in vector icon instead of broken image
+  const bkashWithCorruptedData = getPaymentMethodDisplayMeta({ ...bkashMethod, logoUrl: 'data:,' });
+  assert.equal(bkashWithCorruptedData.customLogoUrl, undefined);
+});
+
+test('isValidImageUrl and sanitizeImageUrl reject corrupted "data:," URLs and preserve valid image URLs', () => {
+  assert.equal(isValidImageUrl(''), false);
+  assert.equal(isValidImageUrl('data:,'), false);
+  assert.equal(isValidImageUrl('data:image/png;base64,'), false);
+  assert.equal(sanitizeImageUrl('data:,'), '');
+  const validPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  assert.equal(isValidImageUrl(validPng), true);
+  assert.equal(sanitizeImageUrl(validPng), validPng);
+  assert.equal(isValidImageUrl('https://example.com/logo.png'), true);
 });
 
 test('validatePaymentTransactionPopup validates sender number and TrxID on popup Done click', () => {
@@ -133,3 +149,4 @@ test('validatePaymentTransactionPopup validates sender number and TrxID on popup
   assert.equal(ok.cleanSender, '01712345678');
   assert.equal(ok.cleanTrxId, '9X7D892K');
 });
+

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PaymentMethodConfig } from '../types';
 import {
    getPaymentMethodDisplayMeta,
@@ -22,6 +22,12 @@ export function PaymentBrandIcon({
   size?: 'sm' | 'md' | 'lg';
 }) {
   const meta = getPaymentMethodDisplayMeta(method);
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [meta.customLogoUrl]);
+
   const dimClass =
     size === 'lg'
       ? 'w-12 h-12 rounded-2xl'
@@ -29,7 +35,7 @@ export function PaymentBrandIcon({
       ? 'w-8 h-8 rounded-lg'
       : 'w-11 h-11 rounded-xl';
 
-  if (meta.customLogoUrl) {
+  if (meta.customLogoUrl && !imgError) {
     return (
       <div
         className={`${dimClass} bg-white border border-slate-200/90 p-1 flex items-center justify-center shrink-0 shadow-2xs overflow-hidden`}
@@ -37,6 +43,7 @@ export function PaymentBrandIcon({
         <img
           src={meta.customLogoUrl}
           alt={method.name}
+          onError={() => setImgError(true)}
           className="w-full h-full object-contain"
         />
       </div>

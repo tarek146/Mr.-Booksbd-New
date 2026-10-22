@@ -33,9 +33,25 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
-import { cleanForFirestore, addCacheBust } from '../utils/imageCompressor';
+import { cleanForFirestore, addCacheBust, sanitizeImageUrl, isValidImageUrl } from '../utils/imageCompressor';
 import { SyncTracker, REQUIRED_COLLECTIONS } from '../utils/syncManager';
 import { applyReviewReaction, ReactionType } from '../utils/reviewHelpers';
+
+function sanitizeStoreSettings<T extends Partial<StoreSettings>>(st: T): T {
+  const copy: Partial<StoreSettings> = { ...st };
+  if ('logoUrl' in copy) copy.logoUrl = sanitizeImageUrl(copy.logoUrl);
+  if ('footerLogoUrl' in copy) copy.footerLogoUrl = sanitizeImageUrl(copy.footerLogoUrl);
+  if ('faviconUrl' in copy) copy.faviconUrl = sanitizeImageUrl(copy.faviconUrl);
+  if ('footerPaymentBannerUrl' in copy) copy.footerPaymentBannerUrl = sanitizeImageUrl(copy.footerPaymentBannerUrl);
+  return copy as T;
+}
+
+function sanitizePaymentMethod(pm: PaymentMethodConfig): PaymentMethodConfig {
+  return {
+    ...pm,
+    logoUrl: sanitizeImageUrl(pm.logoUrl),
+  };
+}
 
 interface StoreContextType {
   products: Product[];
@@ -483,19 +499,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Real-time Favicon update
-    if (settings.faviconUrl && settings.faviconUrl.trim()) {
-      const favHref = settings.faviconUrl.trim();
-      const rels = ['icon', 'shortcut icon', 'apple-touch-icon'];
-      rels.forEach(rel => {
-        let link = document.querySelector(`link[rel="${rel}"]`) as HTMLLinkElement | null;
-        if (!link) {
-          link = document.createElement('link');
-          link.rel = rel;
-          document.head.appendChild(link);
-        }
-        link.href = favHref;
-      });
-    }
+    const defaultBookFavicon =
+      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Crect width='36' height='36' rx='8' fill='%23D71920'/%3E%3Cpath d='M10 11c3.5 0 6.5 1.2 8 3 1.5-1.8 4.5-3 8-3v15c-3.5 0-6.5 1.2-8 3-1.5-1.8-4.5-3-8-3V11z' fill='none' stroke='%23ffffff' stroke-width='2.4' stroke-linejoin='round'/%3E%3Cpath d='M18 14v15' stroke='%23ffffff' stroke-width='2.2'/%3E%3C/svg%3E";
+    const favHref = isValidImageUrl(settings.faviconUrl)
+      ? settings.faviconUrl!.trim()
+      : defaultBookFavicon;
+    const rels = ['icon', 'shortcut icon', 'apple-touch-icon'];
+    rels.forEach(rel => {
+      let link = document.querySelector(`link[rel="${rel}"]`) as HTMLLinkElement | null;
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = rel;
+        document.head.appendChild(link);
+      }
+      link.href = favHref;
+    });
   }, [settings]);
 
   const setActivePage = (page: string, productId?: string) => {
@@ -578,10 +596,29 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setCategories(catSnap.docs.map(d => ({ ...d.data(), id: d.id } as Category)));
         setAuthors(authSnap.docs.map(d => ({ ...d.data(), id: d.id } as Author)));
         setBanners(bannerSnap.docs.map(d => ({ ...d.data(), id: d.id } as Banner)));
-        setPaymentMethods(paySnap.docs.map(d => ({ ...d.data(), id: d.id } as PaymentMethodConfig)));
+        setPaymentMethods(paySnap.docs.map(d => sanitizePaymentMethod({ ...d.data(), id: d.id } as PaymentMethodConfig)));
         if (setSnap.exists()) {
-          const st = setSnap.data() as StoreSettings;
+          const rawSt = setSnap.data() as StoreSettings;
+          const st = sanitizeStoreSettings(rawSt);
           setSettings(prev => ({ ...prev, ...st }));
+          // Auto-heal corrupted "data:," image fields in Firestore if any were previously saved
+          if (
+            rawSt.logoUrl !== st.logoUrl ||
+            rawSt.footerLogoUrl !== st.footerLogoUrl ||
+            rawSt.faviconUrl !== st.faviconUrl ||
+            rawSt.footerPaymentBannerUrl !== st.footerPaymentBannerUrl
+          ) {
+            setDoc(
+              doc(db, 'settings', 'general'),
+              cleanForFirestore({
+                logoUrl: st.logoUrl || '',
+                footerLogoUrl: st.footerLogoUrl || '',
+                faviconUrl: st.faviconUrl || '',
+                footerPaymentBannerUrl: st.footerPaymentBannerUrl || '',
+              }),
+              { merge: true }
+            ).catch(() => {});
+          }
         }
         if (!revSnap.empty) {
           setReviews(revSnap.docs.map(d => ({ ...d.data(), id: d.id } as Review)));
@@ -610,9 +647,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           setCategories(catSnap.docs.map(d => ({ ...d.data(), id: d.id } as Category)));
           setAuthors(authSnap.docs.map(d => ({ ...d.data(), id: d.id } as Author)));
           setBanners(bannerSnap.docs.map(d => ({ ...d.data(), id: d.id } as Banner)));
-          setPaymentMethods(paySnap.docs.map(d => ({ ...d.data(), id: d.id } as PaymentMethodConfig)));
+          setPaymentMethods(paySnap.docs.map(d => sanitizePaymentMethod({ ...d.data(), id: d.id } as PaymentMethodConfig)));
           if (setSnap && setSnap.exists()) {
-            setSettings(prev => ({ ...prev, ...(setSnap.data() as StoreSettings) }));
+            const st = sanitizeStoreSettings(setSnap.data() as StoreSettings);
+            setSettings(prev => ({ ...prev, ...st }));
           }
           if (revSnap && !revSnap.empty) {
             setReviews(revSnap.docs.map(d => ({ ...d.data(), id: d.id } as Review)));
@@ -723,7 +761,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        setPaymentMethods(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as PaymentMethodConfig)));
+        setPaymentMethods(snapshot.docs.map(d => sanitizePaymentMethod({ ...d.data(), id: d.id } as PaymentMethodConfig)));
         if (tracker.isInitialSyncComplete()) {
           setIsLoading(false);
         }
@@ -745,7 +783,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (snap.exists()) {
-          const st = snap.data() as StoreSettings;
+          const st = sanitizeStoreSettings(snap.data() as StoreSettings);
           setSettings(prev => ({ ...prev, ...st }));
         }
         if (tracker.isInitialSyncComplete()) {
@@ -1136,27 +1174,32 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addPaymentMethod = async (method: PaymentMethodConfig) => {
+    const sanitized = sanitizePaymentMethod(method);
     try {
-      const cleaned = cleanForFirestore(method);
-      await setDoc(doc(db, 'payment_methods', method.id), cleaned);
-      await logAdminAction('payment_method_created', method.id, `Added payment method: ${method.name}`);
+      const cleaned = cleanForFirestore(sanitized);
+      await setDoc(doc(db, 'payment_methods', sanitized.id), cleaned);
+      await logAdminAction('payment_method_created', sanitized.id, `Added payment method: ${sanitized.name}`);
     } catch (err) {
       console.error('Firestore add payment method error:', err);
       throw err;
     }
-    setPaymentMethods(prev => [...prev.filter(m => m.id !== method.id), method]);
+    setPaymentMethods(prev => [...prev.filter(m => m.id !== sanitized.id), sanitized]);
   };
 
   const updatePaymentMethod = async (id: string, data: Partial<PaymentMethodConfig>) => {
+    const sanitizedData: Partial<PaymentMethodConfig> = {
+      ...data,
+      ...('logoUrl' in data ? { logoUrl: sanitizeImageUrl(data.logoUrl) } : {}),
+    };
     try {
-      const cleaned = cleanForFirestore(data);
+      const cleaned = cleanForFirestore(sanitizedData);
       await setDoc(doc(db, 'payment_methods', id), cleaned, { merge: true });
       await logAdminAction('payment_method_updated', id, `Updated payment method: ${id}`);
     } catch (err) {
       console.error('Firestore update payment method error:', err);
       throw err;
     }
-    setPaymentMethods(prev => prev.map(m => m.id === id ? { ...m, ...data } : m));
+    setPaymentMethods(prev => prev.map(m => m.id === id ? { ...m, ...sanitizedData } : m));
   };
 
   const deletePaymentMethod = async (id: string) => {
@@ -1475,15 +1518,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateSettings = async (newSettings: Partial<StoreSettings>) => {
+    const sanitized = sanitizeStoreSettings(newSettings);
     try {
-      const cleaned = cleanForFirestore(newSettings);
+      const cleaned = cleanForFirestore(sanitized);
       await setDoc(doc(db, 'settings', 'general'), cleaned, { merge: true });
-      await logAdminAction('settings_updated', 'general', `Updated settings fields: ${Object.keys(newSettings).join(', ')}`);
+      await logAdminAction('settings_updated', 'general', `Updated settings fields: ${Object.keys(sanitized).join(', ')}`);
     } catch (err) {
       console.error('Firestore update settings error:', err);
       throw err;
     }
-    setSettings(prev => ({ ...prev, ...newSettings }));
+    setSettings(prev => ({ ...prev, ...sanitized }));
   };
 
   const addReel = async (reelData: Omit<Reel, 'id' | 'createdAt'>) => {
