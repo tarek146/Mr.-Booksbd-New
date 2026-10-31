@@ -52,7 +52,8 @@ import {
   FileText,
   ShoppingCart,
   Moon,
-  Sun
+  Sun,
+  QrCode
 } from 'lucide-react';
 import { Author, Banner, BookPreviewPage, Order, PaymentMethodConfig } from '../types';
 import { DEFAULT_PAYMENT_METHODS } from '../firebase';
@@ -201,6 +202,10 @@ export function AdminDashboard() {
   const [pmRequireSenderPhone, setPmRequireSenderPhone] = useState(true);
   const [pmInst, setPmInst] = useState('');
   const [pmLogoUrl, setPmLogoUrl] = useState('');
+  const [pmQrCodeUrl, setPmQrCodeUrl] = useState('');
+  const [pmBankName, setPmBankName] = useState('');
+  const [pmBranchName, setPmBranchName] = useState('');
+  const [pmRoutingNumber, setPmRoutingNumber] = useState('');
   const [pmIsActive, setPmIsActive] = useState(true);
 
   // Admin Login State
@@ -294,6 +299,10 @@ export function AdminDashboard() {
     setEditingPmId(null);
     setPmBadgeText('');
     setPmLogoUrl('');
+    setPmQrCodeUrl('');
+    setPmBankName('');
+    setPmBranchName('');
+    setPmRoutingNumber('');
     setPmIsActive(true);
 
     switch (template) {
@@ -365,6 +374,9 @@ export function AdminDashboard() {
         setPmAccountType('Merchant');
         setPmAccName('MR. BOOKS ENTERPRISE');
         setPmAccNum('123-110-456789');
+        setPmBankName('Eastern Bank PLC');
+        setPmBranchName('Gulshan Branch, Dhaka');
+        setPmRoutingNumber('095261234');
         setPmRequireTrxId(true);
         setPmRequireSenderPhone(true);
         setPmInst('নির্ধারিত ব্যাংক একাউন্টে মোট টাকার পরিমাণ ট্রান্সফার করে ট্রানজেকশন রেফারেন্স বা রিসিপ্ট আইডি নিচে দিন।');
@@ -398,10 +410,14 @@ export function AdminDashboard() {
     setPmAccountType(meta.accountType);
     setPmAccName(pm.accountName || 'MR. BOOKS');
     setPmAccNum(pm.accountNumber || '');
+    setPmBankName(pm.bankName || '');
+    setPmBranchName(pm.branchName || '');
+    setPmRoutingNumber(pm.routingNumber || '');
     setPmRequireTrxId(meta.requireTrxId);
     setPmRequireSenderPhone(meta.requireSenderPhone);
     setPmInst(meta.instructionText);
     setPmLogoUrl(meta.customLogoUrl || '');
+    setPmQrCodeUrl(meta.qrCodeUrl || '');
     setPmIsActive(pm.isActive);
     setShowAddPmModal(true);
   };
@@ -418,10 +434,14 @@ export function AdminDashboard() {
         accountType: pmType === 'cod' ? 'None' : pmAccountType,
         accountName: pmAccName.trim() || 'MR. BOOKS',
         accountNumber: pmType === 'cod' ? 'N/A' : pmAccNum.trim(),
+        bankName: pmType === 'bank' ? pmBankName.trim() : '',
+        branchName: pmType === 'bank' ? pmBranchName.trim() : '',
+        routingNumber: pmType === 'bank' ? pmRoutingNumber.trim() : '',
         requireTrxId: pmType === 'cod' ? false : pmRequireTrxId,
         requireSenderPhone: pmType === 'cod' ? false : pmRequireSenderPhone,
         instructions: pmInst.trim(),
         logoUrl: pmLogoUrl.trim() || '',
+        qrCodeUrl: pmType === 'cod' ? '' : (pmQrCodeUrl.trim() || ''),
         isActive: pmIsActive,
       };
 
@@ -499,6 +519,24 @@ export function AdminDashboard() {
         }
       } catch (err: any) {
         setToast({ show: true, type: 'error', message: err.message || 'Failed to upload icon' });
+      }
+    }
+  };
+
+  const handlePmQrFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEditForId?: string) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const compressed = await compressImageFile(file, 700, 700, 0.88);
+        if (isEditForId) {
+          await updatePaymentMethod(isEditForId, { qrCodeUrl: compressed });
+          setToast({ show: true, type: 'success', message: 'Payment QR Code image uploaded & saved to Firestore!' });
+        } else {
+          setPmQrCodeUrl(compressed);
+          setToast({ show: true, type: 'success', message: 'Payment QR Code image attached!' });
+        }
+      } catch (err: any) {
+        setToast({ show: true, type: 'error', message: err.message || 'Failed to upload QR code image' });
       }
     }
   };
@@ -1858,6 +1896,18 @@ export function AdminDashboard() {
                               Sender Phone
                             </span>
                           )}
+                          {pm.type !== 'cod' && (
+                            <span
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 border ${
+                                meta.qrCodeUrl
+                                  ? 'bg-pink-50 text-[#E2136E] border-pink-200'
+                                  : 'bg-[#F7F7F8] text-[#5F6368] border-[#E5E5E5]'
+                              }`}
+                            >
+                              <QrCode size={10} />
+                              <span>{meta.qrCodeUrl ? 'Custom QR Image' : 'QR Ready'}</span>
+                            </span>
+                          )}
                         </div>
 
                         {/* Line 2: Account Number & Subtitle */}
@@ -2077,6 +2127,60 @@ export function AdminDashboard() {
                       </div>
                     </div>
 
+                    {/* Bank Specific Details (Only for Bank Transfer) */}
+                    {pmType === 'bank' && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 p-3.5 rounded-2xl bg-blue-50/50 border border-blue-200/70">
+                        <div>
+                          <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
+                            Bank Name (ব্যাংকের নাম)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Eastern Bank PLC / DBBL"
+                            value={pmBankName}
+                            onChange={e => setPmBankName(e.target.value)}
+                            className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white font-bold text-[#171717] focus:outline-none focus:border-[#D71920]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
+                            Account Holder Name
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. MR. BOOKS ENTERPRISE"
+                            value={pmAccName}
+                            onChange={e => setPmAccName(e.target.value)}
+                            className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white font-bold text-[#171717] focus:outline-none focus:border-[#D71920]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
+                            Branch Name (ব্রাঞ্চ)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Gulshan Branch, Dhaka"
+                            value={pmBranchName}
+                            onChange={e => setPmBranchName(e.target.value)}
+                            className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-[#171717] focus:outline-none focus:border-[#D71920]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
+                            Routing Number
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. 095261234"
+                            value={pmRoutingNumber}
+                            onChange={e => setPmRoutingNumber(e.target.value)}
+                            className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white font-mono text-[#171717] focus:outline-none focus:border-[#D71920]"
+                          />
+                        </div>
+                      </div>
+                    )}
+
                     {/* Row 4: Optional Promo Offer Badge (e.g. 5% OFF) */}
                     <div className="p-3.5 rounded-2xl bg-[#FFF1F2]/60 border border-[#D71920]/20 space-y-2">
                       <div className="flex items-center justify-between">
@@ -2195,6 +2299,72 @@ export function AdminDashboard() {
                         </div>
                       </div>
                     </div>
+
+                    {/* Row 6B: Payment QR Code / Payment Image Upload & Management */}
+                    {pmType !== 'cod' && (
+                      <div className="p-3.5 rounded-2xl bg-[#FFF0F6]/50 border border-[#FFADD2] space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <label className="font-bold text-[#171717] uppercase tracking-wider text-[10px] flex items-center gap-1.5">
+                            <QrCode size={13} className="text-[#E2136E]" />
+                            <span>Payment QR Code / Payment Image (পেমেন্ট QR কোড বা ছবি)</span>
+                          </label>
+                          {isValidImageUrl(pmQrCodeUrl) && (
+                            <button
+                              type="button"
+                              onClick={() => setPmQrCodeUrl('')}
+                              className="text-[10px] font-bold text-[#D71920] hover:underline cursor-pointer"
+                            >
+                              Delete / Remove QR Image
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="w-14 h-14 rounded-xl bg-white border border-[#FFADD2] flex items-center justify-center overflow-hidden shrink-0 p-1 shadow-2xs">
+                            {isValidImageUrl(pmQrCodeUrl) ? (
+                              <img
+                                src={pmQrCodeUrl}
+                                alt="QR Preview"
+                                onError={() => setPmQrCodeUrl('')}
+                                className="w-full h-full object-contain"
+                              />
+                            ) : (
+                              <div className="flex flex-col items-center justify-center text-[#E2136E] leading-none">
+                                <QrCode size={20} />
+                                <span className="text-[8px] font-bold mt-1">Auto QR</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 space-y-1.5">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                placeholder="Paste QR Code Image URL (or upload image)"
+                                value={isValidImageUrl(pmQrCodeUrl) ? pmQrCodeUrl : ''}
+                                onChange={e => setPmQrCodeUrl(sanitizeImageUrl(e.target.value))}
+                                data-testid="pm-qrcode-input"
+                                className="flex-1 px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717] focus:outline-none focus:border-[#E2136E]"
+                              />
+                              <label className="px-3.5 py-2 bg-[#E2136E] hover:bg-[#c81060] text-white font-bold rounded-xl text-xs cursor-pointer transition-all shrink-0 flex items-center gap-1.5 shadow-2xs">
+                                <Upload size={13} />
+                                <span>Upload QR</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={e => {
+                                    handlePmQrFileUpload(e);
+                                    e.target.value = '';
+                                  }}
+                                />
+                              </label>
+                            </div>
+                            <p className="text-[10px] text-[#5F6368]">
+                              Customers can click the "QR Code" button in the Checkout Popup to view this QR Code in large size and download it.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Row 7: Popup Instructions */}
                     <div>

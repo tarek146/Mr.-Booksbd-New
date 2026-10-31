@@ -2,6 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { ProductCard } from '../components/ProductCard';
 import { AnimatedSearchInput } from '../components/AnimatedSearchInput';
+import { FeaturedAuthorsSection } from '../components/FeaturedAuthorsSection';
+import { ReelsSection } from '../components/ReelsSection';
 import { 
   BookOpen, 
   X, 
@@ -405,6 +407,12 @@ export function BooksPage() {
           </div>
         </div>
 
+      </div>
+
+      {/* Bottom Author Section & Book Reels & Video Reviews Section */}
+      <div className="mt-8 pt-4 border-t border-neutral-200/80">
+        <FeaturedAuthorsSection />
+        <ReelsSection />
       </div>
 
       {/* Mobile Slide-Over Filter Drawer Modal */}

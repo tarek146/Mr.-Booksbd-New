@@ -534,6 +534,8 @@ export function CheckoutPage() {
               {selectedMethod && (
                 <PaymentInstructions
                   selectedMethod={selectedMethod}
+                  allMethods={paymentMethods}
+                  onSelectMethod={m => setSelectedPaymentId(m.id)}
                   totalAmount={total}
                   transactionId={transactionId}
                   setTransactionId={setTransactionId}

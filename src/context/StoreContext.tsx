@@ -15,7 +15,8 @@ import {
 } from '../types';
 import { 
   db, 
-  seedInitialDataIfNeeded 
+  seedInitialDataIfNeeded,
+  DEFAULT_PAYMENT_METHODS
 } from '../firebase';
 import { 
   collection, 
@@ -52,6 +53,7 @@ function sanitizePaymentMethod(pm: PaymentMethodConfig): PaymentMethodConfig {
   return {
     ...pm,
     logoUrl: sanitizeImageUrl(pm.logoUrl),
+    qrCodeUrl: sanitizeImageUrl(pm.qrCodeUrl),
   };
 }
 
@@ -589,7 +591,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setCategories(catSnap.docs.map(d => ({ ...d.data(), id: d.id } as Category)));
         setAuthors(authSnap.docs.map(d => ({ ...d.data(), id: d.id } as Author)));
         setBanners(bannerSnap.docs.map(d => ({ ...d.data(), id: d.id } as Banner)));
-        setPaymentMethods(paySnap.docs.map(d => sanitizePaymentMethod({ ...d.data(), id: d.id } as PaymentMethodConfig)));
+        const loadedPaymentMethods = paySnap.docs.map(d => sanitizePaymentMethod({ ...d.data(), id: d.id } as PaymentMethodConfig));
+        const hasUpay = loadedPaymentMethods.some(m => m.type === 'upay');
+        const upayDef = DEFAULT_PAYMENT_METHODS.find(m => m.type === 'upay');
+        if (loadedPaymentMethods.length > 0 && !hasUpay && upayDef && typeof window !== 'undefined' && window.localStorage.getItem('mrb_upay_seeded_v1') !== 'true') {
+          window.localStorage.setItem('mrb_upay_seeded_v1', 'true');
+          loadedPaymentMethods.push(upayDef);
+          setDoc(doc(db, 'payment_methods', upayDef.id), cleanForFirestore(upayDef)).catch(() => {});
+        }
+        setPaymentMethods(loadedPaymentMethods.length > 0 ? loadedPaymentMethods : DEFAULT_PAYMENT_METHODS);
         if (setSnap.exists()) {
           const rawSt = setSnap.data() as StoreSettings;
           const st = sanitizeStoreSettings(rawSt);

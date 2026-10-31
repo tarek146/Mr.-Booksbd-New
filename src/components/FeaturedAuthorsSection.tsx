@@ -1,16 +1,23 @@
 import React, { useState, useRef } from 'react';
 import { useStore } from '../context/StoreContext';
-import { ArrowRight, BookOpen, UserCheck, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowRight, BookOpen, UserCheck, ChevronLeft, ChevronRight, X, Star, ShoppingBag, CheckCircle2 } from 'lucide-react';
 import { Author } from '../types';
 
 export function FeaturedAuthorsSection() {
-  const { authors, setActivePage, setSelectedCategoryFilter } = useStore();
+  const { authors, products, setActivePage, setSelectedCategoryFilter, setSearchQuery, addToCart } = useStore();
   const [authorImgErrors, setAuthorImgErrors] = useState<Record<string, boolean>>({});
+  const [selectedModalAuthor, setSelectedModalAuthor] = useState<Author | null>(null);
   const authorsScrollRef = useRef<HTMLDivElement>(null);
 
-  const handleAuthorClick = (_author: Author) => {
-    setSelectedCategoryFilter('');
-    setActivePage('authors');
+  const handleAuthorClick = (author: Author) => {
+    setSelectedModalAuthor(author);
+  };
+
+  const handleExploreAuthorCatalog = (authorName: string) => {
+    setSelectedModalAuthor(null);
+    setSelectedCategoryFilter('all');
+    setSearchQuery(authorName);
+    setActivePage('books');
   };
 
   const scrollContainer = (direction: 'left' | 'right') => {
@@ -24,6 +31,18 @@ export function FeaturedAuthorsSection() {
   };
 
   const displayAuthors = authors.length > 0 ? authors : [];
+
+  // Get books for selected modal author
+  const getAuthorBooks = (authorName: string) => {
+    const exactOrPartial = products.filter(
+      p => p.type === 'book' && p.author && (
+        p.author.toLowerCase().includes(authorName.toLowerCase()) ||
+        authorName.toLowerCase().includes(p.author.toLowerCase())
+      )
+    );
+    if (exactOrPartial.length > 0) return exactOrPartial;
+    return products.filter(p => p.type === 'book').slice(0, 4);
+  };
 
   return (
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
@@ -128,6 +147,131 @@ export function FeaturedAuthorsSection() {
           })}
         </div>
       </div>
+
+      {/* Author Profile & Books Modal */}
+      {selectedModalAuthor && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
+          onClick={() => setSelectedModalAuthor(null)}
+        >
+          <div
+            className="w-full max-w-2xl bg-white rounded-3xl border border-neutral-200 shadow-2xl overflow-hidden max-h-[88vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header with Author Bio */}
+            <div className="p-4 sm:p-6 bg-gradient-to-r from-[#FFF5F5] via-white to-[#FFF9F5] border-b border-neutral-200 relative">
+              <button
+                onClick={() => setSelectedModalAuthor(null)}
+                className="absolute top-4 right-4 p-2 rounded-full bg-white border border-neutral-200 text-neutral-500 hover:text-[#D71920] hover:border-[#D71920] transition-colors cursor-pointer"
+                aria-label="Close Author Profile"
+              >
+                <X size={16} />
+              </button>
+
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 pr-8">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full p-[2.5px] bg-gradient-to-tr from-[#D71920] via-rose-400 to-amber-300 shadow-md shrink-0">
+                  <div className="w-full h-full rounded-full overflow-hidden bg-white flex items-center justify-center">
+                    {selectedModalAuthor.photoUrl && !authorImgErrors[selectedModalAuthor.id] ? (
+                      <img
+                        src={selectedModalAuthor.photoUrl}
+                        alt={selectedModalAuthor.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-[#D71920] text-white font-black flex items-center justify-center text-xl">
+                        {selectedModalAuthor.name ? selectedModalAuthor.name[0] : 'A'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-lg sm:text-xl font-black text-neutral-900">
+                      {selectedModalAuthor.name}
+                    </h3>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
+                      <CheckCircle2 size={11} /> Verified Author
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-neutral-600 font-semibold">
+                    <span className="inline-flex items-center gap-1 text-[#D71920]">
+                      <BookOpen size={13} /> {selectedModalAuthor.booksCount || 15}+ Published Books
+                    </span>
+                    <span>•</span>
+                    <span className="inline-flex items-center gap-1 text-amber-600">
+                      <Star size={12} fill="currentColor" /> 4.9 Reader Rating
+                    </span>
+                  </div>
+                  <p className="text-xs text-neutral-600 leading-relaxed pt-1">
+                    {selectedModalAuthor.bio || 'সমকালীন বাংলা সাহিত্যের অন্যতম জনপ্রিয় ও পাঠকপ্রিয় লেখক।'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Author's Books List */}
+            <div className="p-4 sm:p-6 overflow-y-auto space-y-3 flex-1">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs sm:text-sm font-black text-neutral-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <BookOpen size={14} className="text-[#D71920]" />
+                  <span>{selectedModalAuthor.name}-এর বইসমূহ (Books by Author)</span>
+                </h4>
+                <button
+                  onClick={() => handleExploreAuthorCatalog(selectedModalAuthor.name)}
+                  className="text-xs font-bold text-[#D71920] hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <span>View in Shop</span>
+                  <ArrowRight size={12} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {getAuthorBooks(selectedModalAuthor.name).map(book => (
+                  <div
+                    key={book.id}
+                    onClick={() => {
+                      setSelectedModalAuthor(null);
+                      setActivePage('product-detail', book.id);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="p-3 rounded-2xl border border-neutral-200 hover:border-[#D71920] bg-white hover:bg-[#FFF1F2]/20 transition-all flex items-center gap-3 cursor-pointer group shadow-2xs"
+                  >
+                    <img
+                      src={book.images[0]}
+                      alt={book.title}
+                      className="w-14 h-18 object-contain rounded-lg bg-neutral-50 border border-neutral-100 p-1 shrink-0 group-hover:scale-105 transition-transform"
+                    />
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <h5 className="font-bold text-xs sm:text-sm text-neutral-900 group-hover:text-[#D71920] transition-colors truncate">
+                        {book.title}
+                      </h5>
+                      <p className="text-[11px] text-neutral-500 truncate">
+                        {book.author || selectedModalAuthor.name}
+                      </p>
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="font-black text-xs sm:text-sm text-[#D71920]">৳{book.price}</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            addToCart(book, book.variants[0]?.id || 'v1', 1);
+                            setSelectedModalAuthor(null);
+                            setActivePage('checkout');
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-[#D71920] hover:bg-[#B9151B] text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer shadow-2xs"
+                        >
+                          <ShoppingBag size={10} /> Buy
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
+

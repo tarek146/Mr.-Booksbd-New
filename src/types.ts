@@ -144,6 +144,7 @@ export interface PaymentMethodConfig {
   displayOrder: number;
   customOrder?: boolean;
   logoUrl?: string;
+  qrCodeUrl?: string;
 }
 
 export interface Category {

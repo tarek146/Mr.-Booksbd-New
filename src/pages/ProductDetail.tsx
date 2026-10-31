@@ -1,14 +1,16 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
 import { ProductCard } from '../components/ProductCard';
-import { BookPageReader } from '../components/BookPageReader';
-import { getEffectiveBookPreviewPages, toBanglaDigits } from '../utils/bookPreviewHelpers';
-import { Review } from '../types';
+import { ReelsSection } from '../components/ReelsSection';
+import { FeaturedAuthorsSection } from '../components/FeaturedAuthorsSection';
+import { Review, Author } from '../types';
 import { 
   Star, 
   ShoppingBag, 
   CheckCircle2, 
   ArrowLeft, 
+  ArrowRight,
+  UserCheck,
   Heart, 
   Truck, 
   ShieldCheck, 
@@ -58,9 +60,16 @@ function MessengerIcon({ className = "w-4 h-4 shrink-0" }: { className?: string 
 }
 
 export function ProductDetail() {
-  const { products, selectedProductId, setActivePage, addToCart, wishlist, toggleWishlist, setSelectedCategoryFilter, settings, reviews, visitorId, addProductReview, reactToReview } = useStore();
+  const { products, authors, selectedProductId, setActivePage, addToCart, wishlist, toggleWishlist, setSelectedCategoryFilter, setSearchQuery, settings, reviews, visitorId, addProductReview, reactToReview } = useStore();
   
   const product = products.find(p => p.id === selectedProductId) || products[0];
+  const [selectedAuthorId, setSelectedAuthorId] = useState<string>('current');
+  const [authorAvatarError, setAuthorAvatarError] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    setSelectedAuthorId('current');
+    setActiveReviewIndex(0);
+  }, [product?.id]);
   const [selectedVariantId, setSelectedVariantId] = useState<string>(product?.variants?.[0]?.id || '');
   const [quantity, setQuantity] = useState(1);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -77,6 +86,8 @@ export function ProductDetail() {
   const [newReviewComment, setNewReviewComment] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewSuccess, setReviewSuccess] = useState(false);
+  const [activeReviewIndex, setActiveReviewIndex] = useState(0);
+  const [reviewTouchStartX, setReviewTouchStartX] = useState<number | null>(null);
   // Verified reviews list ensuring customer feedback is always visible and authentic
   const defaultVerifiedReviews: Review[] = useMemo(() => {
     if (!product) return [];
@@ -132,6 +143,37 @@ export function ProductDetail() {
     ? (displayReviews.reduce((sum, r) => sum + (r?.rating || 5), 0) / displayReviews.length).toFixed(1)
     : (product?.rating ? product.rating.toFixed(1) : '5.0');
 
+  const safeReviewIndex = displayReviews.length > 0
+    ? Math.min(activeReviewIndex, displayReviews.length - 1)
+    : 0;
+
+  const handlePrevReview = () => {
+    if (displayReviews.length <= 1) return;
+    setActiveReviewIndex(prev => (prev - 1 + displayReviews.length) % displayReviews.length);
+  };
+
+  const handleNextReview = () => {
+    if (displayReviews.length <= 1) return;
+    setActiveReviewIndex(prev => (prev + 1) % displayReviews.length);
+  };
+
+  const handleReviewTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    setReviewTouchStartX(e.touches[0].clientX);
+  };
+
+  const handleReviewTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (reviewTouchStartX === null) return;
+    const deltaX = e.changedTouches[0].clientX - reviewTouchStartX;
+    if (Math.abs(deltaX) > 40) {
+      if (deltaX < 0) {
+        handleNextReview();
+      } else {
+        handlePrevReview();
+      }
+    }
+    setReviewTouchStartX(null);
+  };
+
   const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!product || !newReviewName.trim() || !newReviewComment.trim()) return;
@@ -147,6 +189,7 @@ export function ProductDetail() {
       setNewReviewName('');
       setNewReviewComment('');
       setNewReviewRating(5);
+      setActiveReviewIndex(0);
       setReviewSuccess(true);
       setTimeout(() => setReviewSuccess(false), 3500);
     } finally {
@@ -614,86 +657,148 @@ export function ProductDetail() {
                   )}
                 </div>
 
-                {/* Accordion 2: Highlighted Book Preview & Page Slide Reader ("বইয়ের কিছু অংশ পড়ুন / একটু পড়ে দেখুন") */}
-                {(() => {
-                  const previewPagesList = getEffectiveBookPreviewPages(product);
-                  const isPreviewOpen = activeAccordion === 'specifications';
-                  const highlightTitle =
-                    product.previewHighlightTitle?.trim() ||
-                    (product.type === 'book'
-                      ? 'বইয়ের কিছু অংশ পড়ুন (একটু পড়ে দেখুন)'
-                      : 'বিস্তারিত প্রিভিউ ও তথ্য দেখুন');
-                  const highlightSubtitle =
-                    product.previewHighlightSubtitle?.trim() ||
-                    (product.type === 'book'
-                      ? `বইয়ের কিছুটা পড়তে পারেন এখানে • ${toBanglaDigits(previewPagesList.length)}টি পৃষ্ঠা স্লাইড করে পড়ুন`
-                      : 'পৃষ্ঠা স্লাইড করে বিস্তারিত তথ্য দেখুন');
-
-                  return (
-                    <div
-                      className={`rounded-2xl border-2 transition-all duration-300 overflow-hidden ${
-                        isPreviewOpen
-                          ? 'border-[#D71920] ring-2 ring-[#D71920]/20 bg-white shadow-md'
-                          : 'border-[#D71920]/45 hover:border-[#D71920] bg-gradient-to-r from-[#FFF5F5] via-white to-[#FFF9F5] shadow-sm'
-                      }`}
-                    >
-                      <button
-                        type="button"
-                        data-testid="toggle-book-preview-btn"
-                        onClick={() => toggleAccordion('specifications')}
-                        className="w-full p-3.5 sm:p-4 text-left flex items-center justify-between gap-3 hover:bg-[#FFF1F2]/40 transition-colors cursor-pointer group"
-                      >
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div
-                            className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all shadow-xs ${
-                              isPreviewOpen
-                                ? 'bg-[#D71920] text-white'
-                                : 'bg-[#D71920]/12 text-[#D71920] group-hover:bg-[#D71920] group-hover:text-white border border-[#D71920]/25'
-                            }`}
-                          >
-                            <BookOpen size={19} />
-                          </div>
-
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="text-sm sm:text-[15px] font-black text-[#D71920] tracking-tight">
-                                {highlightTitle}
-                              </h3>
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#D71920] text-white text-[10px] font-extrabold shadow-2xs">
-                                <Sparkles size={10} />
-                                <span>একটু পড়ে দেখুন</span>
-                              </span>
-                            </div>
-                            <p className="text-[11px] sm:text-xs text-neutral-600 font-medium mt-0.5 truncate">
-                              {highlightSubtitle}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white border border-[#D71920]/30 text-[#D71920] text-[11px] font-extrabold shadow-2xs group-hover:bg-[#FFF1F2] transition-colors">
-                            <span>{isPreviewOpen ? 'বন্ধ করুন' : 'পৃষ্ঠা উল্টান'}</span>
-                          </span>
-                          <div
-                            className={`p-1.5 rounded-full transition-all duration-200 shrink-0 ${
-                              isPreviewOpen
-                                ? 'bg-[#D71920] text-white rotate-90 shadow-xs'
-                                : 'bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/25 group-hover:bg-[#D71920] group-hover:text-white'
-                            }`}
-                          >
-                            <ChevronRight size={15} className="stroke-[2.5]" />
-                          </div>
-                        </div>
-                      </button>
-
-                      {isPreviewOpen && (
-                        <div className="px-3.5 sm:px-4 pb-4 pt-3 border-t border-[#D71920]/15 bg-gradient-to-b from-[#FFFCFA] to-white animate-in fade-in duration-200">
-                          <BookPageReader product={product} />
-                        </div>
-                      )}
+                {/* Accordion 2: Book Details */}
+                <div className={`rounded-2xl border transition-all duration-200 overflow-hidden bg-white ${
+                  activeAccordion === 'specifications' 
+                    ? 'border-[#D71920]/40 ring-1 ring-[#D71920]/15 shadow-xs' 
+                    : 'border-neutral-200 hover:border-neutral-300 shadow-2xs'
+                }`}>
+                  <button
+                    type="button"
+                    onClick={() => toggleAccordion('specifications')}
+                    className="w-full p-3 sm:p-3.5 text-left flex items-center justify-between gap-2.5 hover:bg-neutral-50/70 transition-colors cursor-pointer group"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <BookOpen size={16} className={activeAccordion === 'specifications' ? 'text-[#D71920]' : 'text-neutral-500'} />
+                        <h3 className={`text-sm sm:text-[15px] font-bold ${activeAccordion === 'specifications' ? 'text-[#D71920]' : 'text-neutral-900 group-hover:text-neutral-950'}`}>
+                          Book Details
+                        </h3>
+                      </div>
+                      <p className="text-[11px] sm:text-xs text-neutral-500 mt-0.5 truncate pl-6">
+                        {product.type === 'book'
+                          ? 'Author, publisher, edition, pages, language & ISBN'
+                          : 'Brand, material, dimensions, model & SKU'}
+                      </p>
                     </div>
-                  );
-                })()}
+                    <div className={`p-1.5 rounded-full transition-all duration-200 shrink-0 ${
+                      activeAccordion === 'specifications' ? 'bg-[#FFF1F2] text-[#D71920] rotate-90' : 'bg-neutral-100 text-neutral-400 group-hover:text-neutral-600'
+                    }`}>
+                      <ChevronRight size={14} className="stroke-[2.5]" />
+                    </div>
+                  </button>
+
+                  {activeAccordion === 'specifications' && (
+                    <div className="px-3.5 sm:px-4 pb-4 pt-2 border-t border-neutral-100 text-xs animate-in fade-in duration-200">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                          <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                            <BookOpen size={13} className="text-[#D71920]" /> Title
+                          </span>
+                          <span className="font-bold text-neutral-900 text-right truncate max-w-[180px]">{product.title}</span>
+                        </div>
+
+                        {product.type === 'book' ? (
+                          <>
+                            <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                              <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                                <Award size={13} className="text-[#D71920]" /> Author
+                              </span>
+                              <span className="font-bold text-neutral-900 text-right">{product.author || 'Renowned Author'}</span>
+                            </div>
+
+                            <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                              <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                                <Layers size={13} className="text-[#D71920]" /> Publisher
+                              </span>
+                              <span className="font-bold text-neutral-900 text-right">{product.publisher || 'MR. BOOKS Publications'}</span>
+                            </div>
+
+                            <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                              <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                                <Tag size={13} className="text-[#D71920]" /> Edition
+                              </span>
+                              <span className="font-bold text-neutral-900 text-right">{product.edition || activeVariant.name || 'Standard Edition'}</span>
+                            </div>
+
+                            <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                              <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                                <FileText size={13} className="text-[#D71920]" /> Pages
+                              </span>
+                              <span className="font-bold text-neutral-900 text-right">{product.pages ? `${product.pages} Pages` : 'Standard Print'}</span>
+                            </div>
+
+                            <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                              <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                                <Globe size={13} className="text-[#D71920]" /> Language
+                              </span>
+                              <span className="font-bold text-neutral-900 text-right">{product.language || 'Bangla'}</span>
+                            </div>
+
+                            {product.isbn && (
+                              <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                                <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                                  <Barcode size={13} className="text-[#D71920]" /> ISBN
+                                </span>
+                                <span className="font-bold text-neutral-900 text-right font-mono">{product.isbn}</span>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                              <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                                <Award size={13} className="text-[#D71920]" /> Brand
+                              </span>
+                              <span className="font-bold text-neutral-900 text-right">{product.brand || 'Premium Stationery'}</span>
+                            </div>
+
+                            {product.material && (
+                              <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                                <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                                  <Layers size={13} className="text-[#D71920]" /> Material
+                                </span>
+                                <span className="font-bold text-neutral-900 text-right">{product.material}</span>
+                              </div>
+                            )}
+
+                            {product.dimensions && (
+                              <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                                <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                                  <FileText size={13} className="text-[#D71920]" /> Dimensions
+                                </span>
+                                <span className="font-bold text-neutral-900 text-right">{product.dimensions}</span>
+                              </div>
+                            )}
+
+                            {product.colorModel && (
+                              <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                                <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                                  <Tag size={13} className="text-[#D71920]" /> Color / Model
+                                </span>
+                                <span className="font-bold text-neutral-900 text-right">{product.colorModel}</span>
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                        <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                          <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                            <Tag size={13} className="text-[#D71920]" /> Category
+                          </span>
+                          <span className="font-bold text-neutral-900 text-right">{product.category}</span>
+                        </div>
+
+                        <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                          <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                            <QrCode size={13} className="text-[#D71920]" /> SKU
+                          </span>
+                          <span className="font-bold text-neutral-900 text-right font-mono">{activeVariant.sku || product.sku}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {/* Accordion 3: Customer Reviews */}
                 <div className={`rounded-2xl border transition-all duration-200 overflow-hidden bg-white ${
@@ -819,103 +924,183 @@ export function ProductDetail() {
                           </form>
                         </div>
 
-                        {/* Side 2: Customer Reviews Display (Phone: Below Box, PC: Right Side) */}
-                        <div className="space-y-2.5">
-                          <div className="flex items-center justify-between px-1">
-                            <span className="font-bold text-xs text-neutral-900 flex items-center gap-1.5">
-                              <Star size={13} className="text-amber-500 fill-amber-500" />
-                              Customer Reviews ({displayReviews.length})
-                            </span>
-                            <span className="text-[10px] text-neutral-400 font-medium">Verified purchases</span>
+                        {/* Side 2: Customer Reviews Horizontal Carousel (Mobile & Desktop) */}
+                        <div className="space-y-3 min-w-0 w-full">
+                          <div className="flex items-center justify-between px-1 gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="font-bold text-xs text-neutral-900 flex items-center gap-1.5 truncate">
+                                <Star size={13} className="text-amber-500 fill-amber-500 shrink-0" />
+                                Customer Reviews ({displayReviews.length})
+                              </span>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/20 tabular-nums shrink-0">
+                                {safeReviewIndex + 1} / {displayReviews.length}
+                              </span>
+                            </div>
+
+                            {/* Carousel Header Left/Right Controls */}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={handlePrevReview}
+                                aria-label="Previous customer review"
+                                className="w-7 h-7 rounded-full border border-neutral-200 bg-white hover:bg-[#FFF1F2] hover:border-[#D71920] text-neutral-700 hover:text-[#D71920] flex items-center justify-center transition-all cursor-pointer active:scale-90 shadow-2xs"
+                              >
+                                <ChevronLeft size={15} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleNextReview}
+                                aria-label="Next customer review"
+                                className="w-7 h-7 rounded-full border border-neutral-200 bg-white hover:bg-[#FFF1F2] hover:border-[#D71920] text-neutral-700 hover:text-[#D71920] flex items-center justify-center transition-all cursor-pointer active:scale-90 shadow-2xs"
+                              >
+                                <ChevronRight size={15} />
+                              </button>
+                            </div>
                           </div>
 
-                          <div className="space-y-2.5 max-h-[420px] overflow-y-auto pr-1">
-                            {displayReviews.map((rev) => {
-                              const userReacted = rev.userReactions?.[visitorId] || null;
-                              const likesCount = rev.likesCount ?? 0;
-                              const lovesCount = rev.lovesCount ?? 0;
-                              const dislikesCount = rev.dislikesCount ?? 0;
+                          {/* Horizontal Slider Viewport — One Review Card at a Time */}
+                          <div
+                            className="relative overflow-hidden rounded-2xl select-none touch-pan-y"
+                            onTouchStart={handleReviewTouchStart}
+                            onTouchEnd={handleReviewTouchEnd}
+                          >
+                            {/* Sliding Flex Track */}
+                            <div
+                              className="flex flex-nowrap w-full transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform"
+                              style={{ transform: `translateX(-${safeReviewIndex * 100}%)` }}
+                            >
+                              {displayReviews.map((rev) => {
+                                const userReacted = rev.userReactions?.[visitorId] || null;
+                                const likesCount = rev.likesCount ?? 0;
+                                const lovesCount = rev.lovesCount ?? 0;
+                                const dislikesCount = rev.dislikesCount ?? 0;
 
-                              return (
-                                <div key={rev.id} className="p-3.5 bg-neutral-50/90 rounded-xl border border-neutral-200/90 space-y-2 shadow-2xs hover:border-neutral-300 transition-colors">
-                                  <div className="flex items-center justify-between gap-1 flex-wrap">
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-6 h-6 rounded-full bg-[#D71920]/10 text-[#D71920] font-black text-[11px] flex items-center justify-center shrink-0">
-                                        {rev.userName ? rev.userName.charAt(0).toUpperCase() : 'U'}
+                                return (
+                                  <div key={rev.id} className="w-full shrink-0 px-0.5">
+                                    <div className="p-4 sm:p-5 bg-neutral-50/90 rounded-2xl border border-neutral-200/90 space-y-3 shadow-2xs hover:border-neutral-300 transition-colors h-full flex flex-col justify-between min-h-[195px]">
+                                      <div className="space-y-2.5">
+                                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                                          <div className="flex items-center gap-2 min-w-0">
+                                            <div className="w-7 h-7 rounded-full bg-[#D71920]/10 text-[#D71920] font-black text-xs flex items-center justify-center shrink-0">
+                                              {rev.userName ? rev.userName.charAt(0).toUpperCase() : 'U'}
+                                            </div>
+                                            <span className="font-bold text-xs sm:text-sm text-neutral-900 truncate">{rev.userName}</span>
+                                            {rev.isVerifiedPurchase && (
+                                              <span className="inline-flex items-center gap-0.5 bg-emerald-50 text-emerald-700 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-emerald-200 shrink-0">
+                                                <CheckCircle2 size={9} /> Verified
+                                              </span>
+                                            )}
+                                          </div>
+                                          <div className="flex items-center text-amber-500 shrink-0">
+                                            {[...Array(5)].map((_, i) => (
+                                              <Star key={i} size={12} fill={i < rev.rating ? 'currentColor' : 'none'} />
+                                            ))}
+                                          </div>
+                                        </div>
+
+                                        <p className="text-xs sm:text-[13px] text-neutral-700 leading-relaxed italic">
+                                          "{rev.comment}"
+                                        </p>
                                       </div>
-                                      <span className="font-bold text-xs text-neutral-900">{rev.userName}</span>
-                                      {rev.isVerifiedPurchase && (
-                                        <span className="inline-flex items-center gap-0.5 bg-emerald-50 text-emerald-700 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-emerald-200">
-                                          <CheckCircle2 size={9} /> Verified
+
+                                      <div className="flex items-center justify-between gap-2 flex-wrap pt-2.5 border-t border-neutral-200/60">
+                                        <span className="text-[10px] text-neutral-400 font-medium">
+                                          {new Date(rev.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                                         </span>
-                                      )}
-                                    </div>
-                                    <div className="flex items-center text-amber-500 shrink-0">
-                                      {[...Array(5)].map((_, i) => (
-                                        <Star key={i} size={11} fill={i < rev.rating ? 'currentColor' : 'none'} />
-                                      ))}
-                                    </div>
-                                  </div>
-                                  <p className="text-xs text-neutral-700 leading-relaxed italic">
-                                    "{rev.comment}"
-                                  </p>
-                                  <div className="flex items-center justify-between gap-2 flex-wrap pt-1.5 border-t border-neutral-200/60">
-                                    <span className="text-[10px] text-neutral-400">
-                                      {new Date(rev.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                    </span>
 
-                                    {/* Real-Time Customer Review Reactions: Like, Love, Dislike */}
-                                    <div className="flex items-center gap-1.5">
-                                      <button
-                                        type="button"
-                                        onClick={() => reactToReview(rev, 'like')}
-                                        aria-label={`Like review by ${rev.userName}`}
-                                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer active:scale-95 ${
-                                          userReacted === 'like'
-                                            ? 'bg-blue-50 text-blue-600 border-blue-300 ring-1 ring-blue-200 shadow-2xs'
-                                            : 'bg-white text-neutral-600 border-neutral-200 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50/50'
-                                        }`}
-                                      >
-                                        <ThumbsUp size={11} className={userReacted === 'like' ? 'fill-blue-600 text-blue-600' : ''} />
-                                        <span>Like</span>
-                                        <span className="tabular-nums font-black ml-0.5">{likesCount}</span>
-                                      </button>
+                                        {/* Real-Time Customer Review Reactions: Like, Love, Dislike */}
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <button
+                                            type="button"
+                                            onClick={() => reactToReview(rev, 'like')}
+                                            aria-label={`Like review by ${rev.userName}`}
+                                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer active:scale-95 ${
+                                              userReacted === 'like'
+                                                ? 'bg-blue-50 text-blue-600 border-blue-300 ring-1 ring-blue-200 shadow-2xs'
+                                                : 'bg-white text-neutral-600 border-neutral-200 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50/50'
+                                            }`}
+                                          >
+                                            <ThumbsUp size={11} className={userReacted === 'like' ? 'fill-blue-600 text-blue-600' : ''} />
+                                            <span>Like</span>
+                                            <span className="tabular-nums font-black ml-0.5">{likesCount}</span>
+                                          </button>
 
-                                      <button
-                                        type="button"
-                                        onClick={() => reactToReview(rev, 'love')}
-                                        aria-label={`Love review by ${rev.userName}`}
-                                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer active:scale-95 ${
-                                          userReacted === 'love'
-                                            ? 'bg-[#FFF1F2] text-[#D71920] border-[#D71920]/40 ring-1 ring-[#D71920]/20 shadow-2xs'
-                                            : 'bg-white text-neutral-600 border-neutral-200 hover:border-[#D71920]/40 hover:text-[#D71920] hover:bg-[#FFF1F2]/60'
-                                        }`}
-                                      >
-                                        <Heart size={11} className={userReacted === 'love' ? 'fill-[#D71920] text-[#D71920]' : ''} />
-                                        <span>Love</span>
-                                        <span className="tabular-nums font-black ml-0.5">{lovesCount}</span>
-                                      </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => reactToReview(rev, 'love')}
+                                            aria-label={`Love review by ${rev.userName}`}
+                                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer active:scale-95 ${
+                                              userReacted === 'love'
+                                                ? 'bg-[#FFF1F2] text-[#D71920] border-[#D71920]/40 ring-1 ring-[#D71920]/20 shadow-2xs'
+                                                : 'bg-white text-neutral-600 border-neutral-200 hover:border-[#D71920]/40 hover:text-[#D71920] hover:bg-[#FFF1F2]/60'
+                                            }`}
+                                          >
+                                            <Heart size={11} className={userReacted === 'love' ? 'fill-[#D71920] text-[#D71920]' : ''} />
+                                            <span>Love</span>
+                                            <span className="tabular-nums font-black ml-0.5">{lovesCount}</span>
+                                          </button>
 
-                                      <button
-                                        type="button"
-                                        onClick={() => reactToReview(rev, 'dislike')}
-                                        aria-label={`Dislike review by ${rev.userName}`}
-                                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer active:scale-95 ${
-                                          userReacted === 'dislike'
-                                            ? 'bg-amber-50 text-amber-700 border-amber-300 ring-1 ring-amber-200 shadow-2xs'
-                                            : 'bg-white text-neutral-600 border-neutral-200 hover:border-amber-300 hover:text-amber-700 hover:bg-amber-50/50'
-                                        }`}
-                                      >
-                                        <ThumbsDown size={11} className={userReacted === 'dislike' ? 'fill-amber-600 text-amber-700' : ''} />
-                                        <span>Dislike</span>
-                                        <span className="tabular-nums font-black ml-0.5">{dislikesCount}</span>
-                                      </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => reactToReview(rev, 'dislike')}
+                                            aria-label={`Dislike review by ${rev.userName}`}
+                                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer active:scale-95 ${
+                                              userReacted === 'dislike'
+                                                ? 'bg-amber-50 text-amber-700 border-amber-300 ring-1 ring-amber-200 shadow-2xs'
+                                                : 'bg-white text-neutral-600 border-neutral-200 hover:border-amber-300 hover:text-amber-700 hover:bg-amber-50/50'
+                                            }`}
+                                          >
+                                            <ThumbsDown size={11} className={userReacted === 'dislike' ? 'fill-amber-600 text-amber-700' : ''} />
+                                            <span>Dislike</span>
+                                            <span className="tabular-nums font-black ml-0.5">{dislikesCount}</span>
+                                          </button>
+                                        </div>
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                              );
-                            })}
+                                );
+                              })}
+                            </div>
                           </div>
+
+                          {/* Carousel Bottom Controls: Prev / Dots / Next */}
+                          {displayReviews.length > 1 && (
+                            <div className="flex items-center justify-between px-1 pt-0.5">
+                              <button
+                                type="button"
+                                onClick={handlePrevReview}
+                                className="inline-flex items-center gap-1 text-[11px] font-bold text-neutral-600 hover:text-[#D71920] transition-colors cursor-pointer active:scale-95"
+                              >
+                                <ChevronLeft size={13} />
+                                <span>Prev</span>
+                              </button>
+
+                              <div className="flex items-center gap-1.5">
+                                {displayReviews.map((rev, idx) => (
+                                  <button
+                                    key={rev.id}
+                                    type="button"
+                                    onClick={() => setActiveReviewIndex(idx)}
+                                    aria-label={`Go to review ${idx + 1}`}
+                                    className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                                      safeReviewIndex === idx
+                                        ? 'w-5 bg-[#D71920]'
+                                        : 'w-1.5 bg-neutral-300 hover:bg-neutral-400'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={handleNextReview}
+                                className="inline-flex items-center gap-1 text-[11px] font-bold text-neutral-600 hover:text-[#D71920] transition-colors cursor-pointer active:scale-95"
+                              >
+                                <span>Next</span>
+                                <ChevronRight size={13} />
+                              </button>
+                            </div>
+                          )}
                         </div>
 
                       </div>
@@ -928,9 +1113,279 @@ export function ProductDetail() {
           </div>
         </div>
 
+        {/* লেখক পরিচিতি ও লেখকের অন্যান্য বই (Author Spotlight & Other Books by Author Section) */}
+        {(() => {
+          const bookAuthorName = (product.author || product.brand || 'হুমায়ূন আহমেদ').trim();
+          const matchedStoreAuthor = authors.find(
+            a => a.name.toLowerCase() === bookAuthorName.toLowerCase() ||
+                 bookAuthorName.toLowerCase().includes(a.name.toLowerCase()) ||
+                 a.name.toLowerCase().includes(bookAuthorName.toLowerCase())
+          );
+
+          const primaryAuthor: Author = matchedStoreAuthor || {
+            id: 'current-book-author',
+            name: bookAuthorName,
+            bio: `${bookAuthorName} সমকালীন সাহিত্যের একজন জনপ্রিয় ও পাঠকপ্রিয় লেখক। তাঁর সাবলীল লেখনী, গভীর জীবনবোধ এবং অনন্য উপস্থাপনা পাঠকদের হৃদয়ে বিশেষ স্থান করে নিয়েছে।`,
+            photoUrl: '',
+            booksCount: 18
+          };
+
+          const allSelectableAuthors: Author[] = [
+            primaryAuthor,
+            ...authors.filter(a => a.id !== primaryAuthor.id && a.name.toLowerCase() !== primaryAuthor.name.toLowerCase())
+          ];
+
+          const activeAuthor =
+            selectedAuthorId === 'current'
+              ? primaryAuthor
+              : (allSelectableAuthors.find(a => a.id === selectedAuthorId) || primaryAuthor);
+
+          // Books written by the active author (excluding current product if viewing same author, or including all by author)
+          const exactAuthorBooks = products.filter(
+            p =>
+              p.type === 'book' &&
+              p.author &&
+              (p.author.toLowerCase().includes(activeAuthor.name.toLowerCase()) ||
+                activeAuthor.name.toLowerCase().includes(p.author.toLowerCase()))
+          );
+
+          const otherBooksByAuthor = exactAuthorBooks.filter(p => p.id !== product.id);
+          const displayAuthorBooks =
+            otherBooksByAuthor.length >= 2
+              ? otherBooksByAuthor.slice(0, 4)
+              : [
+                  ...exactAuthorBooks,
+                  ...products.filter(
+                    p =>
+                      p.type === 'book' &&
+                      !exactAuthorBooks.some(eb => eb.id === p.id)
+                  )
+                ].slice(0, 4);
+
+          const hasAuthorPhoto = !!activeAuthor.photoUrl && !authorAvatarError[activeAuthor.id];
+
+          return (
+            <div className="mt-10 pt-6 border-t border-neutral-200/80">
+              {/* Section Header & Interactive Author Switcher Pills */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/20 flex items-center justify-center shrink-0 shadow-2xs">
+                    <UserCheck size={17} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg sm:text-xl font-black text-neutral-900 tracking-tight">
+                      লেখক পরিচিতি ও লেখকের অন্যান্য বই
+                    </h3>
+                    <p className="text-xs text-neutral-500">
+                      About the Author & Other Books Written by Them
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setActivePage('authors')}
+                  className="self-start sm:self-auto text-xs font-bold text-[#D71920] hover:text-[#B9151B] flex items-center gap-1 group cursor-pointer bg-[#FFF1F2] px-3 py-1.5 rounded-full border border-[#D71920]/20"
+                >
+                  <span>সকল লেখক দেখুন ({allSelectableAuthors.length})</span>
+                  <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
+                </button>
+              </div>
+
+              {/* Author Selector Pills so readers can explore any author right here */}
+              {allSelectableAuthors.length > 1 && (
+                <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 scrollbar-none">
+                  {allSelectableAuthors.map((auth, idx) => {
+                    const isSelected =
+                      (selectedAuthorId === 'current' && idx === 0) ||
+                      selectedAuthorId === auth.id;
+                    return (
+                      <button
+                        key={auth.id}
+                        type="button"
+                        onClick={() => setSelectedAuthorId(idx === 0 ? 'current' : auth.id)}
+                        className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 border ${
+                          isSelected
+                            ? 'bg-[#D71920] text-white border-[#D71920] shadow-xs'
+                            : 'bg-white text-neutral-700 border-neutral-200 hover:border-[#D71920]/50'
+                        }`}
+                      >
+                        <span>{auth.name}</span>
+                        {idx === 0 && (
+                          <span
+                            className={`text-[9px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                              isSelected ? 'bg-white/20 text-white' : 'bg-[#FFF1F2] text-[#D71920]'
+                            }`}
+                          >
+                            এই বইয়ের লেখক
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Main Author Bio + Author's Other Books Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+                {/* Left Column (5 cols): Author Biography Card */}
+                <div className="lg:col-span-5 rounded-3xl border border-neutral-200/90 bg-gradient-to-br from-[#FFF9F9] via-white to-[#FFFDF9] p-5 sm:p-6 shadow-xs flex flex-col justify-between relative overflow-hidden">
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-4">
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full p-[2.5px] bg-gradient-to-tr from-[#D71920] via-rose-400 to-amber-300 shadow-md shrink-0">
+                        <div className="w-full h-full rounded-full overflow-hidden bg-white flex items-center justify-center">
+                          {hasAuthorPhoto ? (
+                            <img
+                              src={activeAuthor.photoUrl}
+                              alt={activeAuthor.name}
+                              className="w-full h-full object-cover"
+                              onError={() =>
+                                setAuthorAvatarError(prev => ({ ...prev, [activeAuthor.id]: true }))
+                              }
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-[#D71920] text-white font-black flex items-center justify-center text-2xl">
+                              {activeAuthor.name ? activeAuthor.name[0] : 'A'}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="min-w-0 flex-1 space-y-1.5">
+                        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
+                          <CheckCircle2 size={11} /> Verified Author
+                        </div>
+                        <h4 className="text-lg sm:text-xl font-black text-neutral-900 leading-snug">
+                          {activeAuthor.name}
+                        </h4>
+                        <div className="flex items-center gap-2 flex-wrap text-xs font-bold text-neutral-600">
+                          <span className="inline-flex items-center gap-1 text-[#D71920] bg-[#FFF1F2] px-2.5 py-0.5 rounded-lg border border-[#D71920]/20">
+                            <BookOpen size={12} /> {activeAuthor.booksCount || 15}+ প্রকাশিত বই
+                          </span>
+                          <span className="inline-flex items-center gap-1 text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
+                            <Star size={11} fill="currentColor" /> 4.9 রেটিং
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-neutral-100">
+                      <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#D71920] block mb-1.5">
+                        লেখক পরিচিতি (Biography)
+                      </span>
+                      <p className="text-xs sm:text-[13px] text-neutral-700 leading-relaxed">
+                        {activeAuthor.bio ||
+                          `${activeAuthor.name} বাংলাদেশের একজন জনপ্রিয় ও খ্যাতিমান লেখক। তাঁর লেখা বইগুলো পাঠকমহলে ব্যাপকভাবে সমাদৃত।`}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 mt-4 border-t border-neutral-200/70 flex flex-wrap items-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCategoryFilter('all');
+                        setSearchQuery(activeAuthor.name);
+                        setActivePage('books');
+                      }}
+                      className="flex-1 py-2.5 px-4 bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-bold rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                    >
+                      <BookOpen size={14} />
+                      <span>এই লেখকের সব বই দেখুন</span>
+                      <ArrowRight size={13} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Right Column (7 cols): Other Books by This Author */}
+                <div className="lg:col-span-7 rounded-3xl border border-neutral-200/90 bg-white p-4 sm:p-5 shadow-xs flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-neutral-100">
+                      <div>
+                        <h4 className="text-sm sm:text-base font-black text-neutral-900 flex items-center gap-1.5">
+                          <BookOpen size={15} className="text-[#D71920]" />
+                          <span>{activeAuthor.name}-এর ও জনপ্রিয় অন্যান্য বই</span>
+                        </h4>
+                        <p className="text-[11px] text-neutral-500">
+                          পাঠকদের পছন্দের শীর্ষে থাকা অন্যান্য বইসমূহ
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedCategoryFilter('all');
+                          setSearchQuery(activeAuthor.name);
+                          setActivePage('books');
+                        }}
+                        className="text-xs font-bold text-[#D71920] hover:underline flex items-center gap-1 shrink-0 cursor-pointer"
+                      >
+                        <span>সব দেখুন</span>
+                        <ArrowRight size={12} />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {displayAuthorBooks.map(bookItem => (
+                        <div
+                          key={bookItem.id}
+                          onClick={() => {
+                            setActivePage('product-detail', bookItem.id);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                          className="p-3 rounded-2xl border border-neutral-200/90 hover:border-[#D71920] bg-neutral-50/60 hover:bg-white transition-all flex items-center gap-3 cursor-pointer group shadow-2xs"
+                        >
+                          <div className="w-15 h-20 rounded-xl bg-white border border-neutral-200/80 p-1 flex items-center justify-center shrink-0 overflow-hidden">
+                            <img
+                              src={bookItem.images[0]}
+                              alt={bookItem.title}
+                              className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-200"
+                            />
+                          </div>
+
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <span className="inline-block text-[9.5px] font-bold text-[#D71920] bg-[#FFF1F2] px-2 py-0.5 rounded-md">
+                              {bookItem.category}
+                            </span>
+                            <h5 className="font-bold text-xs sm:text-sm text-neutral-900 group-hover:text-[#D71920] transition-colors truncate">
+                              {bookItem.title}
+                            </h5>
+                            <p className="text-[11px] text-neutral-500 truncate">
+                              লেখক: {bookItem.author || activeAuthor.name}
+                            </p>
+                            <div className="flex items-center justify-between pt-1">
+                              <div className="flex items-baseline gap-1.5">
+                                <span className="font-black text-sm text-[#D71920]">৳{bookItem.price}</span>
+                                {bookItem.previousPrice && bookItem.previousPrice > bookItem.price && (
+                                  <span className="text-[10px] text-neutral-400 line-through">
+                                    ৳{bookItem.previousPrice}
+                                  </span>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  addToCart(bookItem, bookItem.variants[0]?.id || 'v1', 1);
+                                  setActivePage('checkout');
+                                }}
+                                className="px-2.5 py-1 rounded-lg bg-[#D71920] hover:bg-[#B9151B] text-white text-[10px] font-bold flex items-center gap-1 shadow-2xs cursor-pointer active:scale-95"
+                              >
+                                <ShoppingBag size={10} /> Buy
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Related Products Grid */}
         {relatedProducts.length > 0 && (
-          <div className="mt-12 pt-6 border-t border-neutral-200/80">
+          <div className="mt-10 pt-6 border-t border-neutral-200/80">
             <div className="flex items-center justify-between mb-5">
               <div>
                 <h3 className="text-lg sm:text-xl font-black text-neutral-900 tracking-tight">
@@ -949,6 +1404,12 @@ export function ProductDetail() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Bottom Featured Authors Slider & Book Reels & Video Reviews Section */}
+      <div className="mt-8 pt-4 border-t border-neutral-200/80">
+        <FeaturedAuthorsSection />
+        <ReelsSection />
       </div>
     </div>
   );

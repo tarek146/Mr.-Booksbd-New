@@ -87,6 +87,22 @@ export const DEFAULT_PAYMENT_METHODS: PaymentMethodConfig[] = [
     displayOrder: 4
   },
   {
+    id: 'upay-personal',
+    name: 'উপায়',
+    englishName: 'Upay',
+    type: 'upay',
+    subtitle: 'উপায় সেন্ড মানি',
+    badgeText: '',
+    accountName: 'MR. BOOKS Official',
+    accountNumber: '01712345678',
+    accountType: 'Personal',
+    requireTrxId: true,
+    requireSenderPhone: true,
+    instructions: 'উপায় অ্যাপ অথবা *268# ডায়াল করে নির্ধারিত নম্বরে Send Money করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।',
+    isActive: true,
+    displayOrder: 5
+  },
+  {
     id: 'bank-transfer',
     name: 'ব্যাংক ট্রান্সফার',
     englishName: 'Bank Transfer',
@@ -103,7 +119,7 @@ export const DEFAULT_PAYMENT_METHODS: PaymentMethodConfig[] = [
     routingNumber: '095261234',
     instructions: 'নির্ধারিত ব্যাংক একাউন্টে মোট টাকার পরিমাণ ট্রান্সফার করে ট্রানজেকশন রেফারেন্স বা রিসিপ্ট আইডি নিচে দিন।',
     isActive: true,
-    displayOrder: 5
+    displayOrder: 6
   }
 ];
 

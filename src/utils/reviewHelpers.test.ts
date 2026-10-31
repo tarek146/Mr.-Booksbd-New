@@ -5,6 +5,7 @@ import {
   validateBangladeshPhone,
   sortPaymentMethods,
   getPaymentMethodDisplayMeta,
+  getActiveOnlinePaymentMethods,
   validatePaymentTransactionPopup,
 } from './reviewHelpers';
 import { isValidImageUrl, sanitizeImageUrl } from './imageCompressor';
@@ -101,6 +102,19 @@ test('sortPaymentMethods places Cash on Delivery first, bKash second, followed b
   assert.deepEqual(customSorted.map(m => m.type), ['bank', 'nagad', 'cod', 'rocket', 'bkash']);
 });
 
+test('getActiveOnlinePaymentMethods returns all active non-COD methods in sorted order', () => {
+  const methods: PaymentMethodConfig[] = [
+    { id: 'cod', name: 'COD', type: 'cod', accountName: 'COD', accountNumber: 'N/A', instructions: '', isActive: true, displayOrder: 1 },
+    { id: 'bank', name: 'Bank', type: 'bank', accountName: 'MRB', accountNumber: '123', instructions: '', isActive: true, displayOrder: 6 },
+    { id: 'upay', name: 'Upay', type: 'upay', accountName: 'MRB', accountNumber: '017', instructions: '', isActive: true, displayOrder: 5 },
+    { id: 'rocket', name: 'Rocket', type: 'rocket', accountName: 'MRB', accountNumber: '019', instructions: '', isActive: true, displayOrder: 4 },
+    { id: 'nagad', name: 'Nagad', type: 'nagad', accountName: 'MRB', accountNumber: '018', instructions: '', isActive: true, displayOrder: 3 },
+    { id: 'bkash', name: 'bKash', type: 'bkash', accountName: 'MRB', accountNumber: '017', instructions: '', isActive: true, displayOrder: 2 },
+  ];
+  const activeOnline = getActiveOnlinePaymentMethods(methods);
+  assert.deepEqual(activeOnline.map(m => m.type), ['bkash', 'nagad', 'rocket', 'upay', 'bank']);
+});
+
 test('getPaymentMethodDisplayMeta provides Bengali labels, empty badgeText by default, custom badgeText when set by Admin, and filters legacy unsplash stock urls', () => {
   const bkashMethod: PaymentMethodConfig = {
     id: 'bkash-personal',
@@ -120,6 +134,10 @@ test('getPaymentMethodDisplayMeta provides Bengali labels, empty badgeText by de
   assert.equal(meta.displaySubtitle, 'বিকাশ সেন্ড মানি');
   assert.equal(meta.badgeText, '');
   assert.equal(meta.customLogoUrl, undefined);
+  assert.equal(meta.qrCodeUrl, undefined);
+
+  const bkashWithQr = getPaymentMethodDisplayMeta({ ...bkashMethod, qrCodeUrl: 'https://example.com/bkash-qr.png' });
+  assert.equal(bkashWithQr.qrCodeUrl, 'https://example.com/bkash-qr.png');
 
   const bkashWithAdminOffer = getPaymentMethodDisplayMeta({ ...bkashMethod, badgeText: '5% OFF' });
   assert.equal(bkashWithAdminOffer.badgeText, '5% OFF');
