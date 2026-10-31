@@ -300,6 +300,10 @@ export interface StoreSettings {
   extraWeightChargePerKg?: number;
   deliveryNote?: string;
 
+  // Returning Customer Address Autofill Settings
+  enableUseOldAddress?: boolean;
+  oldAddressButtonLabel?: string;
+
   // SEO Settings
   metaTitle?: string;
   metaDescription?: string;

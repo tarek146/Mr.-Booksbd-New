@@ -6794,6 +6794,44 @@ export function AdminDashboard() {
                         className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-[#171717] font-bold"
                       />
                     </div>
+
+                    {/* Returning Customer "Use Old Address" Autofill Feature */}
+                    <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200 col-span-1 sm:col-span-3 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="font-black text-neutral-900 block text-xs uppercase">
+                            পুরান কাস্টমারদের জন্য 'ইউজ ওল্ড এড্রেস / সেম অ্যাড্রেস' বাটন (Use Old Address Button)
+                          </span>
+                          <span className="text-[11px] text-neutral-600 block mt-0.5">
+                            চেকআউটে পুরান কাস্টমাররা যাতে এক ক্লিকে তাদের পূর্বের সংরক্ষিত নাম ও ডেলিভারি ঠিকানা পূরণ করতে পারেন।
+                          </span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settingsForm.enableUseOldAddress !== false}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, enableUseOldAddress: e.target.checked }))}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#D71920]"></div>
+                        </label>
+                      </div>
+
+                      {settingsForm.enableUseOldAddress !== false && (
+                        <div>
+                          <label className="block font-bold uppercase text-[#5F6368] mb-1 text-[11px]">
+                            বাটন লেবেল টেক্সট (Button Label / Text)
+                          </label>
+                          <input
+                            type="text"
+                            value={settingsForm.oldAddressButtonLabel ?? 'ইউজ ওল্ড এড্রেস (সেম অ্যাড্রেস)'}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, oldAddressButtonLabel: e.target.value }))}
+                            placeholder="ইউজ ওল্ড এড্রেস (সেম অ্যাড্রেস)"
+                            className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-[#171717] font-bold text-xs"
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

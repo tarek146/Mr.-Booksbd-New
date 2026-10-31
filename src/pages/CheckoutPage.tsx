@@ -9,7 +9,8 @@ import {
   validatePaymentTransactionPopup,
 } from '../utils/reviewHelpers';
 import { PaymentMethodConfig } from '../types';
-import { Truck, CreditCard, Check, ArrowLeft, ArrowRight, Phone } from 'lucide-react';
+import { formatAddressPreview, sanitizeSavedAddress, SavedDeliveryAddress } from '../utils/addressHelpers';
+import { Truck, CreditCard, Check, ArrowLeft, ArrowRight, Phone, RotateCcw, Search, Sparkles } from 'lucide-react';
 
 const BANGLADESH_DISTRICTS = [
   'Dhaka', 'Gazipur', 'Narayanganj', 'Chittagong', 'Sylhet', 'Rajshahi', 
@@ -17,7 +18,7 @@ const BANGLADESH_DISTRICTS = [
 ];
 
 export function CheckoutPage() {
-  const { cart, paymentMethods, settings, createOrder, submitPaymentProof, setActivePage } = useStore();
+  const { cart, paymentMethods, settings, createOrder, submitPaymentProof, setActivePage, orders, trackOrder } = useStore();
   const { currentUser } = useAuth();
 
   const [name, setName] = useState(currentUser?.displayName || '');
@@ -28,6 +29,154 @@ export function CheckoutPage() {
   const [city, setCity] = useState('');
   const [address, setAddress] = useState('');
   const [customerNote, setCustomerNote] = useState('');
+
+  // Returning Customer Address Autofill State
+  const [savedAddressData, setSavedAddressData] = useState<SavedDeliveryAddress | null>(null);
+  const [addressAutoFilled, setAddressAutoFilled] = useState(false);
+  const [showPhoneLookup, setShowPhoneLookup] = useState(false);
+  const [lookupPhone, setLookupPhone] = useState('');
+  const [isSearchingOldAddress, setIsSearchingOldAddress] = useState(false);
+  const [lookupError, setLookupError] = useState('');
+
+  // Check for saved delivery address from local storage on mount or recent user order
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('mrb_last_delivery_address');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const sanitized = sanitizeSavedAddress(parsed);
+        if (sanitized) {
+          setSavedAddressData(sanitized);
+          return;
+        }
+      }
+    } catch {
+      // Storage access check
+    }
+
+    // Fallback: check if logged-in user has previous orders
+    if (currentUser?.uid && orders.length > 0) {
+      const pastOrder = orders.find(
+        o => o.userId === currentUser.uid || (currentUser.email && o.email === currentUser.email)
+      );
+      if (pastOrder && pastOrder.address) {
+        setSavedAddressData({
+          name: pastOrder.customerName,
+          phone: pastOrder.phone,
+          optionalPhone: pastOrder.optionalPhone || '',
+          email: pastOrder.email || '',
+          district: pastOrder.district || 'Dhaka',
+          city: pastOrder.city || '',
+          address: pastOrder.address || '',
+          customerNote: ''
+        });
+      }
+    }
+  }, [currentUser, orders]);
+
+  const hasSavedAddress = Boolean(savedAddressData?.address || savedAddressData?.phone);
+
+  const savedAddressPreview = useMemo(() => {
+    return formatAddressPreview(savedAddressData);
+  }, [savedAddressData]);
+
+  const applyAddressObj = (addr: {
+    name?: string;
+    phone?: string;
+    optionalPhone?: string;
+    email?: string;
+    district?: string;
+    city?: string;
+    address?: string;
+    customerNote?: string;
+  }) => {
+    if (addr.name) setName(addr.name);
+    if (addr.phone) setPhone(addr.phone);
+    if (addr.optionalPhone) setOptionalPhone(addr.optionalPhone);
+    if (addr.email) setEmail(addr.email);
+    if (addr.district && BANGLADESH_DISTRICTS.includes(addr.district)) {
+      setDistrict(addr.district);
+    }
+    if (addr.city) setCity(addr.city);
+    if (addr.address) setAddress(addr.address);
+    if (addr.customerNote) setCustomerNote(addr.customerNote);
+
+    setAddressAutoFilled(true);
+    setTimeout(() => setAddressAutoFilled(false), 4500);
+  };
+
+  const handleApplyOldAddress = () => {
+    if (savedAddressData) {
+      applyAddressObj(savedAddressData);
+      return;
+    }
+
+    // If logged in, check past orders
+    if (currentUser?.uid && orders.length > 0) {
+      const pastOrder = orders.find(
+        o => o.userId === currentUser.uid || (currentUser.email && o.email === currentUser.email)
+      );
+      if (pastOrder && pastOrder.address) {
+        const obj = {
+          name: pastOrder.customerName,
+          phone: pastOrder.phone,
+          optionalPhone: pastOrder.optionalPhone || '',
+          email: pastOrder.email || '',
+          district: pastOrder.district || 'Dhaka',
+          city: pastOrder.city || '',
+          address: pastOrder.address || '',
+          customerNote: ''
+        };
+        setSavedAddressData(obj);
+        applyAddressObj(obj);
+        try {
+          localStorage.setItem('mrb_last_delivery_address', JSON.stringify(obj));
+        } catch {}
+        return;
+      }
+    }
+
+    // If no saved address found on this browser, show phone number lookup
+    setShowPhoneLookup(true);
+  };
+
+  const handleLookupByPhone = async () => {
+    const rawDigits = lookupPhone.replace(/[^0-9]/g, '');
+    if (rawDigits.length < 10) {
+      setLookupError('অনুগ্রহ করে সঠিক ১১ ডিজিটের মোবাইল নম্বর লিখুন (e.g. 017XXXXXXXX)।');
+      return;
+    }
+    setIsSearchingOldAddress(true);
+    setLookupError('');
+    try {
+      const found = await trackOrder(rawDigits);
+      if (found && (found.address || found.customerName)) {
+        const obj = {
+          name: found.customerName || '',
+          phone: found.phone || rawDigits,
+          optionalPhone: found.optionalPhone || '',
+          email: found.email || '',
+          district: found.district || 'Dhaka',
+          city: found.city || '',
+          address: found.address || '',
+          customerNote: ''
+        };
+        setSavedAddressData(obj);
+        applyAddressObj(obj);
+        try {
+          localStorage.setItem('mrb_last_delivery_address', JSON.stringify(obj));
+        } catch {}
+        setShowPhoneLookup(false);
+      } else {
+        setLookupError('এই নম্বরে কোনো পূর্ববর্তী অর্ডারের ঠিকানা পাওয়া যায়নি। নিচের বক্সে নতুন ঠিকানা পূরণ করুন।');
+      }
+    } catch {
+      setLookupError('তথ্য লোড করতে সাময়িক সমস্যা হয়েছে। দয়া করে ম্যানুয়ালি লিখুন।');
+    } finally {
+      setIsSearchingOldAddress(false);
+    }
+  };
+
 
   // Payment Verification & Popup Modal State
   const [transactionId, setTransactionId] = useState('');
@@ -216,6 +365,24 @@ export function CheckoutPage() {
         paymentMethodName: selectedMethod.name
       });
 
+      // Save delivery address to localStorage for returning customer autofill
+      try {
+        const addrToSave = {
+          name: cleanName,
+          phone: cleanPhone,
+          optionalPhone: cleanOptionalPhone,
+          email: email.trim(),
+          district,
+          city: city.trim(),
+          address: cleanAddress,
+          customerNote: customerNote.trim()
+        };
+        localStorage.setItem('mrb_last_delivery_address', JSON.stringify(addrToSave));
+        setSavedAddressData(addrToSave);
+      } catch (storageErr) {
+        console.warn('Could not cache address:', storageErr);
+      }
+
       // If online payment is selected and transaction details are provided, submit proof immediately
       if (selectedMethod?.type !== 'cod' && transactionId.trim() && senderNumber.trim()) {
         try {
@@ -285,6 +452,106 @@ export function CheckoutPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Returning Customer Address Autofill Banner / Action Button */}
+              {settings.enableUseOldAddress !== false && (
+                <div className="bg-linear-to-r from-red-50/70 via-amber-50/50 to-neutral-50/80 border border-red-200/80 rounded-2xl p-3.5 sm:p-4 shadow-2xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-start sm:items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-white border border-red-200 text-[#D71920] flex items-center justify-center shrink-0 shadow-2xs">
+                        <RotateCcw size={17} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-black text-neutral-900">
+                            পুরান কাস্টমার? (Returning Customer)
+                          </span>
+                          {hasSavedAddress && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+                              <Check size={10} /> সেভড অ্যাড্রেস প্রস্তুত
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-neutral-600 mt-0.5">
+                          {savedAddressPreview 
+                            ? `সংরক্ষিত ঠিকানা: ${savedAddressPreview}` 
+                            : 'এক ক্লিকে আপনার পূর্বের নাম, মোবাইল ও ডেলিভারি ঠিকানা পূরণ করুন।'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0 self-stretch sm:self-auto">
+                      <button
+                        type="button"
+                        onClick={handleApplyOldAddress}
+                        className="flex-1 sm:flex-initial px-4 py-2.5 bg-[#D71920] hover:bg-[#B9151B] active:scale-95 text-white rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer"
+                      >
+                        <RotateCcw size={14} className={isSearchingOldAddress ? 'animate-spin' : ''} />
+                        <span>{settings.oldAddressButtonLabel || 'ইউজ ওল্ড এড্রেস (সেম অ্যাড্রেস)'}</span>
+                      </button>
+
+                      {!hasSavedAddress && !showPhoneLookup && (
+                        <button
+                          type="button"
+                          onClick={() => setShowPhoneLookup(true)}
+                          title="আগের মোবাইল নম্বর দিয়ে খুঁজুন"
+                          className="px-3 py-2.5 bg-white hover:bg-neutral-100 border border-neutral-300 text-neutral-700 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+                        >
+                          <Search size={13} />
+                          <span className="hidden sm:inline">নম্বর দিয়ে খুঁজুন</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Inline Phone Lookup Modal/Box when no address in local storage */}
+                  {showPhoneLookup && (
+                    <div className="mt-3 pt-3 border-t border-neutral-200/90 space-y-2">
+                      <div className="flex items-center justify-between text-xs font-bold text-neutral-800">
+                        <span>পূর্বে অর্ডার করা ফোন নম্বর দিয়ে ঠিকানা লোড করুন:</span>
+                        <button
+                          type="button"
+                          onClick={() => setShowPhoneLookup(false)}
+                          className="text-neutral-500 hover:text-neutral-800 text-[11px] cursor-pointer"
+                        >
+                          ✕ বন্ধ করুন
+                        </button>
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="tel"
+                          value={lookupPhone}
+                          onChange={e => setLookupPhone(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleLookupByPhone())}
+                          placeholder="017XXXXXXXX"
+                          className="flex-1 px-3 py-2 rounded-xl border border-neutral-300 text-xs bg-white text-[#171717] focus:outline-none focus:border-[#D71920]"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleLookupByPhone}
+                          disabled={isSearchingOldAddress}
+                          className="px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                        >
+                          {isSearchingOldAddress ? 'খোঁজা হচ্ছে...' : 'খুঁজুন ও পূরণ করুন'}
+                        </button>
+                      </div>
+                      {lookupError && (
+                        <p className="text-[11px] text-red-600 font-bold bg-red-50 p-2 rounded-lg border border-red-200">
+                          {lookupError}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Address auto-filled confirmation feedback */}
+                  {addressAutoFilled && (
+                    <div className="mt-3 px-3.5 py-2 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2 animate-in fade-in">
+                      <Check size={14} className="text-emerald-600 shrink-0" />
+                      <span>পূর্বের ডেলিভারি ঠিকানা সফলভাবে পূরণ করা হয়েছে! (Old address auto-filled)</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>

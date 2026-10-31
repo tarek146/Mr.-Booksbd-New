@@ -444,6 +444,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     sundarbanForcesPrepayment: true,
     extraWeightChargePerKg: 20,
     deliveryNote: 'সুন্দরবন কুরিয়ার সার্ভিসের ক্ষেত্রে সম্পূর্ণ পেমেন্ট অগ্রিম প্রযোজ্য।',
+    enableUseOldAddress: true,
+    oldAddressButtonLabel: 'ইউজ ওল্ড এড্রেস (সেম অ্যাড্রেস)',
 
     specialOffer: {
       enabled: true,
