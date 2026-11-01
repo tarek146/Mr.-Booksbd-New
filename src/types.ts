@@ -145,6 +145,8 @@ export interface PaymentMethodConfig {
   customOrder?: boolean;
   logoUrl?: string;
   qrCodeUrl?: string;
+  englishQrCodeUrl?: string;
+  bengaliQrCodeUrl?: string;
 }
 
 export interface Category {

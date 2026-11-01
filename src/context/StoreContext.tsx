@@ -54,6 +54,8 @@ function sanitizePaymentMethod(pm: PaymentMethodConfig): PaymentMethodConfig {
     ...pm,
     logoUrl: sanitizeImageUrl(pm.logoUrl),
     qrCodeUrl: sanitizeImageUrl(pm.qrCodeUrl),
+    englishQrCodeUrl: sanitizeImageUrl(pm.englishQrCodeUrl || pm.qrCodeUrl),
+    bengaliQrCodeUrl: sanitizeImageUrl(pm.bengaliQrCodeUrl),
   };
 }
 
@@ -1222,6 +1224,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const sanitizedData: Partial<PaymentMethodConfig> = {
       ...data,
       ...('logoUrl' in data ? { logoUrl: sanitizeImageUrl(data.logoUrl) } : {}),
+      ...('qrCodeUrl' in data ? { qrCodeUrl: sanitizeImageUrl(data.qrCodeUrl) } : {}),
+      ...('englishQrCodeUrl' in data ? { englishQrCodeUrl: sanitizeImageUrl(data.englishQrCodeUrl) } : {}),
+      ...('bengaliQrCodeUrl' in data ? { bengaliQrCodeUrl: sanitizeImageUrl(data.bengaliQrCodeUrl) } : {}),
     };
     try {
       const cleaned = cleanForFirestore(sanitizedData);

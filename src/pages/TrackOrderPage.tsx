@@ -60,27 +60,27 @@ export function TrackOrderPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] py-10">
+    <div className="min-h-screen bg-[#F8F9FA] dark:bg-[#0B0F17] transition-colors py-10">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         
         {/* Back Link */}
         <button 
           onClick={() => setActivePage('home')}
-          className="flex items-center gap-1.5 text-xs font-bold text-neutral-500 hover:text-[#D71920] transition-colors cursor-pointer"
+          className="flex items-center gap-1.5 text-xs font-bold text-neutral-500 dark:text-slate-400 hover:text-[#D71920] dark:hover:text-[#D71920] transition-colors cursor-pointer"
         >
           <ArrowLeft size={16} /> Back to Storefront
         </button>
 
         {/* Tracking Header Card */}
-        <div className="bg-white border border-neutral-200/90 rounded-3xl p-6 sm:p-8 shadow-2xs space-y-6 text-center">
-          <div className="w-14 h-14 bg-[#FFF1F2] text-[#D71920] rounded-2xl flex items-center justify-center mx-auto shadow-xs">
+        <div className="bg-white dark:bg-[#121722] border border-neutral-200/90 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xs space-y-6 text-center">
+          <div className="w-14 h-14 bg-[#FFF1F2] dark:bg-[#D71920]/15 text-[#D71920] rounded-2xl flex items-center justify-center mx-auto shadow-xs">
             <Truck size={28} />
           </div>
           <div className="max-w-xl mx-auto space-y-2">
-            <h1 className="text-2xl sm:text-3xl font-black text-neutral-900 tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-black text-neutral-900 dark:text-white tracking-tight">
               Real-Time Order Tracking
             </h1>
-            <p className="text-xs sm:text-sm text-neutral-500 leading-relaxed">
+            <p className="text-xs sm:text-sm text-neutral-500 dark:text-slate-400 leading-relaxed">
               Enter your Order ID (or parcel ID) and Mobile Phone Number below to track your book package status in real-time.
             </p>
           </div>
@@ -88,12 +88,12 @@ export function TrackOrderPage() {
           <form onSubmit={handleTrackOrder} className="max-w-xl mx-auto grid grid-cols-1 sm:grid-cols-12 gap-2.5 pt-2">
             <div className="sm:col-span-5">
               <input 
-                type="text"
+                type="text" 
                 required
                 value={orderIdInput}
                 onChange={e => setOrderIdInput(e.target.value)}
                 placeholder="Order ID (e.g. 1712345678)"
-                className="w-full px-4 py-3 rounded-xl border border-neutral-200 bg-neutral-50 text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white transition-all"
+                className="w-full px-4 py-3 rounded-xl border border-neutral-200 dark:border-slate-700 bg-neutral-50 dark:bg-[#0E1420] text-xs font-bold text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-[#D71920] transition-all"
               />
             </div>
             <div className="sm:col-span-5">
@@ -103,7 +103,7 @@ export function TrackOrderPage() {
                 value={phoneInput}
                 onChange={e => setPhoneInput(e.target.value)}
                 placeholder="Phone Number (e.g. 01712345678)"
-                className="w-full px-4 py-3 rounded-xl border border-neutral-200 bg-neutral-50 text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white transition-all"
+                className="w-full px-4 py-3 rounded-xl border border-neutral-200 dark:border-slate-700 bg-neutral-50 dark:bg-[#0E1420] text-xs font-bold text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-[#D71920] transition-all"
               />
             </div>
             <div className="sm:col-span-2">
@@ -122,36 +122,36 @@ export function TrackOrderPage() {
         {searched && !loading && (
           <div>
             {matchedOrder ? (
-              <div className="bg-white border border-neutral-200/90 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6 animate-in fade-in duration-300">
+              <div className="bg-white dark:bg-[#121722] border border-neutral-200/90 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6 animate-in fade-in duration-300">
                 
                 {/* Order Meta Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-neutral-100">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-neutral-100 dark:border-slate-800">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono font-black text-base text-[#D71920]">#{matchedOrder.id}</span>
                       <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                        matchedOrder.orderStatus === 'delivered' ? 'bg-emerald-100 text-emerald-800' :
-                        matchedOrder.orderStatus === 'cancelled' ? 'bg-red-100 text-red-800' :
-                        'bg-blue-100 text-blue-800'
+                        matchedOrder.orderStatus === 'delivered' ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300' :
+                        matchedOrder.orderStatus === 'cancelled' ? 'bg-red-100 dark:bg-rose-950/60 text-red-800 dark:text-rose-300' :
+                        'bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300'
                       }`}>
                         Status: {matchedOrder.orderStatus.toUpperCase()}
                       </span>
                     </div>
-                    <div className="text-xs text-neutral-500 flex items-center gap-2">
+                    <div className="text-xs text-neutral-500 dark:text-slate-400 flex items-center gap-2">
                       <Calendar size={13} />
                       <span>Ordered on {new Date(matchedOrder.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   </div>
 
                   <div className="text-right sm:text-left">
-                    <span className="text-[11px] text-neutral-400 block">Total Payable</span>
-                    <span className="text-xl font-black text-neutral-900 tabular-nums">৳{matchedOrder.total}</span>
+                    <span className="text-[11px] text-neutral-400 dark:text-slate-400 block">Total Payable</span>
+                    <span className="text-xl font-black text-neutral-900 dark:text-white tabular-nums">৳{matchedOrder.total}</span>
                   </div>
                 </div>
 
                 {/* Visual Journey Stepper */}
                 <div className="py-4">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-neutral-500 mb-6">Delivery Progress Journey</h3>
+                  <h3 className="text-xs font-black uppercase tracking-wider text-neutral-500 dark:text-slate-400 mb-6">Delivery Progress Journey</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 relative">
                     {steps.map((st, idx) => {
                       const currentIndex = getStatusStepIndex(matchedOrder.orderStatus);
@@ -160,13 +160,13 @@ export function TrackOrderPage() {
                       return (
                         <div key={st.id} className="flex flex-col items-center text-center space-y-2 relative">
                           <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs transition-all z-10 ${
-                            isCompleted ? 'bg-[#D71920] text-white shadow-md shadow-[#D71920]/30' : 'bg-neutral-100 text-neutral-400 border border-neutral-200'
+                            isCompleted ? 'bg-[#D71920] text-white shadow-md shadow-[#D71920]/30' : 'bg-neutral-100 dark:bg-slate-800 text-neutral-400 dark:text-slate-400 border border-neutral-200 dark:border-slate-700'
                           }`}>
                             {isCompleted ? <CheckCircle2 size={16} /> : st.id}
                           </div>
                           <div>
-                            <div className={`text-xs font-bold ${isCurrent ? 'text-[#D71920]' : 'text-neutral-800'}`}>{st.label}</div>
-                            <div className="text-[10px] text-neutral-400">{st.desc}</div>
+                            <div className={`text-xs font-bold ${isCurrent ? 'text-[#D71920]' : 'text-neutral-800 dark:text-white'}`}>{st.label}</div>
+                            <div className="text-[10px] text-neutral-400 dark:text-slate-400">{st.desc}</div>
                           </div>
                         </div>
                       );

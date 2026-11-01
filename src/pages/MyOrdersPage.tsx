@@ -58,13 +58,13 @@ export function OrderTracking({ orderStatus, paymentStatus }: OrderTrackingProps
   const progressWidthPercent = (currentStep / (steps.length - 1)) * 100;
 
   return (
-    <div className="bg-[#F8F9FA] rounded-2xl p-4 sm:p-5 border border-[#E5E5E5] space-y-4">
+    <div className="bg-[#F8F9FA] dark:bg-[#121722] rounded-2xl p-4 sm:p-5 border border-[#E5E5E5] dark:border-slate-800 space-y-4">
       {/* Header Info */}
-      <div className="flex items-center justify-between text-xs font-bold text-[#171717]">
+      <div className="flex items-center justify-between text-xs font-bold text-[#171717] dark:text-white">
         <span className="flex items-center gap-1.5 text-[#D71920]">
           <Truck size={15} /> Real-Time Order Tracking
         </span>
-        <span className="text-neutral-500 font-medium">
+        <span className="text-neutral-500 dark:text-slate-400 font-medium">
           Status: <strong className="text-[#D71920] font-black">{steps[currentStep].label}</strong>
         </span>
       </div>
@@ -72,7 +72,7 @@ export function OrderTracking({ orderStatus, paymentStatus }: OrderTrackingProps
       {/* Visual Stepper Bar */}
       <div className="relative pt-2 pb-2">
         {/* Background Line */}
-        <div className="absolute top-[22px] left-6 right-6 h-1 bg-neutral-200 rounded-full z-0" />
+        <div className="absolute top-[22px] left-6 right-6 h-1 bg-neutral-200 dark:bg-slate-700 rounded-full z-0" />
         
         {/* Active Progress Line */}
         <div 
@@ -95,7 +95,7 @@ export function OrderTracking({ orderStatus, paymentStatus }: OrderTrackingProps
                       ? 'bg-[#D71920] text-white border-2 border-[#D71920]' 
                       : isCurrent 
                       ? 'bg-[#D71920] text-white ring-4 ring-[#D71920]/20 scale-110 border-2 border-[#D71920]' 
-                      : 'bg-white text-neutral-400 border-2 border-neutral-200'
+                      : 'bg-white dark:bg-slate-800 text-neutral-400 dark:text-slate-400 border-2 border-neutral-200 dark:border-slate-700'
                   }`}
                 >
                   <Icon size={16} />
@@ -103,11 +103,11 @@ export function OrderTracking({ orderStatus, paymentStatus }: OrderTrackingProps
 
                 <div className="mt-2">
                   <p className={`text-[10px] sm:text-xs font-extrabold ${
-                    isCurrent ? 'text-[#D71920]' : isCompleted ? 'text-[#171717]' : 'text-neutral-400'
+                    isCurrent ? 'text-[#D71920]' : isCompleted ? 'text-[#171717] dark:text-white' : 'text-neutral-400 dark:text-slate-400'
                   }`}>
                     {step.label}
                   </p>
-                  <p className="text-[9px] sm:text-[10px] text-neutral-400 font-medium hidden sm:block">
+                  <p className="text-[9px] sm:text-[10px] text-neutral-400 dark:text-slate-500 font-medium hidden sm:block">
                     {step.desc}
                   </p>
                 </div>
@@ -183,26 +183,26 @@ export function MyOrdersPage() {
       case 'confirmed':
       case 'delivered':
         return (
-          <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full text-xs font-bold capitalize">
+          <span className="inline-flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-full text-xs font-bold capitalize">
             <CheckCircle2 size={12} /> {status}
           </span>
         );
       case 'pending_verification':
       case 'awaiting_payment_verification':
         return (
-          <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full text-xs font-bold">
+          <span className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 px-2.5 py-1 rounded-full text-xs font-bold">
             <Clock size={12} /> Pending Verification
           </span>
         );
       case 'rejected':
         return (
-          <span className="inline-flex items-center gap-1 bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/30 px-2.5 py-1 rounded-full text-xs font-bold">
+          <span className="inline-flex items-center gap-1 bg-[#FFF1F2] dark:bg-rose-950/60 text-[#D71920] dark:text-rose-400 border border-[#D71920]/30 dark:border-rose-800 px-2.5 py-1 rounded-full text-xs font-bold">
             <XCircle size={12} /> Rejected
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 bg-zinc-100 text-zinc-700 border border-zinc-200 px-2.5 py-1 rounded-full text-xs font-bold capitalize">
+          <span className="inline-flex items-center gap-1 bg-zinc-100 dark:bg-slate-800 text-zinc-700 dark:text-slate-300 border border-zinc-200 dark:border-slate-700 px-2.5 py-1 rounded-full text-xs font-bold capitalize">
             <AlertCircle size={12} /> {status}
           </span>
         );
@@ -210,20 +210,20 @@ export function MyOrdersPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white transition-colors py-8 sm:py-10">
+    <div className="min-h-screen bg-white dark:bg-[#0B0F17] transition-colors py-8 sm:py-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Main Header & Tab Navigation Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-4 border-b border-[#EEEEEE]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-4 border-b border-[#EEEEEE] dark:border-slate-800">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-[#D71920] text-white rounded-xl flex items-center justify-center shadow-sm">
               {activeTab === 'wishlist' ? <Heart size={20} fill="currentColor" /> : <Package size={20} />}
             </div>
             <div>
-              <h1 className="text-xl sm:text-3xl font-black text-[#171717] tracking-tight">
+              <h1 className="text-xl sm:text-3xl font-black text-[#171717] dark:text-white tracking-tight">
                 {activeTab === 'wishlist' ? 'Saved Wishlist Items' : 'Order History & Tracking'}
               </h1>
-              <p className="text-xs text-[#5F6368] mt-0.5">
+              <p className="text-xs text-[#5F6368] dark:text-slate-400 mt-0.5">
                 {activeTab === 'wishlist' 
                   ? 'Your saved books & stationery collections for quick checkout' 
                   : ''}
@@ -232,13 +232,13 @@ export function MyOrdersPage() {
           </div>
 
           {/* Navigation Pills */}
-          <div className="flex items-center gap-2 bg-[#F7F7F8] p-1.5 rounded-2xl border border-[#E5E5E5] self-start sm:self-auto">
+          <div className="flex items-center gap-2 bg-[#F7F7F8] dark:bg-[#121722] p-1.5 rounded-2xl border border-[#E5E5E5] dark:border-slate-800 self-start sm:self-auto">
             <button
               onClick={() => setActiveTab('orders')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === 'orders'
-                  ? 'bg-white text-[#D71920] shadow-xs border border-neutral-200'
-                  : 'text-neutral-600 hover:text-neutral-900'
+                  ? 'bg-white dark:bg-[#1B2332] text-[#D71920] shadow-xs border border-neutral-200 dark:border-slate-700'
+                  : 'text-neutral-600 dark:text-slate-400 hover:text-neutral-900 dark:hover:text-white'
               }`}
             >
               <Package size={14} />
@@ -249,8 +249,8 @@ export function MyOrdersPage() {
               onClick={() => setActiveTab('wishlist')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === 'wishlist'
-                  ? 'bg-white text-[#D71920] shadow-xs border border-neutral-200'
-                  : 'text-neutral-600 hover:text-neutral-900'
+                  ? 'bg-white dark:bg-[#1B2332] text-[#D71920] shadow-xs border border-neutral-200 dark:border-slate-700'
+                  : 'text-neutral-600 dark:text-slate-400 hover:text-neutral-900 dark:hover:text-white'
               }`}
             >
               <Heart size={14} className={wishlist.length > 0 ? "fill-[#D71920] text-[#D71920]" : ""} />
@@ -269,10 +269,10 @@ export function MyOrdersPage() {
                 ))}
               </div>
             ) : (
-              <div className="bg-[#F7F7F8] rounded-3xl p-10 text-center border border-[#E5E5E5] max-w-md mx-auto my-8">
-                <Heart size={38} className="mx-auto text-neutral-400 mb-3" />
-                <h3 className="font-bold text-base text-[#171717]">Your Wishlist is Empty</h3>
-                <p className="text-xs text-[#5F6368] mt-1 mb-5">
+              <div className="bg-[#F7F7F8] dark:bg-[#121722] rounded-3xl p-10 text-center border border-[#E5E5E5] dark:border-slate-800 max-w-md mx-auto my-8">
+                <Heart size={38} className="mx-auto text-neutral-400 dark:text-slate-500 mb-3" />
+                <h3 className="font-bold text-base text-[#171717] dark:text-white">Your Wishlist is Empty</h3>
+                <p className="text-xs text-[#5F6368] dark:text-slate-400 mt-1 mb-5">
                   Tap the heart icon on any book or stationery item to save it here for later.
                 </p>
                 <button 
@@ -291,15 +291,15 @@ export function MyOrdersPage() {
         {activeTab === 'orders' && (
           <div className="space-y-8">
             {/* Direct Order ID / Phone Tracking Lookup Card */}
-            <div className="bg-[#F8F9FA] border border-[#E5E5E5] rounded-3xl p-6 sm:p-8 shadow-xs">
+            <div className="bg-[#F8F9FA] dark:bg-[#121722] border border-[#E5E5E5] dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs">
               <div className="max-w-xl mx-auto text-center space-y-3">
                 <div className="w-12 h-12 bg-[#D71920]/10 text-[#D71920] rounded-2xl mx-auto flex items-center justify-center font-black">
                   <Truck size={24} />
                 </div>
-                <h2 className="text-xl font-black text-[#171717] tracking-tight">
+                <h2 className="text-xl font-black text-[#171717] dark:text-white tracking-tight">
                   Track Your Order Status
                 </h2>
-                <p className="text-xs text-[#5F6368]">
+                <p className="text-xs text-[#5F6368] dark:text-slate-400">
                   Enter your Order ID (e.g., PV-728014) or phone number to view real-time fulfillment status directly from Firebase.
                 </p>
 
@@ -310,7 +310,7 @@ export function MyOrdersPage() {
                     placeholder="Enter Order ID (e.g. PV-728014)"
                     value={trackingInput}
                     onChange={e => setTrackingInput(e.target.value)}
-                    className="flex-1 px-4 py-3 rounded-2xl border border-[#E5E5E5] bg-white text-xs font-mono font-bold text-[#171717] shadow-2xs"
+                    className="flex-1 px-4 py-3 rounded-2xl border border-[#E5E5E5] dark:border-slate-700 bg-white dark:bg-[#0B0F19] text-xs font-mono font-bold text-[#171717] dark:text-white placeholder:text-neutral-400 dark:placeholder:text-slate-500 shadow-2xs focus:outline-none focus:border-[#D71920]"
                   />
                   <button
                     type="submit"
@@ -323,17 +323,17 @@ export function MyOrdersPage() {
                 {searchAttempted && (
                   <div className="mt-4">
                     {searchedOrderResult ? (
-                      <div className="bg-white border border-emerald-200 rounded-2xl p-5 text-left shadow-md space-y-4 animate-in fade-in duration-200">
-                        <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
+                      <div className="bg-white dark:bg-[#161D2B] border border-emerald-200 dark:border-emerald-800 rounded-2xl p-5 text-left shadow-md space-y-4 animate-in fade-in duration-200">
+                        <div className="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-slate-800">
                           <div>
                             <span className="text-xs font-bold text-[#D71920] uppercase font-mono">
                               Order #{searchedOrderResult.id}
                             </span>
-                            <h4 className="font-black text-sm text-[#171717] mt-0.5">
+                            <h4 className="font-black text-sm text-[#171717] dark:text-white mt-0.5">
                               {searchedOrderResult.customerName} ({searchedOrderResult.phone}{searchedOrderResult.optionalPhone ? ` / Alt: ${searchedOrderResult.optionalPhone}` : ''})
                             </h4>
                           </div>
-                          <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-bold capitalize">
+                          <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 rounded-full text-xs font-bold capitalize">
                             {searchedOrderResult.orderStatus}
                           </span>
                         </div>
@@ -343,7 +343,7 @@ export function MyOrdersPage() {
                         />
                       </div>
                     ) : (
-                      <div className="bg-[#FFF1F2] border border-[#D71920]/30 rounded-2xl p-4 text-[#D71920] text-xs font-bold">
+                      <div className="bg-[#FFF1F2] dark:bg-rose-950/40 border border-[#D71920]/30 dark:border-rose-800 rounded-2xl p-4 text-[#D71920] dark:text-rose-300 text-xs font-bold">
                         No order found matching "{trackingInput}". Please check your Order ID and try again.
                       </div>
                     )}
@@ -354,33 +354,33 @@ export function MyOrdersPage() {
 
             {userOrders.length > 0 ? (
               <div className="space-y-6">
-                <h3 className="text-sm font-black uppercase text-neutral-500 tracking-wider">Your Recent Orders</h3>
+                <h3 className="text-sm font-black uppercase text-neutral-500 dark:text-slate-400 tracking-wider">Your Recent Orders</h3>
                 {userOrders.map(order => (
                   <div 
                     key={order.id}
-                    className="bg-white border border-[#E5E5E5] rounded-3xl p-6 sm:p-8 shadow-xs space-y-6"
+                    className="bg-white dark:bg-[#121722] border border-[#E5E5E5] dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6"
                   >
                     {/* Header */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#EEEEEE]">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#EEEEEE] dark:border-slate-800">
                       <div>
                         <span className="text-xs font-bold text-[#D71920] uppercase tracking-wider font-mono">
                           Order #{order.id}
                         </span>
-                        <h3 className="text-lg font-black text-[#171717] mt-0.5">
+                        <h3 className="text-lg font-black text-[#171717] dark:text-white mt-0.5">
                           {order.customerName} ({order.phone}{order.optionalPhone ? ` / Alt: ${order.optionalPhone}` : ''})
                         </h3>
-                        <p className="text-xs text-[#5F6368] mt-0.5">
+                        <p className="text-xs text-[#5F6368] dark:text-slate-400 mt-0.5">
                           Placed on {new Date(order.createdAt).toLocaleDateString()} • Destination: {order.district}
                         </p>
                       </div>
 
                       <div className="flex items-center gap-4">
                         <div className="text-right">
-                          <div className="text-[10px] uppercase font-bold text-[#777777] mb-1">Payment Status</div>
+                          <div className="text-[10px] uppercase font-bold text-[#777777] dark:text-slate-400 mb-1">Payment Status</div>
                           {getStatusBadge(order.paymentStatus)}
                         </div>
                         <div className="text-right">
-                          <div className="text-[10px] uppercase font-bold text-[#777777] mb-1">Fulfillment</div>
+                          <div className="text-[10px] uppercase font-bold text-[#777777] dark:text-slate-400 mb-1">Fulfillment</div>
                           {getStatusBadge(order.orderStatus)}
                         </div>
                       </div>
@@ -395,11 +395,11 @@ export function MyOrdersPage() {
                     {/* Order Items */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       {order.items.map((item, idx) => (
-                        <div key={idx} className="flex items-center gap-3 p-3 bg-[#F7F7F8] rounded-xl border border-[#E5E5E5]">
-                          <img src={item.image} alt="" className="w-10 h-12 object-contain bg-white rounded-md p-1 border border-[#E5E5E5] shrink-0" />
+                        <div key={idx} className="flex items-center gap-3 p-3 bg-[#F7F7F8] dark:bg-[#1A2230] rounded-xl border border-[#E5E5E5] dark:border-slate-700">
+                          <img src={item.image} alt="" className="w-10 h-12 object-contain bg-white dark:bg-[#121722] rounded-md p-1 border border-[#E5E5E5] dark:border-slate-700 shrink-0" />
                           <div className="min-w-0 flex-1">
-                            <p className="font-bold text-xs text-[#171717] truncate">{item.title}</p>
-                            <p className="text-[11px] text-[#5F6368]">{item.variantName} × {item.quantity}</p>
+                            <p className="font-bold text-xs text-[#171717] dark:text-white truncate">{item.title}</p>
+                            <p className="text-[11px] text-[#5F6368] dark:text-slate-400">{item.variantName} × {item.quantity}</p>
                             <p className="text-xs font-black text-[#D71920] mt-0.5">৳{item.price * item.quantity}</p>
                           </div>
                         </div>
@@ -407,9 +407,9 @@ export function MyOrdersPage() {
                     </div>
 
                     {/* Footer summary */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pt-4 border-t border-[#EEEEEE] gap-4">
-                      <div className="text-xs text-[#5F6368]">
-                        Method: <strong className="text-[#171717]">{order.paymentMethodName}</strong>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pt-4 border-t border-[#EEEEEE] dark:border-slate-800 gap-4">
+                      <div className="text-xs text-[#5F6368] dark:text-slate-400">
+                        Method: <strong className="text-[#171717] dark:text-white">{order.paymentMethodName}</strong>
                         <span className="mx-2">•</span>
                         Total Paid/Payable: <strong className="text-[#D71920] font-black text-sm">৳{order.total}</strong>
                       </div>

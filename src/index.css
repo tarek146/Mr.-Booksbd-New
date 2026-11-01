@@ -76,6 +76,7 @@
 
 .dark .bg-\[\#FAFAFA\],
 .dark .bg-\[\#F7F7F8\],
+.dark .bg-\[\#F8F9FA\],
 .dark .bg-\[\#F9FAFB\],
 .dark .bg-neutral-50,
 .dark .bg-gray-50,
@@ -85,7 +86,8 @@
 
 .dark .bg-neutral-100,
 .dark .bg-gray-100,
-.dark .bg-slate-100 {
+.dark .bg-slate-100,
+.dark .bg-\[\#F1F5F9\] {
   background-color: #161C28 !important;
 }
 
@@ -94,11 +96,68 @@
   background-color: #1E2738 !important;
 }
 
+/* Light button backgrounds like #F1F5F9 in dark mode (e.g. Copy Number button) */
+.dark button.bg-\[\#F1F5F9\],
+.dark .bg-\[\#F1F5F9\] {
+  background-color: #1E2738 !important;
+  color: #F8FAFC !important;
+  border-color: #2B374C !important;
+}
+.dark button.bg-\[\#F1F5F9\] *,
+.dark .bg-\[\#F1F5F9\] * {
+  color: #F8FAFC !important;
+}
+
+/* Yellow and amber instruction boxes in dark mode */
+.dark .bg-\[\#FFFDF2\],
+.dark .bg-\[\#FFFDF5\],
+.dark .bg-amber-50,
+.dark .bg-yellow-50 {
+  background-color: rgba(245, 158, 11, 0.12) !important;
+  border-color: rgba(245, 158, 11, 0.35) !important;
+  color: #FDE68A !important;
+}
+.dark .border-\[\#FDE68A\] {
+  border-color: rgba(245, 158, 11, 0.35) !important;
+}
+.dark .bg-\[\#FFFDF2\] *,
+.dark .bg-\[\#FFFDF5\] * {
+  color: #FDE68A !important;
+}
+
+/* Soft Pink badges and prompts in dark mode */
+.dark .bg-\[\#FFF0F6\],
+.dark .bg-\[\#FFF5F9\],
+.dark .bg-pink-50 {
+  background-color: rgba(226, 19, 110, 0.15) !important;
+  border-color: rgba(226, 19, 110, 0.35) !important;
+}
+.dark .border-\[\#FFADD2\] {
+  border-color: rgba(226, 19, 110, 0.35) !important;
+}
+
 /* Cards & Modals in Dark Mode */
 .dark .bg-white\/95,
 .dark .bg-white\/90,
 .dark .bg-white\/80 {
   background-color: rgba(18, 23, 34, 0.95) !important;
+}
+
+/* Modals & Dialog Backgrounds in Dark Mode */
+.dark [role="dialog"],
+.dark .modal-overlay {
+  background-color: rgba(2, 6, 17, 0.82) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+.dark [role="dialog"] > div,
+.dark [data-testid*="modal"] > div,
+.dark .modal-content,
+.dark .modal-card {
+  background-color: #121722 !important;
+  border-color: #2A364C !important;
+  color: #F8FAFC !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75) !important;
 }
 
 /* Typography in Dark Mode */
@@ -146,7 +205,7 @@
 .dark .border-neutral-100,
 .dark .border-gray-100,
 .dark .border-slate-100 {
-  border-color: #1A2230 !important;
+  border-color: #1E2838 !important;
 }
 
 .dark .border-neutral-200,
@@ -156,13 +215,13 @@
 .dark .border-\[\#EEEEEE\],
 .dark .border-\[\#E5E7EB\],
 .dark .border-\[\#F0F0F0\] {
-  border-color: #222D3E !important;
+  border-color: #263347 !important;
 }
 
 .dark .divide-neutral-100 > :not([hidden]) ~ :not([hidden]),
 .dark .divide-neutral-200 > :not([hidden]) ~ :not([hidden]),
 .dark .divide-\[\#EEEEEE\] > :not([hidden]) ~ :not([hidden]) {
-  border-color: #222D3E !important;
+  border-color: #263347 !important;
 }
 
 /* Brand Red Strict Preservation */
@@ -196,24 +255,36 @@
 }
 
 /* Form Controls (Inputs, Textarea, Selects) in Dark Mode */
+.dark label,
+.dark .form-label {
+  color: #F1F5F9 !important;
+}
+
 .dark input:not([type="checkbox"]):not([type="radio"]),
 .dark textarea,
 .dark select {
-  background-color: #161C28 !important;
-  border-color: #2B374C !important;
+  background-color: #0E1420 !important;
+  border-color: #2E3B52 !important;
   color: #F8FAFC !important;
 }
 
 .dark input:focus:not([type="checkbox"]):not([type="radio"]),
 .dark textarea:focus,
 .dark select:focus {
+  background-color: #0B101B !important;
   border-color: #D71920 !important;
-  box-shadow: 0 0 0 2px rgba(215, 25, 32, 0.25) !important;
+  box-shadow: 0 0 0 2px rgba(215, 25, 32, 0.35) !important;
+  outline: none !important;
 }
 
 .dark input::placeholder,
 .dark textarea::placeholder {
-  color: #64748B !important;
+  color: #94A3B8 !important;
+}
+
+.dark select option {
+  background-color: #121722 !important;
+  color: #F8FAFC !important;
 }
 
 /* Elevate Shadows to Rich Dark Tone */

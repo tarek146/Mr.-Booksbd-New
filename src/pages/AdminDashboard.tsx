@@ -203,6 +203,8 @@ export function AdminDashboard() {
   const [pmInst, setPmInst] = useState('');
   const [pmLogoUrl, setPmLogoUrl] = useState('');
   const [pmQrCodeUrl, setPmQrCodeUrl] = useState('');
+  const [pmEnglishQrCodeUrl, setPmEnglishQrCodeUrl] = useState('');
+  const [pmBengaliQrCodeUrl, setPmBengaliQrCodeUrl] = useState('');
   const [pmBankName, setPmBankName] = useState('');
   const [pmBranchName, setPmBranchName] = useState('');
   const [pmRoutingNumber, setPmRoutingNumber] = useState('');
@@ -300,6 +302,8 @@ export function AdminDashboard() {
     setPmBadgeText('');
     setPmLogoUrl('');
     setPmQrCodeUrl('');
+    setPmEnglishQrCodeUrl('');
+    setPmBengaliQrCodeUrl('');
     setPmBankName('');
     setPmBranchName('');
     setPmRoutingNumber('');
@@ -418,6 +422,8 @@ export function AdminDashboard() {
     setPmInst(meta.instructionText);
     setPmLogoUrl(meta.customLogoUrl || '');
     setPmQrCodeUrl(meta.qrCodeUrl || '');
+    setPmEnglishQrCodeUrl(meta.englishQrCodeUrl || meta.qrCodeUrl || '');
+    setPmBengaliQrCodeUrl(meta.bengaliQrCodeUrl || '');
     setPmIsActive(pm.isActive);
     setShowAddPmModal(true);
   };
@@ -425,6 +431,9 @@ export function AdminDashboard() {
   const handleSavePaymentMethod = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const resolvedEnglishQr = pmEnglishQrCodeUrl.trim() || pmQrCodeUrl.trim();
+      const resolvedBengaliQr = pmBengaliQrCodeUrl.trim();
+
       const payload: Partial<PaymentMethodConfig> = {
         name: pmName.trim() || 'পেমেন্ট মেথড',
         englishName: pmEnglishName.trim() || pmType.toUpperCase(),
@@ -441,7 +450,9 @@ export function AdminDashboard() {
         requireSenderPhone: pmType === 'cod' ? false : pmRequireSenderPhone,
         instructions: pmInst.trim(),
         logoUrl: pmLogoUrl.trim() || '',
-        qrCodeUrl: pmType === 'cod' ? '' : (pmQrCodeUrl.trim() || ''),
+        qrCodeUrl: pmType === 'cod' ? '' : resolvedEnglishQr,
+        englishQrCodeUrl: pmType === 'cod' ? '' : resolvedEnglishQr,
+        bengaliQrCodeUrl: pmType === 'cod' ? '' : resolvedBengaliQr,
         isActive: pmIsActive,
       };
 
@@ -529,14 +540,52 @@ export function AdminDashboard() {
       try {
         const compressed = await compressImageFile(file, 700, 700, 0.88);
         if (isEditForId) {
-          await updatePaymentMethod(isEditForId, { qrCodeUrl: compressed });
-          setToast({ show: true, type: 'success', message: 'Payment QR Code image uploaded & saved to Firestore!' });
+          await updatePaymentMethod(isEditForId, { qrCodeUrl: compressed, englishQrCodeUrl: compressed });
+          setToast({ show: true, type: 'success', message: 'English Payment QR Code uploaded & saved to Firestore!' });
         } else {
           setPmQrCodeUrl(compressed);
-          setToast({ show: true, type: 'success', message: 'Payment QR Code image attached!' });
+          setPmEnglishQrCodeUrl(compressed);
+          setToast({ show: true, type: 'success', message: 'English Payment QR Code image attached!' });
         }
       } catch (err: any) {
         setToast({ show: true, type: 'error', message: err.message || 'Failed to upload QR code image' });
+      }
+    }
+  };
+
+  const handlePmEnglishQrFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEditForId?: string) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const compressed = await compressImageFile(file, 700, 700, 0.88);
+        if (isEditForId) {
+          await updatePaymentMethod(isEditForId, { qrCodeUrl: compressed, englishQrCodeUrl: compressed });
+          setToast({ show: true, type: 'success', message: 'English Payment QR Code uploaded & saved to Firestore!' });
+        } else {
+          setPmEnglishQrCodeUrl(compressed);
+          setPmQrCodeUrl(compressed);
+          setToast({ show: true, type: 'success', message: 'English Payment QR Code image attached!' });
+        }
+      } catch (err: any) {
+        setToast({ show: true, type: 'error', message: err.message || 'Failed to upload English QR code' });
+      }
+    }
+  };
+
+  const handlePmBengaliQrFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEditForId?: string) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const compressed = await compressImageFile(file, 700, 700, 0.88);
+        if (isEditForId) {
+          await updatePaymentMethod(isEditForId, { bengaliQrCodeUrl: compressed });
+          setToast({ show: true, type: 'success', message: 'Bengali / Bangla QR Code uploaded & saved to Firestore!' });
+        } else {
+          setPmBengaliQrCodeUrl(compressed);
+          setToast({ show: true, type: 'success', message: 'Bengali / Bangla QR Code image attached!' });
+        }
+      } catch (err: any) {
+        setToast({ show: true, type: 'error', message: err.message || 'Failed to upload Bengali QR code' });
       }
     }
   };
@@ -2301,67 +2350,144 @@ export function AdminDashboard() {
                       </div>
                     </div>
 
-                    {/* Row 6B: Payment QR Code / Payment Image Upload & Management */}
+                    {/* Row 6B: Dual English & Bengali Payment QR Code Management */}
                     {pmType !== 'cod' && (
-                      <div className="p-3.5 rounded-2xl bg-[#FFF0F6]/50 border border-[#FFADD2] space-y-2.5">
-                        <div className="flex items-center justify-between">
-                          <label className="font-bold text-[#171717] uppercase tracking-wider text-[10px] flex items-center gap-1.5">
-                            <QrCode size={13} className="text-[#E2136E]" />
-                            <span>Payment QR Code / Payment Image (পেমেন্ট QR কোড বা ছবি)</span>
-                          </label>
-                          {isValidImageUrl(pmQrCodeUrl) && (
-                            <button
-                              type="button"
-                              onClick={() => setPmQrCodeUrl('')}
-                              className="text-[10px] font-bold text-[#D71920] hover:underline cursor-pointer"
-                            >
-                              Delete / Remove QR Image
-                            </button>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="w-14 h-14 rounded-xl bg-white border border-[#FFADD2] flex items-center justify-center overflow-hidden shrink-0 p-1 shadow-2xs">
-                            {isValidImageUrl(pmQrCodeUrl) ? (
-                              <img
-                                src={pmQrCodeUrl}
-                                alt="QR Preview"
-                                onError={() => setPmQrCodeUrl('')}
-                                className="w-full h-full object-contain"
-                              />
-                            ) : (
-                              <div className="flex flex-col items-center justify-center text-[#E2136E] leading-none">
-                                <QrCode size={20} />
-                                <span className="text-[8px] font-bold mt-1">Auto QR</span>
-                              </div>
+                      <div className="space-y-3">
+                        {/* 1. English QR Code */}
+                        <div className="p-3.5 rounded-2xl bg-[#FFF0F6]/50 dark:bg-rose-950/20 border border-[#FFADD2] dark:border-rose-900/50 space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <label className="font-bold text-[#171717] dark:text-white uppercase tracking-wider text-[10px] flex items-center gap-1.5">
+                              <QrCode size={13} className="text-[#E2136E]" />
+                              <span>1. English QR Code (ইংলিশ পেমেন্ট কিউআর)</span>
+                            </label>
+                            {isValidImageUrl(pmEnglishQrCodeUrl || pmQrCodeUrl) && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPmEnglishQrCodeUrl('');
+                                  setPmQrCodeUrl('');
+                                }}
+                                className="text-[10px] font-bold text-[#D71920] hover:underline cursor-pointer"
+                              >
+                                Remove English QR
+                              </button>
                             )}
                           </div>
-                          <div className="flex-1 space-y-1.5">
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="text"
-                                placeholder="Paste QR Code Image URL (or upload image)"
-                                value={isValidImageUrl(pmQrCodeUrl) ? pmQrCodeUrl : ''}
-                                onChange={e => setPmQrCodeUrl(sanitizeImageUrl(e.target.value))}
-                                data-testid="pm-qrcode-input"
-                                className="flex-1 px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717] focus:outline-none focus:border-[#E2136E]"
-                              />
-                              <label className="px-3.5 py-2 bg-[#E2136E] hover:bg-[#c81060] text-white font-bold rounded-xl text-xs cursor-pointer transition-all shrink-0 flex items-center gap-1.5 shadow-2xs">
-                                <Upload size={13} />
-                                <span>Upload QR</span>
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={e => {
-                                    handlePmQrFileUpload(e);
-                                    e.target.value = '';
+                          <div className="flex items-center gap-3">
+                            <div className="w-14 h-14 rounded-xl bg-white dark:bg-slate-800 border border-[#FFADD2] dark:border-rose-900/50 flex items-center justify-center overflow-hidden shrink-0 p-1 shadow-2xs">
+                              {isValidImageUrl(pmEnglishQrCodeUrl || pmQrCodeUrl) ? (
+                                <img
+                                  src={pmEnglishQrCodeUrl || pmQrCodeUrl}
+                                  alt="English QR Preview"
+                                  onError={() => {
+                                    setPmEnglishQrCodeUrl('');
+                                    setPmQrCodeUrl('');
                                   }}
+                                  className="w-full h-full object-contain"
                                 />
-                              </label>
+                              ) : (
+                                <div className="flex flex-col items-center justify-center text-[#E2136E] leading-none">
+                                  <QrCode size={20} />
+                                  <span className="text-[8px] font-bold mt-1">Auto EN</span>
+                                </div>
+                              )}
                             </div>
-                            <p className="text-[10px] text-[#5F6368]">
-                              Customers can click the "QR Code" button in the Checkout Popup to view this QR Code in large size and download it.
-                            </p>
+                            <div className="flex-1 space-y-1.5">
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  placeholder="Paste English QR Image URL (or upload image)"
+                                  value={isValidImageUrl(pmEnglishQrCodeUrl || pmQrCodeUrl) ? (pmEnglishQrCodeUrl || pmQrCodeUrl) : ''}
+                                  onChange={e => {
+                                    const val = sanitizeImageUrl(e.target.value);
+                                    setPmEnglishQrCodeUrl(val);
+                                    setPmQrCodeUrl(val);
+                                  }}
+                                  data-testid="pm-english-qrcode-input"
+                                  className="flex-1 px-3.5 py-2 rounded-xl border border-[#E5E5E5] dark:border-slate-700 bg-white dark:bg-[#0B0F19] text-xs text-[#171717] dark:text-white focus:outline-none focus:border-[#E2136E]"
+                                />
+                                <label className="px-3.5 py-2 bg-[#E2136E] hover:bg-[#c81060] text-white font-bold rounded-xl text-xs cursor-pointer transition-all shrink-0 flex items-center gap-1.5 shadow-2xs">
+                                  <Upload size={13} />
+                                  <span>Upload EN QR</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={e => {
+                                      handlePmEnglishQrFileUpload(e);
+                                      e.target.value = '';
+                                    }}
+                                  />
+                                </label>
+                              </div>
+                              <p className="text-[10px] text-[#5F6368] dark:text-slate-400">
+                                Official English payment QR code displayed in the Checkout Popup & downloadable card.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 2. Bengali / Bangla QR Code */}
+                        <div className="p-3.5 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/60 space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <label className="font-bold text-[#171717] dark:text-white uppercase tracking-wider text-[10px] flex items-center gap-1.5">
+                              <QrCode size={13} className="text-emerald-600" />
+                              <span>2. Bengali / Bangla QR Code (বাংলা কিউআর)</span>
+                            </label>
+                            {isValidImageUrl(pmBengaliQrCodeUrl) && (
+                              <button
+                                type="button"
+                                onClick={() => setPmBengaliQrCodeUrl('')}
+                                className="text-[10px] font-bold text-[#D71920] hover:underline cursor-pointer"
+                              >
+                                Remove Bangla QR
+                              </button>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="w-14 h-14 rounded-xl bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-center overflow-hidden shrink-0 p-1 shadow-2xs">
+                              {isValidImageUrl(pmBengaliQrCodeUrl) ? (
+                                <img
+                                  src={pmBengaliQrCodeUrl}
+                                  alt="Bangla QR Preview"
+                                  onError={() => setPmBengaliQrCodeUrl('')}
+                                  className="w-full h-full object-contain"
+                                />
+                              ) : (
+                                <div className="flex flex-col items-center justify-center text-emerald-600 leading-none">
+                                  <QrCode size={20} />
+                                  <span className="text-[8px] font-bold mt-1">Auto BN</span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1 space-y-1.5">
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  placeholder="Paste Bangla QR Image URL (or upload image)"
+                                  value={isValidImageUrl(pmBengaliQrCodeUrl) ? pmBengaliQrCodeUrl : ''}
+                                  onChange={e => setPmBengaliQrCodeUrl(sanitizeImageUrl(e.target.value))}
+                                  data-testid="pm-bengali-qrcode-input"
+                                  className="flex-1 px-3.5 py-2 rounded-xl border border-[#E5E5E5] dark:border-slate-700 bg-white dark:bg-[#0B0F19] text-xs text-[#171717] dark:text-white focus:outline-none focus:border-emerald-600"
+                                />
+                                <label className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs cursor-pointer transition-all shrink-0 flex items-center gap-1.5 shadow-2xs">
+                                  <Upload size={13} />
+                                  <span>Upload BN QR</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={e => {
+                                      handlePmBengaliQrFileUpload(e);
+                                      e.target.value = '';
+                                    }}
+                                  />
+                                </label>
+                              </div>
+                              <p className="text-[10px] text-[#5F6368] dark:text-slate-400">
+                                Interoperable Bangladesh Bank Bangla QR or Bengali-branded QR scan-able from any MFS/Bank app.
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>

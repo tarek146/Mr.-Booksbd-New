@@ -142,13 +142,20 @@ export function getPaymentMethodDisplayMeta(method: PaymentMethodConfig): {
   instructionText: string;
   customLogoUrl?: string;
   qrCodeUrl?: string;
+  englishQrCodeUrl?: string;
+  bengaliQrCodeUrl?: string;
 } {
   const rawLogo = (method.logoUrl || '').trim();
   const isLegacyPlaceholder = LEGACY_PLACEHOLDER_LOGOS.some(url => rawLogo.startsWith(url));
   const customLogoUrl = isValidImageUrl(rawLogo) && !isLegacyPlaceholder ? rawLogo : undefined;
 
   const rawQr = (method.qrCodeUrl || '').trim();
+  const rawEnglishQr = (method.englishQrCodeUrl || method.qrCodeUrl || '').trim();
+  const rawBengaliQr = (method.bengaliQrCodeUrl || '').trim();
+
   const qrCodeUrl = isValidImageUrl(rawQr) ? rawQr : undefined;
+  const englishQrCodeUrl = isValidImageUrl(rawEnglishQr) ? rawEnglishQr : qrCodeUrl;
+  const bengaliQrCodeUrl = isValidImageUrl(rawBengaliQr) ? rawBengaliQr : undefined;
 
   const isDefaultName =
     !method.name ||
@@ -176,6 +183,8 @@ export function getPaymentMethodDisplayMeta(method: PaymentMethodConfig): {
             : 'বই হাতে পেয়ে ডেলিভারি ম্যানের কাছে নগদ অর্থ পরিশোধ করুন।',
         customLogoUrl,
         qrCodeUrl,
+        englishQrCodeUrl,
+        bengaliQrCodeUrl,
       };
     case 'bkash':
       return {
@@ -192,6 +201,8 @@ export function getPaymentMethodDisplayMeta(method: PaymentMethodConfig): {
             : 'বিকাশ অ্যাপ অথবা *247# ডায়াল করে নির্ধারিত নম্বরে Send Money করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।',
         customLogoUrl,
         qrCodeUrl,
+        englishQrCodeUrl,
+        bengaliQrCodeUrl,
       };
     case 'nagad':
       return {
@@ -208,6 +219,8 @@ export function getPaymentMethodDisplayMeta(method: PaymentMethodConfig): {
             : 'নগদ অ্যাপ অথবা *167# ডায়াল করে নির্ধারিত নম্বরে Send Money করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।',
         customLogoUrl,
         qrCodeUrl,
+        englishQrCodeUrl,
+        bengaliQrCodeUrl,
       };
     case 'rocket':
       return {
@@ -224,6 +237,8 @@ export function getPaymentMethodDisplayMeta(method: PaymentMethodConfig): {
             : 'রকেট অ্যাপ অথবা *322# ডায়াল করে নির্ধারিত নম্বরে Send Money করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।',
         customLogoUrl,
         qrCodeUrl,
+        englishQrCodeUrl,
+        bengaliQrCodeUrl,
       };
     case 'upay':
       return {
@@ -239,6 +254,8 @@ export function getPaymentMethodDisplayMeta(method: PaymentMethodConfig): {
           'উপায় অ্যাপ অথবা *268# ডায়াল করে নির্ধারিত নম্বরে Send Money করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।',
         customLogoUrl,
         qrCodeUrl,
+        englishQrCodeUrl,
+        bengaliQrCodeUrl,
       };
     case 'bangla_qr':
       return {
@@ -254,6 +271,8 @@ export function getPaymentMethodDisplayMeta(method: PaymentMethodConfig): {
           'বিকাশ, নগদ, রকেট, উপায় বা যেকোনো ব্যাংক অ্যাপের বাংলা কিউআর (Bangla QR) স্ক্যানার দিয়ে স্ক্যান করে পেমেন্ট করুন এবং ট্রানজেকশন আইডি নিচে দিন।',
         customLogoUrl,
         qrCodeUrl,
+        englishQrCodeUrl,
+        bengaliQrCodeUrl,
       };
     case 'bank':
     default:
@@ -271,6 +290,8 @@ export function getPaymentMethodDisplayMeta(method: PaymentMethodConfig): {
             : 'নির্ধারিত ব্যাংক একাউন্টে মোট টাকার পরিমাণ ট্রান্সফার করে ট্রানজেকশন রেফারেন্স বা রিসিপ্ট আইডি নিচে দিন।',
         customLogoUrl,
         qrCodeUrl,
+        englishQrCodeUrl,
+        bengaliQrCodeUrl,
       };
   }
 }
