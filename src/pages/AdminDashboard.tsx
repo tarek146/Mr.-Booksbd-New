@@ -53,12 +53,15 @@ import {
   ShoppingCart,
   Moon,
   Sun,
-  QrCode
+  QrCode,
+  User,
+  UserCheck
 } from 'lucide-react';
-import { Author, Banner, BookPreviewPage, Order, PaymentMethodConfig, AdminStaffMember, AdminStaffRole } from '../types';
+import { Author, Banner, BookPreviewPage, Order, PaymentMethodConfig, AdminStaffMember, AdminStaffRole, AdminProfile } from '../types';
 import { DEFAULT_PAYMENT_METHODS } from '../firebase';
 import { AdminAnalytics } from '../components/admin/AdminAnalytics';
 import { AdminStaffManagement } from '../components/admin/AdminStaffManagement';
+import { AdminProfileManagement } from '../components/admin/AdminProfileManagement';
 import { compressImageFile, isValidImageUrl, sanitizeImageUrl } from '../utils/imageCompressor';
 import { sortPaymentMethods, getPaymentMethodDisplayMeta } from '../utils/reviewHelpers';
 import { PaymentBrandIcon } from '../components/PaymentInstructions';
@@ -136,7 +139,7 @@ export function AdminDashboard() {
     deleteStaffMember
   } = useStore();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'verifications' | 'payment-methods' | 'orders' | 'products' | 'categories' | 'banners' | 'authors' | 'subscribers' | 'settings' | 'special-offer' | 'reels' | 'reviews' | 'staff'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'verifications' | 'payment-methods' | 'orders' | 'products' | 'categories' | 'banners' | 'authors' | 'subscribers' | 'settings' | 'special-offer' | 'reels' | 'reviews' | 'staff' | 'profile'>('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Staff & Team Access Management state
@@ -1055,20 +1058,8 @@ export function AdminDashboard() {
               <div>
                 <h1 className="text-2xl font-black text-white tracking-tight">Admin Portal Sign In</h1>
                 <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                  Restricted administrative console for <strong>MR. BOOKS</strong>. Please sign in with your configured administrator Firebase account.
+                  Restricted administrative console for <strong>MR. BOOKS</strong>. Please sign in with your administrator or staff credentials.
                 </p>
-              </div>
-
-              {/* Verified Identity Badge */}
-              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-2.5 text-left flex items-start gap-2.5 mt-2">
-                <div className="p-1.5 bg-[#D71920]/15 text-[#FF4D4D] rounded-lg mt-0.5 shrink-0">
-                  <Key size={14} />
-                </div>
-                <div className="text-[11px] leading-tight space-y-0.5">
-                  <div className="text-slate-400">Configured Administrator:</div>
-                  <div className="font-bold text-white">mr.booksbd700@gmail.com</div>
-                  <div className="text-[10px] text-slate-500 font-mono">UID: ytewGIOO2uhISkUfUUwktSvzdjy1</div>
-                </div>
               </div>
             </div>
 
@@ -1089,7 +1080,7 @@ export function AdminDashboard() {
                   required
                   value={adminEmail}
                   onChange={e => setAdminEmail(e.target.value)}
-                  placeholder="mr.booksbd700@gmail.com"
+                  placeholder="admin@example.com"
                   className="w-full px-4 py-3 rounded-xl border border-slate-800 bg-slate-900/90 text-white placeholder-slate-500 focus:outline-none focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920] transition-colors"
                 />
               </div>
@@ -1136,16 +1127,6 @@ export function AdminDashboard() {
                     <span>Sign In to Admin Portal</span>
                   </>
                 )}
-              </button>
-
-              <button
-                type="button"
-                data-testid="admin-dev-bypass-btn"
-                onClick={() => devLoginAsAdmin?.()}
-                className="w-full py-2.5 px-3 bg-emerald-950/50 hover:bg-emerald-900/50 text-emerald-300 border border-emerald-800/60 rounded-xl font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-sm"
-              >
-                <ShieldCheck size={14} className="text-emerald-400" />
-                <span>Quick Admin Sign In (Demo / Preview Access)</span>
               </button>
             </form>
 
@@ -1221,6 +1202,7 @@ export function AdminDashboard() {
               <button
                 onClick={async () => {
                   await logout();
+                  setActivePage('admin');
                 }}
                 className="w-full py-3 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs cursor-pointer shadow-lg shadow-[#D71920]/25 transition-all"
               >
@@ -1302,6 +1284,7 @@ export function AdminDashboard() {
       items: [
         { id: 'settings', label: 'Store Settings', icon: Settings },
         { id: 'staff', label: 'Staff & Roles Access', icon: Key, count: staffMembers.length, badge: 'Roles' },
+        { id: 'profile', label: 'Admin Profile', icon: UserCheck, badge: 'Account' },
       ]
     }
   ];
@@ -1395,19 +1378,27 @@ export function AdminDashboard() {
       {/* Sidebar Footer User Card */}
       <div className="p-3 border-t border-slate-800/80 bg-[#070A11] space-y-2">
         <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className={`w-8 h-8 rounded-lg font-black text-xs flex items-center justify-center shrink-0 ${
+          <div 
+            onClick={() => setActiveTab('profile')}
+            title="Click to view and edit Admin Profile"
+            className="flex items-center gap-2.5 min-w-0 cursor-pointer group flex-1"
+          >
+            <div className={`w-8 h-8 rounded-lg font-black text-xs flex items-center justify-center shrink-0 overflow-hidden ${
               staffRole === 'manager' 
                 ? 'bg-purple-600 text-white' 
                 : staffRole === 'employee' 
                 ? 'bg-amber-600 text-white' 
                 : 'bg-[#D71920] text-white'
             }`}>
-              {currentStaff ? (currentStaff.name[0] || 'S').toUpperCase() : 'A'}
+              {!currentStaff && settings.adminProfile?.avatarUrl ? (
+                <img src={settings.adminProfile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <span>{currentStaff ? (currentStaff.name[0] || 'S').toUpperCase() : 'A'}</span>
+              )}
             </div>
             <div className="min-w-0">
-              <div className="text-xs font-bold text-white truncate">
-                {currentStaff ? currentStaff.name : (currentUser?.email ? currentUser.email.split('@')[0] : 'Administrator')}
+              <div className="text-xs font-bold text-white truncate group-hover:text-[#D71920] transition-colors">
+                {currentStaff ? currentStaff.name : (settings.adminProfile?.name || (currentUser?.email ? currentUser.email.split('@')[0] : 'Administrator'))}
               </div>
               <div className="text-[10px] text-slate-400 truncate flex items-center gap-1">
                 <span className={`w-1.5 h-1.5 rounded-full ${
@@ -1420,10 +1411,10 @@ export function AdminDashboard() {
           <button
             onClick={async () => {
               await logout();
-              setActivePage('home');
+              setActivePage('admin');
             }}
-            title="Sign Out"
-            className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-950/30 rounded-lg cursor-pointer transition-colors shrink-0"
+            title="Sign Out to Login Page"
+            className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-950/30 rounded-lg cursor-pointer transition-colors shrink-0 ml-1"
           >
             <LogOut size={15} />
           </button>
@@ -1526,13 +1517,33 @@ export function AdminDashboard() {
               <span className="hidden sm:inline">Storefront</span>
             </button>
 
+            {/* Admin Profile button */}
+            <button
+              onClick={() => setActiveTab('profile')}
+              title="Admin Profile & Account Settings"
+              className={`px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer transition-colors ${
+                activeTab === 'profile'
+                  ? 'bg-[#D71920] text-white shadow-xs'
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white'
+              }`}
+            >
+              <div className="w-5 h-5 rounded-full overflow-hidden bg-slate-700 flex items-center justify-center shrink-0">
+                {!currentStaff && settings.adminProfile?.avatarUrl ? (
+                  <img src={settings.adminProfile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <User size={12} className="text-white" />
+                )}
+              </div>
+              <span className="hidden md:inline">Profile</span>
+            </button>
+
             {/* Sign Out button */}
             <button
               onClick={async () => {
                 await logout();
-                setActivePage('home');
+                setActivePage('admin');
               }}
-              title="Logout Administrator"
+              title="Logout Administrator to Login Page"
               className="px-3 sm:px-3.5 py-1.5 sm:py-2 bg-red-950/60 hover:bg-red-900/60 text-red-300 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
             >
               <LogOut size={14} />
@@ -7421,6 +7432,26 @@ export function AdminDashboard() {
             onDeleteStaff={deleteStaffMember}
             currentStaffRole={staffRole}
             currentUserEmail={currentUser?.email || null}
+            setToast={(t) => setToast({ show: t.show, type: t.type, message: t.message })}
+          />
+        )}
+
+        {/* TAB 15: DEDICATED ADMIN PROFILE & CREDENTIALS MANAGEMENT */}
+        {activeTab === 'profile' && (
+          <AdminProfileManagement
+            settings={settings}
+            updateSettings={updateSettings}
+            currentStaff={currentStaff}
+            staffRole={staffRole}
+            currentUser={currentUser}
+            onUpdateStaff={updateStaffMember}
+            onLogout={async () => {
+              await logout();
+              setActivePage('admin');
+            }}
+            totalOrdersCount={orders.length}
+            totalProductsCount={products.length}
+            totalStaffCount={staffMembers.length}
             setToast={(t) => setToast({ show: t.show, type: t.type, message: t.message })}
           />
         )}

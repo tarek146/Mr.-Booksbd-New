@@ -47,6 +47,12 @@ function sanitizeStoreSettings<T extends Partial<StoreSettings>>(st: T): T {
   if ('footerLogoUrl' in copy) copy.footerLogoUrl = sanitizeImageUrl(copy.footerLogoUrl);
   if ('faviconUrl' in copy) copy.faviconUrl = sanitizeImageUrl(copy.faviconUrl);
   if ('footerPaymentBannerUrl' in copy) copy.footerPaymentBannerUrl = sanitizeImageUrl(copy.footerPaymentBannerUrl);
+  if (copy.adminProfile && copy.adminProfile.avatarUrl) {
+    copy.adminProfile = {
+      ...copy.adminProfile,
+      avatarUrl: sanitizeImageUrl(copy.adminProfile.avatarUrl),
+    };
+  }
   return copy as T;
 }
 
@@ -471,6 +477,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         { productId: 'prod-3', discountPercentage: 20, soldPercentage: 75, onlinePaymentOnly: false },
         { productId: 'prod-4', discountPercentage: 18, soldPercentage: 50, onlinePaymentOnly: false }
       ]
+    },
+    adminProfile: {
+      name: 'MR. BOOKS Admin',
+      email: 'mr.booksbd700@gmail.com',
+      phone: '+880 1712-345678',
+      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300',
+      designation: 'Store Owner & Managing Director',
+      bio: 'Primary administrator for MR. BOOKS e-commerce platform. Managing catalog, sales fulfillment, courier logistics, and staff access.',
+      whatsapp: '+880 1712-345678',
+      roleTitle: 'Super Administrator'
     }
   });
 

@@ -223,6 +223,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Permission helper to determine whether current user/staff can access an admin tab
   const canAccessTab = (tabId: string): boolean => {
     if (!isAdmin) return false;
+    // Profile tab is accessible by all authenticated admin/staff users
+    if (tabId === 'profile') return true;
     // Super Admin / Owner has 100% access to all tabs
     if (staffRole === 'owner' || !currentStaff) return true;
     if (currentStaff.role === 'admin') return true;

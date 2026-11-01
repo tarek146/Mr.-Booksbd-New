@@ -50,16 +50,17 @@ export const MODULE_PERMISSIONS = [
   { id: 'subscribers', label: 'VIP Subscribers', desc: 'সাবস্ক্রাইবার ইমেইল ও ফোন তালিকা' },
   { id: 'special-offer', label: 'Special Offer Deals', desc: 'ফ্ল্যাশ সেল ও স্পেশাল অফার কনফিগারেশন' },
   { id: 'settings', label: 'Store Settings', desc: 'দোকানের নাম, ডেলিভারি চার্জ ও জেনারেল সেটিংস' },
-  { id: 'staff', label: 'Staff & Roles Access', desc: 'ম্যানেজার ও এমপ্লয়ী একাউন্ট তৈরি ও পাসওয়ার্ড ম্যানেজমেন্ট' }
+  { id: 'staff', label: 'Staff & Roles Access', desc: 'ম্যানেজার ও এমপ্লয়ী একাউন্ট তৈরি ও পাসওয়ার্ড ম্যানেজমেন্ট' },
+  { id: 'profile', label: 'Admin Profile', desc: 'অ্যাডমিনের প্রোফাইল, ছবি ও পাসওয়ার্ড ম্যানেজমেন্ট' }
 ];
 
 export const MANAGER_PRESET_PERMISSIONS = [
   'overview', 'orders', 'verifications', 'payment-methods', 'products', 
-  'categories', 'banners', 'authors', 'reels', 'reviews', 'subscribers', 'special-offer'
+  'categories', 'banners', 'authors', 'reels', 'reviews', 'subscribers', 'special-offer', 'profile'
 ];
 
 export const EMPLOYEE_PRESET_PERMISSIONS = [
-  'overview', 'orders', 'verifications', 'reviews'
+  'overview', 'orders', 'verifications', 'reviews', 'profile'
 ];
 
 export const ALL_PERMISSIONS = MODULE_PERMISSIONS.map(m => m.id);

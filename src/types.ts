@@ -321,6 +321,21 @@ export interface StoreSettings {
 
   // Special Offer Section Config
   specialOffer?: SpecialOfferConfig;
+
+  // Dedicated Store Owner / Admin Profile Settings
+  adminProfile?: AdminProfile;
+}
+
+export interface AdminProfile {
+  name: string;
+  email: string;
+  phone?: string;
+  avatarUrl?: string;
+  designation?: string;
+  bio?: string;
+  whatsapp?: string;
+  roleTitle?: string;
+  updatedAt?: number;
 }
 
 export interface SpecialOfferItem {
