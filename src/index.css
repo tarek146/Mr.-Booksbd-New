@@ -399,3 +399,210 @@ footer {
 .animate-marquee-continuous:hover {
   animation-play-state: paused;
 }
+
+/* ========================================================================= */
+/* ADMIN DASHBOARD: LIGHT/WHITE WORKSPACE PRESERVATION                       */
+/* Sidebar and Header maintain dark/sleek styling;                           */
+/* All cards, tables, metrics, forms, and charts remain pure crisp white.    */
+/* ========================================================================= */
+.admin-workspace,
+.admin-workspace .bg-white,
+.admin-workspace div.bg-white,
+.admin-workspace table.bg-white,
+.admin-workspace section.bg-white,
+.admin-workspace [class*="bg-white"],
+[data-admin-workspace="true"] .bg-white,
+[data-admin-workspace="true"] div.bg-white,
+html.dark .admin-workspace,
+html.dark .admin-workspace .bg-white,
+html.dark .admin-workspace div.bg-white,
+html.dark .admin-workspace table.bg-white,
+html.dark .admin-workspace section.bg-white,
+html.dark .admin-workspace [class*="bg-white"],
+html.dark [data-admin-workspace="true"] .bg-white,
+html.dark [data-admin-workspace="true"] div.bg-white {
+  background-color: #FFFFFF !important;
+  color: #111827 !important;
+}
+
+.admin-workspace .bg-\[\#F4F6F8\],
+.admin-workspace.bg-\[\#F4F6F8\],
+[data-admin-workspace="true"].bg-\[\#F4F6F8\],
+html.dark .admin-workspace .bg-\[\#F4F6F8\],
+html.dark .admin-workspace.bg-\[\#F4F6F8\],
+html.dark [data-admin-workspace="true"].bg-\[\#F4F6F8\] {
+  background-color: #F4F6F8 !important;
+}
+
+.admin-workspace .bg-\[\#F7F7F8\],
+.admin-workspace .bg-\[\#F8F9FA\],
+.admin-workspace .bg-\[\#FAFAFA\],
+.admin-workspace .bg-neutral-50,
+.admin-workspace .bg-gray-50,
+.admin-workspace .bg-slate-50,
+[data-admin-workspace="true"] .bg-neutral-50,
+[data-admin-workspace="true"] .bg-\[\#F7F7F8\],
+html.dark .admin-workspace .bg-\[\#F7F7F8\],
+html.dark .admin-workspace .bg-\[\#F8F9FA\],
+html.dark .admin-workspace .bg-\[\#FAFAFA\],
+html.dark .admin-workspace .bg-neutral-50,
+html.dark .admin-workspace .bg-gray-50,
+html.dark .admin-workspace .bg-slate-50,
+html.dark [data-admin-workspace="true"] .bg-neutral-50,
+html.dark [data-admin-workspace="true"] .bg-\[\#F7F7F8\] {
+  background-color: #F8F9FA !important;
+  color: #111827 !important;
+}
+
+.admin-workspace .bg-neutral-100,
+.admin-workspace .bg-gray-100,
+.admin-workspace .bg-slate-100,
+.admin-workspace .bg-\[\#F1F5F9\],
+[data-admin-workspace="true"] .bg-neutral-100,
+html.dark .admin-workspace .bg-neutral-100,
+html.dark .admin-workspace .bg-gray-100,
+html.dark .admin-workspace .bg-slate-100,
+html.dark .admin-workspace .bg-\[\#F1F5F9\],
+html.dark [data-admin-workspace="true"] .bg-neutral-100 {
+  background-color: #F1F5F9 !important;
+  color: #111827 !important;
+}
+
+.admin-workspace .border-\[\#E5E5E5\],
+.admin-workspace .border-\[\#EEEEEE\],
+.admin-workspace .border-\[\#E5E7EB\],
+.admin-workspace .border-neutral-200,
+.admin-workspace .border-slate-200,
+.admin-workspace .border-gray-200,
+[data-admin-workspace="true"] .border-\[\#E5E5E5\],
+[data-admin-workspace="true"] .border-neutral-200,
+html.dark .admin-workspace .border-\[\#E5E5E5\],
+html.dark .admin-workspace .border-\[\#EEEEEE\],
+html.dark .admin-workspace .border-\[\#E5E7EB\],
+html.dark .admin-workspace .border-neutral-200,
+html.dark .admin-workspace .border-slate-200,
+html.dark .admin-workspace .border-gray-200,
+html.dark [data-admin-workspace="true"] .border-\[\#E5E5E5\],
+html.dark [data-admin-workspace="true"] .border-neutral-200 {
+  border-color: #E5E7EB !important;
+}
+
+.admin-workspace .border-neutral-100,
+.admin-workspace .border-slate-100,
+.admin-workspace .border-gray-100,
+html.dark .admin-workspace .border-neutral-100,
+html.dark .admin-workspace .border-slate-100,
+html.dark .admin-workspace .border-gray-100 {
+  border-color: #F3F4F6 !important;
+}
+
+.admin-workspace .text-neutral-900,
+.admin-workspace .text-slate-900,
+.admin-workspace .text-gray-900,
+.admin-workspace .text-\[\#171717\],
+.admin-workspace .text-\[\#111827\],
+[data-admin-workspace="true"] .text-neutral-900,
+[data-admin-workspace="true"] .text-\[\#171717\],
+html.dark .admin-workspace .text-neutral-900,
+html.dark .admin-workspace .text-slate-900,
+html.dark .admin-workspace .text-gray-900,
+html.dark .admin-workspace .text-\[\#171717\],
+html.dark .admin-workspace .text-\[\#111827\],
+html.dark [data-admin-workspace="true"] .text-neutral-900,
+html.dark [data-admin-workspace="true"] .text-\[\#171717\] {
+  color: #111827 !important;
+}
+
+.admin-workspace .text-neutral-800,
+.admin-workspace .text-slate-800,
+.admin-workspace .text-gray-800,
+html.dark .admin-workspace .text-neutral-800,
+html.dark .admin-workspace .text-slate-800,
+html.dark .admin-workspace .text-gray-800 {
+  color: #1F2937 !important;
+}
+
+.admin-workspace .text-neutral-700,
+.admin-workspace .text-slate-700,
+.admin-workspace .text-gray-700,
+html.dark .admin-workspace .text-neutral-700,
+html.dark .admin-workspace .text-slate-700,
+html.dark .admin-workspace .text-gray-700 {
+  color: #374151 !important;
+}
+
+.admin-workspace .text-neutral-600,
+.admin-workspace .text-slate-600,
+.admin-workspace .text-gray-600,
+.admin-workspace .text-\[\#5F6368\],
+html.dark .admin-workspace .text-neutral-600,
+html.dark .admin-workspace .text-slate-600,
+html.dark .admin-workspace .text-gray-600,
+html.dark .admin-workspace .text-\[\#5F6368\] {
+  color: #4B5563 !important;
+}
+
+.admin-workspace .text-neutral-500,
+.admin-workspace .text-slate-500,
+.admin-workspace .text-gray-500,
+html.dark .admin-workspace .text-neutral-500,
+html.dark .admin-workspace .text-slate-500,
+html.dark .admin-workspace .text-gray-500 {
+  color: #6B7280 !important;
+}
+
+.admin-workspace .text-neutral-400,
+.admin-workspace .text-slate-400,
+.admin-workspace .text-gray-400,
+html.dark .admin-workspace .text-neutral-400,
+html.dark .admin-workspace .text-slate-400,
+html.dark .admin-workspace .text-gray-400 {
+  color: #9CA3AF !important;
+}
+
+/* Form inputs in Admin Workspace */
+.admin-workspace input:not([type="checkbox"]):not([type="radio"]),
+.admin-workspace textarea,
+.admin-workspace select,
+[data-admin-workspace="true"] input:not([type="checkbox"]):not([type="radio"]),
+[data-admin-workspace="true"] textarea,
+[data-admin-workspace="true"] select,
+html.dark .admin-workspace input:not([type="checkbox"]):not([type="radio"]),
+html.dark .admin-workspace textarea,
+html.dark .admin-workspace select,
+html.dark [data-admin-workspace="true"] input:not([type="checkbox"]):not([type="radio"]),
+html.dark [data-admin-workspace="true"] textarea,
+html.dark [data-admin-workspace="true"] select {
+  background-color: #FFFFFF !important;
+  color: #111827 !important;
+  border-color: #D1D5DB !important;
+}
+
+.admin-workspace input:focus:not([type="checkbox"]):not([type="radio"]),
+.admin-workspace textarea:focus,
+.admin-workspace select:focus,
+html.dark .admin-workspace input:focus:not([type="checkbox"]):not([type="radio"]),
+html.dark .admin-workspace textarea:focus,
+html.dark .admin-workspace select:focus {
+  background-color: #FFFFFF !important;
+  border-color: #D71920 !important;
+  color: #111827 !important;
+  box-shadow: 0 0 0 2px rgba(215, 25, 32, 0.2) !important;
+}
+
+.admin-workspace input::placeholder,
+.admin-workspace textarea::placeholder,
+html.dark .admin-workspace input::placeholder,
+html.dark .admin-workspace textarea::placeholder {
+  color: #9CA3AF !important;
+}
+
+/* Modals inside Admin */
+.admin-modal-card,
+.admin-workspace [role="dialog"] > div,
+html.dark .admin-workspace [role="dialog"] > div {
+  background-color: #FFFFFF !important;
+  color: #111827 !important;
+  border-color: #E5E7EB !important;
+}
+

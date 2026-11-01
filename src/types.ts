@@ -363,3 +363,20 @@ export interface Reel {
   isActive: boolean;
   createdAt: number;
 }
+
+export type AdminStaffRole = 'manager' | 'employee' | 'support' | 'admin';
+
+export interface AdminStaffMember {
+  id: string;
+  name: string;
+  email: string;
+  password: string; // Dynamic admin-managed password
+  role: AdminStaffRole;
+  permissions: string[]; // List of accessible tab IDs e.g. ['overview', 'orders', 'products', 'categories', 'verifications', 'reviews']
+  status: 'active' | 'disabled';
+  phone?: string;
+  notes?: string;
+  createdAt: number;
+  updatedAt: number;
+  createdBy?: string;
+}

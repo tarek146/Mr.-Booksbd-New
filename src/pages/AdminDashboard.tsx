@@ -55,9 +55,10 @@ import {
   Sun,
   QrCode
 } from 'lucide-react';
-import { Author, Banner, BookPreviewPage, Order, PaymentMethodConfig } from '../types';
+import { Author, Banner, BookPreviewPage, Order, PaymentMethodConfig, AdminStaffMember, AdminStaffRole } from '../types';
 import { DEFAULT_PAYMENT_METHODS } from '../firebase';
 import { AdminAnalytics } from '../components/admin/AdminAnalytics';
+import { AdminStaffManagement } from '../components/admin/AdminStaffManagement';
 import { compressImageFile, isValidImageUrl, sanitizeImageUrl } from '../utils/imageCompressor';
 import { sortPaymentMethods, getPaymentMethodDisplayMeta } from '../utils/reviewHelpers';
 import { PaymentBrandIcon } from '../components/PaymentInstructions';
@@ -76,7 +77,17 @@ import {
 } from '../utils/videoReelHelpers';
 
 export function AdminDashboard() {
-  const { currentUser, isAdmin, loading: authLoading, signIn, logout, devLoginAsAdmin } = useAuth();
+  const { 
+    currentUser, 
+    isAdmin, 
+    loading: authLoading, 
+    signIn, 
+    logout, 
+    devLoginAsAdmin,
+    currentStaff,
+    staffRole,
+    canAccessTab
+  } = useAuth();
   const { 
     orders, 
     paymentSubmissions, 
@@ -118,11 +129,37 @@ export function AdminDashboard() {
     reviews,
     addProductReview,
     updateProductReview,
-    deleteProductReview
+    deleteProductReview,
+    staffMembers,
+    addStaffMember,
+    updateStaffMember,
+    deleteStaffMember
   } = useStore();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'verifications' | 'payment-methods' | 'orders' | 'products' | 'categories' | 'banners' | 'authors' | 'subscribers' | 'settings' | 'special-offer' | 'reels' | 'reviews'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'verifications' | 'payment-methods' | 'orders' | 'products' | 'categories' | 'banners' | 'authors' | 'subscribers' | 'settings' | 'special-offer' | 'reels' | 'reviews' | 'staff'>('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Staff & Team Access Management state
+  const [showAddStaffModal, setShowAddStaffModal] = useState(false);
+  const [showEditStaffModal, setShowEditStaffModal] = useState(false);
+  const [editingStaffMember, setEditingStaffMember] = useState<AdminStaffMember | null>(null);
+  const [staffSearchQuery, setStaffSearchQuery] = useState('');
+  const [staffRoleFilter, setStaffRoleFilter] = useState<'all' | 'manager' | 'employee' | 'admin'>('all');
+  
+  // Staff Form state
+  const [staffFormName, setStaffFormName] = useState('');
+  const [staffFormEmail, setStaffFormEmail] = useState('');
+  const [staffFormPassword, setStaffFormPassword] = useState('');
+  const [staffFormRole, setStaffFormRole] = useState<AdminStaffRole>('manager');
+  const [staffFormPermissions, setStaffFormPermissions] = useState<string[]>([
+    'overview', 'orders', 'verifications', 'products', 'categories', 'reviews'
+  ]);
+  const [staffFormStatus, setStaffFormStatus] = useState<'active' | 'disabled'>('active');
+  const [staffFormPhone, setStaffFormPhone] = useState('');
+  const [staffFormNotes, setStaffFormNotes] = useState('');
+  const [showStaffPasswordsMap, setShowStaffPasswordsMap] = useState<Record<string, boolean>>({});
+  const [copiedStaffPasswordId, setCopiedStaffPasswordId] = useState<string | null>(null);
+  const [isSubmittingStaff, setIsSubmittingStaff] = useState(false);
 
   // Admin Review Management state
   const [adminRevProdId, setAdminRevProdId] = useState('');
@@ -1264,6 +1301,7 @@ export function AdminDashboard() {
       title: 'SYSTEM & SETTINGS',
       items: [
         { id: 'settings', label: 'Store Settings', icon: Settings },
+        { id: 'staff', label: 'Staff & Roles Access', icon: Key, count: staffMembers.length, badge: 'Roles' },
       ]
     }
   ];
@@ -1302,51 +1340,55 @@ export function AdminDashboard() {
 
         {/* Navigation Sections Menu */}
         <div className="py-4 px-3 space-y-6 overflow-y-auto max-h-[calc(100vh-190px)]">
-          {navSections.map((sec, sIdx) => (
-            <div key={sIdx}>
-              <div className="text-[10px] uppercase font-black tracking-widest text-slate-500 px-3 mb-1.5">
-                {sec.title}
+          {navSections.map((sec, sIdx) => {
+            const visibleItems = sec.items.filter(item => canAccessTab(item.id));
+            if (visibleItems.length === 0) return null;
+            return (
+              <div key={sIdx}>
+                <div className="text-[10px] uppercase font-black tracking-widest text-slate-500 px-3 mb-1.5">
+                  {sec.title}
+                </div>
+                <div className="space-y-1">
+                  {visibleItems.map(item => {
+                    const Icon = item.icon;
+                    const isActive = activeTab === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          setActiveTab(item.id as any);
+                          setSidebarOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer group ${
+                          isActive
+                            ? 'bg-[#D71920] text-white shadow-md shadow-[#D71920]/30 font-bold'
+                            : 'text-slate-400 hover:text-white hover:bg-slate-800/80 font-semibold'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 truncate">
+                          <Icon size={16} className={`shrink-0 transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`} />
+                          <span className="truncate">{item.label}</span>
+                        </div>
+                        {item.badge ? (
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${item.badgeColor || 'bg-slate-800 text-slate-300'}`}>
+                            {item.badge}
+                          </span>
+                        ) : item.count !== undefined ? (
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            isActive 
+                              ? 'bg-black/30 text-white' 
+                              : (item as any).badgeColor || 'bg-slate-800 text-slate-400 group-hover:text-slate-200'
+                          }`}>
+                            {item.count}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="space-y-1">
-                {sec.items.map(item => {
-                  const Icon = item.icon;
-                  const isActive = activeTab === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        setActiveTab(item.id as any);
-                        setSidebarOpen(false);
-                      }}
-                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer group ${
-                        isActive
-                          ? 'bg-[#D71920] text-white shadow-md shadow-[#D71920]/30 font-bold'
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800/80 font-semibold'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 truncate">
-                        <Icon size={16} className={`shrink-0 transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`} />
-                        <span className="truncate">{item.label}</span>
-                      </div>
-                      {item.badge ? (
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${item.badgeColor || 'bg-slate-800 text-slate-300'}`}>
-                          {item.badge}
-                        </span>
-                      ) : item.count !== undefined ? (
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          isActive 
-                            ? 'bg-black/30 text-white' 
-                            : (item as any).badgeColor || 'bg-slate-800 text-slate-400 group-hover:text-slate-200'
-                        }`}>
-                          {item.count}
-                        </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -1354,12 +1396,25 @@ export function AdminDashboard() {
       <div className="p-3 border-t border-slate-800/80 bg-[#070A11] space-y-2">
         <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-[#D71920] text-white font-black text-xs flex items-center justify-center shrink-0">
-              A
+            <div className={`w-8 h-8 rounded-lg font-black text-xs flex items-center justify-center shrink-0 ${
+              staffRole === 'manager' 
+                ? 'bg-purple-600 text-white' 
+                : staffRole === 'employee' 
+                ? 'bg-amber-600 text-white' 
+                : 'bg-[#D71920] text-white'
+            }`}>
+              {currentStaff ? (currentStaff.name[0] || 'S').toUpperCase() : 'A'}
             </div>
             <div className="min-w-0">
-              <div className="text-xs font-bold text-white truncate">mr.booksbd700</div>
-              <div className="text-[10px] text-slate-400 truncate">Administrator</div>
+              <div className="text-xs font-bold text-white truncate">
+                {currentStaff ? currentStaff.name : (currentUser?.email ? currentUser.email.split('@')[0] : 'Administrator')}
+              </div>
+              <div className="text-[10px] text-slate-400 truncate flex items-center gap-1">
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  staffRole === 'manager' ? 'bg-purple-400' : staffRole === 'employee' ? 'bg-amber-400' : 'bg-emerald-400'
+                }`}></span>
+                <span className="capitalize">{staffRole === 'owner' ? 'Super Admin' : staffRole || 'Admin'}</span>
+              </div>
             </div>
           </div>
           <button
@@ -1430,15 +1485,15 @@ export function AdminDashboard() {
       </aside>
 
       {/* Main Workspace Area */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen bg-[#F4F6F8]">
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen bg-[#F4F6F8] admin-workspace" data-admin-workspace="true">
         
-        {/* Modern Top Header */}
-        <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/90 sticky top-0 z-20 px-4 sm:px-6 lg:px-8 py-3.5 shadow-2xs flex items-center justify-between">
+        {/* Modern Top Header (Dark Frame matching Sidebar) */}
+        <header className="bg-[#0A0E17] border-b border-slate-800 sticky top-0 z-20 px-4 sm:px-6 lg:px-8 py-3.5 shadow-2xs flex items-center justify-between text-white">
           <div className="flex items-center gap-3">
             {/* Hamburger Button for Mobile */}
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 cursor-pointer transition-colors"
+              className="lg:hidden p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer transition-colors"
               aria-label="Open Sidebar Menu"
             >
               <Menu size={20} />
@@ -1447,8 +1502,8 @@ export function AdminDashboard() {
             {/* Breadcrumb Title */}
             <div className="flex items-center gap-2 text-xs">
               <span className="font-bold text-slate-400 hidden sm:inline">Admin Console</span>
-              <span className="text-slate-300 hidden sm:inline">/</span>
-              <span className="font-black text-slate-900 text-sm sm:text-base capitalize">
+              <span className="text-slate-600 hidden sm:inline">/</span>
+              <span className="font-black text-white text-sm sm:text-base capitalize">
                 {activeTab.replace('-', ' ')}
               </span>
             </div>
@@ -1456,18 +1511,18 @@ export function AdminDashboard() {
 
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Real-time status */}
-            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold">
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-emerald-400 text-xs font-bold">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>Firestore Sync: <code className="text-emerald-800 font-mono text-[11px]">mr-book-new</code></span>
+              <span>Firestore Sync: <code className="text-emerald-300 font-mono text-[11px]">mr-book-new</code></span>
             </div>
 
             {/* Storefront button */}
             <button
               onClick={() => setActivePage('home')}
               title="View Public Store"
-              className="px-3 sm:px-3.5 py-1.5 sm:py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+              className="px-3 sm:px-3.5 py-1.5 sm:py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
             >
-              <Eye size={14} className="text-slate-500" />
+              <Eye size={14} className="text-slate-400" />
               <span className="hidden sm:inline">Storefront</span>
             </button>
 
@@ -1478,7 +1533,7 @@ export function AdminDashboard() {
                 setActivePage('home');
               }}
               title="Logout Administrator"
-              className="px-3 sm:px-3.5 py-1.5 sm:py-2 bg-red-50 hover:bg-red-100 text-[#D71920] rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+              className="px-3 sm:px-3.5 py-1.5 sm:py-2 bg-red-950/60 hover:bg-red-900/60 text-red-300 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
             >
               <LogOut size={14} />
               <span className="hidden sm:inline">Sign Out</span>
@@ -1486,8 +1541,8 @@ export function AdminDashboard() {
           </div>
         </header>
 
-        {/* Main Content Area */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
+        {/* Main Content Area (Clean White Workspace) */}
+        <main className="admin-workspace flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6" data-admin-workspace="true">
 
         {/* TAB 1: OVERVIEW & COMPREHENSIVE BUSINESS ANALYTICS */}
         {activeTab === 'overview' && (
@@ -7355,6 +7410,19 @@ export function AdminDashboard() {
               </div>
             </form>
           </div>
+        )}
+
+        {/* TAB 14: STAFF & ROLES ACCESS CONTROL (Manager, Employee, Custom Permissions) */}
+        {activeTab === 'staff' && (
+          <AdminStaffManagement
+            staffMembers={staffMembers}
+            onAddStaff={addStaffMember}
+            onUpdateStaff={updateStaffMember}
+            onDeleteStaff={deleteStaffMember}
+            currentStaffRole={staffRole}
+            currentUserEmail={currentUser?.email || null}
+            setToast={(t) => setToast({ show: t.show, type: t.type, message: t.message })}
+          />
         )}
         </main>
 

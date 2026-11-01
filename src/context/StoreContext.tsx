@@ -11,7 +11,8 @@ import {
   StoreSettings,
   Review,
   Subscriber,
-  Reel
+  Reel,
+  AdminStaffMember
 } from '../types';
 import { 
   db, 
@@ -135,6 +136,11 @@ interface StoreContextType {
   addReel: (reel: Omit<Reel, 'id' | 'createdAt'>) => Promise<void>;
   updateReel: (id: string, data: Partial<Reel>) => Promise<void>;
   deleteReel: (id: string) => Promise<void>;
+
+  staffMembers: AdminStaffMember[];
+  addStaffMember: (staffData: Omit<AdminStaffMember, 'id' | 'createdAt' | 'updatedAt'>) => Promise<string>;
+  updateStaffMember: (id: string, data: Partial<AdminStaffMember>) => Promise<void>;
+  deleteStaffMember: (id: string) => Promise<void>;
 }
 
 function getPageFromLocation(): { page: string; productId: string | null } {
@@ -225,6 +231,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [reels, setReels] = useState<Reel[]>([]);
+  const [staffMembers, setStaffMembers] = useState<AdminStaffMember[]>([]);
 
   const [guestVisitorId] = useState<string>(() => {
     if (typeof window !== 'undefined') {
@@ -877,9 +884,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     let unsubOrders: (() => void) | null = null;
     let unsubSubs: (() => void) | null = null;
     let unsubSubscribers: (() => void) | null = null;
+    let unsubStaff: (() => void) | null = null;
 
     if (isAdmin) {
-      // Administrator: Real-time sync for all orders, payment verification queues, and subscribers
+      // Administrator: Real-time sync for all orders, payment verification queues, subscribers, and staff members
       unsubOrders = onSnapshot(
         collection(db, 'orders'),
         (snapshot) => {
@@ -909,6 +917,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           console.warn('Admin subscribers listener notice:', err.message);
         }
       );
+
+      unsubStaff = onSnapshot(
+        collection(db, 'admin_staff'),
+        (snapshot) => {
+          setStaffMembers(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as AdminStaffMember)));
+        },
+        (err) => {
+          console.warn('Admin staff listener notice:', err.message);
+        }
+      );
     } else if (currentUser) {
       // Authenticated Customer: Listen strictly to user's OWN orders
       const userOrdersQuery = query(collection(db, 'orders'), where('userId', '==', currentUser.uid));
@@ -922,16 +940,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }
       );
       setPaymentSubmissions([]);
+      setStaffMembers([]);
     } else {
       // Guest / Anonymous: Do not attach listeners to orders or submissions
       setOrders([]);
       setPaymentSubmissions([]);
+      setStaffMembers([]);
     }
 
     return () => {
       if (unsubOrders) unsubOrders();
       if (unsubSubs) unsubSubs();
       if (unsubSubscribers) unsubSubscribers();
+      if (unsubStaff) unsubStaff();
     };
   }, [currentUser, isAdmin]);
 
@@ -1603,6 +1624,56 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setReels(prev => prev.filter(r => r.id !== id));
   };
 
+  const addStaffMember = async (staffData: Omit<AdminStaffMember, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
+    const id = 'staff-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
+    const newStaff: AdminStaffMember = {
+      ...staffData,
+      id,
+      email: staffData.email.trim().toLowerCase(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      createdBy: currentUser?.email || 'admin'
+    };
+    try {
+      await setDoc(doc(db, 'admin_staff', id), cleanForFirestore(newStaff));
+      await logAdminAction('staff_created', id, `Added staff: ${newStaff.name} (${newStaff.role})`);
+    } catch (err) {
+      console.error('Error adding staff member:', err);
+      throw err;
+    }
+    setStaffMembers(prev => [newStaff, ...prev.filter(s => s.id !== id)]);
+    return id;
+  };
+
+  const updateStaffMember = async (id: string, data: Partial<AdminStaffMember>) => {
+    const updatePayload: Partial<AdminStaffMember> = {
+      ...data,
+      updatedAt: Date.now()
+    };
+    if (data.email) {
+      updatePayload.email = data.email.trim().toLowerCase();
+    }
+    try {
+      await setDoc(doc(db, 'admin_staff', id), cleanForFirestore(updatePayload), { merge: true });
+      await logAdminAction('staff_updated', id, `Updated staff: ${id}`);
+    } catch (err) {
+      console.error('Error updating staff member:', err);
+      throw err;
+    }
+    setStaffMembers(prev => prev.map(s => s.id === id ? { ...s, ...updatePayload } : s));
+  };
+
+  const deleteStaffMember = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'admin_staff', id));
+      await logAdminAction('staff_deleted', id, `Deleted staff: ${id}`);
+    } catch (err) {
+      console.error('Error deleting staff member:', err);
+      throw err;
+    }
+    setStaffMembers(prev => prev.filter(s => s.id !== id));
+  };
+
   return (
     <StoreContext.Provider value={{
       products,
@@ -1667,7 +1738,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       reels,
       addReel,
       updateReel,
-      deleteReel
+      deleteReel,
+      staffMembers,
+      addStaffMember,
+      updateStaffMember,
+      deleteStaffMember
     }}>
       {children}
     </StoreContext.Provider>
