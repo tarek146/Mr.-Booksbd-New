@@ -89,7 +89,8 @@ const PAYMENT_TYPE_PRIORITY: Record<PaymentMethodConfig['type'], number> = {
   nagad: 3,
   rocket: 4,
   upay: 5,
-  bank: 6,
+  bangla_qr: 6,
+  bank: 7,
 };
 
 /**
@@ -239,6 +240,21 @@ export function getPaymentMethodDisplayMeta(method: PaymentMethodConfig): {
         customLogoUrl,
         qrCodeUrl,
       };
+    case 'bangla_qr':
+      return {
+        displayTitle: isDefaultName ? 'বাংলা কিউআর' : method.name,
+        englishName: method.englishName || 'Bangla QR',
+        displaySubtitle: method.subtitle || 'যেকোনো ব্যাংক বা এমএফএস অ্যাপ থেকে কিউআর স্ক্যান',
+        badgeText,
+        accountType: method.accountType || 'Merchant',
+        requireTrxId: method.requireTrxId ?? true,
+        requireSenderPhone: method.requireSenderPhone ?? true,
+        instructionText:
+          method.instructions ||
+          'বিকাশ, নগদ, রকেট, উপায় বা যেকোনো ব্যাংক অ্যাপের বাংলা কিউআর (Bangla QR) স্ক্যানার দিয়ে স্ক্যান করে পেমেন্ট করুন এবং ট্রানজেকশন আইডি নিচে দিন।',
+        customLogoUrl,
+        qrCodeUrl,
+      };
     case 'bank':
     default:
       return {
@@ -292,13 +308,13 @@ export function validatePaymentTransactionPopup(
     };
   }
 
-  if (methodType === 'bank') {
+  if (methodType === 'bank' || methodType === 'bangla_qr') {
     if (cleanSender.length < 3) {
       return {
         valid: false,
         cleanSender,
         cleanTrxId,
-        error: 'অনুগ্রহ করে সঠিক ব্যাংক একাউন্ট বা মোবাইল নাম্বার দিন।',
+        error: 'অনুগ্রহ করে সঠিক ব্যাংক/এমএফএস একাউন্ট বা মোবাইল নাম্বার দিন।',
       };
     }
   } else {

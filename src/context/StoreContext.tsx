@@ -446,6 +446,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     deliveryNote: 'সুন্দরবন কুরিয়ার সার্ভিসের ক্ষেত্রে সম্পূর্ণ পেমেন্ট অগ্রিম প্রযোজ্য।',
     enableUseOldAddress: true,
     oldAddressButtonLabel: 'ইউজ ওল্ড এড্রেস (সেম অ্যাড্রেস)',
+    enableBanglaQr: true,
+    banglaQrImageUrl: '',
+    banglaQrAccountName: 'MR. BOOKS BD',
+    banglaQrNumber: '01712345678',
+    banglaQrInstructions: 'বিকাশ, নগদ, রকেট, উপায় বা যেকোনো ব্যাংক অ্যাপের বাংলা কিউআর (Bangla QR) স্ক্যানার দিয়ে স্ক্যান করে পেমেন্ট করুন এবং ট্রানজেকশন আইডি নিচে দিন।',
 
     specialOffer: {
       enabled: true,
@@ -600,6 +605,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           window.localStorage.setItem('mrb_upay_seeded_v1', 'true');
           loadedPaymentMethods.push(upayDef);
           setDoc(doc(db, 'payment_methods', upayDef.id), cleanForFirestore(upayDef)).catch(() => {});
+        }
+        const hasBanglaQr = loadedPaymentMethods.some(m => m.type === 'bangla_qr');
+        const banglaQrDef = DEFAULT_PAYMENT_METHODS.find(m => m.type === 'bangla_qr');
+        if (loadedPaymentMethods.length > 0 && !hasBanglaQr && banglaQrDef && typeof window !== 'undefined' && window.localStorage.getItem('mrb_banglaqr_seeded_v1') !== 'true') {
+          window.localStorage.setItem('mrb_banglaqr_seeded_v1', 'true');
+          loadedPaymentMethods.push(banglaQrDef);
+          setDoc(doc(db, 'payment_methods', banglaQrDef.id), cleanForFirestore(banglaQrDef)).catch(() => {});
         }
         setPaymentMethods(loadedPaymentMethods.length > 0 ? loadedPaymentMethods : DEFAULT_PAYMENT_METHODS);
         if (setSnap.exists()) {

@@ -747,7 +747,7 @@ export function CheckoutPage() {
 
               <div
                 data-testid="payment-methods-grid"
-                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5 pt-1"
+                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 pt-1"
               >
                 {sortedPaymentMethods.map(method => {
                   const isSelected = selectedPaymentId === method.id;

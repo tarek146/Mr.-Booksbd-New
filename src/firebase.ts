@@ -120,6 +120,22 @@ export const DEFAULT_PAYMENT_METHODS: PaymentMethodConfig[] = [
     instructions: 'নির্ধারিত ব্যাংক একাউন্টে মোট টাকার পরিমাণ ট্রান্সফার করে ট্রানজেকশন রেফারেন্স বা রিসিপ্ট আইডি নিচে দিন।',
     isActive: true,
     displayOrder: 6
+  },
+  {
+    id: 'bangla-qr-default',
+    name: 'বাংলা কিউআর',
+    englishName: 'Bangla QR',
+    type: 'bangla_qr',
+    subtitle: 'যেকোনো ব্যাংক বা এমএফএস অ্যাপ থেকে কিউআর স্ক্যান',
+    badgeText: '',
+    accountName: 'MR. BOOKS BD',
+    accountNumber: '01712345678',
+    accountType: 'Merchant',
+    requireTrxId: true,
+    requireSenderPhone: true,
+    instructions: 'বিকাশ, নগদ, রকেট, উপায় বা যেকোনো ব্যাংক অ্যাপের বাংলা কিউআর (Bangla QR) স্ক্যানার দিয়ে স্ক্যান করে পেমেন্ট করুন এবং ট্রানজেকশন আইডি নিচে দিন।',
+    isActive: true,
+    displayOrder: 7
   }
 ];
 

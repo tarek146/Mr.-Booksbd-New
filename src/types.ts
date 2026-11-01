@@ -128,7 +128,7 @@ export interface PaymentMethodConfig {
   id: string;
   name: string; // e.g. "বিকাশ", "নগদ", "ক্যাশ অন ডেলিভারি"
   englishName?: string; // e.g. "bKash", "Nagad", "Cash on Delivery"
-  type: 'bkash' | 'nagad' | 'rocket' | 'upay' | 'bank' | 'cod';
+  type: 'bkash' | 'nagad' | 'rocket' | 'upay' | 'bank' | 'cod' | 'bangla_qr';
   subtitle?: string; // e.g. "হাতে পেয়ে মূল্য পরিশোধ", "বিকাশ সেন্ড মানি"
   badgeText?: string; // Optional offer badge set from Admin Panel (empty by default)
   accountName: string;
@@ -303,6 +303,13 @@ export interface StoreSettings {
   // Returning Customer Address Autofill Settings
   enableUseOldAddress?: boolean;
   oldAddressButtonLabel?: string;
+
+  // Bangla QR (বাংলা কিউআর) Settings
+  enableBanglaQr?: boolean;
+  banglaQrImageUrl?: string;
+  banglaQrAccountName?: string;
+  banglaQrNumber?: string;
+  banglaQrInstructions?: string;
 
   // SEO Settings
   metaTitle?: string;

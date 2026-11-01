@@ -192,7 +192,7 @@ export function AdminDashboard() {
   const [editingPmId, setEditingPmId] = useState<string | null>(null);
   const [pmName, setPmName] = useState('বিকাশ');
   const [pmEnglishName, setPmEnglishName] = useState('bKash');
-  const [pmType, setPmType] = useState<'bkash' | 'nagad' | 'rocket' | 'upay' | 'bank' | 'cod'>('bkash');
+  const [pmType, setPmType] = useState<'bkash' | 'nagad' | 'rocket' | 'upay' | 'bank' | 'cod' | 'bangla_qr'>('bkash');
   const [pmSubtitle, setPmSubtitle] = useState('বিকাশ সেন্ড মানি');
   const [pmBadgeText, setPmBadgeText] = useState('');
   const [pmAccountType, setPmAccountType] = useState<'Personal' | 'Merchant' | 'Agent' | 'None'>('Personal');
@@ -2044,6 +2044,7 @@ export function AdminDashboard() {
                           <option value="rocket">Rocket (রকেট)</option>
                           <option value="cod">Cash on Delivery (COD)</option>
                           <option value="upay">Upay (উপায়)</option>
+                          <option value="bangla_qr">Bangla QR (বাংলা কিউআর)</option>
                           <option value="bank">Bank Transfer (ব্যাংক)</option>
                         </select>
                       </div>
@@ -6829,6 +6830,144 @@ export function AdminDashboard() {
                             placeholder="ইউজ ওল্ড এড্রেস (সেম অ্যাড্রেস)"
                             className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-[#171717] font-bold text-xs"
                           />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Bangla QR (বাংলা কিউআর) Settings */}
+                    <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 col-span-1 sm:col-span-3 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="font-black text-neutral-900 block text-xs uppercase flex items-center gap-1.5">
+                            <QrCode size={15} className="text-emerald-700" />
+                            বাংলা কিউআর (Bangla QR) সেটিংস ও কিউআর ইমেজ
+                          </span>
+                          <span className="text-[11px] text-neutral-600 block mt-0.5">
+                            চেকআউট পপআপে বাংলা কিউআর অপশন প্রদর্শন করুন। গ্রাহকরা কিউআর ডাউনলোড করে যেকোনো ব্যাংক বা এমএফএস অ্যাপ থেকে স্ক্যান করে পেমেন্ট করতে পারবেন।
+                          </span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settingsForm.enableBanglaQr !== false}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, enableBanglaQr: e.target.checked }))}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                        </label>
+                      </div>
+
+                      {settingsForm.enableBanglaQr !== false && (
+                        <div className="space-y-3 pt-2 border-t border-emerald-200/80">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block font-bold uppercase text-[#5F6368] mb-1 text-[11px]">
+                                মার্চেন্ট / একাউন্ট নাম (Merchant Name)
+                              </label>
+                              <input
+                                type="text"
+                                value={settingsForm.banglaQrAccountName ?? 'MR. BOOKS BD'}
+                                onChange={e => setSettingsForm(prev => ({ ...prev, banglaQrAccountName: e.target.value }))}
+                                placeholder="MR. BOOKS BD"
+                                className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-[#171717] font-bold text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="block font-bold uppercase text-[#5F6368] mb-1 text-[11px]">
+                                মার্চেন্ট আইডি / একাউন্ট নাম্বার (Merchant Number)
+                              </label>
+                              <input
+                                type="text"
+                                value={settingsForm.banglaQrNumber ?? '01712345678'}
+                                onChange={e => setSettingsForm(prev => ({ ...prev, banglaQrNumber: e.target.value }))}
+                                placeholder="01712345678"
+                                className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-[#171717] font-bold text-xs"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="font-bold uppercase text-[#5F6368] text-[11px]">
+                                বাংলা কিউআর কোড ছবি (Bangla QR Code Image)
+                              </label>
+                              {isValidImageUrl(settingsForm.banglaQrImageUrl) && (
+                                <button
+                                  type="button"
+                                  onClick={() => setSettingsForm(prev => ({ ...prev, banglaQrImageUrl: '' }))}
+                                  className="text-[10px] font-bold text-red-600 hover:underline cursor-pointer"
+                                >
+                                  Remove QR Image
+                                </button>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="w-16 h-16 rounded-xl bg-white border border-emerald-200 flex items-center justify-center overflow-hidden shrink-0 p-1 shadow-2xs">
+                                {isValidImageUrl(settingsForm.banglaQrImageUrl) ? (
+                                  <img
+                                    src={settingsForm.banglaQrImageUrl}
+                                    alt="Bangla QR"
+                                    className="w-full h-full object-contain"
+                                  />
+                                ) : (
+                                  <div className="flex flex-col items-center justify-center text-emerald-700 leading-none">
+                                    <QrCode size={22} />
+                                    <span className="text-[7.5px] font-bold mt-1">Auto QR</span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 space-y-1.5">
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="text"
+                                    placeholder="Paste Bangla QR Code Image URL"
+                                    value={isValidImageUrl(settingsForm.banglaQrImageUrl) ? settingsForm.banglaQrImageUrl : ''}
+                                    onChange={e => setSettingsForm(prev => ({ ...prev, banglaQrImageUrl: sanitizeImageUrl(e.target.value) }))}
+                                    className="flex-1 px-3 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-mono text-[#171717]"
+                                  />
+                                  <label className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs cursor-pointer transition-all shrink-0 flex items-center gap-1.5 shadow-2xs">
+                                    <Upload size={13} />
+                                    <span>Upload QR</span>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      className="hidden"
+                                      onChange={async e => {
+                                        const file = e.target.files?.[0];
+                                        e.target.value = '';
+                                        if (file) {
+                                          try {
+                                            const compressed = await compressImageFile(file, 700, 700, 0.88);
+                                            setSettingsForm(prev => ({ ...prev, banglaQrImageUrl: compressed }));
+                                            await updateSettings({ banglaQrImageUrl: compressed });
+                                            setToast({ show: true, type: 'success', message: 'Bangla QR image uploaded and saved!' });
+                                          } catch (err: any) {
+                                            setToast({ show: true, type: 'error', message: err.message || 'Failed to upload QR image' });
+                                          }
+                                        }
+                                      }}
+                                    />
+                                  </label>
+                                </div>
+                                <p className="text-[10px] text-neutral-500">
+                                  Customers will see this QR code and can click 'কিউআর ডাউনলোড করুন' in the Checkout popup to download it directly.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block font-bold uppercase text-[#5F6368] mb-1 text-[11px]">
+                              পেমেন্ট নির্দেশনা (Payment Instructions)
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={settingsForm.banglaQrInstructions ?? 'বিকাশ, নগদ, রকেট, উপায় বা যেকোনো ব্যাংক অ্যাপের বাংলা কিউআর (Bangla QR) স্ক্যানার দিয়ে স্ক্যান করে পেমেন্ট করুন এবং ট্রানজেকশন আইডি নিচে দিন।'}
+                              onChange={e => setSettingsForm(prev => ({ ...prev, banglaQrInstructions: e.target.value }))}
+                              placeholder="বিকাশ, নগদ, রকেট, উপায় বা যেকোনো ব্যাংক অ্যাপের বাংলা কিউআর..."
+                              className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-[#171717] font-medium text-xs"
+                            />
+                          </div>
                         </div>
                       )}
                     </div>

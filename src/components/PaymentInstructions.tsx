@@ -15,6 +15,7 @@ import {
   Sparkles,
   QrCode,
   Download,
+  CreditCard,
 } from 'lucide-react';
 
 /**
@@ -43,6 +44,8 @@ function generateFallbackPaymentQrDataUrl(
         ? '#8C3494'
         : method.type === 'upay'
         ? '#0054A6'
+        : method.type === 'bangla_qr'
+        ? '#006A4E'
         : '#1E3A8A';
 
     // White card background
@@ -331,6 +334,20 @@ export function PaymentBrandIcon({
         </div>
       );
 
+    case 'bangla_qr':
+      return (
+        <div
+          className={`${dimClass} bg-white border border-emerald-200 p-1 flex items-center justify-center shrink-0 shadow-2xs`}
+        >
+          <div className="w-full h-full rounded-xl bg-gradient-to-br from-[#006A4E] to-[#044e3a] text-white flex flex-col items-center justify-center leading-none p-0.5">
+            <QrCode className={size === 'lg' ? 'w-5 h-5 text-emerald-100' : size === 'sm' ? 'w-3.5 h-3.5 text-emerald-100' : 'w-4 h-4 text-emerald-100'} />
+            <span className="text-[6.5px] font-black tracking-tighter mt-0.5 leading-none text-white">
+              বাংলা QR
+            </span>
+          </div>
+        </div>
+      );
+
     case 'bank':
     default:
       return (
@@ -379,15 +396,27 @@ export function PaymentInstructions({
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [popupError, setPopupError] = useState('');
   const [qrModalMethod, setQrModalMethod] = useState<PaymentMethodConfig | null>(null);
+  const [activeTabId, setActiveTabId] = useState<string>(selectedMethod.id);
+
+  useEffect(() => {
+    if (selectedMethod && selectedMethod.id) {
+      setActiveTabId(selectedMethod.id);
+    }
+  }, [selectedMethod.id]);
 
   const meta = getPaymentMethodDisplayMeta(selectedMethod);
 
-  // All active online payment methods (bKash, Nagad, Rocket, Upay, Bank Transfer, etc.) from Admin Panel
+  // All active online payment methods (bKash, Nagad, Rocket, Upay, Bank Transfer, Bangla QR, etc.) from Admin Panel
   const activeOnlineMethods = useMemo(() => {
     const list = allMethods && allMethods.length > 0 ? getActiveOnlinePaymentMethods(allMethods) : [];
     if (list.length > 0) return list;
     return selectedMethod.type !== 'cod' ? [selectedMethod] : [];
   }, [allMethods, selectedMethod]);
+
+  const currentActiveMethod = useMemo(() => {
+    const found = activeOnlineMethods.find(m => m.id === activeTabId);
+    return found || selectedMethod;
+  }, [activeOnlineMethods, activeTabId, selectedMethod]);
 
   const handleCopy = (text: string, key: string) => {
     if (!text) return;
@@ -397,12 +426,11 @@ export function PaymentInstructions({
   };
 
   const handleDownloadQrImage = async (method: PaymentMethodConfig, imageUrl: string) => {
-    if (!imageUrl) return;
     const methodMeta = getPaymentMethodDisplayMeta(method);
-    const fileName = `${methodMeta.englishName.replace(/\s+/g, '-')}-${method.accountNumber || 'QR'}.png`;
+    const fileName = `${(methodMeta.englishName || method.type || 'payment').toLowerCase().replace(/\s+/g, '-')}-qr.png`;
 
     try {
-      if (imageUrl.startsWith('data:')) {
+      if (imageUrl && imageUrl.startsWith('data:')) {
         const link = document.createElement('a');
         link.href = imageUrl;
         link.download = fileName;
@@ -412,32 +440,52 @@ export function PaymentInstructions({
         return;
       }
 
-      const response = await fetch(imageUrl, { mode: 'cors' });
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 3000);
-    } catch {
-      // Fallback: generate a canvas download if external URL blocks CORS fetch
+      if (imageUrl && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
+        try {
+          const response = await fetch(imageUrl, { mode: 'cors' });
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 3000);
+          return;
+        } catch {
+          // Fall through to fallback generator if external fetch is blocked by CORS
+        }
+      }
+
+      // High-resolution generated canvas download
       const generated = generateFallbackPaymentQrDataUrl(method, totalAmount);
-      const link = document.createElement('a');
-      link.href = generated || imageUrl;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      if (generated) {
+        const link = document.createElement('a');
+        link.href = generated;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (err) {
+      console.warn('QR download fallback triggered:', err);
+      const generated = generateFallbackPaymentQrDataUrl(method, totalAmount);
+      if (generated) {
+        const link = document.createElement('a');
+        link.href = generated;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
     }
   };
 
   const handleDoneClick = () => {
     setPopupError('');
     const check = validatePaymentTransactionPopup(
-      selectedMethod.type,
+      currentActiveMethod.type,
       senderNumber,
       transactionId
     );
@@ -559,245 +607,290 @@ export function PaymentInstructions({
         </div>
       )}
 
-      {/* POPUP MODAL displaying all active online payment methods together with the exact classic design */}
-      {isModalOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={`${meta.displayTitle} Payment Instructions`}
-          data-testid="payment-instructions-modal"
-          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto"
-          onClick={e => {
-            if (e.target === e.currentTarget) {
-              setIsModalOpen?.(false);
-            }
-          }}
-        >
-          <div className="w-full max-w-lg bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-7 shadow-2xl space-y-5 relative my-auto max-h-[92vh] overflow-y-auto animate-in zoom-in-95 duration-200">
-            {/* Close Button */}
-            <button
-              type="button"
-              onClick={() => setIsModalOpen?.(false)}
-              aria-label="Close Payment Popup"
-              className="sticky top-0 float-right z-20 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer"
-            >
-              <X size={16} />
-            </button>
+      {/* POPUP MODAL: Payment Method Selector Tabs & Single-Method Active View */}
+      {isModalOpen && (() => {
+        const activeMeta = getPaymentMethodDisplayMeta(currentActiveMethod);
+        const isCopied = copiedKey === currentActiveMethod.id;
+        const qrImageSrc =
+          activeMeta.qrCodeUrl || generateFallbackPaymentQrDataUrl(currentActiveMethod, totalAmount);
 
-            {/* All Active Online Payment Options Displayed Together Inside the Same Popup */}
-            <div className="space-y-6 clear-none">
-              {activeOnlineMethods.map((method, idx) => {
-                const methodMeta = getPaymentMethodDisplayMeta(method);
-                const isCurrentSelected = method.id === selectedMethod.id;
-                const accountLabel = `${method.type.toUpperCase()} ACCOUNT / NUMBER:`;
-                const isCopied = copiedKey === method.id;
-
-                return (
-                  <div
-                    key={method.id}
-                    data-testid={`popup-payment-block-${method.type}`}
-                    onClick={() => onSelectMethod?.(method)}
-                    className={`space-y-4 transition-all rounded-2xl ${
-                      idx > 0 ? 'pt-5 border-t border-slate-200/90' : ''
-                    }`}
-                  >
-                    {/* 1. Payment Method (Name & Logo) + 2. Account Type Badge */}
-                    <div className="flex items-start gap-3.5 pr-2">
-                      <PaymentBrandIcon method={method} size="lg" />
-                      <div className="space-y-1.5 flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
-                            {methodMeta.displayTitle} Payment Instructions
-                          </h3>
-                        </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="px-2.5 py-0.5 rounded-md bg-[#FFF0F6] text-[#E2136E] border border-[#FFADD2] text-xs font-bold">
-                            {methodMeta.accountType !== 'None' ? methodMeta.accountType : 'Personal'}
-                          </span>
-                          {methodMeta.englishName && (
-                            <span className="text-[11px] font-bold text-slate-400">
-                              • {methodMeta.englishName}
-                            </span>
-                          )}
-                          {isCurrentSelected && (
-                            <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold flex items-center gap-1">
-                              <Check size={10} strokeWidth={3} /> Selected
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs sm:text-[13px] text-slate-600 leading-snug pt-0.5">
-                          Please send <strong className="text-slate-900 font-black">৳{totalAmount}</strong> to the number below and submit payment info:
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* 3. Payment Number + Copy Number Button + 5. Separate Payment QR Code Button */}
-                    <div className="rounded-2xl border border-slate-200/90 bg-white px-4 py-3.5 sm:px-5 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-                      <div className="space-y-0.5 min-w-0">
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-                          {accountLabel}
-                        </span>
-                        <div
-                          data-testid={idx === 0 ? 'popup-account-number' : `popup-account-number-${method.type}`}
-                          className="text-lg sm:text-xl font-black text-slate-900 tracking-tight select-all break-all"
-                        >
-                          {method.accountNumber}
-                        </div>
-                        {method.type === 'bank' && (
-                          <div className="text-[11px] text-slate-500 space-y-0.5 pt-0.5">
-                            {method.bankName && (
-                              <p className="font-bold text-slate-700">
-                                {method.bankName} ({method.accountName})
-                              </p>
-                            )}
-                            {(method.branchName || method.routingNumber) && (
-                              <p>
-                                {method.branchName ? `Branch: ${method.branchName}` : ''}
-                                {method.branchName && method.routingNumber ? ' • ' : ''}
-                                {method.routingNumber ? `Routing: ${method.routingNumber}` : ''}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                        {/* Copy Number Button */}
-                        <button
-                          type="button"
-                          onClick={e => {
-                            e.stopPropagation();
-                            onSelectMethod?.(method);
-                            handleCopy(method.accountNumber, method.id);
-                          }}
-                          className={`px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
-                            isCopied
-                              ? 'bg-emerald-600 text-white shadow-xs'
-                              : 'bg-[#F1F5F9] hover:bg-[#E2E8F0] text-slate-800 border border-slate-200/80'
-                          }`}
-                        >
-                          {isCopied ? <Check size={15} /> : <Copy size={15} className="text-slate-500" />}
-                          <span>{isCopied ? 'Copied!' : 'Copy Number'}</span>
-                        </button>
-
-                        {/* 5. Separate Payment QR Code Button */}
-                        <button
-                          type="button"
-                          onClick={e => {
-                            e.stopPropagation();
-                            onSelectMethod?.(method);
-                            setQrModalMethod(method);
-                          }}
-                          data-testid={`popup-qr-btn-${method.type}`}
-                          className="px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 bg-[#FFF0F6] hover:bg-[#FFE0EE] text-[#E2136E] border border-[#FFADD2] shadow-2xs"
-                        >
-                          <QrCode size={15} />
-                          <span>QR Code</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* 4. Payment Instructions (Warm Amber Instruction Box) */}
-                    <div className="rounded-2xl bg-[#FFFDF2] border border-[#FDE68A] px-4 py-3.5 text-xs sm:text-[13.5px] text-slate-900 leading-relaxed font-medium">
-                      {methodMeta.instructionText}
-                    </div>
+        return (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Payment Method"
+            data-testid="payment-instructions-modal"
+            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/65 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto"
+            onClick={e => {
+              if (e.target === e.currentTarget) {
+                setIsModalOpen?.(false);
+              }
+            }}
+          >
+            <div className="w-full max-w-lg bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-2xl space-y-4 relative my-auto max-h-[92vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+              {/* 1. Modal Top Header: English "Payment Method" title with Close button */}
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-2xs">
+                    <CreditCard size={16} />
                   </div>
-                );
-              })}
-            </div>
-
-            {/* Payment Submission Section (Sender Mobile Number & Transaction ID) */}
-            <div className="pt-4 border-t border-slate-200/90 space-y-4">
-              {/* Quick selector pills to indicate which payment method the user paid with */}
-              {activeOnlineMethods.length > 1 && (
-                <div className="space-y-1.5">
-                  <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    পেমেন্ট মাধ্যম নির্বাচন করুন (Select Paid Method)
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {activeOnlineMethods.map(m => {
-                      const mMeta = getPaymentMethodDisplayMeta(m);
-                      const isSel = m.id === selectedMethod.id;
-                      return (
-                        <button
-                          key={m.id}
-                          type="button"
-                          onClick={() => onSelectMethod?.(m)}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border flex items-center gap-1.5 transition-all cursor-pointer ${
-                            isSel
-                              ? 'bg-[#FFF0F6] text-[#E2136E] border-[#E2136E] ring-1 ring-[#E2136E]/20 shadow-2xs'
-                              : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
-                          }`}
-                        >
-                          <span>{mMeta.displayTitle}</span>
-                          {isSel && <Check size={12} strokeWidth={3} />}
-                        </button>
-                      );
-                    })}
+                  <div>
+                    <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight leading-tight">
+                      Payment Method
+                    </h3>
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      পেমেন্ট মেথড সিলেক্ট করুন এবং নির্ধারিত নম্বরে পরিশোধ করুন
+                    </p>
                   </div>
                 </div>
-              )}
-
-              <div>
-                <label className="block text-xs sm:text-[13px] font-bold text-slate-800 mb-1.5">
-                  Sender Mobile Number (Account used for payment)
-                </label>
-                <input
-                  type="tel"
-                  value={senderNumber}
-                  onChange={e => {
-                    setSenderNumber(e.target.value);
-                    if (popupError) setPopupError('');
-                  }}
-                  placeholder="01XXXXXXXXX"
-                  data-testid="popup-sender-input"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm font-mono text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#E2136E] focus:ring-2 focus:ring-[#E2136E]/15 transition-all"
-                />
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen?.(false)}
+                  aria-label="Close Payment Popup"
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
               </div>
 
-              <div>
-                <label className="block text-xs sm:text-[13px] font-bold text-slate-800 mb-1.5">
-                  Enter Transaction ID (TrxID) <span className="text-[#E2136E]">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={transactionId}
-                  onChange={e => {
-                    setTransactionId(e.target.value.toUpperCase());
-                    if (popupError) setPopupError('');
-                  }}
-                  placeholder="E.G., 9X7D892K"
-                  data-testid="popup-trxid-input"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm font-mono uppercase text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#E2136E] focus:ring-2 focus:ring-[#E2136E]/15 transition-all"
-                />
+              {/* 2. Payment Method Selector: Clean, compact 2-column or 3-column buttons with Logo + Name */}
+              <div className="space-y-1.5">
+                <span className="block text-[10.5px] font-bold uppercase tracking-wider text-slate-400">
+                  Select Payment Option
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {activeOnlineMethods.map(method => {
+                    const isSel = method.id === currentActiveMethod.id;
+                    const methodMeta = getPaymentMethodDisplayMeta(method);
+                    return (
+                      <button
+                        key={method.id}
+                        type="button"
+                        onClick={() => {
+                          setActiveTabId(method.id);
+                          onSelectMethod?.(method);
+                        }}
+                        data-testid={`popup-method-tab-${method.type}`}
+                        className={`p-2.5 rounded-2xl border-2 flex items-center gap-2 transition-all cursor-pointer text-left ${
+                          isSel
+                            ? 'border-[#D71920] bg-[#FFF1F2]/80 shadow-2xs ring-1 ring-[#D71920]/20'
+                            : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/70'
+                        }`}
+                      >
+                        <PaymentBrandIcon method={method} size="sm" />
+                        <div className="min-w-0 flex-1">
+                          <div className="font-black text-xs text-slate-900 truncate">
+                            {methodMeta.displayTitle}
+                          </div>
+                          {methodMeta.englishName && (
+                            <div className="text-[9.5px] text-slate-500 truncate font-semibold">
+                              {methodMeta.englishName}
+                            </div>
+                          )}
+                        </div>
+                        {isSel && (
+                          <div className="w-3.5 h-3.5 rounded-full bg-[#D71920] text-white flex items-center justify-center shrink-0">
+                            <Check size={9} strokeWidth={3} />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
 
-            {popupError && (
-              <div
-                data-testid="popup-error-msg"
-                className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold flex items-center gap-2"
-              >
-                <AlertCircle size={15} className="shrink-0 text-red-600" />
-                <span>{popupError}</span>
+              {/* 3. Selected Payment Method Details Section */}
+              <div className="space-y-3.5 pt-1">
+                {/* 3A. Upfront Payable Amount Banner */}
+                <div className="rounded-2xl bg-gradient-to-r from-rose-50 via-[#FFF5F9] to-amber-50/80 border border-rose-200/90 p-3.5 flex items-center justify-between gap-3 shadow-2xs">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                      Payable Amount (মোট প্রদেয়)
+                    </span>
+                    <div className="text-xl sm:text-2xl font-black text-[#D71920] tracking-tight">
+                      ৳{totalAmount}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="px-2.5 py-1 rounded-lg bg-white border border-rose-200 text-xs font-bold text-slate-800 shadow-2xs">
+                      {activeMeta.accountType !== 'None' ? activeMeta.accountType : 'Personal'} Account
+                    </span>
+                    <p className="text-[10.5px] text-slate-600 mt-1 font-medium">
+                      {currentActiveMethod.type === 'bank' ? 'ব্যাংক ট্রান্সফার করুন' : 'Send Money করুন'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 3B. Account Number & Copy Number Card */}
+                <div className="rounded-2xl border border-slate-200/90 bg-white p-3.5 sm:p-4 shadow-2xs space-y-2.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div className="space-y-0.5 min-w-0">
+                      <span className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 block">
+                        {currentActiveMethod.type === 'bangla_qr'
+                          ? 'BANGLA QR ID / NUMBER:'
+                          : currentActiveMethod.type === 'bank'
+                          ? 'BANK ACCOUNT NUMBER:'
+                          : `${currentActiveMethod.type.toUpperCase()} ACCOUNT / NUMBER:`}
+                      </span>
+                      <div
+                        data-testid="popup-account-number"
+                        className="text-lg sm:text-xl font-black text-slate-900 tracking-tight font-mono select-all break-all"
+                      >
+                        {currentActiveMethod.accountNumber}
+                      </div>
+                      {currentActiveMethod.accountName && (
+                        <div className="text-xs text-slate-600 font-medium">
+                          Account Name: <strong className="text-slate-800">{currentActiveMethod.accountName}</strong>
+                        </div>
+                      )}
+                      {currentActiveMethod.type === 'bank' && (
+                        <div className="text-[11px] text-slate-500 space-y-0.5 pt-1">
+                          {currentActiveMethod.bankName && (
+                            <p className="font-bold text-slate-800">
+                              Bank: {currentActiveMethod.bankName}
+                            </p>
+                          )}
+                          {(currentActiveMethod.branchName || currentActiveMethod.routingNumber) && (
+                            <p>
+                              {currentActiveMethod.branchName ? `Branch: ${currentActiveMethod.branchName}` : ''}
+                              {currentActiveMethod.branchName && currentActiveMethod.routingNumber ? ' • ' : ''}
+                              {currentActiveMethod.routingNumber ? `Routing: ${currentActiveMethod.routingNumber}` : ''}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Copy Number Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(currentActiveMethod.accountNumber, currentActiveMethod.id)}
+                      data-testid="popup-copy-number-btn"
+                      className={`px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shrink-0 shadow-2xs ${
+                        isCopied
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'bg-[#F1F5F9] hover:bg-[#E2E8F0] text-slate-800 border border-slate-200/80'
+                      }`}
+                    >
+                      {isCopied ? <Check size={14} /> : <Copy size={14} className="text-slate-500" />}
+                      <span>{isCopied ? 'কপি হয়েছে' : 'কপি নাম্বার'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3C. Payment QR Code & Direct "কিউআর ডাউনলোড করুন" Button */}
+                <div className="rounded-2xl border border-slate-200/90 bg-slate-50/70 p-3 sm:p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xs">
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <div
+                      onClick={() => setQrModalMethod(currentActiveMethod)}
+                      title="Click to view large QR Code"
+                      className="w-16 h-16 rounded-xl bg-white border border-slate-200 p-1 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs cursor-pointer hover:scale-105 transition-transform"
+                    >
+                      <img
+                        src={qrImageSrc}
+                        alt={`${activeMeta.displayTitle} QR`}
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <QrCode size={14} className="text-[#D71920] shrink-0" />
+                        <h4 className="font-black text-xs sm:text-sm text-slate-900 truncate">
+                          {currentActiveMethod.type === 'bangla_qr'
+                            ? 'বাংলা কিউআর (Bangla QR)'
+                            : `${activeMeta.displayTitle} QR Code`}
+                        </h4>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                        {currentActiveMethod.type === 'bangla_qr'
+                          ? 'যেকোনো ব্যাংক বা বিকাশ/নগদ অ্যাপ দিয়ে স্ক্যান করতে কিউআর ডাউনলোড করুন'
+                          : 'অ্যাপ দিয়ে সরাসরি স্ক্যান করে পেমেন্ট করুন'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Direct QR Download Button */}
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadQrImage(currentActiveMethod, qrImageSrc)}
+                    data-testid="popup-download-qr-btn"
+                    className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm cursor-pointer transition-all shrink-0"
+                  >
+                    <Download size={13} />
+                    <span>কিউআর ডাউনলোড করুন</span>
+                  </button>
+                </div>
+
+                {/* 3D. Payment Instructions Box */}
+                <div className="rounded-2xl bg-[#FFFDF2] border border-[#FDE68A] px-3.5 py-2.5 text-xs text-slate-800 leading-relaxed font-medium">
+                  {activeMeta.instructionText}
+                </div>
+
+                {/* 3E. Payment Verification Form (Sender Mobile Number & Transaction ID) */}
+                <div className="space-y-3 pt-1 border-t border-slate-100">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1">
+                      Sender Mobile Number (Account used for payment)
+                    </label>
+                    <input
+                      type="tel"
+                      value={senderNumber}
+                      onChange={e => {
+                        setSenderNumber(e.target.value);
+                        if (popupError) setPopupError('');
+                      }}
+                      placeholder="01XXXXXXXXX"
+                      data-testid="popup-sender-input"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-mono text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/15 transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1">
+                      Enter Transaction ID (TrxID) <span className="text-[#D71920]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={transactionId}
+                      onChange={e => {
+                        setTransactionId(e.target.value.toUpperCase());
+                        if (popupError) setPopupError('');
+                      }}
+                      placeholder="E.G., 9X7D892K"
+                      data-testid="popup-trxid-input"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-mono uppercase text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/15 transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Validation Error Alert */}
+                {popupError && (
+                  <div
+                    data-testid="popup-error-msg"
+                    className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold flex items-center gap-2 animate-in fade-in"
+                  >
+                    <AlertCircle size={15} className="shrink-0 text-red-600" />
+                    <span>{popupError}</span>
+                  </div>
+                )}
+
+                {/* Done Button */}
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={handleDoneClick}
+                    data-testid="popup-done-button"
+                    className="w-full py-3 px-5 rounded-xl bg-gradient-to-r from-[#D71920] to-[#B9151B] hover:from-[#B9151B] hover:to-[#961015] text-white font-black text-sm tracking-wide shadow-md shadow-[#D71920]/25 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.99]"
+                  >
+                    <CheckCircle2 size={17} />
+                    <span>Done (ডান)</span>
+                  </button>
+                </div>
               </div>
-            )}
-
-            {/* Done Button */}
-            <div className="pt-1">
-              <button
-                type="button"
-                onClick={handleDoneClick}
-                data-testid="popup-done-button"
-                className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-[#E2136E] to-[#D71920] hover:from-[#c81060] hover:to-[#b8141a] text-white font-black text-sm tracking-wide shadow-lg shadow-[#E2136E]/25 flex items-center justify-center gap-2 cursor-pointer transition-all"
-              >
-                <CheckCircle2 size={18} />
-                <span>Done (ডান)</span>
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ENLARGED PAYMENT QR CODE / PAYMENT IMAGE VIEW & DOWNLOAD MODAL */}
       {qrModalMethod && (() => {
