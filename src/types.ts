@@ -47,6 +47,12 @@ export interface Product {
   isFeatured?: boolean;
   isOriginalBadge?: boolean;
   deliveryEstimate?: string;
+  deliveryTimingTitle?: string;
+  insideDhakaDelivery?: string;
+  outsideDhakaDelivery?: string;
+  deliveryTimingNote?: string;
+  deliveryTimerHours?: number;
+  customBookDetails?: { label: string; value: string }[];
   // Book Preview / "একটু পড়ে দেখুন" (Read Inside & PDF Pages)
   previewHighlightTitle?: string;
   previewHighlightSubtitle?: string;
@@ -124,6 +130,23 @@ export interface PaymentSubmission {
   rejectionReason?: string;
 }
 
+export type PaymentSubOptionType = 'send_money' | 'payment';
+
+export interface PaymentSubOptionConfig {
+  id: PaymentSubOptionType;
+  enabled: boolean;
+  label: string; // e.g. "সেন্ড মানি" or "পেমেন্ট"
+  englishLabel?: string; // e.g. "Send Money" or "Payment"
+  subtitle?: string; // e.g. "পার্সোনাল নাম্বারে সেন্ড মানি" or "মার্চেন্ট নাম্বারে পেমেন্ট"
+  accountType: 'Personal' | 'Merchant' | 'Agent' | 'None';
+  accountName: string;
+  accountNumber: string;
+  instructions: string;
+  qrCodeUrl?: string;
+  englishQrCodeUrl?: string;
+  bengaliQrCodeUrl?: string;
+}
+
 export interface PaymentMethodConfig {
   id: string;
   name: string; // e.g. "বিকাশ", "নগদ", "ক্যাশ অন ডেলিভারি"
@@ -147,6 +170,9 @@ export interface PaymentMethodConfig {
   qrCodeUrl?: string;
   englishQrCodeUrl?: string;
   bengaliQrCodeUrl?: string;
+  // Dual Payment Sub-Options (Send Money & Payment) manageable from Admin Panel
+  sendMoneyOption?: PaymentSubOptionConfig;
+  paymentOption?: PaymentSubOptionConfig;
 }
 
 export interface Category {
@@ -164,6 +190,17 @@ export interface Author {
   bio: string;
   photoUrl?: string;
   booksCount?: number;
+}
+
+export interface Publisher {
+  id: string;
+  name: string;
+  banglaName?: string;
+  description?: string;
+  logoUrl?: string;
+  booksCount?: number;
+  establishedYear?: string;
+  isFeatured?: boolean;
 }
 
 export interface Banner {

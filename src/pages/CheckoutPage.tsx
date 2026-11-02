@@ -183,6 +183,7 @@ export function CheckoutPage() {
   const [senderNumber, setSenderNumber] = useState('');
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isPaymentSubmitted, setIsPaymentSubmitted] = useState(false);
+  const [selectedSubOptionLabel, setSelectedSubOptionLabel] = useState('সেন্ড মানি');
 
   // Delivery type: 'standard' (Home Delivery) or 'sundarban' (Sundarban Courier)
   const [deliveryType, setDeliveryType] = useState<'standard' | 'sundarban'>('standard');
@@ -346,6 +347,11 @@ export function CheckoutPage() {
         `Delivery Method: ${deliveryLabel}`
       ].filter(Boolean).join(' | ');
 
+      const resolvedPaymentMethodName =
+        selectedMethod.type !== 'cod' && selectedSubOptionLabel
+          ? `${selectedMethod.name} (${selectedSubOptionLabel})`
+          : selectedMethod.name;
+
       const orderId = await createOrder({
         userId: currentUser?.uid || ('guest-' + Date.now()),
         customerName: cleanName,
@@ -362,7 +368,7 @@ export function CheckoutPage() {
         discount: 0,
         total,
         paymentMethodId: selectedMethod.id,
-        paymentMethodName: selectedMethod.name
+        paymentMethodName: resolvedPaymentMethodName
       });
 
       // Save delivery address to localStorage for returning customer autofill
@@ -392,7 +398,7 @@ export function CheckoutPage() {
             customerName: cleanName,
             customerPhone: cleanPhone,
             providerId: selectedMethod.id,
-            providerName: selectedMethod.name,
+            providerName: resolvedPaymentMethodName,
             transactionReference: transactionId.trim(),
             senderIdentifier: senderNumber.trim(),
             claimedAmount: total
@@ -803,6 +809,7 @@ export function CheckoutPage() {
                   selectedMethod={selectedMethod}
                   allMethods={paymentMethods}
                   onSelectMethod={m => setSelectedPaymentId(m.id)}
+                  onSelectSubOption={sub => setSelectedSubOptionLabel(sub.label)}
                   totalAmount={total}
                   transactionId={transactionId}
                   setTransactionId={setTransactionId}

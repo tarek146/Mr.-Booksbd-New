@@ -32,8 +32,11 @@ import {
   QrCode,
   Edit3,
   ThumbsUp,
-  ThumbsDown
+  ThumbsDown,
+  Clock,
+  Building2
 } from 'lucide-react';
+import { resolveProductDeliveryTiming } from '../utils/publisherAndDeliveryHelpers';
 
 function WhatsAppIcon({ className = "w-4 h-4 shrink-0" }: { className?: string }) {
   return (
@@ -389,10 +392,43 @@ export function ProductDetail() {
                     {product.title}
                   </h1>
 
-                  <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed">
+                  <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed flex flex-wrap items-center gap-x-2 gap-y-1">
                     {product.type === 'book' ? (
                       <>
-                        By <strong className="text-neutral-900 font-bold">{product.author || 'Renowned Author'}</strong>
+                        <span>
+                          By{' '}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (product.author) {
+                                setSearchQuery(product.author);
+                                setActivePage('books');
+                              }
+                            }}
+                            className="text-neutral-900 font-bold hover:text-[#D71920] underline decoration-dotted cursor-pointer"
+                          >
+                            {product.author || 'Renowned Author'}
+                          </button>
+                        </span>
+                        {product.publisher && (
+                          <>
+                            <span className="text-neutral-300">•</span>
+                            <span className="inline-flex items-center gap-1">
+                              <Building2 size={13} className="text-[#D71920]" />
+                              <span>প্রকাশনী:</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSearchQuery(product.publisher || '');
+                                  setActivePage('books');
+                                }}
+                                className="text-[#D71920] font-bold hover:underline cursor-pointer"
+                              >
+                                {product.publisher}
+                              </button>
+                            </span>
+                          </>
+                        )}
                       </>
                     ) : (
                       <>Brand: <strong className="text-neutral-900 font-bold">{product.brand || 'Stationery'}</strong></>
@@ -658,147 +694,267 @@ export function ProductDetail() {
                 </div>
 
                 {/* Accordion 2: Book Details */}
-                <div className={`rounded-2xl border transition-all duration-200 overflow-hidden bg-white ${
-                  activeAccordion === 'specifications' 
-                    ? 'border-[#D71920]/40 ring-1 ring-[#D71920]/15 shadow-xs' 
-                    : 'border-neutral-200 hover:border-neutral-300 shadow-2xs'
-                }`}>
-                  <button
-                    type="button"
-                    onClick={() => toggleAccordion('specifications')}
-                    className="w-full p-3 sm:p-3.5 text-left flex items-center justify-between gap-2.5 hover:bg-neutral-50/70 transition-colors cursor-pointer group"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <BookOpen size={16} className={activeAccordion === 'specifications' ? 'text-[#D71920]' : 'text-neutral-500'} />
-                        <h3 className={`text-sm sm:text-[15px] font-bold ${activeAccordion === 'specifications' ? 'text-[#D71920]' : 'text-neutral-900 group-hover:text-neutral-950'}`}>
-                          Book Details
-                        </h3>
-                      </div>
-                      <p className="text-[11px] sm:text-xs text-neutral-500 mt-0.5 truncate pl-6">
-                        {product.type === 'book'
-                          ? 'Author, publisher, edition, pages, language & ISBN'
-                          : 'Brand, material, dimensions, model & SKU'}
-                      </p>
-                    </div>
-                    <div className={`p-1.5 rounded-full transition-all duration-200 shrink-0 ${
-                      activeAccordion === 'specifications' ? 'bg-[#FFF1F2] text-[#D71920] rotate-90' : 'bg-neutral-100 text-neutral-400 group-hover:text-neutral-600'
+                {(() => {
+                  const deliveryTiming = resolveProductDeliveryTiming(product);
+                  return (
+                    <div className={`rounded-2xl border transition-all duration-200 overflow-hidden bg-white ${
+                      activeAccordion === 'specifications' 
+                        ? 'border-[#D71920]/40 ring-1 ring-[#D71920]/15 shadow-xs' 
+                        : 'border-neutral-200 hover:border-neutral-300 shadow-2xs'
                     }`}>
-                      <ChevronRight size={14} className="stroke-[2.5]" />
+                      <button
+                        type="button"
+                        onClick={() => toggleAccordion('specifications')}
+                        className="w-full p-3 sm:p-3.5 text-left flex items-center justify-between gap-2.5 hover:bg-neutral-50/70 transition-colors cursor-pointer group"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <BookOpen size={16} className={activeAccordion === 'specifications' ? 'text-[#D71920]' : 'text-neutral-500'} />
+                            <h3 className={`text-sm sm:text-[15px] font-bold ${activeAccordion === 'specifications' ? 'text-[#D71920]' : 'text-neutral-900 group-hover:text-neutral-950'}`}>
+                              Book Details
+                            </h3>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FFF1F2] text-[#D71920] text-[10px] font-extrabold border border-[#D71920]/20">
+                              <Clock size={10} /> {deliveryTiming.estimateBadge}
+                            </span>
+                          </div>
+                          <p className="text-[11px] sm:text-xs text-neutral-500 mt-0.5 truncate pl-6">
+                            {product.type === 'book'
+                              ? 'Author, publisher, edition, pages, language, ISBN & delivery timing'
+                              : 'Brand, material, dimensions, model, SKU & delivery timing'}
+                          </p>
+                        </div>
+                        <div className={`p-1.5 rounded-full transition-all duration-200 shrink-0 ${
+                          activeAccordion === 'specifications' ? 'bg-[#FFF1F2] text-[#D71920] rotate-90' : 'bg-neutral-100 text-neutral-400 group-hover:text-neutral-600'
+                        }`}>
+                          <ChevronRight size={14} className="stroke-[2.5]" />
+                        </div>
+                      </button>
+
+                      {activeAccordion === 'specifications' && (
+                        <div className="px-3.5 sm:px-4 pb-4 pt-2 border-t border-neutral-100 text-xs space-y-3 animate-in fade-in duration-200">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                              <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                                <BookOpen size={13} className="text-[#D71920]" /> Title
+                              </span>
+                              <span className="font-bold text-neutral-900 text-right truncate max-w-[180px]">{product.title}</span>
+                            </div>
+
+                            {product.type === 'book' ? (
+                              <>
+                                <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                                  <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                                    <Award size={13} className="text-[#D71920]" /> Author
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (product.author) {
+                                        setSearchQuery(product.author);
+                                        setActivePage('books');
+                                      }
+                                    }}
+                                    className="font-bold text-neutral-900 hover:text-[#D71920] text-right cursor-pointer"
+                                  >
+                                    {product.author || 'Renowned Author'}
+                                  </button>
+                                </div>
+
+                                <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                                  <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                                    <Layers size={13} className="text-[#D71920]" /> Publisher
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (product.publisher) {
+                                        setSearchQuery(product.publisher);
+                                        setActivePage('books');
+                                      }
+                                    }}
+                                    className="font-bold text-neutral-900 hover:text-[#D71920] text-right cursor-pointer"
+                                  >
+                                    {product.publisher || 'MR. BOOKS Publications'}
+                                  </button>
+                                </div>
+
+                                <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                                  <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                                    <Tag size={13} className="text-[#D71920]" /> Edition
+                                  </span>
+                                  <span className="font-bold text-neutral-900 text-right">{product.edition || activeVariant.name || 'Standard Edition'}</span>
+                                </div>
+
+                                <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                                  <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                                    <FileText size={13} className="text-[#D71920]" /> Pages
+                                  </span>
+                                  <span className="font-bold text-neutral-900 text-right">{product.pages ? `${product.pages} Pages` : 'Standard Print'}</span>
+                                </div>
+
+                                <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                                  <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                                    <Globe size={13} className="text-[#D71920]" /> Language
+                                  </span>
+                                  <span className="font-bold text-neutral-900 text-right">{product.language || 'Bengali'}</span>
+                                </div>
+
+                                {product.isbn && (
+                                  <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                                    <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                                      <Barcode size={13} className="text-[#D71920]" /> ISBN
+                                    </span>
+                                    <span className="font-bold text-neutral-900 text-right font-mono">{product.isbn}</span>
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                                  <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                                    <Award size={13} className="text-[#D71920]" /> Brand
+                                  </span>
+                                  <span className="font-bold text-neutral-900 text-right">{product.brand || 'Premium Stationery'}</span>
+                                </div>
+
+                                {product.material && (
+                                  <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                                    <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                                      <Layers size={13} className="text-[#D71920]" /> Material
+                                    </span>
+                                    <span className="font-bold text-neutral-900 text-right">{product.material}</span>
+                                  </div>
+                                )}
+
+                                {product.dimensions && (
+                                  <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                                    <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                                      <FileText size={13} className="text-[#D71920]" /> Dimensions
+                                    </span>
+                                    <span className="font-bold text-neutral-900 text-right">{product.dimensions}</span>
+                                  </div>
+                                )}
+
+                                {product.colorModel && (
+                                  <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                                    <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                                      <Tag size={13} className="text-[#D71920]" /> Color / Model
+                                    </span>
+                                    <span className="font-bold text-neutral-900 text-right">{product.colorModel}</span>
+                                  </div>
+                                )}
+                              </>
+                            )}
+
+                            <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                              <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                                <Tag size={13} className="text-[#D71920]" /> Category
+                              </span>
+                              <span className="font-bold text-neutral-900 text-right">{product.category}</span>
+                            </div>
+
+                            <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                              <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                                <QrCode size={13} className="text-[#D71920]" /> SKU
+                              </span>
+                              <span className="font-bold text-neutral-900 text-right font-mono">{activeVariant.sku || product.sku}</span>
+                            </div>
+
+                            {/* Delivery Timing Row inside Book Details Grid */}
+                            <div className="p-2.5 rounded-xl bg-[#FFF1F2]/70 border border-[#D71920]/20 flex items-center justify-between gap-2 sm:col-span-2">
+                              <span className="text-neutral-700 font-bold flex items-center gap-1.5">
+                                <Clock size={13} className="text-[#D71920]" /> Delivery Timing (ডেলিভারি সময়)
+                              </span>
+                              <span className="font-black text-[#D71920] text-right">{deliveryTiming.estimateBadge}</span>
+                            </div>
+
+                            {/* Optional Custom Book Details Rows configured by Admin */}
+                            {product.customBookDetails &&
+                              product.customBookDetails.map((detail, idx) => (
+                                <div
+                                  key={idx}
+                                  className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2"
+                                >
+                                  <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                                    <Sparkles size={13} className="text-[#D71920]" /> {detail.label}
+                                  </span>
+                                  <span className="font-bold text-neutral-900 text-right">{detail.value}</span>
+                                </div>
+                              ))}
+                          </div>
+
+                          {/* Attractive Per-Book Delivery Timing & Schedule Highlight Card */}
+                          <div className="rounded-2xl border border-[#D71920]/25 bg-gradient-to-br from-[#FFF1F2]/90 via-white to-amber-50/50 p-3.5 sm:p-4 shadow-2xs space-y-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[#D71920]/15">
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-xl bg-[#D71920] text-white flex items-center justify-center shadow-xs shrink-0">
+                                  <Truck size={16} />
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-black text-neutral-900 text-xs sm:text-sm">
+                                      {deliveryTiming.title}
+                                    </span>
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                  </div>
+                                  <p className="text-[10px] text-neutral-500 font-medium">
+                                    এই বইটির জন্য নির্ধারিত ডেলিভারি সময়সূচী
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#D71920] text-white font-black text-[11px] shadow-xs">
+                                <Clock size={12} />
+                                <span>{deliveryTiming.estimateBadge}</span>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                              <div className="p-2.5 sm:p-3 rounded-xl bg-white border border-neutral-200/90 flex items-center justify-between gap-2 shadow-2xs">
+                                <div className="min-w-0">
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">
+                                    Inside Dhaka (ঢাকার ভেতরে)
+                                  </span>
+                                  <span className="text-xs font-black text-neutral-900 mt-0.5 block">
+                                    {deliveryTiming.insideDhaka}
+                                  </span>
+                                </div>
+                                <span className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-extrabold text-[10px] border border-emerald-200 shrink-0">
+                                  Fastest
+                                </span>
+                              </div>
+
+                              <div className="p-2.5 sm:p-3 rounded-xl bg-white border border-neutral-200/90 flex items-center justify-between gap-2 shadow-2xs">
+                                <div className="min-w-0">
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">
+                                    Outside Dhaka (ঢাকার বাইরে)
+                                  </span>
+                                  <span className="text-xs font-black text-neutral-900 mt-0.5 block">
+                                    {deliveryTiming.outsideDhaka}
+                                  </span>
+                                </div>
+                                <span className="px-2 py-1 rounded-lg bg-blue-50 text-blue-700 font-extrabold text-[10px] border border-blue-200 shrink-0">
+                                  Nationwide
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="p-2.5 rounded-xl bg-white/90 border border-[#D71920]/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px]">
+                              <div className="flex items-start sm:items-center gap-2 text-neutral-700 font-semibold">
+                                <Sparkles size={14} className="text-[#D71920] shrink-0 mt-0.5 sm:mt-0" />
+                                <span>{deliveryTiming.note}</span>
+                              </div>
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-900 border border-amber-200 font-extrabold text-[10px] shrink-0 self-start sm:self-auto">
+                                <Clock size={11} className="text-[#D71920]" />
+                                <span>টার্গেট টাইমার: {deliveryTiming.timerHours} ঘণ্টা</span>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </button>
-
-                  {activeAccordion === 'specifications' && (
-                    <div className="px-3.5 sm:px-4 pb-4 pt-2 border-t border-neutral-100 text-xs animate-in fade-in duration-200">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                          <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                            <BookOpen size={13} className="text-[#D71920]" /> Title
-                          </span>
-                          <span className="font-bold text-neutral-900 text-right truncate max-w-[180px]">{product.title}</span>
-                        </div>
-
-                        {product.type === 'book' ? (
-                          <>
-                            <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                              <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                                <Award size={13} className="text-[#D71920]" /> Author
-                              </span>
-                              <span className="font-bold text-neutral-900 text-right">{product.author || 'Renowned Author'}</span>
-                            </div>
-
-                            <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                              <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                                <Layers size={13} className="text-[#D71920]" /> Publisher
-                              </span>
-                              <span className="font-bold text-neutral-900 text-right">{product.publisher || 'MR. BOOKS Publications'}</span>
-                            </div>
-
-                            <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                              <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                                <Tag size={13} className="text-[#D71920]" /> Edition
-                              </span>
-                              <span className="font-bold text-neutral-900 text-right">{product.edition || activeVariant.name || 'Standard Edition'}</span>
-                            </div>
-
-                            <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                              <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                                <FileText size={13} className="text-[#D71920]" /> Pages
-                              </span>
-                              <span className="font-bold text-neutral-900 text-right">{product.pages ? `${product.pages} Pages` : 'Standard Print'}</span>
-                            </div>
-
-                            <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                              <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                                <Globe size={13} className="text-[#D71920]" /> Language
-                              </span>
-                              <span className="font-bold text-neutral-900 text-right">{product.language || 'Bangla'}</span>
-                            </div>
-
-                            {product.isbn && (
-                              <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                                <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                                  <Barcode size={13} className="text-[#D71920]" /> ISBN
-                                </span>
-                                <span className="font-bold text-neutral-900 text-right font-mono">{product.isbn}</span>
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                              <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                                <Award size={13} className="text-[#D71920]" /> Brand
-                              </span>
-                              <span className="font-bold text-neutral-900 text-right">{product.brand || 'Premium Stationery'}</span>
-                            </div>
-
-                            {product.material && (
-                              <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                                <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                                  <Layers size={13} className="text-[#D71920]" /> Material
-                                </span>
-                                <span className="font-bold text-neutral-900 text-right">{product.material}</span>
-                              </div>
-                            )}
-
-                            {product.dimensions && (
-                              <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                                <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                                  <FileText size={13} className="text-[#D71920]" /> Dimensions
-                                </span>
-                                <span className="font-bold text-neutral-900 text-right">{product.dimensions}</span>
-                              </div>
-                            )}
-
-                            {product.colorModel && (
-                              <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                                <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                                  <Tag size={13} className="text-[#D71920]" /> Color / Model
-                                </span>
-                                <span className="font-bold text-neutral-900 text-right">{product.colorModel}</span>
-                              </div>
-                            )}
-                          </>
-                        )}
-
-                        <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                          <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                            <Tag size={13} className="text-[#D71920]" /> Category
-                          </span>
-                          <span className="font-bold text-neutral-900 text-right">{product.category}</span>
-                        </div>
-
-                        <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                          <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                            <QrCode size={13} className="text-[#D71920]" /> SKU
-                          </span>
-                          <span className="font-bold text-neutral-900 text-right font-mono">{activeVariant.sku || product.sku}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                  );
+                })()}
 
                 {/* Accordion 3: Customer Reviews */}
                 <div className={`rounded-2xl border transition-all duration-200 overflow-hidden bg-white ${

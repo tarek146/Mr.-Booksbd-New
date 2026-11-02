@@ -55,15 +55,22 @@ import {
   Sun,
   QrCode,
   User,
-  UserCheck
+  UserCheck,
+  Building2
 } from 'lucide-react';
-import { Author, Banner, BookPreviewPage, Order, PaymentMethodConfig, AdminStaffMember, AdminStaffRole, AdminProfile } from '../types';
+import { Author, Publisher, Banner, BookPreviewPage, Order, PaymentMethodConfig, PaymentSubOptionConfig, AdminStaffMember, AdminStaffRole, AdminProfile } from '../types';
+import { DEFAULT_PUBLISHERS_LIST, parseCustomBookDetails, serializeCustomBookDetails } from '../utils/publisherAndDeliveryHelpers';
 import { DEFAULT_PAYMENT_METHODS } from '../firebase';
 import { AdminAnalytics } from '../components/admin/AdminAnalytics';
 import { AdminStaffManagement } from '../components/admin/AdminStaffManagement';
 import { AdminProfileManagement } from '../components/admin/AdminProfileManagement';
 import { compressImageFile, isValidImageUrl, sanitizeImageUrl } from '../utils/imageCompressor';
-import { sortPaymentMethods, getPaymentMethodDisplayMeta } from '../utils/reviewHelpers';
+import {
+  sortPaymentMethods,
+  getPaymentMethodDisplayMeta,
+  getPaymentMethodSubOptions,
+  getDefaultMerchantPaymentInstruction,
+} from '../utils/reviewHelpers';
 import { PaymentBrandIcon } from '../components/PaymentInstructions';
 import {
   movePreviewPage,
@@ -98,6 +105,7 @@ export function AdminDashboard() {
     products, 
     banners,
     authors,
+    publishers,
     settings, 
     reviewPaymentSubmission, 
     updateOrderStatus, 
@@ -115,6 +123,9 @@ export function AdminDashboard() {
     addAuthor,
     updateAuthor,
     deleteAuthor,
+    addPublisher,
+    updatePublisher,
+    deletePublisher,
     addCategory,
     updateCategory,
     deleteCategory,
@@ -139,7 +150,7 @@ export function AdminDashboard() {
     deleteStaffMember
   } = useStore();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'verifications' | 'payment-methods' | 'orders' | 'products' | 'categories' | 'banners' | 'authors' | 'subscribers' | 'settings' | 'special-offer' | 'reels' | 'reviews' | 'staff' | 'profile'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'verifications' | 'payment-methods' | 'orders' | 'products' | 'categories' | 'banners' | 'authors' | 'publishers' | 'subscribers' | 'settings' | 'special-offer' | 'reels' | 'reviews' | 'staff' | 'profile'>('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Staff & Team Access Management state
@@ -227,13 +238,23 @@ export function AdminDashboard() {
   const [authorPhoto, setAuthorPhoto] = useState('');
   const [authorBooksCount, setAuthorBooksCount] = useState(25);
 
+  // Publisher management state
+  const [showAddPublisherModal, setShowAddPublisherModal] = useState(false);
+  const [editingPublisherId, setEditingPublisherId] = useState<string | null>(null);
+  const [pubName, setPubName] = useState('');
+  const [pubBanglaName, setPubBanglaName] = useState('');
+  const [pubDescription, setPubDescription] = useState('');
+  const [pubLogo, setPubLogo] = useState('');
+  const [pubBooksCount, setPubBooksCount] = useState(30);
+  const [pubEstYear, setPubEstYear] = useState('');
+
   // New & Editing Payment Method modal state
   const [showAddPmModal, setShowAddPmModal] = useState(false);
   const [editingPmId, setEditingPmId] = useState<string | null>(null);
   const [pmName, setPmName] = useState('বিকাশ');
   const [pmEnglishName, setPmEnglishName] = useState('bKash');
   const [pmType, setPmType] = useState<'bkash' | 'nagad' | 'rocket' | 'upay' | 'bank' | 'cod' | 'bangla_qr'>('bkash');
-  const [pmSubtitle, setPmSubtitle] = useState('বিকাশ সেন্ড মানি');
+  const [pmSubtitle, setPmSubtitle] = useState('বিকাশ সেন্ড মানি ও পেমেন্ট');
   const [pmBadgeText, setPmBadgeText] = useState('');
   const [pmAccountType, setPmAccountType] = useState<'Personal' | 'Merchant' | 'Agent' | 'None'>('Personal');
   const [pmAccName, setPmAccName] = useState('MR. BOOKS Official');
@@ -249,6 +270,37 @@ export function AdminDashboard() {
   const [pmBranchName, setPmBranchName] = useState('');
   const [pmRoutingNumber, setPmRoutingNumber] = useState('');
   const [pmIsActive, setPmIsActive] = useState(true);
+
+  // Dual Sub-Option State: 1. সেন্ড মানি (Send Money) & 2. পেমেন্ট (Payment)
+  const [pmEditingSubTab, setPmEditingSubTab] = useState<'send_money' | 'payment'>('send_money');
+  const [pmSendMoneyOption, setPmSendMoneyOption] = useState<PaymentSubOptionConfig>({
+    id: 'send_money',
+    enabled: true,
+    label: 'সেন্ড মানি',
+    englishLabel: 'Send Money',
+    subtitle: 'Personal নম্বরে সেন্ড মানি করুন',
+    accountType: 'Personal',
+    accountName: 'MR. BOOKS Official',
+    accountNumber: '01712345678',
+    instructions: 'বিকাশ অ্যাপ অথবা *247# ডায়াল করে নির্ধারিত নম্বরে Send Money করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।',
+    qrCodeUrl: '',
+    englishQrCodeUrl: '',
+    bengaliQrCodeUrl: '',
+  });
+  const [pmPaymentOption, setPmPaymentOption] = useState<PaymentSubOptionConfig>({
+    id: 'payment',
+    enabled: true,
+    label: 'পেমেন্ট',
+    englishLabel: 'Make Payment',
+    subtitle: 'Merchant নম্বরে পেমেন্ট করুন',
+    accountType: 'Merchant',
+    accountName: 'MR. BOOKS Official',
+    accountNumber: '01712345678',
+    instructions: getDefaultMerchantPaymentInstruction('bkash'),
+    qrCodeUrl: '',
+    englishQrCodeUrl: '',
+    bengaliQrCodeUrl: '',
+  });
 
   // Admin Login State
   const [adminEmail, setAdminEmail] = useState('mr.booksbd700@gmail.com');
@@ -279,9 +331,19 @@ export function AdminDashboard() {
   const [prodExtraImages, setProdExtraImages] = useState('');
   const [prodIsOriginal, setProdIsOriginal] = useState(true);
   const [prodPrintVariants, setProdPrintVariants] = useState('Paperback, Hardcover');
-  const [prodDeliveryEstimate, setProdDeliveryEstimate] = useState('2-3 Days');
+  const [prodDeliveryEstimate, setProdDeliveryEstimate] = useState('২-৩ কার্যদিবস (2-3 Days)');
+  const [prodDeliveryTimingTitle, setProdDeliveryTimingTitle] = useState('ডেলিভারি টাইমিং (Delivery Timing)');
+  const [prodInsideDhakaDelivery, setProdInsideDhakaDelivery] = useState('২৪-৪৮ ঘণ্টা (১-২ দিন)');
+  const [prodOutsideDhakaDelivery, setProdOutsideDhakaDelivery] = useState('২-৩ কার্যদিবস (সারাদেশে)');
+  const [prodDeliveryTimingNote, setProdDeliveryTimingNote] = useState('আজকে অর্ডার করলে দ্রুততম সময়ে বাবল-র‍্যাপ প্যাকেজিংসহ কুরিয়ারে পাঠানো হবে।');
+  const [prodDeliveryTimerHours, setProdDeliveryTimerHours] = useState<number>(48);
   const [prodPublisher, setProdPublisher] = useState('');
   const [prodIsbn, setProdIsbn] = useState('');
+  const [prodEdition, setProdEdition] = useState('3rd Edition');
+  const [prodPages, setProdPages] = useState<number>(264);
+  const [prodLanguage, setProdLanguage] = useState('Bengali');
+  const [prodSku, setProdSku] = useState('');
+  const [prodCustomDetailsText, setProdCustomDetailsText] = useState('');
   const [prodBrand, setProdBrand] = useState('');
   const [prodMaterial, setProdMaterial] = useState('');
   const [prodDimensions, setProdDimensions] = useState('');
@@ -348,103 +410,138 @@ export function AdminDashboard() {
     setPmBranchName('');
     setPmRoutingNumber('');
     setPmIsActive(true);
+    setPmEditingSubTab('send_money');
+
+    let nextType: PaymentMethodConfig['type'] = 'bkash';
+    let nextName = 'বিকাশ';
+    let nextEn = 'bKash';
+    let nextSub = 'বিকাশ সেন্ড মানি ও পেমেন্ট';
+    let nextAccType: PaymentMethodConfig['accountType'] = 'Personal';
+    let nextAccName = 'MR. BOOKS Official';
+    let nextAccNum = '01712345678';
+    let nextInst = 'বিকাশ অ্যাপ অথবা *247# ডায়াল করে নির্ধারিত নম্বরে Send Money করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।';
 
     switch (template) {
       case 'bkash':
-        setPmType('bkash');
-        setPmName('বিকাশ');
-        setPmEnglishName('bKash');
-        setPmSubtitle('বিকাশ সেন্ড মানি');
-        setPmAccountType('Personal');
-        setPmAccName('MR. BOOKS Official');
-        setPmAccNum('01712345678');
+        nextType = 'bkash';
+        nextName = 'বিকাশ';
+        nextEn = 'bKash';
+        nextSub = 'বিকাশ সেন্ড মানি ও পেমেন্ট';
+        nextAccType = 'Personal';
+        nextAccName = 'MR. BOOKS Official';
+        nextAccNum = '01712345678';
         setPmRequireTrxId(true);
         setPmRequireSenderPhone(true);
-        setPmInst('বিকাশ অ্যাপ অথবা *247# ডায়াল করে নির্ধারিত নম্বরে Send Money করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।');
+        nextInst = 'বিকাশ অ্যাপ অথবা *247# ডায়াল করে নির্ধারিত নম্বরে Send Money করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।';
         break;
       case 'nagad':
-        setPmType('nagad');
-        setPmName('নগদ');
-        setPmEnglishName('Nagad');
-        setPmSubtitle('নগদ সেন্ড মানি');
-        setPmAccountType('Personal');
-        setPmAccName('MR. BOOKS BD');
-        setPmAccNum('01812345678');
+        nextType = 'nagad';
+        nextName = 'নগদ';
+        nextEn = 'Nagad';
+        nextSub = 'নগদ সেন্ড মানি ও পেমেন্ট';
+        nextAccType = 'Personal';
+        nextAccName = 'MR. BOOKS BD';
+        nextAccNum = '01812345678';
         setPmRequireTrxId(true);
         setPmRequireSenderPhone(true);
-        setPmInst('নগদ অ্যাপ অথবা *167# ডায়াল করে নির্ধারিত নম্বরে Send Money করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।');
+        nextInst = 'নগদ অ্যাপ অথবা *167# ডায়াল করে নির্ধারিত নম্বরে Send Money করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।';
         break;
       case 'rocket':
-        setPmType('rocket');
-        setPmName('রকেট');
-        setPmEnglishName('Rocket');
-        setPmSubtitle('রকেট সেন্ড মানি');
-        setPmAccountType('Personal');
-        setPmAccName('MR. BOOKS Account');
-        setPmAccNum('019123456789');
+        nextType = 'rocket';
+        nextName = 'রকেট';
+        nextEn = 'Rocket';
+        nextSub = 'রকেট সেন্ড মানি ও পেমেন্ট';
+        nextAccType = 'Personal';
+        nextAccName = 'MR. BOOKS Account';
+        nextAccNum = '019123456789';
         setPmRequireTrxId(true);
         setPmRequireSenderPhone(true);
-        setPmInst('রকেট অ্যাপ অথবা *322# ডায়াল করে নির্ধারিত নম্বরে Send Money করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।');
+        nextInst = 'রকেট অ্যাপ অথবা *322# ডায়াল করে নির্ধারিত নম্বরে Send Money করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।';
         break;
       case 'cod':
-        setPmType('cod');
-        setPmName('ক্যাশ অন ডেলিভারি');
-        setPmEnglishName('Cash on Delivery');
-        setPmSubtitle('হাতে পেয়ে মূল্য পরিশোধ');
-        setPmAccountType('None');
-        setPmAccName('Cash on Delivery');
-        setPmAccNum('N/A');
+        nextType = 'cod';
+        nextName = 'ক্যাশ অন ডেলিভারি';
+        nextEn = 'Cash on Delivery';
+        nextSub = 'হাতে পেয়ে মূল্য পরিশোধ';
+        nextAccType = 'None';
+        nextAccName = 'Cash on Delivery';
+        nextAccNum = 'N/A';
         setPmRequireTrxId(false);
         setPmRequireSenderPhone(false);
-        setPmInst('বই হাতে পেয়ে ডেলিভারি ম্যানের কাছে নগদ অর্থ পরিশোধ করুন।');
+        nextInst = 'বই হাতে পেয়ে ডেলিভারি ম্যানের কাছে নগদ অর্থ পরিশোধ করুন।';
         break;
       case 'upay':
-        setPmType('upay');
-        setPmName('উপায়');
-        setPmEnglishName('Upay');
-        setPmSubtitle('উপায় সেন্ড মানি');
-        setPmAccountType('Personal');
-        setPmAccName('MR. BOOKS Official');
-        setPmAccNum('01712345678');
+        nextType = 'upay';
+        nextName = 'উপায়';
+        nextEn = 'Upay';
+        nextSub = 'উপায় সেন্ড মানি ও পেমেন্ট';
+        nextAccType = 'Personal';
+        nextAccName = 'MR. BOOKS Official';
+        nextAccNum = '01712345678';
         setPmRequireTrxId(true);
         setPmRequireSenderPhone(true);
-        setPmInst('উপায় অ্যাপ অথবা *268# ডায়াল করে নির্ধারিত নম্বরে Send Money করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।');
+        nextInst = 'উপায় অ্যাপ অথবা *268# ডায়াল করে নির্ধারিত নম্বরে Send Money করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।';
         break;
       case 'bank':
-        setPmType('bank');
-        setPmName('ব্যাংক ট্রান্সফার');
-        setPmEnglishName('Bank Transfer');
-        setPmSubtitle('ব্যাংক একাউন্টে পেমেন্ট');
-        setPmAccountType('Merchant');
-        setPmAccName('MR. BOOKS ENTERPRISE');
-        setPmAccNum('123-110-456789');
+        nextType = 'bank';
+        nextName = 'ব্যাংক ট্রান্সফার';
+        nextEn = 'Bank Transfer';
+        nextSub = 'ব্যাংক একাউন্টে পেমেন্ট';
+        nextAccType = 'Merchant';
+        nextAccName = 'MR. BOOKS ENTERPRISE';
+        nextAccNum = '123-110-456789';
         setPmBankName('Eastern Bank PLC');
         setPmBranchName('Gulshan Branch, Dhaka');
         setPmRoutingNumber('095261234');
         setPmRequireTrxId(true);
         setPmRequireSenderPhone(true);
-        setPmInst('নির্ধারিত ব্যাংক একাউন্টে মোট টাকার পরিমাণ ট্রান্সফার করে ট্রানজেকশন রেফারেন্স বা রিসিপ্ট আইডি নিচে দিন।');
+        nextInst = 'নির্ধারিত ব্যাংক একাউন্টে মোট টাকার পরিমাণ ট্রান্সফার করে ট্রানজেকশন রেফারেন্স বা রিসিপ্ট আইডি নিচে দিন।';
         break;
       case 'custom':
       default:
-        setPmType('bkash');
-        setPmName('');
-        setPmEnglishName('');
-        setPmSubtitle('');
-        setPmAccountType('Personal');
-        setPmAccName('MR. BOOKS');
-        setPmAccNum('');
+        nextType = 'bkash';
+        nextName = '';
+        nextEn = '';
+        nextSub = '';
+        nextAccType = 'Personal';
+        nextAccName = 'MR. BOOKS';
+        nextAccNum = '';
         setPmRequireTrxId(true);
         setPmRequireSenderPhone(true);
-        setPmInst('');
+        nextInst = '';
         break;
     }
+
+    setPmType(nextType);
+    setPmName(nextName);
+    setPmEnglishName(nextEn);
+    setPmSubtitle(nextSub);
+    setPmAccountType(nextAccType);
+    setPmAccName(nextAccName);
+    setPmAccNum(nextAccNum);
+    setPmInst(nextInst);
+
+    const resolvedSubs = getPaymentMethodSubOptions({
+      id: 'temp',
+      name: nextName || 'বিকাশ',
+      englishName: nextEn || 'bKash',
+      type: nextType,
+      accountType: nextAccType,
+      accountName: nextAccName,
+      accountNumber: nextAccNum,
+      instructions: nextInst,
+      isActive: true,
+      displayOrder: 1,
+    });
+    setPmSendMoneyOption(resolvedSubs.sendMoneyOption);
+    setPmPaymentOption(resolvedSubs.paymentOption);
 
     setShowAddPmModal(true);
   };
 
   const openEditPmModal = (pm: PaymentMethodConfig) => {
     const meta = getPaymentMethodDisplayMeta(pm);
+    const resolvedSubs = getPaymentMethodSubOptions(pm);
     setEditingPmId(pm.id);
     setPmType(pm.type);
     setPmName(meta.displayTitle);
@@ -465,14 +562,56 @@ export function AdminDashboard() {
     setPmEnglishQrCodeUrl(meta.englishQrCodeUrl || meta.qrCodeUrl || '');
     setPmBengaliQrCodeUrl(meta.bengaliQrCodeUrl || '');
     setPmIsActive(pm.isActive);
+    setPmSendMoneyOption(resolvedSubs.sendMoneyOption);
+    setPmPaymentOption(resolvedSubs.paymentOption);
+    setPmEditingSubTab(
+      resolvedSubs.sendMoneyOption.enabled ? 'send_money' : 'payment'
+    );
     setShowAddPmModal(true);
   };
 
   const handleSavePaymentMethod = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const resolvedEnglishQr = pmEnglishQrCodeUrl.trim() || pmQrCodeUrl.trim();
-      const resolvedBengaliQr = pmBengaliQrCodeUrl.trim();
+      // Ensure at least one sub-option is enabled for non-COD methods
+      const cleanSendMoney: PaymentSubOptionConfig = {
+        ...pmSendMoneyOption,
+        id: 'send_money',
+        label: pmSendMoneyOption.label.trim() || 'সেন্ড মানি',
+        englishLabel: (pmSendMoneyOption.englishLabel || 'Send Money').trim(),
+        subtitle: (pmSendMoneyOption.subtitle || '').trim(),
+        accountName: (pmSendMoneyOption.accountName || pmAccName || 'MR. BOOKS').trim(),
+        accountNumber: (pmSendMoneyOption.accountNumber || pmAccNum).trim(),
+        instructions: (pmSendMoneyOption.instructions || pmInst).trim(),
+        qrCodeUrl: (pmSendMoneyOption.englishQrCodeUrl || pmSendMoneyOption.qrCodeUrl || '').trim(),
+        englishQrCodeUrl: (pmSendMoneyOption.englishQrCodeUrl || pmSendMoneyOption.qrCodeUrl || '').trim(),
+        bengaliQrCodeUrl: (pmSendMoneyOption.bengaliQrCodeUrl || '').trim(),
+      };
+
+      const cleanPayment: PaymentSubOptionConfig = {
+        ...pmPaymentOption,
+        id: 'payment',
+        label: pmPaymentOption.label.trim() || 'পেমেন্ট',
+        englishLabel: (pmPaymentOption.englishLabel || 'Make Payment').trim(),
+        subtitle: (pmPaymentOption.subtitle || '').trim(),
+        accountName: (pmPaymentOption.accountName || pmAccName || 'MR. BOOKS').trim(),
+        accountNumber: (pmPaymentOption.accountNumber || cleanSendMoney.accountNumber || pmAccNum).trim(),
+        instructions: (pmPaymentOption.instructions || getDefaultMerchantPaymentInstruction(pmType)).trim(),
+        qrCodeUrl: (pmPaymentOption.englishQrCodeUrl || pmPaymentOption.qrCodeUrl || '').trim(),
+        englishQrCodeUrl: (pmPaymentOption.englishQrCodeUrl || pmPaymentOption.qrCodeUrl || '').trim(),
+        bengaliQrCodeUrl: (pmPaymentOption.bengaliQrCodeUrl || '').trim(),
+      };
+
+      if (pmType !== 'cod' && !cleanSendMoney.enabled && !cleanPayment.enabled) {
+        cleanSendMoney.enabled = true;
+      }
+
+      // Sync primary enabled sub-option to top-level fields for backward compatibility
+      const primarySub = cleanSendMoney.enabled ? cleanSendMoney : cleanPayment;
+      const resolvedEnglishQr =
+        primarySub.englishQrCodeUrl || pmEnglishQrCodeUrl.trim() || pmQrCodeUrl.trim();
+      const resolvedBengaliQr =
+        primarySub.bengaliQrCodeUrl || pmBengaliQrCodeUrl.trim();
 
       const payload: Partial<PaymentMethodConfig> = {
         name: pmName.trim() || 'পেমেন্ট মেথড',
@@ -480,25 +619,31 @@ export function AdminDashboard() {
         type: pmType,
         subtitle: pmSubtitle.trim(),
         badgeText: pmBadgeText.trim(),
-        accountType: pmType === 'cod' ? 'None' : pmAccountType,
-        accountName: pmAccName.trim() || 'MR. BOOKS',
-        accountNumber: pmType === 'cod' ? 'N/A' : pmAccNum.trim(),
+        accountType: pmType === 'cod' ? 'None' : primarySub.accountType,
+        accountName: pmType === 'cod' ? 'Cash on Delivery' : primarySub.accountName || 'MR. BOOKS',
+        accountNumber: pmType === 'cod' ? 'N/A' : primarySub.accountNumber,
         bankName: pmType === 'bank' ? pmBankName.trim() : '',
         branchName: pmType === 'bank' ? pmBranchName.trim() : '',
         routingNumber: pmType === 'bank' ? pmRoutingNumber.trim() : '',
         requireTrxId: pmType === 'cod' ? false : pmRequireTrxId,
         requireSenderPhone: pmType === 'cod' ? false : pmRequireSenderPhone,
-        instructions: pmInst.trim(),
+        instructions: pmType === 'cod' ? pmInst.trim() : primarySub.instructions,
         logoUrl: pmLogoUrl.trim() || '',
         qrCodeUrl: pmType === 'cod' ? '' : resolvedEnglishQr,
         englishQrCodeUrl: pmType === 'cod' ? '' : resolvedEnglishQr,
         bengaliQrCodeUrl: pmType === 'cod' ? '' : resolvedBengaliQr,
+        ...(pmType !== 'cod'
+          ? {
+              sendMoneyOption: cleanSendMoney,
+              paymentOption: cleanPayment,
+            }
+          : {}),
         isActive: pmIsActive,
       };
 
       if (editingPmId) {
         await updatePaymentMethod(editingPmId, payload);
-        setToast({ show: true, type: 'success', message: 'Payment method updated and synced to Firestore!' });
+        setToast({ show: true, type: 'success', message: 'Payment method (Send Money & Payment options) updated in Firestore!' });
       } else {
         const id = pmType + '-' + Date.now();
         await addPaymentMethod({
@@ -724,17 +869,22 @@ export function AdminDashboard() {
       : [];
     const allImages = Array.from(new Set([primaryImg, ...extraList]));
 
+    const resolvedSku =
+      prodSku.trim() ||
+      (prodType === 'book' ? 'MRB-BK-' : 'MRB-ST-') + Math.floor(1000 + Math.random() * 9000);
+
     const parsedVariants = prodPrintVariants
       ? prodPrintVariants.split(',').map((vName, idx) => ({
           id: `v${idx + 1}`,
           name: vName.trim(),
           price: prodPrice,
           stock: 100,
-          sku: `MRB-VAR-${idx + 1}`
+          sku: idx === 0 ? resolvedSku : `${resolvedSku}-V${idx + 1}`
         })).filter(v => v.name.length > 0)
-      : [{ id: 'v1', name: 'Paperback', price: prodPrice, stock: 100, sku: 'MRB-PB' }];
+      : [{ id: 'v1', name: 'Paperback', price: prodPrice, stock: 100, sku: resolvedSku }];
 
     const cleanedPreviewPages = sanitizePreviewPages(prodPreviewPages);
+    const parsedCustomDetails = parseCustomBookDetails(prodCustomDetailsText);
 
     const payload = {
       type: prodType,
@@ -749,6 +899,9 @@ export function AdminDashboard() {
       author: prodType === 'book' ? prodAuthor : (prodBrand || 'Stationery Brand'),
       publisher: prodType === 'book' ? (prodPublisher || 'MR. BOOKS Publications') : undefined,
       isbn: prodType === 'book' ? prodIsbn : undefined,
+      edition: prodType === 'book' ? (prodEdition.trim() || 'Standard Edition') : undefined,
+      pages: prodType === 'book' ? (Number(prodPages) > 0 ? Number(prodPages) : undefined) : undefined,
+      language: prodType === 'book' ? (prodLanguage.trim() || 'Bengali') : undefined,
       brand: prodType === 'stationery' ? prodBrand : undefined,
       material: prodType === 'stationery' ? prodMaterial : undefined,
       dimensions: prodType === 'stationery' ? prodDimensions : undefined,
@@ -757,17 +910,23 @@ export function AdminDashboard() {
       price: prodPrice,
       previousPrice: prodPrice + 100,
       stock: 100,
-      sku: (prodType === 'book' ? 'MRB-BK-' : 'MRB-ST-') + Math.floor(1000 + Math.random() * 9000),
+      sku: resolvedSku,
       rating: 5.0,
       reviewCount: 1,
       isOriginalBadge: prodIsOriginal,
-      deliveryEstimate: prodDeliveryEstimate,
+      deliveryEstimate: prodDeliveryEstimate.trim() || '২-৩ কার্যদিবস (2-3 Days)',
+      deliveryTimingTitle: prodDeliveryTimingTitle.trim() || 'ডেলিভারি টাইমিং (Delivery Timing)',
+      insideDhakaDelivery: prodInsideDhakaDelivery.trim() || '২৪-৪৮ ঘণ্টা (১-২ দিন)',
+      outsideDhakaDelivery: prodOutsideDhakaDelivery.trim() || '২-৩ কার্যদিবস (সারাদেশে)',
+      deliveryTimingNote: prodDeliveryTimingNote.trim(),
+      deliveryTimerHours: Number(prodDeliveryTimerHours) > 0 ? Number(prodDeliveryTimerHours) : 48,
+      customBookDetails: parsedCustomDetails,
       previewHighlightTitle: prodPreviewHighlightTitle.trim() || 'বইয়ের কিছু অংশ পড়ুন (একটু পড়ে দেখুন)',
       previewHighlightSubtitle: prodPreviewHighlightSubtitle.trim(),
       previewIntro: prodPreviewIntro.trim(),
       previewPages: cleanedPreviewPages,
       variants: parsedVariants.length > 0 ? parsedVariants : [
-        { id: 'v1', name: prodType === 'book' ? 'Paperback' : 'Standard', price: prodPrice, stock: 100, sku: 'MRB-VAR-1' }
+        { id: 'v1', name: prodType === 'book' ? 'Paperback' : 'Standard', price: prodPrice, stock: 100, sku: resolvedSku }
       ]
     };
 
@@ -777,14 +936,14 @@ export function AdminDashboard() {
         setToast({
           show: true,
           type: 'success',
-          message: 'বইয়ের তথ্য ও পেজ প্রিভিউ ফায়ারবেসে সেভ হয়েছে!',
+          message: 'বইয়ের ডিটেইলস, ডেলিভারি টাইমিং ও প্রিভিউ ফায়ারবেসে সেভ হয়েছে!',
         });
       } else {
         await addProduct(payload);
         setToast({
           show: true,
           type: 'success',
-          message: 'নতুন বই ও পেজ প্রিভিউ সফলভাবে যুক্ত হয়েছে!',
+          message: 'নতুন বই, ডেলিভারি টাইমিং ও প্রিভিউ সফলভাবে যুক্ত হয়েছে!',
         });
       }
 
@@ -793,6 +952,11 @@ export function AdminDashboard() {
       setProdAuthor('');
       setProdPublisher('');
       setProdIsbn('');
+      setProdEdition('3rd Edition');
+      setProdPages(264);
+      setProdLanguage('Bengali');
+      setProdSku('');
+      setProdCustomDetailsText('');
       setProdBrand('');
       setProdMaterial('');
       setProdDimensions('');
@@ -806,7 +970,12 @@ export function AdminDashboard() {
       setProdExtraImages('');
       setProdPrintVariants('Paperback, Hardcover');
       setProdIsOriginal(true);
-      setProdDeliveryEstimate('2-3 Days');
+      setProdDeliveryEstimate('২-৩ কার্যদিবস (2-3 Days)');
+      setProdDeliveryTimingTitle('ডেলিভারি টাইমিং (Delivery Timing)');
+      setProdInsideDhakaDelivery('২৪-৪৮ ঘণ্টা (১-২ দিন)');
+      setProdOutsideDhakaDelivery('২-৩ কার্যদিবস (সারাদেশে)');
+      setProdDeliveryTimingNote('আজকে অর্ডার করলে দ্রুততম সময়ে বাবল-র‍্যাপ প্যাকেজিংসহ কুরিয়ারে পাঠানো হবে।');
+      setProdDeliveryTimerHours(48);
       setShowAddProdModal(false);
     } catch (err: any) {
       setToast({
@@ -922,6 +1091,62 @@ export function AdminDashboard() {
       setAuthorBooksCount(20);
     } catch (err: any) {
       setToast({ show: true, type: 'error', message: 'Firebase Error: ' + (err.message || 'Failed to save author') });
+    }
+  };
+
+  const handlePublisherFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const compressed = await compressImageFile(file, 600, 600, 0.82);
+        setPubLogo(compressed);
+        setToast({ show: true, type: 'success', message: 'Publisher logo optimized successfully!' });
+      } catch (err: any) {
+        setToast({ show: true, type: 'error', message: err.message || 'Failed to process publisher logo' });
+      }
+    }
+  };
+
+  const handleSavePublisher = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pubName.trim()) return;
+
+    try {
+      if (editingPublisherId) {
+        await updatePublisher(editingPublisherId, {
+          name: pubName.trim(),
+          banglaName: pubBanglaName.trim() || pubName.trim(),
+          description: pubDescription.trim(),
+          logoUrl: pubLogo.trim(),
+          booksCount: Number(pubBooksCount) || 20,
+          establishedYear: pubEstYear.trim(),
+          isFeatured: true,
+        });
+        setToast({ show: true, type: 'success', message: 'প্রকাশনীর তথ্য ফায়ারবেসে আপডেট হয়েছে!' });
+      } else {
+        await addPublisher({
+          id: 'pub-' + Date.now(),
+          name: pubName.trim(),
+          banglaName: pubBanglaName.trim() || pubName.trim(),
+          description: pubDescription.trim(),
+          logoUrl: pubLogo.trim(),
+          booksCount: Number(pubBooksCount) || 20,
+          establishedYear: pubEstYear.trim(),
+          isFeatured: true,
+        });
+        setToast({ show: true, type: 'success', message: 'নতুন প্রকাশনী ফায়ারবেসে যুক্ত হয়েছে!' });
+      }
+
+      setShowAddPublisherModal(false);
+      setEditingPublisherId(null);
+      setPubName('');
+      setPubBanglaName('');
+      setPubDescription('');
+      setPubLogo('');
+      setPubBooksCount(30);
+      setPubEstYear('');
+    } catch (err: any) {
+      setToast({ show: true, type: 'error', message: 'Firebase Error: ' + (err.message || 'Failed to save publisher') });
     }
   };
 
@@ -1269,6 +1494,7 @@ export function AdminDashboard() {
         { id: 'categories', label: 'Categories', icon: Layers, count: categories.length },
         { id: 'banners', label: 'Hero Banners', icon: ImageIcon, count: banners.length },
         { id: 'authors', label: 'Writers & Authors', icon: Users, count: authors.length },
+        { id: 'publishers', label: 'Publishers / প্রকাশনী', icon: Building2, count: publishers.length },
         { id: 'reels', label: 'Book Video Reels', icon: Film, count: reels.length },
         { id: 'reviews', label: 'Reviews & Reactions', icon: Star, count: reviews.length },
       ]
@@ -2025,29 +2251,80 @@ export function AdminDashboard() {
                           )}
                         </div>
 
-                        {/* Line 2: Account Number & Subtitle */}
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-[#5F6368]">
-                          {showAccountLine && (
-                            <>
-                              <span className="inline-flex items-center gap-1 font-mono font-bold text-[#D71920] bg-[#FFF1F2] px-2 py-0.5 rounded-md border border-[#D71920]/15">
-                                <Phone size={11} />
-                                <span>{pm.accountNumber}</span>
-                              </span>
-                              <span className="text-neutral-300">•</span>
-                            </>
-                          )}
-                          <span className="font-semibold text-[#5F6368]">
-                            {meta.displaySubtitle}
-                          </span>
-                        </div>
+                        {/* Line 2: Dual Sub-Options (সেন্ড মানি & পেমেন্ট) Numbers & Subtitle */}
+                        {pm.type !== 'cod' ? (() => {
+                          const subs = getPaymentMethodSubOptions(pm);
+                          return (
+                            <div className="space-y-1.5 pt-0.5">
+                              <div className="flex flex-wrap items-center gap-2 text-xs">
+                                {subs.sendMoneyOption.enabled && (
+                                  <span className="inline-flex items-center gap-1.5 font-mono font-bold text-[#E2136E] bg-[#FFF0F6] px-2.5 py-1 rounded-lg border border-[#FFADD2]">
+                                    <span className="font-sans text-[10px] font-black uppercase bg-[#E2136E] text-white px-1.5 py-0.2 rounded">
+                                      {subs.sendMoneyOption.label} ({subs.sendMoneyOption.accountType})
+                                    </span>
+                                    <Phone size={11} />
+                                    <span>{subs.sendMoneyOption.accountNumber || 'Not set'}</span>
+                                  </span>
+                                )}
+                                {subs.paymentOption.enabled && (
+                                  <span className="inline-flex items-center gap-1.5 font-mono font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                                    <span className="font-sans text-[10px] font-black uppercase bg-amber-600 text-white px-1.5 py-0.2 rounded">
+                                      {subs.paymentOption.label} ({subs.paymentOption.accountType})
+                                    </span>
+                                    <Phone size={11} />
+                                    <span>{subs.paymentOption.accountNumber || 'Not set'}</span>
+                                  </span>
+                                )}
+                                <span className="font-semibold text-[#5F6368] text-xs">
+                                  {meta.displaySubtitle}
+                                </span>
+                              </div>
 
-                        {/* Line 3: Instructions Preview */}
-                        <div className="text-[11px] text-[#5F6368] italic bg-[#F7F7F8] px-3 py-1.5 rounded-xl border border-[#EEEEEE] truncate">
-                          <span className="font-semibold not-italic text-[#171717]">
-                            Instructions:{' '}
-                          </span>
-                          {meta.instructionText}
-                        </div>
+                              {/* Line 3: Instructions Preview for Both Options */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px]">
+                                {subs.sendMoneyOption.enabled && (
+                                  <div className="text-[#5F6368] bg-[#F7F7F8] px-3 py-1.5 rounded-xl border border-[#EEEEEE] truncate">
+                                    <span className="font-bold text-[#E2136E]">
+                                      {subs.sendMoneyOption.label}:{' '}
+                                    </span>
+                                    <span className="italic">{subs.sendMoneyOption.instructions}</span>
+                                  </div>
+                                )}
+                                {subs.paymentOption.enabled && (
+                                  <div className="text-[#5F6368] bg-[#F7F7F8] px-3 py-1.5 rounded-xl border border-[#EEEEEE] truncate">
+                                    <span className="font-bold text-amber-700">
+                                      {subs.paymentOption.label}:{' '}
+                                    </span>
+                                    <span className="italic">{subs.paymentOption.instructions}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })() : (
+                          <>
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-[#5F6368]">
+                              {showAccountLine && (
+                                <>
+                                  <span className="inline-flex items-center gap-1 font-mono font-bold text-[#D71920] bg-[#FFF1F2] px-2 py-0.5 rounded-md border border-[#D71920]/15">
+                                    <Phone size={11} />
+                                    <span>{pm.accountNumber}</span>
+                                  </span>
+                                  <span className="text-neutral-300">•</span>
+                                </>
+                              )}
+                              <span className="font-semibold text-[#5F6368]">
+                                {meta.displaySubtitle}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-[#5F6368] italic bg-[#F7F7F8] px-3 py-1.5 rounded-xl border border-[#EEEEEE] truncate">
+                              <span className="font-semibold not-italic text-[#171717]">
+                                Instructions:{' '}
+                              </span>
+                              {meta.instructionText}
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
 
@@ -2166,19 +2443,15 @@ export function AdminDashboard() {
 
                       <div>
                         <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
-                          Account Type Badge
+                          Subtitle (সাবটাইটেল - চেকআউট কার্ডে দেখাবে)
                         </label>
-                        <select
-                          value={pmAccountType}
-                          onChange={e => setPmAccountType(e.target.value as any)}
-                          disabled={pmType === 'cod'}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] font-bold text-[#171717] disabled:opacity-50 focus:outline-none focus:border-[#D71920]"
-                        >
-                          <option value="Personal">Personal</option>
-                          <option value="Merchant">Merchant</option>
-                          <option value="Agent">Agent</option>
-                          <option value="None">None</option>
-                        </select>
+                        <input
+                          type="text"
+                          placeholder="e.g. বিকাশ সেন্ড মানি ও পেমেন্ট"
+                          value={pmSubtitle}
+                          onChange={e => setPmSubtitle(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-white font-bold text-[#171717] focus:outline-none focus:border-[#D71920]"
+                        />
                       </div>
                     </div>
 
@@ -2212,40 +2485,9 @@ export function AdminDashboard() {
                       </div>
                     </div>
 
-                    {/* Row 3: Account Number & Subtitle */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                      <div>
-                        <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
-                          Account / Wallet Number {pmType !== 'cod' ? '*' : ''}
-                        </label>
-                        <input
-                          type="text"
-                          required={pmType !== 'cod'}
-                          disabled={pmType === 'cod'}
-                          placeholder={pmType === 'cod' ? 'N/A' : '017XXXXXXXX'}
-                          value={pmType === 'cod' ? 'N/A' : pmAccNum}
-                          onChange={e => setPmAccNum(e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-white font-mono font-bold text-[#171717] disabled:bg-neutral-100 focus:outline-none focus:border-[#D71920]"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
-                          Subtitle (সাবটাইটেল)
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="e.g. বিকাশ সেন্ড মানি"
-                          value={pmSubtitle}
-                          onChange={e => setPmSubtitle(e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-[#171717] focus:outline-none focus:border-[#D71920]"
-                        />
-                      </div>
-                    </div>
-
                     {/* Bank Specific Details (Only for Bank Transfer) */}
                     {pmType === 'bank' && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 p-3.5 rounded-2xl bg-blue-50/50 border border-blue-200/70">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-2xl bg-blue-50/50 border border-blue-200/70">
                         <div>
                           <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
                             Bank Name (ব্যাংকের নাম)
@@ -2255,19 +2497,7 @@ export function AdminDashboard() {
                             placeholder="e.g. Eastern Bank PLC / DBBL"
                             value={pmBankName}
                             onChange={e => setPmBankName(e.target.value)}
-                            className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white font-bold text-[#171717] focus:outline-none focus:border-[#D71920]"
-                          />
-                        </div>
-                        <div>
-                          <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
-                            Account Holder Name
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="e.g. MR. BOOKS ENTERPRISE"
-                            value={pmAccName}
-                            onChange={e => setPmAccName(e.target.value)}
-                            className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white font-bold text-[#171717] focus:outline-none focus:border-[#D71920]"
+                            className="w-full px-3 py-2 rounded-xl border border-[#E5E5E5] bg-white font-bold text-[#171717] focus:outline-none focus:border-[#D71920]"
                           />
                         </div>
                         <div>
@@ -2279,7 +2509,7 @@ export function AdminDashboard() {
                             placeholder="e.g. Gulshan Branch, Dhaka"
                             value={pmBranchName}
                             onChange={e => setPmBranchName(e.target.value)}
-                            className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-[#171717] focus:outline-none focus:border-[#D71920]"
+                            className="w-full px-3 py-2 rounded-xl border border-[#E5E5E5] bg-white text-[#171717] focus:outline-none focus:border-[#D71920]"
                           />
                         </div>
                         <div>
@@ -2291,9 +2521,406 @@ export function AdminDashboard() {
                             placeholder="e.g. 095261234"
                             value={pmRoutingNumber}
                             onChange={e => setPmRoutingNumber(e.target.value)}
-                            className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white font-mono text-[#171717] focus:outline-none focus:border-[#D71920]"
+                            className="w-full px-3 py-2 rounded-xl border border-[#E5E5E5] bg-white font-mono text-[#171717] focus:outline-none focus:border-[#D71920]"
                           />
                         </div>
+                      </div>
+                    )}
+
+                    {/* DUAL PAYMENT CHANNELS CONFIGURATION (১. সেন্ড মানি & ২. পেমেন্ট) */}
+                    {pmType !== 'cod' ? (() => {
+                      const activeSub = pmEditingSubTab === 'send_money' ? pmSendMoneyOption : pmPaymentOption;
+                      const updateActiveSub = (patch: Partial<PaymentSubOptionConfig>) => {
+                        if (pmEditingSubTab === 'send_money') {
+                          setPmSendMoneyOption(prev => ({ ...prev, ...patch }));
+                        } else {
+                          setPmPaymentOption(prev => ({ ...prev, ...patch }));
+                        }
+                      };
+
+                      const handleSubQrFileUpload = async (
+                        e: React.ChangeEvent<HTMLInputElement>,
+                        qrLang: 'en' | 'bn'
+                      ) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        try {
+                          const compressed = await compressImageFile(file, 700, 700, 0.88);
+                          if (qrLang === 'en') {
+                            updateActiveSub({
+                              qrCodeUrl: compressed,
+                              englishQrCodeUrl: compressed,
+                            });
+                            setToast({
+                              show: true,
+                              type: 'success',
+                              message: `${activeSub.label} English QR Code attached!`,
+                            });
+                          } else {
+                            updateActiveSub({
+                              bengaliQrCodeUrl: compressed,
+                            });
+                            setToast({
+                              show: true,
+                              type: 'success',
+                              message: `${activeSub.label} Bangla QR Code attached!`,
+                            });
+                          }
+                        } catch (err: any) {
+                          setToast({
+                            show: true,
+                            type: 'error',
+                            message: err.message || 'Failed to upload QR code',
+                          });
+                        }
+                      };
+
+                      return (
+                        <div className="rounded-2xl border-2 border-[#E2136E]/25 bg-gradient-to-b from-[#FFF5F9]/60 to-white p-4 space-y-4 shadow-2xs">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-pink-100">
+                            <div>
+                              <h4 className="font-black text-xs sm:text-sm text-[#171717] flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-[#E2136E]" />
+                                <span>দুইটি পেমেন্ট অপশন কনফিগারেশন (Send Money & Payment)</span>
+                              </h4>
+                              <p className="text-[10.5px] text-[#5F6368] mt-0.5">
+                                প্রতিটি পেমেন্ট মেথডের ভেতরে <strong>সেন্ড মানি</strong> এবং <strong>পেমেন্ট</strong>—দুইটির জন্যই আলাদা নাম্বার, নাম, ইনস্ট্রাকশন ও কিউআর কোড সেট করুন।
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Switcher Tabs between Option 1 (সেন্ড মানি) and Option 2 (পেমেন্ট) */}
+                          <div className="grid grid-cols-2 gap-2.5">
+                            <button
+                              type="button"
+                              onClick={() => setPmEditingSubTab('send_money')}
+                              data-testid="admin-subtab-send_money"
+                              className={`p-3 rounded-xl border-2 text-left transition-all cursor-pointer flex items-center justify-between ${
+                                pmEditingSubTab === 'send_money'
+                                  ? 'border-[#E2136E] bg-[#FFF0F6] shadow-2xs'
+                                  : 'border-[#E5E5E5] bg-white hover:bg-[#F7F7F8]'
+                              }`}
+                            >
+                              <div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="px-1.5 py-0.5 rounded bg-[#E2136E] text-white text-[9px] font-black uppercase">
+                                    Option 1
+                                  </span>
+                                  <span className="font-black text-xs text-[#171717]">
+                                    {pmSendMoneyOption.label || 'সেন্ড মানি'}
+                                  </span>
+                                </div>
+                                <div className="text-[10px] font-mono text-[#5F6368] mt-1">
+                                  {pmSendMoneyOption.accountNumber || 'নাম্বার যুক্ত করুন'} • {pmSendMoneyOption.accountType}
+                                </div>
+                              </div>
+                              <span
+                                className={`px-2 py-0.5 rounded text-[9px] font-bold ${
+                                  pmSendMoneyOption.enabled
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : 'bg-neutral-200 text-neutral-600'
+                                }`}
+                              >
+                                {pmSendMoneyOption.enabled ? ' চালু (ON)' : 'বন্ধ (OFF)'}
+                              </span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setPmEditingSubTab('payment')}
+                              data-testid="admin-subtab-payment"
+                              className={`p-3 rounded-xl border-2 text-left transition-all cursor-pointer flex items-center justify-between ${
+                                pmEditingSubTab === 'payment'
+                                  ? 'border-amber-600 bg-amber-50/80 shadow-2xs'
+                                  : 'border-[#E5E5E5] bg-white hover:bg-[#F7F7F8]'
+                              }`}
+                            >
+                              <div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="px-1.5 py-0.5 rounded bg-amber-600 text-white text-[9px] font-black uppercase">
+                                    Option 2
+                                  </span>
+                                  <span className="font-black text-xs text-[#171717]">
+                                    {pmPaymentOption.label || 'পেমেন্ট'}
+                                  </span>
+                                </div>
+                                <div className="text-[10px] font-mono text-[#5F6368] mt-1">
+                                  {pmPaymentOption.accountNumber || 'নাম্বার যুক্ত করুন'} • {pmPaymentOption.accountType}
+                                </div>
+                              </div>
+                              <span
+                                className={`px-2 py-0.5 rounded text-[9px] font-bold ${
+                                  pmPaymentOption.enabled
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : 'bg-neutral-200 text-neutral-600'
+                                }`}
+                              >
+                                {pmPaymentOption.enabled ? 'চালু (ON)' : 'বন্ধ (OFF)'}
+                              </span>
+                            </button>
+                          </div>
+
+                          {/* Active Sub-Option Editor Box */}
+                          <div className="bg-white rounded-2xl border border-[#E5E5E5] p-4 space-y-3.5">
+                            {/* Header & Enable Toggle */}
+                            <div className="flex items-center justify-between pb-2.5 border-b border-[#EEEEEE]">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase text-white ${
+                                    pmEditingSubTab === 'send_money' ? 'bg-[#E2136E]' : 'bg-amber-600'
+                                  }`}
+                                >
+                                  {pmEditingSubTab === 'send_money' ? 'অপশন ১: সেন্ড মানি' : 'অপশন ২: পেমেন্ট'}
+                                </span>
+                                <span className="text-xs font-bold text-[#171717]">
+                                  ({activeSub.label}) কনফিগারেশন
+                                </span>
+                              </div>
+
+                              <label className="flex items-center gap-2 cursor-pointer bg-[#F7F7F8] px-3 py-1.5 rounded-xl border border-[#E5E5E5]">
+                                <input
+                                  type="checkbox"
+                                  checked={activeSub.enabled}
+                                  onChange={e => updateActiveSub({ enabled: e.target.checked })}
+                                  className="w-4 h-4 accent-[#E2136E] rounded"
+                                />
+                                <span className="font-bold text-[11px] text-[#171717]">
+                                  পপআপে এই অপশনটি চালু রাখুন
+                                </span>
+                              </label>
+                            </div>
+
+                            {/* Custom Option Name (Bangla), English Label & Account Type */}
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                              <div>
+                                <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
+                                  অপশনের নাম (বাংলা) *
+                                </label>
+                                <input
+                                  type="text"
+                                  value={activeSub.label}
+                                  onChange={e => updateActiveSub({ label: e.target.value })}
+                                  placeholder={pmEditingSubTab === 'send_money' ? 'সেন্ড মানি' : 'পেমেন্ট'}
+                                  data-testid={`subopt-label-${pmEditingSubTab}`}
+                                  className="w-full px-3 py-2 rounded-xl border border-[#E5E5E5] bg-white font-bold text-[#171717] focus:outline-none focus:border-[#E2136E]"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
+                                  English Label
+                                </label>
+                                <input
+                                  type="text"
+                                  value={activeSub.englishLabel || ''}
+                                  onChange={e => updateActiveSub({ englishLabel: e.target.value })}
+                                  placeholder={pmEditingSubTab === 'send_money' ? 'Send Money' : 'Make Payment'}
+                                  className="w-full px-3 py-2 rounded-xl border border-[#E5E5E5] bg-white font-bold text-[#171717] focus:outline-none focus:border-[#E2136E]"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
+                                  Account Type Badge
+                                </label>
+                                <select
+                                  value={activeSub.accountType}
+                                  onChange={e => updateActiveSub({ accountType: e.target.value as any })}
+                                  className="w-full px-3 py-2 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] font-bold text-[#171717] focus:outline-none focus:border-[#E2136E]"
+                                >
+                                  <option value="Personal">Personal (পার্সোনাল)</option>
+                                  <option value="Merchant">Merchant (মার্চেন্ট)</option>
+                                  <option value="Agent">Agent (এজেন্ট)</option>
+                                  <option value="None">None</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            {/* Account Number & Account Holder Name */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div>
+                                <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
+                                  {activeSub.label} নাম্বার (Account / Wallet Number) *
+                                </label>
+                                <input
+                                  type="text"
+                                  value={activeSub.accountNumber}
+                                  onChange={e => updateActiveSub({ accountNumber: e.target.value })}
+                                  placeholder="017XXXXXXXX"
+                                  data-testid={`subopt-number-${pmEditingSubTab}`}
+                                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-white font-mono font-bold text-sm text-[#171717] focus:outline-none focus:border-[#E2136E]"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
+                                  Account Holder Name (একাউন্টের নাম)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={activeSub.accountName}
+                                  onChange={e => updateActiveSub({ accountName: e.target.value })}
+                                  placeholder="MR. BOOKS Official"
+                                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-white font-bold text-[#171717] focus:outline-none focus:border-[#E2136E]"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Custom Instructions for this Sub-Option */}
+                            <div>
+                              <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
+                                {activeSub.label} ইনস্ট্রাকশন / নির্দেশনা (Popup Instructions) *
+                              </label>
+                              <textarea
+                                rows={2}
+                                value={activeSub.instructions}
+                                onChange={e => updateActiveSub({ instructions: e.target.value })}
+                                placeholder={
+                                  pmEditingSubTab === 'send_money'
+                                    ? 'বিকাশ অ্যাপ অথবা *247# ডায়াল করে নির্ধারিত পার্সোনাল নম্বরে Send Money করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।'
+                                    : 'বিকাশ অ্যাপের Payment অপশন থেকে অথবা *247# ডায়াল করে নির্ধারিত মার্চেন্ট নম্বরে Payment করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।'
+                                }
+                                data-testid={`subopt-instructions-${pmEditingSubTab}`}
+                                className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-[#171717] focus:outline-none focus:border-[#E2136E]"
+                              />
+                            </div>
+
+                            {/* Dual QR Codes (English QR & Bangla QR) for this specific Sub-Option */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                              {/* English QR for Sub-Option */}
+                              <div className="p-3 rounded-xl bg-[#FFF0F6]/50 border border-[#FFADD2] space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-[10px] uppercase text-[#171717] flex items-center gap-1">
+                                    <QrCode size={12} className="text-[#E2136E]" />
+                                    <span>{activeSub.label} — English QR</span>
+                                  </span>
+                                  {isValidImageUrl(activeSub.englishQrCodeUrl || activeSub.qrCodeUrl) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => updateActiveSub({ qrCodeUrl: '', englishQrCodeUrl: '' })}
+                                      className="text-[10px] font-bold text-[#D71920] hover:underline cursor-pointer"
+                                    >
+                                      Remove
+                                    </button>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-11 h-11 rounded-lg bg-white border border-[#FFADD2] flex items-center justify-center overflow-hidden shrink-0 p-0.5">
+                                    {isValidImageUrl(activeSub.englishQrCodeUrl || activeSub.qrCodeUrl) ? (
+                                      <img
+                                        src={activeSub.englishQrCodeUrl || activeSub.qrCodeUrl}
+                                        alt="Sub EN QR"
+                                        className="w-full h-full object-contain"
+                                      />
+                                    ) : (
+                                      <span className="text-[8px] font-bold text-[#E2136E]">Auto QR</span>
+                                    )}
+                                  </div>
+                                  <input
+                                    type="text"
+                                    placeholder="QR Image URL"
+                                    value={
+                                      isValidImageUrl(activeSub.englishQrCodeUrl || activeSub.qrCodeUrl)
+                                        ? activeSub.englishQrCodeUrl || activeSub.qrCodeUrl || ''
+                                        : ''
+                                    }
+                                    onChange={e => {
+                                      const v = sanitizeImageUrl(e.target.value);
+                                      updateActiveSub({ qrCodeUrl: v, englishQrCodeUrl: v });
+                                    }}
+                                    className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg border border-[#E5E5E5] bg-white text-[11px] text-[#171717]"
+                                  />
+                                  <label className="px-2.5 py-1.5 bg-[#E2136E] hover:bg-[#c81060] text-white font-bold rounded-lg text-[10px] cursor-pointer shrink-0 flex items-center gap-1">
+                                    <Upload size={11} />
+                                    <span>Upload</span>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      className="hidden"
+                                      onChange={e => {
+                                        handleSubQrFileUpload(e, 'en');
+                                        e.target.value = '';
+                                      }}
+                                    />
+                                  </label>
+                                </div>
+                              </div>
+
+                              {/* Bangla QR for Sub-Option */}
+                              <div className="p-3 rounded-xl bg-emerald-50/50 border border-emerald-200 space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-[10px] uppercase text-[#171717] flex items-center gap-1">
+                                    <QrCode size={12} className="text-emerald-600" />
+                                    <span>{activeSub.label} — বাংলা কিউআর</span>
+                                  </span>
+                                  {isValidImageUrl(activeSub.bengaliQrCodeUrl) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => updateActiveSub({ bengaliQrCodeUrl: '' })}
+                                      className="text-[10px] font-bold text-[#D71920] hover:underline cursor-pointer"
+                                    >
+                                      Remove
+                                    </button>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-11 h-11 rounded-lg bg-white border border-emerald-200 flex items-center justify-center overflow-hidden shrink-0 p-0.5">
+                                    {isValidImageUrl(activeSub.bengaliQrCodeUrl) ? (
+                                      <img
+                                        src={activeSub.bengaliQrCodeUrl}
+                                        alt="Sub BN QR"
+                                        className="w-full h-full object-contain"
+                                      />
+                                    ) : (
+                                      <span className="text-[8px] font-bold text-emerald-600">Auto BN</span>
+                                    )}
+                                  </div>
+                                  <input
+                                    type="text"
+                                    placeholder="Bangla QR URL"
+                                    value={
+                                      isValidImageUrl(activeSub.bengaliQrCodeUrl)
+                                        ? activeSub.bengaliQrCodeUrl || ''
+                                        : ''
+                                    }
+                                    onChange={e => {
+                                      const v = sanitizeImageUrl(e.target.value);
+                                      updateActiveSub({ bengaliQrCodeUrl: v });
+                                    }}
+                                    className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg border border-[#E5E5E5] bg-white text-[11px] text-[#171717]"
+                                  />
+                                  <label className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-[10px] cursor-pointer shrink-0 flex items-center gap-1">
+                                    <Upload size={11} />
+                                    <span>Upload</span>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      className="hidden"
+                                      onChange={e => {
+                                        handleSubQrFileUpload(e, 'bn');
+                                        e.target.value = '';
+                                      }}
+                                    />
+                                  </label>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })() : (
+                      <div>
+                        <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
+                          Cash on Delivery Instructions (পেমেন্ট নির্দেশনা) *
+                        </label>
+                        <textarea
+                          rows={2}
+                          required
+                          placeholder="বই হাতে পেয়ে ডেলিভারি ম্যানের কাছে নগদ অর্থ পরিশোধ করুন।"
+                          value={pmInst}
+                          onChange={e => setPmInst(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-[#171717] focus:outline-none focus:border-[#D71920]"
+                        />
                       </div>
                     )}
 
@@ -2330,78 +2957,74 @@ export function AdminDashboard() {
                           + 5% OFF
                         </button>
                       </div>
-                      <p className="text-[10px] text-[#5F6368]">
-                        If left blank, no offer badge will be shown on the checkout card.
-                      </p>
                     </div>
 
-                    {/* Row 5: Verification Checkboxes */}
-                    {pmType !== 'cod' && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-[#F7F7F8] border border-[#E5E5E5]">
-                        <label className="flex items-center gap-2.5 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={pmRequireTrxId}
-                            onChange={e => setPmRequireTrxId(e.target.checked)}
-                            className="w-4 h-4 accent-[#D71920] rounded"
-                          />
-                          <span className="font-bold text-[#171717]">Require Transaction ID (TrxID)</span>
-                        </label>
+                    {/* Row 5: Verification Checkboxes & Custom Brand Icon */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {pmType !== 'cod' && (
+                        <div className="p-3.5 rounded-2xl bg-[#F7F7F8] border border-[#E5E5E5] flex flex-col justify-center space-y-2">
+                          <label className="flex items-center gap-2.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={pmRequireTrxId}
+                              onChange={e => setPmRequireTrxId(e.target.checked)}
+                              className="w-4 h-4 accent-[#D71920] rounded"
+                            />
+                            <span className="font-bold text-[#171717]">Require Transaction ID (TrxID)</span>
+                          </label>
 
-                        <label className="flex items-center gap-2.5 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={pmRequireSenderPhone}
-                            onChange={e => setPmRequireSenderPhone(e.target.checked)}
-                            className="w-4 h-4 accent-[#D71920] rounded"
-                          />
-                          <span className="font-bold text-[#171717]">Require Sender Phone Number</span>
-                        </label>
-                      </div>
-                    )}
+                          <label className="flex items-center gap-2.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={pmRequireSenderPhone}
+                              onChange={e => setPmRequireSenderPhone(e.target.checked)}
+                              className="w-4 h-4 accent-[#D71920] rounded"
+                            />
+                            <span className="font-bold text-[#171717]">Require Sender Phone Number</span>
+                          </label>
+                        </div>
+                      )}
 
-                    {/* Row 6: Custom Brand Icon / Logo Upload */}
-                    <div className="p-3.5 rounded-2xl bg-[#F7F7F8] border border-[#E5E5E5] space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px]">
-                          Custom Icon / Logo (Optional)
-                        </label>
-                        {isValidImageUrl(pmLogoUrl) && (
-                          <button
-                            type="button"
-                            onClick={() => setPmLogoUrl('')}
-                            className="text-[10px] font-bold text-[#D71920] hover:underline cursor-pointer"
-                          >
-                            Remove Custom Icon (Use Default Vector)
-                          </button>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <PaymentBrandIcon
-                          method={{
-                            id: editingPmId || 'pm-preview',
-                            name: pmName || 'Preview',
-                            type: pmType,
-                            accountName: pmAccName,
-                            accountNumber: pmAccNum,
-                            instructions: pmInst,
-                            isActive: pmIsActive,
-                            displayOrder: 1,
-                            logoUrl: isValidImageUrl(pmLogoUrl) ? pmLogoUrl : '',
-                          }}
-                          size="lg"
-                        />
-                        <div className="flex-1 flex items-center gap-2">
+                      <div className="p-3.5 rounded-2xl bg-[#F7F7F8] border border-[#E5E5E5] space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px]">
+                            Custom Icon / Logo (Optional)
+                          </label>
+                          {isValidImageUrl(pmLogoUrl) && (
+                            <button
+                              type="button"
+                              onClick={() => setPmLogoUrl('')}
+                              className="text-[10px] font-bold text-[#D71920] hover:underline cursor-pointer"
+                            >
+                              Reset Icon
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2.5">
+                          <PaymentBrandIcon
+                            method={{
+                              id: editingPmId || 'pm-preview',
+                              name: pmName || 'Preview',
+                              type: pmType,
+                              accountName: pmAccName,
+                              accountNumber: pmAccNum,
+                              instructions: pmInst,
+                              isActive: pmIsActive,
+                              displayOrder: 1,
+                              logoUrl: isValidImageUrl(pmLogoUrl) ? pmLogoUrl : '',
+                            }}
+                            size="sm"
+                          />
                           <input
                             type="text"
-                            placeholder="Custom Icon URL (leave blank for built-in vector icon)"
+                            placeholder="Icon URL"
                             value={isValidImageUrl(pmLogoUrl) ? pmLogoUrl : ''}
                             onChange={e => setPmLogoUrl(sanitizeImageUrl(e.target.value))}
-                            className="flex-1 px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717] focus:outline-none focus:border-[#D71920]"
+                            className="flex-1 min-w-0 px-2.5 py-1.5 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]"
                           />
-                          <label className="px-3.5 py-2 bg-[#FFF1F2] hover:bg-[#D71920] text-[#D71920] hover:text-white font-bold rounded-xl border border-[#D71920]/30 text-xs cursor-pointer transition-all shrink-0 flex items-center gap-1.5">
-                            <Upload size={13} />
-                            <span>Upload</span>
+                          <label className="px-2.5 py-1.5 bg-[#FFF1F2] hover:bg-[#D71920] text-[#D71920] hover:text-white font-bold rounded-xl border border-[#D71920]/30 text-xs cursor-pointer transition-all shrink-0 flex items-center gap-1">
+                            <Upload size={12} />
+                            <span>Icon</span>
                             <input
                               type="file"
                               accept="image/*,.ico,.svg"
@@ -2414,164 +3037,6 @@ export function AdminDashboard() {
                           </label>
                         </div>
                       </div>
-                    </div>
-
-                    {/* Row 6B: Dual English & Bengali Payment QR Code Management */}
-                    {pmType !== 'cod' && (
-                      <div className="space-y-3">
-                        {/* 1. English QR Code */}
-                        <div className="p-3.5 rounded-2xl bg-[#FFF0F6]/50 dark:bg-rose-950/20 border border-[#FFADD2] dark:border-rose-900/50 space-y-2.5">
-                          <div className="flex items-center justify-between">
-                            <label className="font-bold text-[#171717] dark:text-white uppercase tracking-wider text-[10px] flex items-center gap-1.5">
-                              <QrCode size={13} className="text-[#E2136E]" />
-                              <span>1. English QR Code (ইংলিশ পেমেন্ট কিউআর)</span>
-                            </label>
-                            {isValidImageUrl(pmEnglishQrCodeUrl || pmQrCodeUrl) && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setPmEnglishQrCodeUrl('');
-                                  setPmQrCodeUrl('');
-                                }}
-                                className="text-[10px] font-bold text-[#D71920] hover:underline cursor-pointer"
-                              >
-                                Remove English QR
-                              </button>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <div className="w-14 h-14 rounded-xl bg-white dark:bg-slate-800 border border-[#FFADD2] dark:border-rose-900/50 flex items-center justify-center overflow-hidden shrink-0 p-1 shadow-2xs">
-                              {isValidImageUrl(pmEnglishQrCodeUrl || pmQrCodeUrl) ? (
-                                <img
-                                  src={pmEnglishQrCodeUrl || pmQrCodeUrl}
-                                  alt="English QR Preview"
-                                  onError={() => {
-                                    setPmEnglishQrCodeUrl('');
-                                    setPmQrCodeUrl('');
-                                  }}
-                                  className="w-full h-full object-contain"
-                                />
-                              ) : (
-                                <div className="flex flex-col items-center justify-center text-[#E2136E] leading-none">
-                                  <QrCode size={20} />
-                                  <span className="text-[8px] font-bold mt-1">Auto EN</span>
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex-1 space-y-1.5">
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="text"
-                                  placeholder="Paste English QR Image URL (or upload image)"
-                                  value={isValidImageUrl(pmEnglishQrCodeUrl || pmQrCodeUrl) ? (pmEnglishQrCodeUrl || pmQrCodeUrl) : ''}
-                                  onChange={e => {
-                                    const val = sanitizeImageUrl(e.target.value);
-                                    setPmEnglishQrCodeUrl(val);
-                                    setPmQrCodeUrl(val);
-                                  }}
-                                  data-testid="pm-english-qrcode-input"
-                                  className="flex-1 px-3.5 py-2 rounded-xl border border-[#E5E5E5] dark:border-slate-700 bg-white dark:bg-[#0B0F19] text-xs text-[#171717] dark:text-white focus:outline-none focus:border-[#E2136E]"
-                                />
-                                <label className="px-3.5 py-2 bg-[#E2136E] hover:bg-[#c81060] text-white font-bold rounded-xl text-xs cursor-pointer transition-all shrink-0 flex items-center gap-1.5 shadow-2xs">
-                                  <Upload size={13} />
-                                  <span>Upload EN QR</span>
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={e => {
-                                      handlePmEnglishQrFileUpload(e);
-                                      e.target.value = '';
-                                    }}
-                                  />
-                                </label>
-                              </div>
-                              <p className="text-[10px] text-[#5F6368] dark:text-slate-400">
-                                Official English payment QR code displayed in the Checkout Popup & downloadable card.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* 2. Bengali / Bangla QR Code */}
-                        <div className="p-3.5 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/60 space-y-2.5">
-                          <div className="flex items-center justify-between">
-                            <label className="font-bold text-[#171717] dark:text-white uppercase tracking-wider text-[10px] flex items-center gap-1.5">
-                              <QrCode size={13} className="text-emerald-600" />
-                              <span>2. Bengali / Bangla QR Code (বাংলা কিউআর)</span>
-                            </label>
-                            {isValidImageUrl(pmBengaliQrCodeUrl) && (
-                              <button
-                                type="button"
-                                onClick={() => setPmBengaliQrCodeUrl('')}
-                                className="text-[10px] font-bold text-[#D71920] hover:underline cursor-pointer"
-                              >
-                                Remove Bangla QR
-                              </button>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <div className="w-14 h-14 rounded-xl bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-center overflow-hidden shrink-0 p-1 shadow-2xs">
-                              {isValidImageUrl(pmBengaliQrCodeUrl) ? (
-                                <img
-                                  src={pmBengaliQrCodeUrl}
-                                  alt="Bangla QR Preview"
-                                  onError={() => setPmBengaliQrCodeUrl('')}
-                                  className="w-full h-full object-contain"
-                                />
-                              ) : (
-                                <div className="flex flex-col items-center justify-center text-emerald-600 leading-none">
-                                  <QrCode size={20} />
-                                  <span className="text-[8px] font-bold mt-1">Auto BN</span>
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex-1 space-y-1.5">
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="text"
-                                  placeholder="Paste Bangla QR Image URL (or upload image)"
-                                  value={isValidImageUrl(pmBengaliQrCodeUrl) ? pmBengaliQrCodeUrl : ''}
-                                  onChange={e => setPmBengaliQrCodeUrl(sanitizeImageUrl(e.target.value))}
-                                  data-testid="pm-bengali-qrcode-input"
-                                  className="flex-1 px-3.5 py-2 rounded-xl border border-[#E5E5E5] dark:border-slate-700 bg-white dark:bg-[#0B0F19] text-xs text-[#171717] dark:text-white focus:outline-none focus:border-emerald-600"
-                                />
-                                <label className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs cursor-pointer transition-all shrink-0 flex items-center gap-1.5 shadow-2xs">
-                                  <Upload size={13} />
-                                  <span>Upload BN QR</span>
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={e => {
-                                      handlePmBengaliQrFileUpload(e);
-                                      e.target.value = '';
-                                    }}
-                                  />
-                                </label>
-                              </div>
-                              <p className="text-[10px] text-[#5F6368] dark:text-slate-400">
-                                Interoperable Bangladesh Bank Bangla QR or Bengali-branded QR scan-able from any MFS/Bank app.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Row 7: Popup Instructions */}
-                    <div>
-                      <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
-                        Payment Instructions (পেমেন্ট নির্দেশনা) *
-                      </label>
-                      <textarea
-                        rows={2}
-                        required
-                        placeholder="বিকাশ অ্যাপ অথবা *247# ডায়াল করে নির্ধারিত নম্বরে Send Money করুন..."
-                        value={pmInst}
-                        onChange={e => setPmInst(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-[#171717] focus:outline-none focus:border-[#D71920]"
-                      />
                     </div>
 
                     {/* Footer Buttons */}
@@ -4025,6 +4490,11 @@ export function AdminDashboard() {
                   setProdAuthor('');
                   setProdPublisher('');
                   setProdIsbn('');
+                  setProdEdition('3rd Edition');
+                  setProdPages(264);
+                  setProdLanguage('Bengali');
+                  setProdSku('');
+                  setProdCustomDetailsText('');
                   setProdBrand('');
                   setProdMaterial('');
                   setProdDimensions('');
@@ -4038,7 +4508,12 @@ export function AdminDashboard() {
                   setProdExtraImages('');
                   setProdPrintVariants('Paperback, Hardcover');
                   setProdIsOriginal(true);
-                  setProdDeliveryEstimate('2-3 Days');
+                  setProdDeliveryEstimate('২-৩ কার্যদিবস (2-3 Days)');
+                  setProdDeliveryTimingTitle('ডেলিভারি টাইমিং (Delivery Timing)');
+                  setProdInsideDhakaDelivery('২৪-৪৮ ঘণ্টা (১-২ দিন)');
+                  setProdOutsideDhakaDelivery('২-৩ কার্যদিবস (সারাদেশে)');
+                  setProdDeliveryTimingNote('আজকে অর্ডার করলে দ্রুততম সময়ে বাবল-র‍্যাপ প্যাকেজিংসহ কুরিয়ারে পাঠানো হবে।');
+                  setProdDeliveryTimerHours(48);
                   setShowAddProdModal(true);
                 }}
                 className="px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md cursor-pointer shrink-0"
@@ -4096,12 +4571,17 @@ export function AdminDashboard() {
                           setProdPrice(p.price);
                           setProdCategory(p.category);
                           setProdAuthor(p.author || '');
-                          setProdPublisher((p as any).publisher || '');
-                          setProdIsbn((p as any).isbn || '');
-                          setProdBrand((p as any).brand || p.author || '');
-                          setProdMaterial((p as any).material || '');
-                          setProdDimensions((p as any).dimensions || '');
-                          setProdColorModel((p as any).colorModel || '');
+                          setProdPublisher(p.publisher || '');
+                          setProdIsbn(p.isbn || '');
+                          setProdEdition(p.edition || '3rd Edition');
+                          setProdPages(p.pages || 264);
+                          setProdLanguage(p.language || 'Bengali');
+                          setProdSku(p.sku || '');
+                          setProdCustomDetailsText(serializeCustomBookDetails(p.customBookDetails));
+                          setProdBrand(p.brand || p.author || '');
+                          setProdMaterial(p.material || '');
+                          setProdDimensions(p.dimensions || '');
+                          setProdColorModel(p.colorModel || '');
                           setProdDescription(p.description || '');
                           setProdPreviewHighlightTitle(p.previewHighlightTitle || 'বইয়ের কিছু অংশ পড়ুন (একটু পড়ে দেখুন)');
                           setProdPreviewHighlightSubtitle(p.previewHighlightSubtitle || '');
@@ -4111,7 +4591,12 @@ export function AdminDashboard() {
                           setProdExtraImages(p.images.slice(1).join(', '));
                           setProdIsOriginal(p.isOriginalBadge !== false);
                           setProdPrintVariants(p.variants ? p.variants.map(v => v.name).join(', ') : 'Paperback, Hardcover');
-                          setProdDeliveryEstimate(p.deliveryEstimate || '2-3 Days');
+                          setProdDeliveryEstimate(p.deliveryEstimate || '২-৩ কার্যদিবস (2-3 Days)');
+                          setProdDeliveryTimingTitle(p.deliveryTimingTitle || 'ডেলিভারি টাইমিং (Delivery Timing)');
+                          setProdInsideDhakaDelivery(p.insideDhakaDelivery || '২৪-৪৮ ঘণ্টা (১-২ দিন)');
+                          setProdOutsideDhakaDelivery(p.outsideDhakaDelivery || '২-৩ কার্যদিবস (সারাদেশে)');
+                          setProdDeliveryTimingNote(p.deliveryTimingNote || 'আজকে অর্ডার করলে দ্রুততম সময়ে বাবল-র‍্যাপ প্যাকেজিংসহ কুরিয়ারে পাঠানো হবে।');
+                          setProdDeliveryTimerHours(p.deliveryTimerHours || 48);
                           setShowAddProdModal(true);
                         }}
                         className="text-[11px] text-[#171717] hover:text-[#D71920] font-bold flex items-center gap-1 cursor-pointer"
@@ -4134,7 +4619,7 @@ export function AdminDashboard() {
               <form onSubmit={handleCreateProduct} className="p-6 bg-[#F7F7F8] rounded-3xl border border-[#E5E5E5] space-y-4 shadow-xl">
                 <div className="flex items-center justify-between pb-3 border-b border-[#E5E5E5]">
                   <h3 className="font-black text-sm text-[#171717]">
-                    {editingProductId ? 'Edit Catalog Item & Book Preview Pages' : 'Add New Item (Book or Stationery)'}
+                    {editingProductId ? 'Edit Catalog Item, Book Details & Delivery Timing' : 'Add New Item (Book or Stationery)'}
                   </h3>
                   <button type="button" onClick={() => setShowAddProdModal(false)} className="text-neutral-400 hover:text-neutral-900 font-bold cursor-pointer">✕</button>
                 </div>
@@ -4142,7 +4627,7 @@ export function AdminDashboard() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Item Title</label>
-                    <input type="text" placeholder="e.g. Paradoxical Sajid / Faber Castell Pencil" required value={prodTitle} onChange={e => setProdTitle(e.target.value)} className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]" />
+                    <input type="text" placeholder="e.g. Paradoxical Sajid 2" required value={prodTitle} onChange={e => setProdTitle(e.target.value)} className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]" />
                   </div>
                   <div>
                     <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Catalog Type</label>
@@ -4169,30 +4654,233 @@ export function AdminDashboard() {
                     <input type="number" placeholder="350" required value={prodPrice} onChange={e => setProdPrice(Number(e.target.value))} className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]" />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Delivery Estimate</label>
-                    <input type="text" placeholder="e.g. 2-3 Days" value={prodDeliveryEstimate} onChange={e => setProdDeliveryEstimate(e.target.value)} className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]" />
+                    <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">SKU Code (Book Details)</label>
+                    <input type="text" placeholder="e.g. BK-PS2-PB" value={prodSku} onChange={e => setProdSku(e.target.value)} className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717] font-mono" />
+                  </div>
+                </div>
+
+                {/* PER-BOOK CUSTOM DELIVERY TIMING & SCHEDULE CONFIGURATION */}
+                <div className="p-4 rounded-2xl bg-[#FFF1F2]/70 border border-[#D71920]/25 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <div className="text-xs font-black text-[#D71920] flex items-center gap-1.5">
+                        <Truck size={15} />
+                        <span>🚚 Per-Book Delivery Timing & Timer (এই বইয়ের ডেলিভারি টাইমিং)</span>
+                      </div>
+                      <p className="text-[11px] text-neutral-600 mt-0.5">
+                        একেকটা বইয়ের ক্ষেত্রে আলাদা ডেলিভারি টাইমিং, ঢাকার ভেতরে/বাইরে সময় এবং কাস্টম নোট নিজের মতো সেট করুন।
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {[
+                        { label: '⚡ ২৪ ঘণ্টা এক্সপ্রেস', est: '২৪ ঘণ্টায় এক্সপ্রেস ডেলিভারি', inDhaka: '১২-২৪ ঘণ্টা', outDhaka: '১-২ দিন', hrs: 24 },
+                        { label: '🚚 ১-২ দিন', est: '১-২ কার্যদিবস (1-2 Days)', inDhaka: '২৪ ঘণ্টা (১ দিন)', outDhaka: '১-২ কার্যদিবস', hrs: 36 },
+                        { label: '📦 ২-৩ দিন (ডিফল্ট)', est: '২-৩ কার্যদিবস (2-3 Days)', inDhaka: '২৪-৪৮ ঘণ্টা (১-২ দিন)', outDhaka: '২-৩ কার্যদিবস (সারাদেশে)', hrs: 48 },
+                        { label: '⏳ ৩-৫ দিন (প্রি-অর্ডার)', est: '৩-৫ কার্যদিবস (Pre-Order)', inDhaka: '২-৩ দিন', outDhaka: '৩-৫ কার্যদিবস', hrs: 96 },
+                      ].map((preset, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setProdDeliveryEstimate(preset.est);
+                            setProdInsideDhakaDelivery(preset.inDhaka);
+                            setProdOutsideDhakaDelivery(preset.outDhaka);
+                            setProdDeliveryTimerHours(preset.hrs);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#D71920] hover:text-white text-[#171717] border border-[#D71920]/30 text-[10px] font-bold transition-colors cursor-pointer shadow-2xs"
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-neutral-700 uppercase mb-1">
+                        Primary Delivery Timing Badge *
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. ২-৩ কার্যদিবস / 2-3 Days"
+                        value={prodDeliveryEstimate}
+                        onChange={e => setProdDeliveryEstimate(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs font-bold text-[#171717]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-neutral-700 uppercase mb-1">
+                        Inside Dhaka Timing (ঢাকার ভেতরে)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. ২৪-৪৮ ঘণ্টা (১-২ দিন)"
+                        value={prodInsideDhakaDelivery}
+                        onChange={e => setProdInsideDhakaDelivery(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-neutral-700 uppercase mb-1">
+                        Outside Dhaka Timing (ঢাকার বাইরে)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. ২-৩ কার্যদিবস (সারাদেশে)"
+                        value={prodOutsideDhakaDelivery}
+                        onChange={e => setProdOutsideDhakaDelivery(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-neutral-700 uppercase mb-1">
+                        Delivery Card Title (শিরোনাম)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="ডেলিভারি টাইমিং (Delivery Timing)"
+                        value={prodDeliveryTimingTitle}
+                        onChange={e => setProdDeliveryTimingTitle(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-neutral-700 uppercase mb-1">
+                        Target Timer Hours (ঘণ্টা)
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        placeholder="48"
+                        value={prodDeliveryTimerHours}
+                        onChange={e => setProdDeliveryTimerHours(Number(e.target.value))}
+                        className="w-full px-3 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs font-bold text-[#171717]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-neutral-700 uppercase mb-1">
+                        Custom Delivery Note (ডেলিভারি বার্তা)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="আজকে অর্ডার করলে দ্রুততম সময়ে পাঠানো হবে..."
+                        value={prodDeliveryTimingNote}
+                        onChange={e => setProdDeliveryTimingNote(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]"
+                      />
+                    </div>
                   </div>
                 </div>
 
                 {/* TAILORED FIELDS: BOOK VS STATIONERY */}
                 {prodType === 'book' ? (
                   <div className="p-4 rounded-2xl bg-amber-50/50 border border-amber-200/60 space-y-3">
-                    <div className="text-xs font-black text-amber-900 flex items-center gap-1.5">
-                      <span>📚 Book Specific Attributes</span>
+                    <div className="text-xs font-black text-amber-900 flex items-center justify-between gap-1.5">
+                      <span>📚 Book Details Attributes (Author, Publisher, Edition, Pages, Language & ISBN)</span>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('publishers')}
+                        className="text-[10px] font-bold text-[#D71920] hover:underline cursor-pointer"
+                      >
+                        + Manage Publishers / প্রকাশনী
+                      </button>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
-                        <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">Author Name *</label>
-                        <input type="text" placeholder="e.g. Humayun Ahmed" required value={prodAuthor} onChange={e => setProdAuthor(e.target.value)} className="w-full px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-white text-xs" />
+                        <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">Author Name (লেখক) *</label>
+                        <input
+                          type="text"
+                          list="admin-authors-list"
+                          placeholder="e.g. Arif Azad / Humayun Ahmed"
+                          required
+                          value={prodAuthor}
+                          onChange={e => setProdAuthor(e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]"
+                        />
+                        <datalist id="admin-authors-list">
+                          {authors.map(a => (
+                            <option key={a.id} value={a.name} />
+                          ))}
+                        </datalist>
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">Publisher</label>
-                        <input type="text" placeholder="e.g. Prothoma Publications" value={prodPublisher} onChange={e => setProdPublisher(e.target.value)} className="w-full px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-white text-xs" />
+                        <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">Publisher (প্রকাশনী)</label>
+                        <input
+                          type="text"
+                          list="admin-publishers-list"
+                          placeholder="e.g. Guardian Publications / প্রথমা"
+                          value={prodPublisher}
+                          onChange={e => setProdPublisher(e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]"
+                        />
+                        <datalist id="admin-publishers-list">
+                          {publishers.map(pub => (
+                            <option key={pub.id} value={pub.name}>
+                              {pub.banglaName ? `${pub.banglaName} (${pub.name})` : pub.name}
+                            </option>
+                          ))}
+                        </datalist>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">Edition (সংস্করণ)</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 3rd Edition / 1st Published"
+                          value={prodEdition}
+                          onChange={e => setProdEdition(e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">Pages (পৃষ্ঠা সংখ্যা)</label>
+                        <input
+                          type="number"
+                          min={1}
+                          placeholder="e.g. 264"
+                          value={prodPages}
+                          onChange={e => setProdPages(Number(e.target.value))}
+                          className="w-full px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">Language (ভাষা)</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Bengali / বাংলা / English"
+                          value={prodLanguage}
+                          onChange={e => setProdLanguage(e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]"
+                        />
                       </div>
                       <div>
                         <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">ISBN Code</label>
-                        <input type="text" placeholder="e.g. 978984..." value={prodIsbn} onChange={e => setProdIsbn(e.target.value)} className="w-full px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-white text-xs" />
+                        <input
+                          type="text"
+                          placeholder="e.g. 9789849312341"
+                          value={prodIsbn}
+                          onChange={e => setProdIsbn(e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717] font-mono"
+                        />
                       </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">
+                        Extra Custom Book Details (ঐচ্ছিক অতিরিক্ত তথ্য — প্রতি লাইনে Label: Value ফরম্যাটে লিখুন)
+                      </label>
+                      <textarea
+                        rows={2}
+                        placeholder={'Paper Quality: 80 GSM Cream Paper\nBinding: Hardcover Stitch'}
+                        value={prodCustomDetailsText}
+                        onChange={e => setProdCustomDetailsText(e.target.value)}
+                        className="w-full px-3 py-1.5 rounded-xl border border-[#E5E5E5] bg-white text-xs text-[#171717]"
+                      />
                     </div>
                   </div>
                 ) : (
@@ -5373,6 +6061,289 @@ export function AdminDashboard() {
                         className="px-6 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl shadow-md cursor-pointer flex items-center gap-1.5"
                       >
                         <Check size={14} /> Save Author Profile
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB: PUBLISHERS / প্রকাশনী MANAGEMENT */}
+        {activeTab === 'publishers' && (
+          <div className="space-y-6">
+            <div className="bg-white border border-[#E5E5E5] rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+              <div>
+                <h2 className="text-xl font-black text-[#171717] flex items-center gap-2">
+                  <Building2 size={22} className="text-[#D71920]" /> Publishers / প্রকাশনী ডিরেক্টরি ({publishers.length})
+                </h2>
+                <p className="text-sm text-[#5F6368] mt-1">
+                  Manage publishing houses displayed in the Mobile Navigation Drawer (&quot;Publishers / প্রকাশনী&quot;) and Book Details.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <button
+                  onClick={() => {
+                    setEditingPublisherId(null);
+                    setPubName('');
+                    setPubBanglaName('');
+                    setPubLogo('');
+                    setPubBooksCount(25);
+                    setPubDescription('');
+                    setPubEstYear('');
+                    setShowAddPublisherModal(true);
+                  }}
+                  className="px-5 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl transition-all flex items-center gap-2 shadow-md shadow-[#D71920]/20 cursor-pointer"
+                >
+                  <Plus size={18} /> Add Publisher / প্রকাশনী
+                </button>
+              </div>
+            </div>
+
+            {publishers.length === 0 ? (
+              <div className="bg-white border border-[#E5E5E5] rounded-2xl p-10 text-center space-y-4">
+                <div className="w-16 h-16 rounded-2xl bg-[#FFF5F5] text-[#D71920] flex items-center justify-center mx-auto">
+                  <Building2 size={30} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-extrabold text-[#171717]">No Custom Publishers Saved Yet</h3>
+                  <p className="text-xs text-[#5F6368] max-w-md mx-auto mt-1">
+                    The storefront automatically displays publishers from your books and default Bangladeshi publishing houses. Click below to add a custom publisher or import defaults to customize logos and Bangla names.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                  <button
+                    onClick={async () => {
+                      for (const defPub of DEFAULT_PUBLISHERS_LIST) {
+                        await addPublisher({
+                          id: defPub.id || 'pub-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+                          name: defPub.name,
+                          banglaName: defPub.banglaName,
+                          logoUrl: defPub.logoUrl,
+                          booksCount: defPub.booksCount,
+                          description: defPub.description,
+                          establishedYear: defPub.establishedYear,
+                          isFeatured: true,
+                        });
+                      }
+                      setToast({ show: true, type: 'success', message: 'Default Bangladeshi publishers imported to Firebase!' });
+                    }}
+                    className="px-4 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-[#171717] text-xs font-extrabold rounded-xl transition-colors cursor-pointer"
+                  >
+                    Import Default Bangladeshi Publishers ({DEFAULT_PUBLISHERS_LIST.length})
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingPublisherId(null);
+                      setPubName('');
+                      setPubBanglaName('');
+                      setPubLogo('');
+                      setPubBooksCount(25);
+                      setPubDescription('');
+                      setPubEstYear('');
+                      setShowAddPublisherModal(true);
+                    }}
+                    className="px-4 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-extrabold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Plus size={14} /> Add First Publisher
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {publishers.map(pub => {
+                  const catalogMatches = products.filter(
+                    p => (p.publisher || '').trim().toLowerCase() === pub.name.trim().toLowerCase()
+                  ).length;
+                  return (
+                    <div key={pub.id} className="bg-white border border-[#E5E5E5] rounded-2xl p-5 flex items-start gap-4 shadow-xs hover:shadow-md transition-all">
+                      <img
+                        src={pub.logoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(pub.name)}&background=FFF0F0&color=D71920&bold=true&size=200`}
+                        alt={pub.name}
+                        className="w-16 h-16 rounded-2xl object-cover shrink-0 border-2 border-[#D71920]/20 bg-[#FFF5F5]"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <h3 className="font-extrabold text-[#171717] text-base truncate">
+                              {pub.banglaName || pub.name}
+                            </h3>
+                            {pub.banglaName && (
+                              <p className="text-xs font-bold text-[#5F6368] truncate">{pub.name}</p>
+                            )}
+                          </div>
+                          {pub.establishedYear && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-neutral-100 text-[#5F6368] shrink-0">
+                              Est. {pub.establishedYear}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-[#D71920] font-bold mt-1">
+                          {catalogMatches > 0 ? `${catalogMatches} Books in Catalog` : `${pub.booksCount || 0} Books`}
+                        </p>
+                        {pub.description && (
+                          <p className="text-xs text-[#5F6368] line-clamp-2 mt-1.5">{pub.description}</p>
+                        )}
+
+                        <div className="flex items-center gap-2 mt-4 pt-3 border-t border-[#EEEEEE]">
+                          <button
+                            onClick={() => {
+                              setEditingPublisherId(pub.id);
+                              setPubName(pub.name);
+                              setPubBanglaName(pub.banglaName || '');
+                              setPubLogo(pub.logoUrl || '');
+                              setPubBooksCount(Number(pub.booksCount || 20));
+                              setPubDescription(pub.description || '');
+                              setPubEstYear(pub.establishedYear || '');
+                              setShowAddPublisherModal(true);
+                            }}
+                            className="flex-1 py-1.5 px-3 bg-neutral-100 hover:bg-neutral-200 text-[#171717] text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <Edit2 size={13} /> Edit
+                          </button>
+                          <button
+                            onClick={async () => {
+                              await deletePublisher(pub.id);
+                              setToast({ show: true, type: 'success', message: 'Publisher deleted.' });
+                            }}
+                            className="py-1.5 px-3 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <Trash2 size={13} /> Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Add / Edit Publisher Modal */}
+            {showAddPublisherModal && (
+              <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+                <div className="bg-white border border-[#E5E5E5] rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5 my-8">
+                  <div className="flex items-center justify-between border-b border-[#EEEEEE] pb-4">
+                    <h3 className="text-lg font-black text-[#171717] flex items-center gap-2">
+                      <Building2 size={18} className="text-[#D71920]" />
+                      {editingPublisherId ? 'Edit Publisher / প্রকাশনী' : 'Add New Publisher / প্রকাশনী'}
+                    </h3>
+                    <button
+                      onClick={() => setShowAddPublisherModal(false)}
+                      className="p-2 rounded-lg text-[#5F6368] hover:bg-neutral-100 cursor-pointer"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleSavePublisher} className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold uppercase text-[#5F6368] mb-1">
+                          Publisher Name (English) *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Guardian Publications"
+                          value={pubName}
+                          onChange={e => setPubName(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold uppercase text-[#5F6368] mb-1">
+                          বাংলা নাম (Bangla Name)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="যেমনঃ গার্ডিয়ান পাবলিকেশন্স"
+                          value={pubBanglaName}
+                          onChange={e => setPubBanglaName(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-[#5F6368] mb-1">
+                        Publisher Logo (Upload or URL)
+                      </label>
+                      <div className="flex items-center gap-3">
+                        {pubLogo && (
+                          <img
+                            src={pubLogo}
+                            alt="Logo preview"
+                            className="w-12 h-12 rounded-xl object-cover border border-[#E5E5E5] shrink-0"
+                          />
+                        )}
+                        <input
+                          type="text"
+                          placeholder="https://... or upload image"
+                          value={pubLogo}
+                          onChange={e => setPubLogo(e.target.value)}
+                          className="flex-1 px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717] text-xs"
+                        />
+                        <label className="px-3.5 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-[#171717] text-xs font-bold rounded-xl cursor-pointer shrink-0 flex items-center gap-1.5">
+                          <Upload size={14} /> Upload
+                          <input type="file" accept="image/*" onChange={handlePublisherFileUpload} className="hidden" />
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold uppercase text-[#5F6368] mb-1">
+                          Total Books Published
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={pubBooksCount}
+                          onChange={e => setPubBooksCount(Number(e.target.value) || 0)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold uppercase text-[#5F6368] mb-1">
+                          Established Year (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 2015"
+                          value={pubEstYear}
+                          onChange={e => setPubEstYear(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-[#5F6368] mb-1">
+                        Short Description / প্রকাশনী পরিচিতি
+                      </label>
+                      <textarea
+                        rows={3}
+                        placeholder="Brief description of the publishing house..."
+                        value={pubDescription}
+                        onChange={e => setPubDescription(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
+                      />
+                    </div>
+
+                    <div className="flex justify-end gap-2.5 pt-3 border-t border-[#EEEEEE]">
+                      <button
+                        type="button"
+                        onClick={() => setShowAddPublisherModal(false)}
+                        className="px-5 py-2.5 bg-neutral-100 text-[#171717] font-bold rounded-xl hover:bg-neutral-200 cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-6 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl shadow-md cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Check size={14} /> Save Publisher
                       </button>
                     </div>
                   </form>

@@ -7,6 +7,7 @@ import {
   PaymentMethodConfig, 
   Category, 
   Author, 
+  Publisher,
   Banner,
   StoreSettings,
   Review,
@@ -14,6 +15,7 @@ import {
   Reel,
   AdminStaffMember
 } from '../types';
+import { DEFAULT_PUBLISHERS_LIST } from '../utils/publisherAndDeliveryHelpers';
 import { 
   db, 
   seedInitialDataIfNeeded,
@@ -63,6 +65,26 @@ function sanitizePaymentMethod(pm: PaymentMethodConfig): PaymentMethodConfig {
     qrCodeUrl: sanitizeImageUrl(pm.qrCodeUrl),
     englishQrCodeUrl: sanitizeImageUrl(pm.englishQrCodeUrl || pm.qrCodeUrl),
     bengaliQrCodeUrl: sanitizeImageUrl(pm.bengaliQrCodeUrl),
+    ...(pm.sendMoneyOption
+      ? {
+          sendMoneyOption: {
+            ...pm.sendMoneyOption,
+            qrCodeUrl: sanitizeImageUrl(pm.sendMoneyOption.qrCodeUrl),
+            englishQrCodeUrl: sanitizeImageUrl(pm.sendMoneyOption.englishQrCodeUrl || pm.sendMoneyOption.qrCodeUrl),
+            bengaliQrCodeUrl: sanitizeImageUrl(pm.sendMoneyOption.bengaliQrCodeUrl),
+          },
+        }
+      : {}),
+    ...(pm.paymentOption
+      ? {
+          paymentOption: {
+            ...pm.paymentOption,
+            qrCodeUrl: sanitizeImageUrl(pm.paymentOption.qrCodeUrl),
+            englishQrCodeUrl: sanitizeImageUrl(pm.paymentOption.englishQrCodeUrl || pm.paymentOption.qrCodeUrl),
+            bengaliQrCodeUrl: sanitizeImageUrl(pm.paymentOption.bengaliQrCodeUrl),
+          },
+        }
+      : {}),
   };
 }
 
@@ -70,6 +92,7 @@ interface StoreContextType {
   products: Product[];
   categories: Category[];
   authors: Author[];
+  publishers: Publisher[];
   banners: Banner[];
   paymentMethods: PaymentMethodConfig[];
   orders: Order[];
@@ -115,6 +138,10 @@ interface StoreContextType {
   addAuthor: (author: Author) => Promise<void>;
   updateAuthor: (id: string, data: Partial<Author>) => Promise<void>;
   deleteAuthor: (id: string) => Promise<void>;
+
+  addPublisher: (publisher: Publisher) => Promise<void>;
+  updatePublisher: (id: string, data: Partial<Publisher>) => Promise<void>;
+  deletePublisher: (id: string) => Promise<void>;
 
   addCategory: (cat: Category) => Promise<void>;
   updateCategory: (id: string, data: Partial<Category>) => Promise<void>;
@@ -207,6 +234,11 @@ function getPageFromLocation(): { page: string; productId: string | null } {
     return { page: 'authors', productId: null };
   }
 
+  // Publishers route
+  if (pathname === '/publishers' || hash === 'publishers') {
+    return { page: 'publishers', productId: null };
+  }
+
   // Product Detail route: /product/:id or /book/:id
   if (pathname.startsWith('/product/') || pathname.startsWith('/book/')) {
     const parts = window.location.pathname.split('/');
@@ -230,6 +262,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [authors, setAuthors] = useState<Author[]>([]);
+  const [publishers, setPublishers] = useState<Publisher[]>(DEFAULT_PUBLISHERS_LIST);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodConfig[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -556,6 +589,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       else if (page === 'order-success') targetPath = '/order-success';
       else if (page === 'my-orders') targetPath = '/my-orders';
       else if (page === 'authors') targetPath = '/authors';
+      else if (page === 'publishers') targetPath = '/publishers';
       else if (page === 'product-detail' && productId) targetPath = `/product/${encodeURIComponent(productId)}`;
 
       if (window.location.pathname !== targetPath) {
@@ -784,6 +818,35 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
+    const unsubPublishers = onSnapshot(
+      collection(db, 'publishers'),
+      { includeMetadataChanges: true },
+      (snapshot) => {
+        if (!snapshot.empty) {
+          setPublishers(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Publisher)));
+        }
+      },
+      (err) => {
+        console.warn('Publishers realtime listener notice:', err.message);
+      }
+    );
+
+    const unsubPublishersSettingsBackup = onSnapshot(
+      doc(db, 'settings', 'publishers_directory'),
+      { includeMetadataChanges: true },
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          if (Array.isArray(data?.items) && data.items.length > 0) {
+            setPublishers(data.items as Publisher[]);
+          }
+        }
+      },
+      (err) => {
+        console.warn('Publishers settings directory listener notice:', err.message);
+      }
+    );
+
     const unsubBanners = onSnapshot(
       collection(db, 'banners'),
       { includeMetadataChanges: true },
@@ -886,6 +949,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubProducts();
       unsubCategories();
       unsubAuthors();
+      unsubPublishers();
+      unsubPublishersSettingsBackup();
       unsubBanners();
       unsubPayments();
       unsubSettings();
@@ -1264,6 +1329,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       ...('qrCodeUrl' in data ? { qrCodeUrl: sanitizeImageUrl(data.qrCodeUrl) } : {}),
       ...('englishQrCodeUrl' in data ? { englishQrCodeUrl: sanitizeImageUrl(data.englishQrCodeUrl) } : {}),
       ...('bengaliQrCodeUrl' in data ? { bengaliQrCodeUrl: sanitizeImageUrl(data.bengaliQrCodeUrl) } : {}),
+      ...(data.sendMoneyOption
+        ? {
+            sendMoneyOption: {
+              ...data.sendMoneyOption,
+              qrCodeUrl: sanitizeImageUrl(data.sendMoneyOption.qrCodeUrl),
+              englishQrCodeUrl: sanitizeImageUrl(data.sendMoneyOption.englishQrCodeUrl || data.sendMoneyOption.qrCodeUrl),
+              bengaliQrCodeUrl: sanitizeImageUrl(data.sendMoneyOption.bengaliQrCodeUrl),
+            },
+          }
+        : {}),
+      ...(data.paymentOption
+        ? {
+            paymentOption: {
+              ...data.paymentOption,
+              qrCodeUrl: sanitizeImageUrl(data.paymentOption.qrCodeUrl),
+              englishQrCodeUrl: sanitizeImageUrl(data.paymentOption.englishQrCodeUrl || data.paymentOption.qrCodeUrl),
+              bengaliQrCodeUrl: sanitizeImageUrl(data.paymentOption.bengaliQrCodeUrl),
+            },
+          }
+        : {}),
     };
     try {
       const cleaned = cleanForFirestore(sanitizedData);
@@ -1355,6 +1440,61 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       throw err;
     }
     setAuthors(prev => prev.filter(a => a.id !== id));
+  };
+
+  const syncPublishersToSettingsDoc = async (nextList: Publisher[]) => {
+    try {
+      await setDoc(
+        doc(db, 'settings', 'publishers_directory'),
+        cleanForFirestore({ items: nextList, updatedAt: Date.now() }),
+        { merge: true }
+      );
+    } catch (err) {
+      console.warn('Publishers settings doc sync notice:', err);
+    }
+  };
+
+  const addPublisher = async (publisher: Publisher) => {
+    const nextList = [...publishers.filter(p => p.id !== publisher.id), publisher];
+    setPublishers(nextList);
+    const cleaned = cleanForFirestore(publisher);
+    let savedToPrimary = false;
+    try {
+      await setDoc(doc(db, 'publishers', publisher.id), cleaned);
+      savedToPrimary = true;
+    } catch (err) {
+      console.warn('Primary publishers collection write notice, syncing via settings/publishers_directory:', err);
+    }
+    await syncPublishersToSettingsDoc(nextList);
+    await logAdminAction('publisher_created', publisher.id, `Added publisher: ${publisher.name}`);
+    if (!savedToPrimary) {
+      // Saved to settings/publishers_directory which is publicly readable & admin-writable
+    }
+  };
+
+  const updatePublisher = async (id: string, data: Partial<Publisher>) => {
+    const nextList = publishers.map(p => (p.id === id ? { ...p, ...data } : p));
+    setPublishers(nextList);
+    try {
+      const cleaned = cleanForFirestore(data);
+      await setDoc(doc(db, 'publishers', id), cleaned, { merge: true });
+    } catch (err) {
+      console.warn('Primary publishers collection update notice, syncing via settings/publishers_directory:', err);
+    }
+    await syncPublishersToSettingsDoc(nextList);
+    await logAdminAction('publisher_updated', id, `Updated publisher: ${id}`);
+  };
+
+  const deletePublisher = async (id: string) => {
+    const nextList = publishers.filter(p => p.id !== id);
+    setPublishers(nextList);
+    try {
+      await deleteDoc(doc(db, 'publishers', id));
+    } catch (err) {
+      console.warn('Primary publishers collection delete notice, syncing via settings/publishers_directory:', err);
+    }
+    await syncPublishersToSettingsDoc(nextList);
+    await logAdminAction('publisher_deleted', id, `Deleted publisher: ${id}`);
   };
 
   const addCategory = async (cat: Category) => {
@@ -1695,6 +1835,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       products,
       categories,
       authors,
+      publishers,
       banners,
       paymentMethods,
       orders,
@@ -1732,6 +1873,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       addAuthor,
       updateAuthor,
       deleteAuthor,
+      addPublisher,
+      updatePublisher,
+      deletePublisher,
       addCategory,
       updateCategory,
       deleteCategory,

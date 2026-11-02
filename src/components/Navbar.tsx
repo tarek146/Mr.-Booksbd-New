@@ -20,7 +20,8 @@ import {
   User,
   Phone,
   Sun,
-  Moon
+  Moon,
+  Building2
 } from 'lucide-react';
 import { AuthModal } from './AuthModal';
 import { AnimatedSearchInput } from './AnimatedSearchInput';
@@ -535,6 +536,27 @@ export function Navbar() {
                         </p>
                       </div>
                     </button>
+
+                    <div className="mt-1.5 pt-1.5 border-t border-neutral-100 grid grid-cols-2 gap-1.5">
+                      <button
+                        onClick={() => { setActivePage('authors'); setShopDropdownOpen(false); }}
+                        className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                          activePage === 'authors' ? 'bg-[#FFF1F2] text-[#D71920]' : 'text-neutral-700 hover:bg-neutral-50 hover:text-[#D71920]'
+                        }`}
+                      >
+                        <Users size={14} className="text-[#D71920] shrink-0" />
+                        <span className="truncate">Writers</span>
+                      </button>
+                      <button
+                        onClick={() => { setActivePage('publishers'); setShopDropdownOpen(false); }}
+                        className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                          activePage === 'publishers' ? 'bg-[#FFF1F2] text-[#D71920]' : 'text-neutral-700 hover:bg-neutral-50 hover:text-[#D71920]'
+                        }`}
+                      >
+                        <Building2 size={14} className="text-[#D71920] shrink-0" />
+                        <span className="truncate">প্রকাশনী</span>
+                      </button>
+                    </div>
                   </div>
                   </div>
                 )}
@@ -784,6 +806,20 @@ export function Navbar() {
                     >
                       <span className="flex items-center gap-2">
                         <Users size={16} className="text-[#D71920]" /> Featured Writers
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Publishers / প্রকাশনী Section Link (Directly below Featured Writers) */}
+                  <div className="pt-1">
+                    <button 
+                      onClick={() => { setActivePage('publishers'); setMobileMenuOpen(false); }} 
+                      className={`w-full flex items-center justify-between py-2.5 text-sm font-bold cursor-pointer ${
+                        activePage === 'publishers' ? 'text-[#D71920]' : 'text-neutral-800'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <Building2 size={16} className="text-[#D71920]" /> Publishers / প্রকাশনী
                       </span>
                     </button>
                   </div>

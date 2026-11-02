@@ -1,4 +1,4 @@
-import { Review, PaymentMethodConfig } from '../types';
+import { Review, PaymentMethodConfig, PaymentSubOptionConfig, PaymentSubOptionType } from '../types';
 import { isValidImageUrl } from './imageCompressor';
 
 export type ReactionType = 'like' | 'love' | 'dislike';
@@ -361,3 +361,98 @@ export function validatePaymentTransactionPopup(
 
   return { valid: true, cleanSender, cleanTrxId };
 }
+
+/**
+ * Returns default instruction text for the second sub-option ("Payment" / Merchant Payment)
+ * based on the payment method gateway type.
+ */
+export function getDefaultMerchantPaymentInstruction(type: PaymentMethodConfig['type']): string {
+  switch (type) {
+    case 'bkash':
+      return 'বিকাশ অ্যাপের "Make Payment" (পেমেন্ট) অপশনে গিয়ে অথবা *247# ডায়াল করে নির্ধারিত মার্চেন্ট নম্বরে Payment করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।';
+    case 'nagad':
+      return 'নগদ অ্যাপের "Merchant Pay" (পেমেন্ট) অপশনে গিয়ে অথবা *167# ডায়াল করে নির্ধারিত মার্চেন্ট নম্বরে Payment করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।';
+    case 'rocket':
+      return 'রকেট অ্যাপের "Merchant Pay" অপশনে গিয়ে অথবা *322# ডায়াল করে নির্ধারিত মার্চেন্ট নম্বরে Payment করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।';
+    case 'upay':
+      return 'উপায় অ্যাপের "Make Payment" অপশনে গিয়ে অথবা *268# ডায়াল করে নির্ধারিত মার্চেন্ট নম্বরে Payment করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।';
+    case 'bangla_qr':
+      return 'যেকোনো ব্যাংক বা এমএফএস অ্যাপের "Bangla QR / Payment" অপশন থেকে স্ক্যান করে মার্চেন্ট পেমেন্ট সম্পন্ন করুন এবং ট্রানজেকশন আইডি নিচে দিন।';
+    case 'bank':
+      return 'নির্ধারিত মার্চেন্ট / কর্পোরেট ব্যাংক একাউন্টে পেমেন্ট বা ডিপোজিট সম্পন্ন করে ট্রানজেকশন রেফারেন্স বা রিসিপ্ট আইডি নিচে দিন।';
+    default:
+      return 'নির্ধারিত মার্চেন্ট নম্বরে পেমেন্ট সম্পন্ন করে নিচে আপনার মোবাইল নম্বর এবং ট্রানজেকশন আইডি (TrxID) দিন।';
+  }
+}
+
+/**
+ * Resolves the two dual sub-options (1. Send Money / সেন্ড মানি and 2. Payment / পেমেন্ট)
+ * for any payment method, preserving full backward compatibility with existing Firestore documents
+ * while allowing complete Admin Panel customization of names, numbers, instructions, and QR codes.
+ */
+export function getPaymentMethodSubOptions(method: PaymentMethodConfig): {
+  sendMoneyOption: PaymentSubOptionConfig;
+  paymentOption: PaymentSubOptionConfig;
+  activeSubOptions: PaymentSubOptionConfig[];
+} {
+  const meta = getPaymentMethodDisplayMeta(method);
+  const rawSm = method.sendMoneyOption;
+  const rawPay = method.paymentOption;
+
+  const cleanImg = (url?: string) => {
+    const trimmed = (url || '').trim();
+    return isValidImageUrl(trimmed) ? trimmed : undefined;
+  };
+
+  const smQr = cleanImg(rawSm?.qrCodeUrl) || meta.qrCodeUrl;
+  const smEnQr = cleanImg(rawSm?.englishQrCodeUrl || rawSm?.qrCodeUrl) || meta.englishQrCodeUrl || smQr;
+  const smBnQr = cleanImg(rawSm?.bengaliQrCodeUrl) || meta.bengaliQrCodeUrl;
+
+  const sendMoneyOption: PaymentSubOptionConfig = {
+    id: 'send_money',
+    enabled: rawSm?.enabled ?? true,
+    label: (rawSm?.label || '').trim() || 'সেন্ড মানি',
+    englishLabel: (rawSm?.englishLabel || '').trim() || 'Send Money',
+    subtitle: (rawSm?.subtitle || '').trim() || 'পার্সোনাল নাম্বারে সেন্ড মানি করুন',
+    accountType: rawSm?.accountType || (method.accountType && method.accountType !== 'None' ? method.accountType : 'Personal'),
+    accountName: (rawSm?.accountName || '').trim() || method.accountName || 'MR. BOOKS Official',
+    accountNumber: (rawSm?.accountNumber || '').trim() || method.accountNumber || '01712345678',
+    instructions: (rawSm?.instructions || '').trim() || meta.instructionText,
+    qrCodeUrl: smQr,
+    englishQrCodeUrl: smEnQr,
+    bengaliQrCodeUrl: smBnQr,
+  };
+
+  const payQr = cleanImg(rawPay?.qrCodeUrl) || meta.qrCodeUrl;
+  const payEnQr = cleanImg(rawPay?.englishQrCodeUrl || rawPay?.qrCodeUrl) || meta.englishQrCodeUrl || payQr;
+  const payBnQr = cleanImg(rawPay?.bengaliQrCodeUrl) || meta.bengaliQrCodeUrl;
+
+  const paymentOption: PaymentSubOptionConfig = {
+    id: 'payment',
+    enabled: rawPay?.enabled ?? true,
+    label: (rawPay?.label || '').trim() || 'পেমেন্ট',
+    englishLabel: (rawPay?.englishLabel || '').trim() || 'Payment',
+    subtitle: (rawPay?.subtitle || '').trim() || 'মার্চেন্ট নাম্বারে পেমেন্ট করুন',
+    accountType: rawPay?.accountType || 'Merchant',
+    accountName: (rawPay?.accountName || '').trim() || method.accountName || 'MR. BOOKS Merchant',
+    accountNumber: (rawPay?.accountNumber || '').trim() || method.accountNumber || '01712345678',
+    instructions: (rawPay?.instructions || '').trim() || getDefaultMerchantPaymentInstruction(method.type),
+    qrCodeUrl: payQr,
+    englishQrCodeUrl: payEnQr,
+    bengaliQrCodeUrl: payBnQr,
+  };
+
+  const activeSubOptions: PaymentSubOptionConfig[] = [];
+  if (sendMoneyOption.enabled) activeSubOptions.push(sendMoneyOption);
+  if (paymentOption.enabled) activeSubOptions.push(paymentOption);
+  if (activeSubOptions.length === 0) {
+    activeSubOptions.push(sendMoneyOption);
+  }
+
+  return {
+    sendMoneyOption,
+    paymentOption,
+    activeSubOptions,
+  };
+}
+

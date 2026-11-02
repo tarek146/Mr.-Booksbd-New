@@ -45,9 +45,10 @@ export function BooksPage() {
         const q = searchQuery.toLowerCase();
         const matchesTitle = item.title.toLowerCase().includes(q);
         const matchesAuthor = item.author ? item.author.toLowerCase().includes(q) : false;
+        const matchesPublisher = item.publisher ? item.publisher.toLowerCase().includes(q) : false;
         const matchesCategory = item.category.toLowerCase().includes(q);
         const matchesBrand = item.brand ? item.brand.toLowerCase().includes(q) : false;
-        if (!matchesTitle && !matchesAuthor && !matchesCategory && !matchesBrand) return false;
+        if (!matchesTitle && !matchesAuthor && !matchesPublisher && !matchesCategory && !matchesBrand) return false;
       }
 
       // Price filter

@@ -5,6 +5,7 @@ import {
   getPaymentMethodDisplayMeta,
   validatePaymentTransactionPopup,
   getActiveOnlinePaymentMethods,
+  getPaymentMethodSubOptions,
 } from './reviewHelpers';
 import { PaymentMethodConfig } from '../types';
 
@@ -118,6 +119,64 @@ describe('Payment Methods & Bangla QR Helpers', () => {
     assert.strictEqual(meta.englishName, 'Bangla QR');
     assert.strictEqual(meta.accountType, 'Merchant');
     assert.strictEqual(meta.requireTrxId, true);
+  });
+
+  it('resolves default and custom Send Money and Payment sub-options per payment method', () => {
+    const legacyBkash: PaymentMethodConfig = {
+      id: 'bkash-legacy',
+      name: 'বিকাশ',
+      type: 'bkash',
+      accountName: 'MR. BOOKS',
+      accountNumber: '01711112222',
+      instructions: 'বিকাশ সেন্ড মানি নির্দেশনা',
+      isActive: true,
+      displayOrder: 2,
+    };
+
+    const defaultSubs = getPaymentMethodSubOptions(legacyBkash);
+    assert.strictEqual(defaultSubs.activeSubOptions.length, 2);
+    assert.strictEqual(defaultSubs.sendMoneyOption.label, 'সেন্ড মানি');
+    assert.strictEqual(defaultSubs.sendMoneyOption.accountNumber, '01711112222');
+    assert.strictEqual(defaultSubs.paymentOption.label, 'পেমেন্ট');
+    assert.strictEqual(defaultSubs.paymentOption.accountType, 'Merchant');
+
+    // Now test custom Admin overrides for both Send Money and Payment
+    const customBkash: PaymentMethodConfig = {
+      ...legacyBkash,
+      sendMoneyOption: {
+        id: 'send_money',
+        enabled: true,
+        label: 'পার্সোনাল সেন্ড মানি',
+        englishLabel: 'Personal Send Money',
+        subtitle: 'Send Money',
+        accountType: 'Personal',
+        accountName: 'MR. BOOKS Personal',
+        accountNumber: '01700001111',
+        instructions: 'পার্সোনাল নাম্বারে সেন্ড মানি করুন',
+        qrCodeUrl: 'https://example.com/sm-qr.png',
+      },
+      paymentOption: {
+        id: 'payment',
+        enabled: true,
+        label: 'মার্চেন্ট পেমেন্ট',
+        englishLabel: 'Merchant Payment',
+        subtitle: 'Payment',
+        accountType: 'Merchant',
+        accountName: 'MR. BOOKS Merchant',
+        accountNumber: '01799998888',
+        instructions: 'মার্চেন্ট নাম্বারে পেমেন্ট করুন',
+        qrCodeUrl: 'https://example.com/pay-qr.png',
+      },
+    };
+
+    const customSubs = getPaymentMethodSubOptions(customBkash);
+    assert.strictEqual(customSubs.sendMoneyOption.label, 'পার্সোনাল সেন্ড মানি');
+    assert.strictEqual(customSubs.sendMoneyOption.accountNumber, '01700001111');
+    assert.strictEqual(customSubs.sendMoneyOption.instructions, 'পার্সোনাল নাম্বারে সেন্ড মানি করুন');
+    assert.strictEqual(customSubs.paymentOption.label, 'মার্চেন্ট পেমেন্ট');
+    assert.strictEqual(customSubs.paymentOption.accountNumber, '01799998888');
+    assert.strictEqual(customSubs.paymentOption.instructions, 'মার্চেন্ট নাম্বারে পেমেন্ট করুন');
+    assert.strictEqual(customSubs.paymentOption.qrCodeUrl, 'https://example.com/pay-qr.png');
   });
 
   it('validates transaction submission for Bangla QR with valid 11-digit phone', () => {
