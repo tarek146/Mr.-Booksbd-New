@@ -19,15 +19,17 @@ import { DEFAULT_PUBLISHERS_LIST } from '../utils/publisherAndDeliveryHelpers';
 import { 
   db, 
   seedInitialDataIfNeeded,
-  DEFAULT_PAYMENT_METHODS
+  DEFAULT_PAYMENT_METHODS,
+  DEFAULT_PRODUCTS,
+  DEFAULT_CATEGORIES,
+  DEFAULT_AUTHORS,
+  DEFAULT_BANNERS
 } from '../firebase';
 import { 
   collection, 
   getDocs, 
-  getDocsFromServer,
   doc, 
   getDoc,
-  getDocFromServer,
   setDoc, 
   deleteDoc, 
   addDoc,
@@ -38,7 +40,7 @@ import {
 } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { cleanForFirestore, addCacheBust, sanitizeImageUrl, isValidImageUrl } from '../utils/imageCompressor';
-import { SyncTracker, REQUIRED_COLLECTIONS } from '../utils/syncManager';
+import { readCachedSlice, writeCachedSlice, shouldApplyRealtimeSnapshot } from '../utils/instantStoreCache';
 import { applyReviewReaction, ReactionType } from '../utils/reviewHelpers';
 import { dedupeById } from '../utils/videoReelHelpers';
 import { getInitialTheme, persistThemeChoice, applyThemeToDom, toggleTheme as toggleThemeHelper } from '../utils/themeHelpers';
@@ -259,17 +261,33 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const { currentUser, isAdmin } = useAuth();
   
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [authors, setAuthors] = useState<Author[]>([]);
-  const [publishers, setPublishers] = useState<Publisher[]>(DEFAULT_PUBLISHERS_LIST);
-  const [banners, setBanners] = useState<Banner[]>([]);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodConfig[]>([]);
+  const [products, setProducts] = useState<Product[]>(() =>
+    readCachedSlice('products', DEFAULT_PRODUCTS)
+  );
+  const [categories, setCategories] = useState<Category[]>(() =>
+    readCachedSlice('categories', DEFAULT_CATEGORIES)
+  );
+  const [authors, setAuthors] = useState<Author[]>(() =>
+    readCachedSlice('authors', DEFAULT_AUTHORS)
+  );
+  const [publishers, setPublishers] = useState<Publisher[]>(() =>
+    readCachedSlice('publishers', DEFAULT_PUBLISHERS_LIST)
+  );
+  const [banners, setBanners] = useState<Banner[]>(() =>
+    readCachedSlice('banners', DEFAULT_BANNERS)
+  );
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodConfig[]>(() =>
+    readCachedSlice('paymentMethods', DEFAULT_PAYMENT_METHODS)
+  );
   const [orders, setOrders] = useState<Order[]>([]);
   const [paymentSubmissions, setPaymentSubmissions] = useState<PaymentSubmission[]>([]);
-  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviews, setReviews] = useState<Review[]>(() =>
+    readCachedSlice('reviews', [])
+  );
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
-  const [reels, setReels] = useState<Reel[]>([]);
+  const [reels, setReels] = useState<Reel[]>(() =>
+    readCachedSlice('reels', [])
+  );
   const [staffMembers, setStaffMembers] = useState<AdminStaffMember[]>([]);
 
   const [guestVisitorId] = useState<string>(() => {
@@ -390,12 +408,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     applyThemeToDom(darkMode);
   }, [darkMode]);
 
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   
-  const [settings, setSettings] = useState<StoreSettings>({
-    storeName: 'MR. BOOKS',
-    tagline: 'Bookstore & Stationery',
-    phone: '+880 1712-345678',
+  const [settings, setSettings] = useState<StoreSettings>(() =>
+    sanitizeStoreSettings(
+      readCachedSlice<StoreSettings>('settings', {
+        storeName: 'MR. BOOKS',
+        tagline: 'Bookstore & Stationery',
+        phone: '016092384584',
     email: 'support@mrbooksbd.com',
     address: 'Nilkhet Book Market, Dhaka - 1205, Bangladesh',
     insideDhakaCharge: 60,
@@ -521,7 +541,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       whatsapp: '+880 1712-345678',
       roleTitle: 'Super Administrator'
     }
-  });
+      })
+    )
+  );
 
   // Real-time SEO, OpenGraph, and Favicon head synchronization
   useEffect(() => {
@@ -621,155 +643,29 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
 
 
-  // 1. Authoritative Server-First Data Synchronization & Real-time Subscriptions
+  // 1. Instant Non-Blocking Real-Time Subscriptions with Local Cache Persistence
   useEffect(() => {
-    let isMounted = true;
-    const tracker = new SyncTracker();
+    const serverConfirmed: Record<string, boolean> = {};
 
-    // Safety timeout: in case of extreme network stall or quota lock, unlock UI gracefully
-    const safetyTimer = setTimeout(() => {
-      if (isMounted) {
-        tracker.setOffline(true);
-        setIsLoading(false);
-      }
-    }, 7000);
-
-    async function initializeStore() {
-      try {
-        // Fetch fresh authoritative data directly from Cloud Firestore servers
-        const [prodSnap, catSnap, authSnap, bannerSnap, paySnap, setSnap, revSnap, reelSnap] = await Promise.all([
-          getDocsFromServer(collection(db, 'products')),
-          getDocsFromServer(collection(db, 'categories')),
-          getDocsFromServer(collection(db, 'authors')),
-          getDocsFromServer(collection(db, 'banners')),
-          getDocsFromServer(collection(db, 'payment_methods')),
-          getDocFromServer(doc(db, 'settings', 'general')),
-          getDocsFromServer(collection(db, 'reviews')),
-          getDocsFromServer(collection(db, 'reels'))
-        ]);
-
-        if (!isMounted) return;
-
-        // Record server confirmation for all required collections
-        REQUIRED_COLLECTIONS.forEach(col => tracker.recordSnapshot(col, false));
-
-        setProducts(prodSnap.docs.map(d => ({ ...d.data(), id: d.id } as Product)));
-        setCategories(catSnap.docs.map(d => ({ ...d.data(), id: d.id } as Category)));
-        setAuthors(authSnap.docs.map(d => ({ ...d.data(), id: d.id } as Author)));
-        setBanners(bannerSnap.docs.map(d => ({ ...d.data(), id: d.id } as Banner)));
-        const loadedPaymentMethods = paySnap.docs.map(d => sanitizePaymentMethod({ ...d.data(), id: d.id } as PaymentMethodConfig));
-        const hasUpay = loadedPaymentMethods.some(m => m.type === 'upay');
-        const upayDef = DEFAULT_PAYMENT_METHODS.find(m => m.type === 'upay');
-        if (loadedPaymentMethods.length > 0 && !hasUpay && upayDef && typeof window !== 'undefined' && window.localStorage.getItem('mrb_upay_seeded_v1') !== 'true') {
-          window.localStorage.setItem('mrb_upay_seeded_v1', 'true');
-          loadedPaymentMethods.push(upayDef);
-          setDoc(doc(db, 'payment_methods', upayDef.id), cleanForFirestore(upayDef)).catch(() => {});
-        }
-        const hasBanglaQr = loadedPaymentMethods.some(m => m.type === 'bangla_qr');
-        const banglaQrDef = DEFAULT_PAYMENT_METHODS.find(m => m.type === 'bangla_qr');
-        if (loadedPaymentMethods.length > 0 && !hasBanglaQr && banglaQrDef && typeof window !== 'undefined' && window.localStorage.getItem('mrb_banglaqr_seeded_v1') !== 'true') {
-          window.localStorage.setItem('mrb_banglaqr_seeded_v1', 'true');
-          loadedPaymentMethods.push(banglaQrDef);
-          setDoc(doc(db, 'payment_methods', banglaQrDef.id), cleanForFirestore(banglaQrDef)).catch(() => {});
-        }
-        setPaymentMethods(loadedPaymentMethods.length > 0 ? loadedPaymentMethods : DEFAULT_PAYMENT_METHODS);
-        if (setSnap.exists()) {
-          const rawSt = setSnap.data() as StoreSettings;
-          const st = sanitizeStoreSettings(rawSt);
-          setSettings(prev => ({ ...prev, ...st }));
-          // Auto-heal corrupted "data:," image fields in Firestore if any were previously saved
-          if (
-            rawSt.logoUrl !== st.logoUrl ||
-            rawSt.footerLogoUrl !== st.footerLogoUrl ||
-            rawSt.faviconUrl !== st.faviconUrl ||
-            rawSt.footerPaymentBannerUrl !== st.footerPaymentBannerUrl
-          ) {
-            setDoc(
-              doc(db, 'settings', 'general'),
-              cleanForFirestore({
-                logoUrl: st.logoUrl || '',
-                footerLogoUrl: st.footerLogoUrl || '',
-                faviconUrl: st.faviconUrl || '',
-                footerPaymentBannerUrl: st.footerPaymentBannerUrl || '',
-              }),
-              { merge: true }
-            ).catch(() => {});
-          }
-        }
-        if (!revSnap.empty) {
-          setReviews(revSnap.docs.map(d => ({ ...d.data(), id: d.id } as Review)));
-        } else {
-          setReviews([]);
-        }
-        if (reelSnap && !reelSnap.empty) {
-          setReels(dedupeById(reelSnap.docs.map(d => ({ ...d.data(), id: d.id } as Reel))));
-        } else {
-          setReels([]);
-        }
-
-        setIsLoading(false);
-      } catch (err: any) {
-        console.warn('Initial server fetch notice, falling back to cache if available:', err?.message);
-        try {
-          tracker.setOffline(true);
-          const [prodSnap, catSnap, authSnap, bannerSnap, paySnap, setSnap, revSnap, reelSnap] = await Promise.all([
-            getDocs(collection(db, 'products')),
-            getDocs(collection(db, 'categories')),
-            getDocs(collection(db, 'authors')),
-            getDocs(collection(db, 'banners')),
-            getDocs(collection(db, 'payment_methods')),
-            getDoc(doc(db, 'settings', 'general')),
-            getDocs(collection(db, 'reviews')),
-            getDocs(collection(db, 'reels'))
-          ]);
-
-          if (!isMounted) return;
-
-          setProducts(prodSnap.docs.map(d => ({ ...d.data(), id: d.id } as Product)));
-          setCategories(catSnap.docs.map(d => ({ ...d.data(), id: d.id } as Category)));
-          setAuthors(authSnap.docs.map(d => ({ ...d.data(), id: d.id } as Author)));
-          setBanners(bannerSnap.docs.map(d => ({ ...d.data(), id: d.id } as Banner)));
-          setPaymentMethods(paySnap.docs.map(d => sanitizePaymentMethod({ ...d.data(), id: d.id } as PaymentMethodConfig)));
-          if (setSnap && setSnap.exists()) {
-            const st = sanitizeStoreSettings(setSnap.data() as StoreSettings);
-            setSettings(prev => ({ ...prev, ...st }));
-          }
-          if (revSnap && !revSnap.empty) {
-            setReviews(revSnap.docs.map(d => ({ ...d.data(), id: d.id } as Review)));
-          } else {
-            setReviews([]);
-          }
-          if (reelSnap && !reelSnap.empty) {
-            setReels(dedupeById(reelSnap.docs.map(d => ({ ...d.data(), id: d.id } as Reel))));
-          } else {
-            setReels([]);
-          }
-        } catch (fallbackErr) {
-          console.error('Fallback query error:', fallbackErr);
-        } finally {
-          if (isMounted) setIsLoading(false);
-        }
-      }
-    }
-
-    initializeStore();
-
-    // 2. Real-time Listeners with Metadata Checks
     const unsubProducts = onSnapshot(
       collection(db, 'products'),
       { includeMetadataChanges: true },
       (snapshot) => {
         const fromCache = snapshot.metadata.fromCache;
-        tracker.recordSnapshot('products', fromCache);
-
-        if (!tracker.shouldApplySnapshot('products', fromCache)) {
-          return; // Guard against stale IndexedDB cache flashing
+        if (!shouldApplyRealtimeSnapshot(snapshot.empty, fromCache, Boolean(serverConfirmed.products))) {
+          return;
         }
-
-        setProducts(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Product)));
-        if (tracker.isInitialSyncComplete()) {
-          setIsLoading(false);
+        if (!fromCache) {
+          serverConfirmed.products = true;
         }
+        const nextProducts = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Product));
+        if (nextProducts.length > 0 || !fromCache) {
+          setProducts(nextProducts);
+          if (nextProducts.length > 0) {
+            writeCachedSlice('products', nextProducts);
+          }
+        }
+        setIsLoading(false);
       },
       (err) => {
         console.warn('Products realtime listener notice:', err.message);
@@ -781,15 +677,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       { includeMetadataChanges: true },
       (snapshot) => {
         const fromCache = snapshot.metadata.fromCache;
-        tracker.recordSnapshot('categories', fromCache);
-
-        if (!tracker.shouldApplySnapshot('categories', fromCache)) {
+        if (!shouldApplyRealtimeSnapshot(snapshot.empty, fromCache, Boolean(serverConfirmed.categories))) {
           return;
         }
-
-        setCategories(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Category)));
-        if (tracker.isInitialSyncComplete()) {
-          setIsLoading(false);
+        if (!fromCache) {
+          serverConfirmed.categories = true;
+        }
+        const nextCategories = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Category));
+        if (nextCategories.length > 0 || !fromCache) {
+          setCategories(nextCategories);
+          if (nextCategories.length > 0) {
+            writeCachedSlice('categories', nextCategories);
+          }
         }
       },
       (err) => {
@@ -802,15 +701,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       { includeMetadataChanges: true },
       (snapshot) => {
         const fromCache = snapshot.metadata.fromCache;
-        tracker.recordSnapshot('authors', fromCache);
-
-        if (!tracker.shouldApplySnapshot('authors', fromCache)) {
+        if (!shouldApplyRealtimeSnapshot(snapshot.empty, fromCache, Boolean(serverConfirmed.authors))) {
           return;
         }
-
-        setAuthors(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Author)));
-        if (tracker.isInitialSyncComplete()) {
-          setIsLoading(false);
+        if (!fromCache) {
+          serverConfirmed.authors = true;
+        }
+        const nextAuthors = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Author));
+        if (nextAuthors.length > 0 || !fromCache) {
+          setAuthors(nextAuthors);
+          if (nextAuthors.length > 0) {
+            writeCachedSlice('authors', nextAuthors);
+          }
         }
       },
       (err) => {
@@ -823,7 +725,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       { includeMetadataChanges: true },
       (snapshot) => {
         if (!snapshot.empty) {
-          setPublishers(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Publisher)));
+          const nextPublishers = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Publisher));
+          setPublishers(nextPublishers);
+          writeCachedSlice('publishers', nextPublishers);
         }
       },
       (err) => {
@@ -838,7 +742,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (snap.exists()) {
           const data = snap.data();
           if (Array.isArray(data?.items) && data.items.length > 0) {
-            setPublishers(data.items as Publisher[]);
+            const nextPublishers = data.items as Publisher[];
+            setPublishers(nextPublishers);
+            writeCachedSlice('publishers', nextPublishers);
           }
         }
       },
@@ -852,15 +758,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       { includeMetadataChanges: true },
       (snapshot) => {
         const fromCache = snapshot.metadata.fromCache;
-        tracker.recordSnapshot('banners', fromCache);
-
-        if (!tracker.shouldApplySnapshot('banners', fromCache)) {
+        if (!shouldApplyRealtimeSnapshot(snapshot.empty, fromCache, Boolean(serverConfirmed.banners))) {
           return;
         }
-
-        setBanners(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Banner)));
-        if (tracker.isInitialSyncComplete()) {
-          setIsLoading(false);
+        if (!fromCache) {
+          serverConfirmed.banners = true;
+        }
+        const nextBanners = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Banner));
+        if (nextBanners.length > 0 || !fromCache) {
+          setBanners(nextBanners);
+          if (nextBanners.length > 0) {
+            writeCachedSlice('banners', nextBanners);
+          }
         }
       },
       (err) => {
@@ -873,16 +782,34 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       { includeMetadataChanges: true },
       (snapshot) => {
         const fromCache = snapshot.metadata.fromCache;
-        tracker.recordSnapshot('payment_methods', fromCache);
-
-        if (!tracker.shouldApplySnapshot('payment_methods', fromCache)) {
+        if (!shouldApplyRealtimeSnapshot(snapshot.empty, fromCache, Boolean(serverConfirmed.payment_methods))) {
           return;
         }
-
-        setPaymentMethods(snapshot.docs.map(d => sanitizePaymentMethod({ ...d.data(), id: d.id } as PaymentMethodConfig)));
-        if (tracker.isInitialSyncComplete()) {
-          setIsLoading(false);
+        if (!fromCache) {
+          serverConfirmed.payment_methods = true;
         }
+        const loadedPaymentMethods = snapshot.docs.map(d =>
+          sanitizePaymentMethod({ ...d.data(), id: d.id } as PaymentMethodConfig)
+        );
+        if (!fromCache && loadedPaymentMethods.length > 0) {
+          const hasUpay = loadedPaymentMethods.some(m => m.type === 'upay');
+          const upayDef = DEFAULT_PAYMENT_METHODS.find(m => m.type === 'upay');
+          if (!hasUpay && upayDef && typeof window !== 'undefined' && window.localStorage.getItem('mrb_upay_seeded_v1') !== 'true') {
+            window.localStorage.setItem('mrb_upay_seeded_v1', 'true');
+            loadedPaymentMethods.push(upayDef);
+            setDoc(doc(db, 'payment_methods', upayDef.id), cleanForFirestore(upayDef)).catch(() => {});
+          }
+          const hasBanglaQr = loadedPaymentMethods.some(m => m.type === 'bangla_qr');
+          const banglaQrDef = DEFAULT_PAYMENT_METHODS.find(m => m.type === 'bangla_qr');
+          if (!hasBanglaQr && banglaQrDef && typeof window !== 'undefined' && window.localStorage.getItem('mrb_banglaqr_seeded_v1') !== 'true') {
+            window.localStorage.setItem('mrb_banglaqr_seeded_v1', 'true');
+            loadedPaymentMethods.push(banglaQrDef);
+            setDoc(doc(db, 'payment_methods', banglaQrDef.id), cleanForFirestore(banglaQrDef)).catch(() => {});
+          }
+        }
+        const finalMethods = loadedPaymentMethods.length > 0 ? loadedPaymentMethods : DEFAULT_PAYMENT_METHODS;
+        setPaymentMethods(finalMethods);
+        writeCachedSlice('paymentMethods', finalMethods);
       },
       (err) => {
         console.warn('Payments realtime listener notice:', err.message);
@@ -894,18 +821,38 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       { includeMetadataChanges: true },
       (snap) => {
         const fromCache = snap.metadata.fromCache;
-        tracker.recordSnapshot('settings', fromCache);
-
-        if (!tracker.shouldApplySnapshot('settings', fromCache)) {
+        if (!shouldApplyRealtimeSnapshot(!snap.exists(), fromCache, Boolean(serverConfirmed.settings))) {
           return;
         }
-
-        if (snap.exists()) {
-          const st = sanitizeStoreSettings(snap.data() as StoreSettings);
-          setSettings(prev => ({ ...prev, ...st }));
+        if (!fromCache) {
+          serverConfirmed.settings = true;
         }
-        if (tracker.isInitialSyncComplete()) {
-          setIsLoading(false);
+        if (snap.exists()) {
+          const rawSt = snap.data() as StoreSettings;
+          const st = sanitizeStoreSettings(rawSt);
+          setSettings(prev => {
+            const merged = { ...prev, ...st };
+            writeCachedSlice('settings', merged);
+            return merged;
+          });
+          if (
+            !fromCache &&
+            (rawSt.logoUrl !== st.logoUrl ||
+              rawSt.footerLogoUrl !== st.footerLogoUrl ||
+              rawSt.faviconUrl !== st.faviconUrl ||
+              rawSt.footerPaymentBannerUrl !== st.footerPaymentBannerUrl)
+          ) {
+            setDoc(
+              doc(db, 'settings', 'general'),
+              cleanForFirestore({
+                logoUrl: st.logoUrl || '',
+                footerLogoUrl: st.footerLogoUrl || '',
+                faviconUrl: st.faviconUrl || '',
+                footerPaymentBannerUrl: st.footerPaymentBannerUrl || '',
+              }),
+              { merge: true }
+            ).catch(() => {});
+          }
         }
       },
       (err) => {
@@ -917,9 +864,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       collection(db, 'reviews'),
       { includeMetadataChanges: true },
       (snapshot) => {
+        const fromCache = snapshot.metadata.fromCache;
+        if (!shouldApplyRealtimeSnapshot(snapshot.empty, fromCache, Boolean(serverConfirmed.reviews))) {
+          return;
+        }
+        if (!fromCache) {
+          serverConfirmed.reviews = true;
+        }
         if (!snapshot.empty) {
-          setReviews(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Review)));
-        } else {
+          const nextReviews = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Review));
+          setReviews(nextReviews);
+          writeCachedSlice('reviews', nextReviews);
+        } else if (!fromCache) {
           setReviews([]);
         }
       },
@@ -932,9 +888,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       collection(db, 'reels'),
       { includeMetadataChanges: true },
       (snapshot) => {
+        const fromCache = snapshot.metadata.fromCache;
+        if (!shouldApplyRealtimeSnapshot(snapshot.empty, fromCache, Boolean(serverConfirmed.reels))) {
+          return;
+        }
+        if (!fromCache) {
+          serverConfirmed.reels = true;
+        }
         if (!snapshot.empty) {
-          setReels(dedupeById(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Reel))));
-        } else {
+          const nextReels = dedupeById(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Reel)));
+          setReels(nextReels);
+          writeCachedSlice('reels', nextReels);
+        } else if (!fromCache) {
           setReels([]);
         }
       },
@@ -944,8 +909,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     );
 
     return () => {
-      isMounted = false;
-      clearTimeout(safetyTimer);
       unsubProducts();
       unsubCategories();
       unsubAuthors();

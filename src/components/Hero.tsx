@@ -47,6 +47,8 @@ export function Hero() {
           alt={banner.title || 'Promotional Banner'} 
           className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.01]"
           loading="eager"
+          fetchPriority="high"
+          decoding="async"
         />
 
         {/* Optional Text Overlay (Only rendered if admin explicitly enabled showText) */}

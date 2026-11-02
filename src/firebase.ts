@@ -1,6 +1,15 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, collection, getDocs, setDoc, doc } from 'firebase/firestore';
+import { 
+  getFirestore, 
+  initializeFirestore, 
+  persistentLocalCache, 
+  persistentMultipleTabManager,
+  collection, 
+  getDocs, 
+  setDoc, 
+  doc 
+} from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { PaymentMethodConfig, Product, Category, Author, Banner, StoreSettings } from './types';
 
@@ -15,7 +24,20 @@ const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const db = (() => {
+  if (typeof window !== 'undefined') {
+    try {
+      return initializeFirestore(app, {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager()
+        })
+      });
+    } catch {
+      return getFirestore(app);
+    }
+  }
+  return getFirestore(app);
+})();
 export const storage = getStorage(app);
 
 export const ADMIN_UID = 'ytewGIOO2uhISkUfUUwktSvzdjy1';
@@ -348,7 +370,7 @@ export const DEFAULT_BANNERS: Banner[] = [
     id: 'banner-1',
     title: 'Dhaka Book Fair Special Discount',
     subtitle: 'Get up to 35% OFF on Bestselling Novels, Islamic Books & University Textbooks!',
-    imageUrl: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=1600&auto=format&fit=crop&q=85',
+    imageUrl: '/assets/default-hero-banner.jpg',
     linkUrl: '/books',
     buttonText: 'Explore Books',
     showText: false,
