@@ -7,7 +7,12 @@ import {
   hasCachedSlice,
   shouldShowSkeletonScreen,
   resolveSkeletonMaxDuration,
-  shouldApplyRealtimeSnapshot
+  shouldApplyRealtimeSnapshot,
+  resolveFirestoreFetchStrategy,
+  resolveFirestoreQueryLimit,
+  executeCacheFirstDocFetch,
+  executeCacheFirstQueryFetch,
+  clearAllCachedSlices
 } from './instantStoreCache.ts';
 
 function createMemoryStorage() {
@@ -18,6 +23,9 @@ function createMemoryStorage() {
     },
     setItem(key: string, value: string): void {
       map.set(key, value);
+    },
+    removeItem(key: string): void {
+      map.delete(key);
     }
   };
 }
@@ -64,6 +72,10 @@ test('hasCachedSlice: accurately detects non-empty cached arrays and objects', (
 
   writeCachedSlice('settings', { storeName: 'MR. BOOKS' }, storage);
   assert.equal(hasCachedSlice('settings', storage), true);
+
+  clearAllCachedSlices(storage);
+  assert.equal(hasCachedSlice('products', storage), false);
+  assert.equal(hasCachedSlice('settings', storage), false);
 });
 
 test('shouldShowSkeletonScreen and resolveSkeletonMaxDuration: respects loading state and admin config', () => {
@@ -92,4 +104,58 @@ test('shouldApplyRealtimeSnapshot: applies non-empty cache before server, ignore
   // 4. Delayed cache echo after server snapshot already received -> ignore
   assert.equal(shouldApplyRealtimeSnapshot(false, true, true), false);
 });
+
+test('executeCacheFirstDocFetch: uses getDocFromCache first and falls back to network on cache miss', async () => {
+  // Hit from cache
+  let networkCalled = false;
+  const hitRes = await executeCacheFirstDocFetch(
+    async () => ({ id: 'doc-1', storeName: 'MR. BOOKS CACHED' }),
+    async () => {
+      networkCalled = true;
+      return { id: 'doc-1', storeName: 'MR. BOOKS NETWORK' };
+    },
+    'cache-first'
+  );
+  assert.equal(hitRes.source, 'cache');
+  assert.equal(hitRes.data?.storeName, 'MR. BOOKS CACHED');
+  assert.equal(networkCalled, false);
+
+  // Cache throws (IndexedDB miss) -> falls back to network
+  const fallbackRes = await executeCacheFirstDocFetch(
+    async () => {
+      throw new Error('Failed to get document from cache');
+    },
+    async () => ({ id: 'doc-1', storeName: 'MR. BOOKS NETWORK' }),
+    'cache-first'
+  );
+  assert.equal(fallbackRes.source, 'server');
+  assert.equal(fallbackRes.data?.storeName, 'MR. BOOKS NETWORK');
+});
+
+test('executeCacheFirstQueryFetch and query limit resolvers: uses getDocsFromCache first and falls back to network', async () => {
+  assert.equal(resolveFirestoreFetchStrategy(undefined), 'cache-first');
+  assert.equal(resolveFirestoreFetchStrategy('network-first'), 'network-first');
+  assert.equal(resolveFirestoreQueryLimit(undefined), 250);
+  assert.equal(resolveFirestoreQueryLimit(5), 20);
+  assert.equal(resolveFirestoreQueryLimit(500), 500);
+
+  // Cache hit
+  const cachedQuery = await executeCacheFirstQueryFetch(
+    async () => [{ id: 'p1' }, { id: 'p2' }],
+    async () => [{ id: 'p1' }],
+    'cache-first'
+  );
+  assert.equal(cachedQuery.source, 'cache');
+  assert.equal(cachedQuery.items.length, 2);
+
+  // Empty cache -> falls back to network
+  const networkQuery = await executeCacheFirstQueryFetch(
+    async () => [],
+    async () => [{ id: 'p1' }, { id: 'p2' }, { id: 'p3' }],
+    'cache-first'
+  );
+  assert.equal(networkQuery.source, 'server');
+  assert.equal(networkQuery.items.length, 3);
+});
+
 

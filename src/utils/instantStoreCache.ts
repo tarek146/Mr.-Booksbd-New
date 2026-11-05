@@ -143,3 +143,106 @@ export function shouldApplyRealtimeSnapshot(
   return true;
 }
 
+export type FirestoreFetchStrategy = 'cache-first' | 'realtime-snapshot' | 'network-first';
+
+export function resolveFirestoreFetchStrategy(
+  strategy?: string
+): FirestoreFetchStrategy {
+  if (
+    strategy === 'cache-first' ||
+    strategy === 'realtime-snapshot' ||
+    strategy === 'network-first'
+  ) {
+    return strategy;
+  }
+  return 'cache-first';
+}
+
+export function resolveFirestoreQueryLimit(configuredLimit?: number): number {
+  if (typeof configuredLimit !== 'number' || Number.isNaN(configuredLimit)) {
+    return 250;
+  }
+  return Math.max(20, Math.min(2000, Math.round(configuredLimit)));
+}
+
+/**
+ * Executes a `getDocFromCache`-first lookup and automatically falls back to `getDoc` (network)
+ * when the document is not yet cached in IndexedDB or when `strategy === 'network-first'`.
+ */
+export async function executeCacheFirstDocFetch<T>(
+  getFromCacheFn: () => Promise<T | null>,
+  getFromNetworkFn: () => Promise<T | null>,
+  strategy: FirestoreFetchStrategy = 'cache-first'
+): Promise<{ data: T | null; source: 'cache' | 'server' }> {
+  if (strategy !== 'network-first') {
+    try {
+      const cached = await getFromCacheFn();
+      if (cached !== null && cached !== undefined) {
+        return { data: cached, source: 'cache' };
+      }
+    } catch {
+      // Cache miss or IndexedDB unavailable: fall back seamlessly to network
+    }
+  }
+
+  const networkData = await getFromNetworkFn();
+  return { data: networkData, source: 'server' };
+}
+
+/**
+ * Executes a `getDocsFromCache`-first collection/query lookup and automatically falls back
+ * to `getDocs` (network) when the local cache is empty or throws.
+ */
+export async function executeCacheFirstQueryFetch<T>(
+  getFromCacheFn: () => Promise<T[]>,
+  getFromNetworkFn: () => Promise<T[]>,
+  strategy: FirestoreFetchStrategy = 'cache-first'
+): Promise<{ items: T[]; source: 'cache' | 'server' }> {
+  if (strategy !== 'network-first') {
+    try {
+      const cachedItems = await getFromCacheFn();
+      if (Array.isArray(cachedItems) && cachedItems.length > 0) {
+        return { items: cachedItems, source: 'cache' };
+      }
+    } catch {
+      // Cache miss or IndexedDB unavailable: fall back seamlessly to network
+    }
+  }
+
+  const networkItems = await getFromNetworkFn();
+  return { items: networkItems, source: 'server' };
+}
+
+export const KNOWN_CACHE_SLICES = [
+  'products',
+  'categories',
+  'authors',
+  'publishers',
+  'banners',
+  'paymentMethods',
+  'settings',
+  'reviews',
+  'reels'
+] as const;
+
+export function clearAllCachedSlices(
+  customStorage?: Pick<Storage, 'removeItem'> | null
+): void {
+  const storage =
+    customStorage !== undefined
+      ? customStorage
+      : typeof window !== 'undefined' && window.localStorage
+        ? window.localStorage
+        : null;
+  if (!storage) return;
+
+  for (const key of KNOWN_CACHE_SLICES) {
+    try {
+      storage.removeItem(`${LIVE_CACHE_PREFIX}${key}`);
+    } catch {
+      // Ignore storage removal errors
+    }
+  }
+}
+
+

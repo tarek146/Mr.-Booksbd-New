@@ -297,6 +297,10 @@ export interface StoreSettings {
   enableSkeletonLoading?: boolean;
   skeletonAnimationStyle?: 'shimmer' | 'pulse';
   skeletonMaxDurationMs?: number;
+  // Firestore Cache-First (getDocFromCache) & Query Snapshot Indexing Customizations
+  firestoreFetchStrategy?: 'cache-first' | 'realtime-snapshot' | 'network-first';
+  firestoreQueryLimit?: number;
+  enableIndexedQuerySnapshots?: boolean;
   // Marketing & Tracking APIs
   facebookPixelId?: string;
   facebookCapiToken?: string;

@@ -147,7 +147,10 @@ export function AdminDashboard() {
     staffMembers,
     addStaffMember,
     updateStaffMember,
-    deleteStaffMember
+    deleteStaffMember,
+    cacheTelemetry,
+    refreshStoreCacheFirst,
+    clearLocalStoreCache
   } = useStore();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'verifications' | 'payment-methods' | 'orders' | 'products' | 'categories' | 'banners' | 'authors' | 'publishers' | 'subscribers' | 'settings' | 'special-offer' | 'reels' | 'reviews' | 'staff' | 'profile'>('overview');
@@ -7383,6 +7386,100 @@ export function AdminDashboard() {
                           <option value={1200}>Balanced Default (1200ms)</option>
                           <option value={2000}>Extended Network Wait (2000ms)</option>
                         </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row 7: Firestore Cache-First (getDocFromCache) & Indexed Query Snapshots Control */}
+                  <div className="p-3.5 rounded-xl bg-[#F7F7F8] border border-neutral-200 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <span className="font-black text-xs text-neutral-900 flex items-center gap-1.5">
+                          <Sparkles size={14} className="text-[#D71920]" />
+                          7. ফায়ারবেস ক্যাশ-ফার্স্ট (<code className="text-[11px] bg-white px-1 py-0.5 rounded border border-neutral-200">getDocFromCache</code>) ও কুয়েরি স্ন্যাপশট ইনডেক্সিং
+                        </span>
+                        <span className="text-[11px] text-neutral-500">
+                          প্রথমে লোকাল IndexedDB ক্যাশ (<code className="text-[10px]">getDocFromCache</code> / <code className="text-[10px]">getDocsFromCache</code>) থেকে ডেটা লোড করে প্রয়োজনে নেটওয়ার্কে ফলব্যাক এবং ইনডেক্সড কুয়েরি স্ন্যাপশট নিয়ন্ত্রণ করুন।
+                        </span>
+                      </div>
+                      <label className="flex items-center gap-2 text-xs font-bold text-neutral-800 bg-white px-3 py-1.5 rounded-xl border border-neutral-300 cursor-pointer shadow-2xs">
+                        <input
+                          type="checkbox"
+                          checked={settingsForm.enableIndexedQuerySnapshots !== false}
+                          onChange={e => setSettingsForm(prev => ({ ...prev, enableIndexedQuerySnapshots: e.target.checked }))}
+                          className="w-4 h-4 accent-[#D71920]"
+                        />
+                        <span>ইনডেক্সড কুয়েরি স্ন্যাপশট সক্রিয় (Indexed Query Snapshots)</span>
+                      </label>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white p-3 rounded-xl border border-neutral-200 text-xs">
+                      <div className="space-y-1">
+                        <label className="block font-bold text-neutral-800 text-[11px]">
+                          ডেটা ফেচিং স্ট্র্যাটেজি (Firestore Fetch Strategy)
+                        </label>
+                        <select
+                          value={settingsForm.firestoreFetchStrategy || 'cache-first'}
+                          onChange={e =>
+                            setSettingsForm(prev => ({
+                              ...prev,
+                              firestoreFetchStrategy: e.target.value as 'cache-first' | 'realtime-snapshot' | 'network-first'
+                            }))
+                          }
+                          className="w-full px-3 py-2 rounded-lg border border-neutral-300 bg-[#F7F7F8] font-bold text-neutral-900 text-xs"
+                        >
+                          <option value="cache-first">Cache-First (getDocFromCache → Network Fallback) — Recommended</option>
+                          <option value="realtime-snapshot">Indexed Query Snapshots Only (Real-Time Stream)</option>
+                          <option value="network-first">Network-First Verification (Direct Server Fetch)</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block font-bold text-neutral-800 text-[11px]">
+                          ইনডেক্সড কুয়েরি স্ন্যাপশট লিমিট (Initial Query Snapshot Batch Limit)
+                        </label>
+                        <select
+                          value={settingsForm.firestoreQueryLimit || 250}
+                          onChange={e => setSettingsForm(prev => ({ ...prev, firestoreQueryLimit: Number(e.target.value) }))}
+                          className="w-full px-3 py-2 rounded-lg border border-neutral-300 bg-[#F7F7F8] font-bold text-neutral-900 text-xs"
+                        >
+                          <option value={100}>Ultra Light Batch (100 docs / query)</option>
+                          <option value={250}>Optimal Indexed Batch (250 docs / query)</option>
+                          <option value={500}>Extended Catalog Batch (500 docs / query)</option>
+                          <option value={1000}>Maximum Batch (1000 docs / query)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-white border border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-black border border-emerald-200">
+                          ✓ সক্রিয় সোর্স: {cacheTelemetry.lastSource === 'cache' ? 'IndexedDB Cache (getDocFromCache)' : cacheTelemetry.lastSource === 'local-storage' ? 'Instant Local Cache (0ms)' : 'Firestore Network Snapshot'}
+                        </span>
+                        <span className="px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-700 text-[11px] font-bold border border-neutral-200">
+                          Cache Hits: {cacheTelemetry.cacheHits} • Network Syncs: {cacheTelemetry.networkFetches}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void refreshStoreCacheFirst(false);
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-white text-[11px] font-bold cursor-pointer transition-colors"
+                        >
+                          Test Cache-First Fetch
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            clearLocalStoreCache();
+                            void refreshStoreCacheFirst(true);
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-white hover:bg-neutral-100 text-neutral-800 border border-neutral-300 text-[11px] font-bold cursor-pointer transition-colors"
+                        >
+                          Clear Cache & Re-Sync Network
+                        </button>
                       </div>
                     </div>
                   </div>

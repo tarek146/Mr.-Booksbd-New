@@ -7,11 +7,26 @@ import {
   persistentMultipleTabManager,
   collection, 
   getDocs, 
+  getDocsFromCache,
+  getDoc,
+  getDocFromCache,
   setDoc, 
-  doc 
+  doc,
+  query,
+  limit,
+  DocumentReference,
+  Query,
+  CollectionReference,
+  DocumentData
 } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { PaymentMethodConfig, Product, Category, Author, Banner, StoreSettings } from './types';
+import {
+  FirestoreFetchStrategy,
+  executeCacheFirstDocFetch,
+  executeCacheFirstQueryFetch,
+  resolveFirestoreQueryLimit
+} from './utils/instantStoreCache';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBtri4I2GZXlKuZTf_aOIV5TbmgV0VMQI0",
@@ -39,6 +54,65 @@ export const db = (() => {
   return getFirestore(app);
 })();
 export const storage = getStorage(app);
+
+/**
+ * Builds an indexed Firestore Query with a bounded snapshot limit to minimize initial payload & latency.
+ */
+export function buildIndexedQuery<T = DocumentData>(
+  colRef: CollectionReference<T>,
+  enableIndexing: boolean = true,
+  maxLimit?: number
+): Query<T> {
+  if (enableIndexing === false) {
+    return colRef;
+  }
+  const resolvedLimit = resolveFirestoreQueryLimit(maxLimit);
+  return query(colRef, limit(resolvedLimit));
+}
+
+/**
+ * Fetches a single Firestore document using `getDocFromCache` first for <5ms local IndexedDB reads,
+ * automatically falling back to `getDoc` (network) on cache miss.
+ */
+export async function getDocCacheFirst<T = DocumentData>(
+  docRef: DocumentReference<DocumentData>,
+  strategy: FirestoreFetchStrategy = 'cache-first'
+): Promise<{ data: (T & { id: string }) | null; source: 'cache' | 'server' }> {
+  return executeCacheFirstDocFetch(
+    async () => {
+      const snap = await getDocFromCache(docRef);
+      return snap.exists() ? ({ id: snap.id, ...(snap.data() as T) }) : null;
+    },
+    async () => {
+      const snap = await getDoc(docRef);
+      return snap.exists() ? ({ id: snap.id, ...(snap.data() as T) }) : null;
+    },
+    strategy
+  );
+}
+
+/**
+ * Fetches a Firestore collection or query using `getDocsFromCache` first for instant IndexedDB hydration,
+ * automatically falling back to `getDocs` (network) when the cache is empty or misses.
+ */
+export async function getQueryDocsCacheFirst<T = DocumentData>(
+  queryOrCol: Query<DocumentData> | CollectionReference<DocumentData>,
+  strategy: FirestoreFetchStrategy = 'cache-first'
+): Promise<{ items: (T & { id: string })[]; source: 'cache' | 'server' }> {
+  return executeCacheFirstQueryFetch(
+    async () => {
+      const snap = await getDocsFromCache(queryOrCol);
+      if (snap.empty) return [];
+      return snap.docs.map(d => ({ ...(d.data() as T), id: d.id }));
+    },
+    async () => {
+      const snap = await getDocs(queryOrCol);
+      if (snap.empty) return [];
+      return snap.docs.map(d => ({ ...(d.data() as T), id: d.id }));
+    },
+    strategy
+  );
+}
 
 export const ADMIN_UID = 'ytewGIOO2uhISkUfUUwktSvzdjy1';
 export const ADMIN_EMAIL = 'mr.booksbd700@gmail.com';

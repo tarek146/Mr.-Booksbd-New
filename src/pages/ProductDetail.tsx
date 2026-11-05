@@ -38,7 +38,10 @@ import {
 } from 'lucide-react';
 import { resolveProductDeliveryTiming } from '../utils/publisherAndDeliveryHelpers';
 import { ProductDetailSkeleton } from '../components/SkeletonScreens';
-import { shouldShowSkeletonScreen } from '../utils/instantStoreCache';
+import { shouldShowSkeletonScreen, resolveFirestoreFetchStrategy } from '../utils/instantStoreCache';
+import { db, getDocCacheFirst } from '../firebase';
+import { doc } from 'firebase/firestore';
+import { Product } from '../types';
 
 function WhatsAppIcon({ className = "w-4 h-4 shrink-0" }: { className?: string }) {
   return (
@@ -67,7 +70,29 @@ function MessengerIcon({ className = "w-4 h-4 shrink-0" }: { className?: string 
 export function ProductDetail() {
   const { products, authors, isLoading, selectedProductId, setActivePage, addToCart, wishlist, toggleWishlist, setSelectedCategoryFilter, setSearchQuery, settings, reviews, visitorId, addProductReview, reactToReview } = useStore();
   
-  const product = products.find(p => p.id === selectedProductId) || products[0];
+  const [directFetchedProduct, setDirectFetchedProduct] = useState<Product | null>(null);
+  const inMemoryProduct = products.find(p => p.id === selectedProductId || p.slug === selectedProductId);
+
+  useEffect(() => {
+    if (!selectedProductId || inMemoryProduct) {
+      setDirectFetchedProduct(null);
+      return;
+    }
+    let cancelled = false;
+    const strategy = resolveFirestoreFetchStrategy(settings.firestoreFetchStrategy);
+    getDocCacheFirst<Product>(doc(db, 'products', selectedProductId), strategy)
+      .then(res => {
+        if (!cancelled && res.data) {
+          setDirectFetchedProduct(res.data);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedProductId, inMemoryProduct, settings.firestoreFetchStrategy]);
+
+  const product = inMemoryProduct || directFetchedProduct || products[0];
   const [selectedAuthorId, setSelectedAuthorId] = useState<string>('current');
   const [authorAvatarError, setAuthorAvatarError] = useState<Record<string, boolean>>({});
 

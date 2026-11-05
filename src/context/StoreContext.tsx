@@ -23,24 +23,33 @@ import {
   DEFAULT_PRODUCTS,
   DEFAULT_CATEGORIES,
   DEFAULT_AUTHORS,
-  DEFAULT_BANNERS
+  DEFAULT_BANNERS,
+  buildIndexedQuery,
+  getDocCacheFirst,
+  getQueryDocsCacheFirst
 } from '../firebase';
 import { 
   collection, 
-  getDocs, 
   doc, 
-  getDoc,
   setDoc, 
   deleteDoc, 
-  addDoc,
   onSnapshot,
   query,
   where,
   writeBatch
 } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
-import { cleanForFirestore, addCacheBust, sanitizeImageUrl, isValidImageUrl } from '../utils/imageCompressor';
-import { readCachedSlice, writeCachedSlice, hasCachedSlice, resolveSkeletonMaxDuration, shouldApplyRealtimeSnapshot } from '../utils/instantStoreCache';
+import { cleanForFirestore, sanitizeImageUrl, isValidImageUrl } from '../utils/imageCompressor';
+import {
+  readCachedSlice,
+  writeCachedSlice,
+  hasCachedSlice,
+  resolveSkeletonMaxDuration,
+  shouldApplyRealtimeSnapshot,
+  resolveFirestoreFetchStrategy,
+  resolveFirestoreQueryLimit,
+  clearAllCachedSlices
+} from '../utils/instantStoreCache';
 import { applyReviewReaction, ReactionType } from '../utils/reviewHelpers';
 import { dedupeById } from '../utils/videoReelHelpers';
 import { getInitialTheme, persistThemeChoice, applyThemeToDom, toggleTheme as toggleThemeHelper } from '../utils/themeHelpers';
@@ -109,6 +118,14 @@ interface StoreContextType {
   darkMode: boolean;
   isLoading: boolean;
   triggerSkeletonPreview: (durationMs?: number) => void;
+  cacheTelemetry: {
+    lastSource: 'cache' | 'server' | 'local-storage';
+    cacheHits: number;
+    networkFetches: number;
+    lastSyncAt: number;
+  };
+  refreshStoreCacheFirst: (forceNetwork?: boolean) => Promise<void>;
+  clearLocalStoreCache: () => void;
   
   setActivePage: (page: string, productId?: string) => void;
   setSelectedCategoryFilter: (cat: string) => void;
@@ -452,6 +469,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     enableSkeletonLoading: true,
     skeletonAnimationStyle: 'shimmer',
     skeletonMaxDurationMs: 1200,
+    firestoreFetchStrategy: 'cache-first',
+    firestoreQueryLimit: 250,
+    enableIndexedQuerySnapshots: true,
     showAnnouncementBar: true,
     announcementItems: [
       { id: 'ann-1', icon: '⚡', title: 'SPECIAL OFFER:', desc: 'Free Delivery on orders above Tk 1,500 across Bangladesh!', isActive: true },
@@ -672,13 +692,179 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(timer);
   }, [isLoading, settings.skeletonMaxDurationMs]);
 
-  // 1. Instant Non-Blocking Real-Time Subscriptions with Local Cache Persistence
+  const [cacheTelemetry, setCacheTelemetry] = useState<{
+    lastSource: 'cache' | 'server' | 'local-storage';
+    cacheHits: number;
+    networkFetches: number;
+    lastSyncAt: number;
+  }>(() => ({
+    lastSource: hasCachedSlice('products') ? 'local-storage' : 'cache',
+    cacheHits: hasCachedSlice('products') ? 1 : 0,
+    networkFetches: 0,
+    lastSyncAt: Date.now(),
+  }));
+
+  const refreshStoreCacheFirst = async (forceNetwork = false) => {
+    const strategy = forceNetwork
+      ? 'network-first'
+      : resolveFirestoreFetchStrategy(settings.firestoreFetchStrategy);
+    const enableIndexing = settings.enableIndexedQuerySnapshots !== false;
+    const queryLimit = resolveFirestoreQueryLimit(settings.firestoreQueryLimit);
+
+    let hits = 0;
+    let netCount = 0;
+    let latestSource: 'cache' | 'server' = 'cache';
+
+    try {
+      const [
+        settingsRes,
+        productsRes,
+        categoriesRes,
+        authorsRes,
+        publishersRes,
+        bannersRes,
+        paymentsRes
+      ] = await Promise.all([
+        getDocCacheFirst<StoreSettings>(doc(db, 'settings', 'general'), strategy),
+        getQueryDocsCacheFirst<Product>(
+          buildIndexedQuery(collection(db, 'products'), enableIndexing, queryLimit),
+          strategy
+        ),
+        getQueryDocsCacheFirst<Category>(
+          buildIndexedQuery(collection(db, 'categories'), enableIndexing, queryLimit),
+          strategy
+        ),
+        getQueryDocsCacheFirst<Author>(
+          buildIndexedQuery(collection(db, 'authors'), enableIndexing, queryLimit),
+          strategy
+        ),
+        getQueryDocsCacheFirst<Publisher>(
+          buildIndexedQuery(collection(db, 'publishers'), enableIndexing, queryLimit),
+          strategy
+        ),
+        getQueryDocsCacheFirst<Banner>(
+          buildIndexedQuery(collection(db, 'banners'), enableIndexing, queryLimit),
+          strategy
+        ),
+        getQueryDocsCacheFirst<PaymentMethodConfig>(
+          buildIndexedQuery(collection(db, 'payment_methods'), enableIndexing, queryLimit),
+          strategy
+        )
+      ]);
+
+      const recordSource = (src: 'cache' | 'server') => {
+        if (src === 'cache') hits += 1;
+        else {
+          netCount += 1;
+          latestSource = 'server';
+        }
+      };
+
+      if (settingsRes.data) {
+        recordSource(settingsRes.source);
+        const st = sanitizeStoreSettings(settingsRes.data);
+        setSettings(prev => {
+          const merged = { ...prev, ...st };
+          writeCachedSlice('settings', merged);
+          return merged;
+        });
+      }
+
+      if (productsRes.items.length > 0) {
+        recordSource(productsRes.source);
+        setProducts(productsRes.items);
+        writeCachedSlice('products', productsRes.items);
+      }
+
+      if (categoriesRes.items.length > 0) {
+        recordSource(categoriesRes.source);
+        setCategories(categoriesRes.items);
+        writeCachedSlice('categories', categoriesRes.items);
+      }
+
+      if (authorsRes.items.length > 0) {
+        recordSource(authorsRes.source);
+        setAuthors(authorsRes.items);
+        writeCachedSlice('authors', authorsRes.items);
+      }
+
+      if (publishersRes.items.length > 0) {
+        recordSource(publishersRes.source);
+        setPublishers(publishersRes.items);
+        writeCachedSlice('publishers', publishersRes.items);
+      } else {
+        const pubDirRes = await getDocCacheFirst<{ items?: Publisher[] }>(
+          doc(db, 'settings', 'publishers_directory'),
+          strategy
+        );
+        if (pubDirRes.data?.items && pubDirRes.data.items.length > 0) {
+          recordSource(pubDirRes.source);
+          setPublishers(pubDirRes.data.items);
+          writeCachedSlice('publishers', pubDirRes.data.items);
+        }
+      }
+
+      if (bannersRes.items.length > 0) {
+        recordSource(bannersRes.source);
+        setBanners(bannersRes.items);
+        writeCachedSlice('banners', bannersRes.items);
+      }
+
+      if (paymentsRes.items.length > 0) {
+        recordSource(paymentsRes.source);
+        const sanitizedMethods = paymentsRes.items.map(m => sanitizePaymentMethod(m));
+        setPaymentMethods(sanitizedMethods);
+        writeCachedSlice('paymentMethods', sanitizedMethods);
+      }
+
+      setCacheTelemetry(prev => ({
+        lastSource: latestSource,
+        cacheHits: prev.cacheHits + hits,
+        networkFetches: prev.networkFetches + netCount,
+        lastSyncAt: Date.now()
+      }));
+    } catch (err) {
+      console.warn('Cache-first hydration pass notice:', err);
+    } finally {
+      if (typeof window === 'undefined' || !window.location.search.includes('skeleton=1')) {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const clearLocalStoreCache = () => {
+    clearAllCachedSlices();
+    setCacheTelemetry(prev => ({
+      ...prev,
+      lastSource: 'server',
+      lastSyncAt: Date.now()
+    }));
+  };
+
+  // 1. Cache-First Hydration (`getDocFromCache` / `getDocsFromCache` -> Network Fallback)
+  //    + Indexed Firestore Query Snapshots for Zero-Latency Real-Time Synchronization
   useEffect(() => {
     const serverConfirmed: Record<string, boolean> = {};
     const forceSkeleton = typeof window !== 'undefined' && window.location.search.includes('skeleton=1');
+    const strategy = resolveFirestoreFetchStrategy(settings.firestoreFetchStrategy);
+    const enableIndexing = settings.enableIndexedQuerySnapshots !== false;
+    const queryLimit = resolveFirestoreQueryLimit(settings.firestoreQueryLimit);
+
+    if (strategy !== 'realtime-snapshot') {
+      void refreshStoreCacheFirst(strategy === 'network-first');
+    }
+
+    const productsQuery = buildIndexedQuery(collection(db, 'products'), enableIndexing, queryLimit);
+    const categoriesQuery = buildIndexedQuery(collection(db, 'categories'), enableIndexing, queryLimit);
+    const authorsQuery = buildIndexedQuery(collection(db, 'authors'), enableIndexing, queryLimit);
+    const publishersQuery = buildIndexedQuery(collection(db, 'publishers'), enableIndexing, queryLimit);
+    const bannersQuery = buildIndexedQuery(collection(db, 'banners'), enableIndexing, queryLimit);
+    const paymentsQuery = buildIndexedQuery(collection(db, 'payment_methods'), enableIndexing, queryLimit);
+    const reviewsQuery = buildIndexedQuery(collection(db, 'reviews'), enableIndexing, queryLimit);
+    const reelsQuery = buildIndexedQuery(collection(db, 'reels'), enableIndexing, queryLimit);
 
     const unsubProducts = onSnapshot(
-      collection(db, 'products'),
+      productsQuery,
       { includeMetadataChanges: true },
       (snapshot) => {
         const fromCache = snapshot.metadata.fromCache;
@@ -694,6 +880,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           if (nextProducts.length > 0) {
             writeCachedSlice('products', nextProducts);
           }
+          setCacheTelemetry(prev => ({
+            lastSource: fromCache ? 'cache' : 'server',
+            cacheHits: fromCache ? prev.cacheHits + 1 : prev.cacheHits,
+            networkFetches: !fromCache ? prev.networkFetches + 1 : prev.networkFetches,
+            lastSyncAt: Date.now()
+          }));
         }
         if (!forceSkeleton) {
           setIsLoading(false);
@@ -708,7 +900,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     );
 
     const unsubCategories = onSnapshot(
-      collection(db, 'categories'),
+      categoriesQuery,
       { includeMetadataChanges: true },
       (snapshot) => {
         const fromCache = snapshot.metadata.fromCache;
@@ -732,7 +924,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     );
 
     const unsubAuthors = onSnapshot(
-      collection(db, 'authors'),
+      authorsQuery,
       { includeMetadataChanges: true },
       (snapshot) => {
         const fromCache = snapshot.metadata.fromCache;
@@ -756,7 +948,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     );
 
     const unsubPublishers = onSnapshot(
-      collection(db, 'publishers'),
+      publishersQuery,
       { includeMetadataChanges: true },
       (snapshot) => {
         if (!snapshot.empty) {
@@ -789,7 +981,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     );
 
     const unsubBanners = onSnapshot(
-      collection(db, 'banners'),
+      bannersQuery,
       { includeMetadataChanges: true },
       (snapshot) => {
         const fromCache = snapshot.metadata.fromCache;
@@ -813,7 +1005,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     );
 
     const unsubPayments = onSnapshot(
-      collection(db, 'payment_methods'),
+      paymentsQuery,
       { includeMetadataChanges: true },
       (snapshot) => {
         const fromCache = snapshot.metadata.fromCache;
@@ -896,7 +1088,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     );
 
     const unsubReviews = onSnapshot(
-      collection(db, 'reviews'),
+      reviewsQuery,
       { includeMetadataChanges: true },
       (snapshot) => {
         const fromCache = snapshot.metadata.fromCache;
@@ -920,7 +1112,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     );
 
     const unsubReels = onSnapshot(
-      collection(db, 'reels'),
+      reelsQuery,
       { includeMetadataChanges: true },
       (snapshot) => {
         const fromCache = snapshot.metadata.fromCache;
@@ -955,7 +1147,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubReviews();
       unsubReels();
     };
-  }, []);
+  }, [settings.firestoreFetchStrategy, settings.enableIndexedQuerySnapshots, settings.firestoreQueryLimit]);
 
   // 2. Auth-aware protected listeners: Orders & Payment Submissions
   // Prevents anonymous/customer permission-denied errors and protects customer privacy
@@ -1604,24 +1796,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
     if (foundLocal) return foundLocal;
 
-    // 2. Direct Firestore document fetch by ID
+    // 2. Direct Firestore document fetch by ID (`getDocFromCache` first -> network `getDoc` fallback)
+    const strategy = resolveFirestoreFetchStrategy(settings.firestoreFetchStrategy);
     try {
       const docRef = doc(db, 'orders', raw);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() } as Order;
+      const { data: orderData } = await getDocCacheFirst<Order>(docRef, strategy);
+      if (orderData) {
+        return orderData;
       }
     } catch (err) {
       console.warn('Direct order get notice:', err);
     }
 
-    // 3. Fallback query by phone
+    // 3. Fallback query by phone (`getDocsFromCache` first -> network `getDocs` fallback)
     try {
       if (rawCleanDigits.length >= 6) {
         const q = query(collection(db, 'orders'), where('phone', '==', raw));
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-          return { id: snap.docs[0].id, ...snap.docs[0].data() } as Order;
+        const { items: matchedOrders } = await getQueryDocsCacheFirst<Order>(q, strategy);
+        if (matchedOrders.length > 0) {
+          return matchedOrders[0];
         }
       }
     } catch (err) {
@@ -1848,6 +2041,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       darkMode,
       isLoading,
       triggerSkeletonPreview,
+      cacheTelemetry,
+      refreshStoreCacheFirst,
+      clearLocalStoreCache,
       setActivePage,
       setSelectedCategoryFilter,
       setSearchQuery,
