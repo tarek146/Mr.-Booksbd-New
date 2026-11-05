@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { buildEnrichedPublishersList } from '../utils/publisherAndDeliveryHelpers';
+import { PublishersPageSkeleton } from '../components/SkeletonScreens';
+import { shouldShowSkeletonScreen } from '../utils/instantStoreCache';
 import { Layers, ArrowRight, Search, BookOpen, Building2, Sparkles } from 'lucide-react';
 
 export function PublishersPage() {
-  const { publishers, products, setActivePage, setSearchQuery, setSelectedCategoryFilter } = useStore();
+  const { publishers, products, isLoading, settings, setActivePage, setSearchQuery, setSelectedCategoryFilter } = useStore();
   const [filterText, setFilterText] = useState('');
 
   const enrichedPublishers = useMemo(
@@ -28,6 +30,10 @@ export function PublishersPage() {
     setSearchQuery(publisherName);
     setActivePage('books');
   };
+
+  if (shouldShowSkeletonScreen(isLoading, settings.enableSkeletonLoading)) {
+    return <PublishersPageSkeleton />;
+  }
 
   return (
     <div className="min-h-screen bg-white transition-colors py-8 sm:py-10">

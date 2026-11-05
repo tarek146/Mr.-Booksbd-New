@@ -401,6 +401,54 @@ footer {
 }
 
 /* ========================================================================= */
+/* HIGH-CONTRAST SKELETON SCREEN SHIMMER & PULSE (LIGHT & DARK MODE AWARE)   */
+/* ========================================================================= */
+@keyframes skeleton-wave {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    #F1F5F9 0%,
+    #E2E8F0 35%,
+    #F8FAFC 50%,
+    #E2E8F0 65%,
+    #F1F5F9 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-wave 1.5s ease-in-out infinite;
+}
+
+.dark .skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    #161C28 0%,
+    #222D3E 35%,
+    #2A374B 50%,
+    #222D3E 65%,
+    #161C28 100%
+  ) !important;
+  background-size: 200% 100% !important;
+  animation: skeleton-wave 1.5s ease-in-out infinite;
+}
+
+.skeleton-pulse {
+  background-color: #E2E8F0;
+  animation: pulse 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.dark .skeleton-pulse {
+  background-color: #1E2738 !important;
+}
+
+
+/* ========================================================================= */
 /* ADMIN DASHBOARD: LIGHT/WHITE WORKSPACE PRESERVATION                       */
 /* Sidebar and Header maintain dark/sleek styling;                           */
 /* All cards, tables, metrics, forms, and charts remain pure crisp white.    */

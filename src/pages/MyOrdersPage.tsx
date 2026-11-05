@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
 import { ProductCard } from '../components/ProductCard';
+import { OrdersPageSkeleton } from '../components/SkeletonScreens';
+import { shouldShowSkeletonScreen } from '../utils/instantStoreCache';
 import { 
   Package, 
   Clock, 
@@ -121,7 +123,7 @@ export function OrderTracking({ orderStatus, paymentStatus }: OrderTrackingProps
 }
 
 export function MyOrdersPage() {
-  const { orders, products, wishlist, submitPaymentProof, setActivePage } = useStore();
+  const { orders, products, wishlist, isLoading, settings, submitPaymentProof, setActivePage } = useStore();
   const { currentUser } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'orders' | 'wishlist'>(wishlist.length > 0 && orders.length === 0 ? 'wishlist' : 'orders');
@@ -208,6 +210,10 @@ export function MyOrdersPage() {
         );
     }
   };
+
+  if (shouldShowSkeletonScreen(isLoading, settings.enableSkeletonLoading)) {
+    return <OrdersPageSkeleton />;
+  }
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#0B0F17] transition-colors py-8 sm:py-10">

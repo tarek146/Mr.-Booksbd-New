@@ -40,7 +40,7 @@ import {
 } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { cleanForFirestore, addCacheBust, sanitizeImageUrl, isValidImageUrl } from '../utils/imageCompressor';
-import { readCachedSlice, writeCachedSlice, shouldApplyRealtimeSnapshot } from '../utils/instantStoreCache';
+import { readCachedSlice, writeCachedSlice, hasCachedSlice, resolveSkeletonMaxDuration, shouldApplyRealtimeSnapshot } from '../utils/instantStoreCache';
 import { applyReviewReaction, ReactionType } from '../utils/reviewHelpers';
 import { dedupeById } from '../utils/videoReelHelpers';
 import { getInitialTheme, persistThemeChoice, applyThemeToDom, toggleTheme as toggleThemeHelper } from '../utils/themeHelpers';
@@ -108,6 +108,7 @@ interface StoreContextType {
   searchQuery: string;
   darkMode: boolean;
   isLoading: boolean;
+  triggerSkeletonPreview: (durationMs?: number) => void;
   
   setActivePage: (page: string, productId?: string) => void;
   setSelectedCategoryFilter: (cat: string) => void;
@@ -408,7 +409,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     applyThemeToDom(darkMode);
   }, [darkMode]);
 
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    if (typeof window !== 'undefined' && window.location.search.includes('skeleton=1')) {
+      return true;
+    }
+    return !hasCachedSlice('products');
+  });
+
+  const triggerSkeletonPreview = (durationMs = 1500) => {
+    setIsLoading(true);
+    setTimeout(() => {
+      setIsLoading(false);
+    }, durationMs);
+  };
   
   const [settings, setSettings] = useState<StoreSettings>(() =>
     sanitizeStoreSettings(
@@ -436,6 +449,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     showHeaderContact: true,
     enableThemeToggle: true,
     allowDarkMode: true,
+    enableSkeletonLoading: true,
+    skeletonAnimationStyle: 'shimmer',
+    skeletonMaxDurationMs: 1200,
     showAnnouncementBar: true,
     announcementItems: [
       { id: 'ann-1', icon: '⚡', title: 'SPECIAL OFFER:', desc: 'Free Delivery on orders above Tk 1,500 across Bangladesh!', isActive: true },
@@ -643,9 +659,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
 
 
+  // Safety ceiling so Skeleton Screens never hang on offline or high-latency connections
+  useEffect(() => {
+    if (!isLoading) return;
+    if (typeof window !== 'undefined' && window.location.search.includes('skeleton=1')) {
+      return;
+    }
+    const maxMs = resolveSkeletonMaxDuration(settings.skeletonMaxDurationMs);
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, maxMs);
+    return () => clearTimeout(timer);
+  }, [isLoading, settings.skeletonMaxDurationMs]);
+
   // 1. Instant Non-Blocking Real-Time Subscriptions with Local Cache Persistence
   useEffect(() => {
     const serverConfirmed: Record<string, boolean> = {};
+    const forceSkeleton = typeof window !== 'undefined' && window.location.search.includes('skeleton=1');
 
     const unsubProducts = onSnapshot(
       collection(db, 'products'),
@@ -665,10 +695,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             writeCachedSlice('products', nextProducts);
           }
         }
-        setIsLoading(false);
+        if (!forceSkeleton) {
+          setIsLoading(false);
+        }
       },
       (err) => {
         console.warn('Products realtime listener notice:', err.message);
+        if (!forceSkeleton) {
+          setIsLoading(false);
+        }
       }
     );
 
@@ -1812,6 +1847,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       searchQuery,
       darkMode,
       isLoading,
+      triggerSkeletonPreview,
       setActivePage,
       setSelectedCategoryFilter,
       setSearchQuery,

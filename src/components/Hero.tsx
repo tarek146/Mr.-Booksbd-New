@@ -7,8 +7,9 @@ import {
 } from 'lucide-react';
 
 export function Hero() {
-  const { banners, setActivePage } = useStore();
+  const { banners, settings, setActivePage } = useStore();
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [loadedBannerUrl, setLoadedBannerUrl] = useState<string | null>(null);
 
   const activeBanners = banners.filter(b => b.isActive !== false);
 
@@ -23,6 +24,8 @@ export function Hero() {
   if (activeBanners.length === 0) return null;
 
   const banner = activeBanners[currentSlide] || activeBanners[0];
+  const isImageReady = loadedBannerUrl === banner.imageUrl;
+  const skeletonAnimClass = settings.skeletonAnimationStyle === 'pulse' ? 'skeleton-pulse' : 'skeleton-shimmer';
 
   const handleBannerClick = () => {
     const target = banner.linkUrl || '/books';
@@ -41,11 +44,22 @@ export function Hero() {
         onClick={handleBannerClick}
         className="w-full h-[155px] xs:h-[185px] sm:h-[270px] md:h-[370px] lg:h-[420px] relative rounded-2xl sm:rounded-3xl overflow-hidden bg-neutral-100 border border-[#E5E5E5] shadow-xs cursor-pointer select-none group flex"
       >
+        {/* Inline Skeleton Shimmer while Banner Image loads */}
+        {!isImageReady && settings.enableSkeletonLoading !== false && (
+          <div
+            aria-hidden="true"
+            className={`absolute inset-0 ${skeletonAnimClass} z-0`}
+          />
+        )}
+
         {/* Banner Pure Direct Image */}
         <img 
           src={banner.imageUrl} 
           alt={banner.title || 'Promotional Banner'} 
-          className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.01]"
+          onLoad={() => setLoadedBannerUrl(banner.imageUrl)}
+          className={`w-full h-full object-cover object-center transition-all duration-500 ease-out group-hover:scale-[1.01] ${
+            isImageReady ? 'opacity-100' : 'opacity-95'
+          }`}
           loading="eager"
           fetchPriority="high"
           decoding="async"

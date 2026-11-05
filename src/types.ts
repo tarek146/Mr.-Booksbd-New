@@ -293,6 +293,10 @@ export interface StoreSettings {
   // Dark Theme & Display Customizations
   enableThemeToggle?: boolean;
   allowDarkMode?: boolean;
+  // Skeleton Screen & Instant Loading Performance Customizations
+  enableSkeletonLoading?: boolean;
+  skeletonAnimationStyle?: 'shimmer' | 'pulse';
+  skeletonMaxDurationMs?: number;
   // Marketing & Tracking APIs
   facebookPixelId?: string;
   facebookCapiToken?: string;

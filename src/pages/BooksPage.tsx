@@ -4,6 +4,8 @@ import { ProductCard } from '../components/ProductCard';
 import { AnimatedSearchInput } from '../components/AnimatedSearchInput';
 import { FeaturedAuthorsSection } from '../components/FeaturedAuthorsSection';
 import { ReelsSection } from '../components/ReelsSection';
+import { BooksCatalogSkeleton } from '../components/SkeletonScreens';
+import { shouldShowSkeletonScreen } from '../utils/instantStoreCache';
 import { 
   BookOpen, 
   X, 
@@ -20,7 +22,7 @@ import {
 } from 'lucide-react';
 
 export function BooksPage() {
-  const { products, categories, searchQuery, setSearchQuery, selectedCategoryFilter, setSelectedCategoryFilter } = useStore();
+  const { products, categories, isLoading, settings, searchQuery, setSearchQuery, selectedCategoryFilter, setSelectedCategoryFilter } = useStore();
 
   // Local filter states for advanced shop page
   const [productTypeFilter, setProductTypeFilter] = useState<'all' | 'book' | 'stationery'>('all');
@@ -93,6 +95,10 @@ export function BooksPage() {
     maxPrice < 3000 || 
     inStockOnly || 
     discountOnly;
+
+  if (shouldShowSkeletonScreen(isLoading, settings.enableSkeletonLoading)) {
+    return <BooksCatalogSkeleton />;
+  }
 
   return (
     <div className="min-h-screen bg-white transition-colors pt-3 pb-12 sm:py-8">

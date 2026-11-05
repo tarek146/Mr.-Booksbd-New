@@ -7331,6 +7331,61 @@ export function AdminDashboard() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Row 6: Skeleton Screen & Instant Loading Performance Control */}
+                  <div className="p-3.5 rounded-xl bg-[#F7F7F8] border border-neutral-200 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <span className="font-black text-xs text-neutral-900 flex items-center gap-1.5">
+                          <Sparkles size={14} className="text-[#D71920]" />
+                          6. স্কেলেটন লোডিং ও ইনস্ট্যান্ট রেন্ডার কন্ট্রোল (Skeleton Screen Settings)
+                        </span>
+                        <span className="text-[11px] text-neutral-500">
+                          ব্যাকগ্রাউন্ডে ফায়ারবেস ডেটা লোড হওয়ার সময় কোনো টেক্সট মেসেজ ছাড়াই তাৎক্ষণিক ভিজ্যুয়াল UI স্কেলেটন প্রদর্শন নিয়ন্ত্রণ করুন।
+                        </span>
+                      </div>
+                      <label className="flex items-center gap-2 text-xs font-bold text-neutral-800 bg-white px-3 py-1.5 rounded-xl border border-neutral-300 cursor-pointer shadow-2xs">
+                        <input
+                          type="checkbox"
+                          checked={settingsForm.enableSkeletonLoading !== false}
+                          onChange={e => setSettingsForm(prev => ({ ...prev, enableSkeletonLoading: e.target.checked }))}
+                          className="w-4 h-4 accent-[#D71920]"
+                        />
+                        <span>স্কেলেটন স্ক্রিন সক্রিয় (Enable Skeleton Screen)</span>
+                      </label>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white p-3 rounded-xl border border-neutral-200 text-xs">
+                      <div className="space-y-1">
+                        <label className="block font-bold text-neutral-800 text-[11px]">
+                          অ্যানিমেশন স্টাইল (Skeleton Animation Style)
+                        </label>
+                        <select
+                          value={settingsForm.skeletonAnimationStyle || 'shimmer'}
+                          onChange={e => setSettingsForm(prev => ({ ...prev, skeletonAnimationStyle: e.target.value as 'shimmer' | 'pulse' }))}
+                          className="w-full px-3 py-2 rounded-lg border border-neutral-300 bg-[#F7F7F8] font-bold text-neutral-900 text-xs"
+                        >
+                          <option value="shimmer">Shimmer Wave (মডার্ন ওয়েভ শিমার)</option>
+                          <option value="pulse">Soft Pulse (সফট পালস ইফেক্ট)</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block font-bold text-neutral-800 text-[11px]">
+                          সর্বোচ্চ ফলব্যাক টাইমআউট (Max Skeleton Duration)
+                        </label>
+                        <select
+                          value={settingsForm.skeletonMaxDurationMs || 1200}
+                          onChange={e => setSettingsForm(prev => ({ ...prev, skeletonMaxDurationMs: Number(e.target.value) }))}
+                          className="w-full px-3 py-2 rounded-lg border border-neutral-300 bg-[#F7F7F8] font-bold text-neutral-900 text-xs"
+                        >
+                          <option value={800}>Ultra Fast (800ms)</option>
+                          <option value={1200}>Balanced Default (1200ms)</option>
+                          <option value={2000}>Extended Network Wait (2000ms)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 

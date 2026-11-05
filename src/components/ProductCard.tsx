@@ -8,11 +8,12 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
-  const { setActivePage, addToCart, wishlist, toggleWishlist } = useStore();
+  const { setActivePage, addToCart, wishlist, toggleWishlist, settings } = useStore();
   const isWishlisted = wishlist.includes(product.id);
 
   const [currentImgIdx, setCurrentImgIdx] = useState(0);
   const [variantIdx, setVariantIdx] = useState(0);
+  const [imgLoaded, setImgLoaded] = useState(false);
 
   // Auto slideshow rotation between product images if multiple
   useEffect(() => {
@@ -40,6 +41,7 @@ export function ProductCard({ product }: ProductCardProps) {
 
   const isOutOfStock = product.stock <= 0;
   const isLowStock = product.stock > 0 && product.stock <= 15;
+  const skeletonAnimClass = settings.skeletonAnimationStyle === 'pulse' ? 'skeleton-pulse' : 'skeleton-shimmer';
 
   const handleOrderNow = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -63,15 +65,23 @@ export function ProductCard({ product }: ProductCardProps) {
       {/* 1:1 Perfectly Square-Rounded Image Thumbnail Box */}
       <div className="p-2 sm:p-2.5 shrink-0">
         <div className="w-full aspect-square relative bg-[#F8F9FA] rounded-xl p-2 flex items-center justify-center overflow-hidden border border-neutral-100">
+          {!imgLoaded && settings.enableSkeletonLoading !== false && (
+            <div
+              aria-hidden="true"
+              className={`absolute inset-0 ${skeletonAnimClass} z-0`}
+            />
+          )}
           <img 
             src={product.images[currentImgIdx] || product.images[0] || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400'} 
             alt={product.title || 'Product'}
             loading="lazy"
             decoding="async"
+            onLoad={() => setImgLoaded(true)}
             onError={(e) => {
+              setImgLoaded(true);
               (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400';
             }}
-            className="h-full w-full object-contain filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.06)] group-hover:scale-105 transition-transform duration-300 ease-out"
+            className="relative z-1 h-full w-full object-contain filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.06)] group-hover:scale-105 transition-transform duration-300 ease-out"
           />
 
           {/* Top-Left: Status Badges (Low Stock / Out of Stock / NEW / Discount) */}

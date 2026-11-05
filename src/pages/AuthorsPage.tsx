@@ -1,14 +1,20 @@
 import React from 'react';
 import { useStore } from '../context/StoreContext';
+import { AuthorsPageSkeleton } from '../components/SkeletonScreens';
+import { shouldShowSkeletonScreen } from '../utils/instantStoreCache';
 import { Award, ArrowRight } from 'lucide-react';
 
 export function AuthorsPage() {
-  const { authors, setActivePage, setSearchQuery } = useStore();
+  const { authors, isLoading, settings, setActivePage, setSearchQuery } = useStore();
 
   const handleAuthorClick = (authorName: string) => {
     setSearchQuery(authorName);
     setActivePage('books');
   };
+
+  if (shouldShowSkeletonScreen(isLoading, settings.enableSkeletonLoading)) {
+    return <AuthorsPageSkeleton />;
+  }
 
   return (
     <div className="min-h-screen bg-white transition-colors py-10">

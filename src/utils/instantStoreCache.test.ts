@@ -4,6 +4,9 @@ import {
   LIVE_CACHE_PREFIX,
   readCachedSlice,
   writeCachedSlice,
+  hasCachedSlice,
+  shouldShowSkeletonScreen,
+  resolveSkeletonMaxDuration,
   shouldApplyRealtimeSnapshot
 } from './instantStoreCache.ts';
 
@@ -49,6 +52,32 @@ test('readCachedSlice: ignores empty cached array when fallback has seed items',
   assert.deepEqual(hydrated, fallbackBanners);
 });
 
+test('hasCachedSlice: accurately detects non-empty cached arrays and objects', () => {
+  const storage = createMemoryStorage();
+  assert.equal(hasCachedSlice('products', storage), false);
+
+  storage.setItem(`${LIVE_CACHE_PREFIX}products`, JSON.stringify([]));
+  assert.equal(hasCachedSlice('products', storage), false);
+
+  writeCachedSlice('products', [{ id: 'p1' }], storage);
+  assert.equal(hasCachedSlice('products', storage), true);
+
+  writeCachedSlice('settings', { storeName: 'MR. BOOKS' }, storage);
+  assert.equal(hasCachedSlice('settings', storage), true);
+});
+
+test('shouldShowSkeletonScreen and resolveSkeletonMaxDuration: respects loading state and admin config', () => {
+  assert.equal(shouldShowSkeletonScreen(true, true), true);
+  assert.equal(shouldShowSkeletonScreen(true, undefined), true);
+  assert.equal(shouldShowSkeletonScreen(true, false), false);
+  assert.equal(shouldShowSkeletonScreen(false, true), false);
+
+  assert.equal(resolveSkeletonMaxDuration(undefined), 1200);
+  assert.equal(resolveSkeletonMaxDuration(100), 300);
+  assert.equal(resolveSkeletonMaxDuration(800), 800);
+  assert.equal(resolveSkeletonMaxDuration(9000), 4000);
+});
+
 test('shouldApplyRealtimeSnapshot: applies non-empty cache before server, ignores empty cache, always applies server', () => {
   // 1. Brand new browser: initial IndexedDB cache is empty -> ignore so UI doesn't flash blank
   assert.equal(shouldApplyRealtimeSnapshot(true, true, false), false);
@@ -63,3 +92,4 @@ test('shouldApplyRealtimeSnapshot: applies non-empty cache before server, ignore
   // 4. Delayed cache echo after server snapshot already received -> ignore
   assert.equal(shouldApplyRealtimeSnapshot(false, true, true), false);
 });
+

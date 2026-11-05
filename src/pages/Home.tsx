@@ -5,6 +5,8 @@ import { SpecialOfferSection } from '../components/SpecialOfferSection';
 import { ReelsSection } from '../components/ReelsSection';
 import { ProductCard } from '../components/ProductCard';
 import { FeaturedAuthorsSection } from '../components/FeaturedAuthorsSection';
+import { HomePageSkeleton } from '../components/SkeletonScreens';
+import { shouldShowSkeletonScreen } from '../utils/instantStoreCache';
 import { 
   Star, 
   ArrowRight, 
@@ -14,7 +16,7 @@ import {
 } from 'lucide-react';
 
 export function Home() {
-  const { products, categories, reviews, setActivePage, setSelectedCategoryFilter } = useStore();
+  const { products, categories, reviews, isLoading, settings, setActivePage, setSelectedCategoryFilter } = useStore();
   
   const categoryScrollRef = useRef<HTMLDivElement>(null);
   const newArrivalsScrollRef = useRef<HTMLDivElement>(null);
@@ -60,6 +62,10 @@ export function Home() {
       });
     }
   };
+
+  if (shouldShowSkeletonScreen(isLoading, settings.enableSkeletonLoading)) {
+    return <HomePageSkeleton />;
+  }
 
   return (
     <div className="bg-white transition-colors pb-12">

@@ -37,6 +37,8 @@ import {
   Building2
 } from 'lucide-react';
 import { resolveProductDeliveryTiming } from '../utils/publisherAndDeliveryHelpers';
+import { ProductDetailSkeleton } from '../components/SkeletonScreens';
+import { shouldShowSkeletonScreen } from '../utils/instantStoreCache';
 
 function WhatsAppIcon({ className = "w-4 h-4 shrink-0" }: { className?: string }) {
   return (
@@ -63,7 +65,7 @@ function MessengerIcon({ className = "w-4 h-4 shrink-0" }: { className?: string 
 }
 
 export function ProductDetail() {
-  const { products, authors, selectedProductId, setActivePage, addToCart, wishlist, toggleWishlist, setSelectedCategoryFilter, setSearchQuery, settings, reviews, visitorId, addProductReview, reactToReview } = useStore();
+  const { products, authors, isLoading, selectedProductId, setActivePage, addToCart, wishlist, toggleWishlist, setSelectedCategoryFilter, setSearchQuery, settings, reviews, visitorId, addProductReview, reactToReview } = useStore();
   
   const product = products.find(p => p.id === selectedProductId) || products[0];
   const [selectedAuthorId, setSelectedAuthorId] = useState<string>('current');
@@ -199,6 +201,10 @@ export function ProductDetail() {
       setReviewSubmitting(false);
     }
   };
+
+  if (shouldShowSkeletonScreen(isLoading, settings.enableSkeletonLoading)) {
+    return <ProductDetailSkeleton />;
+  }
 
   if (!product) {
     return (

@@ -2,6 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { ProductCard } from '../components/ProductCard';
 import { AnimatedSearchInput } from '../components/AnimatedSearchInput';
+import { BooksCatalogSkeleton } from '../components/SkeletonScreens';
+import { shouldShowSkeletonScreen } from '../utils/instantStoreCache';
 import { 
   PenTool, 
   Filter, 
@@ -12,7 +14,7 @@ import {
 } from 'lucide-react';
 
 export function StationeryPage() {
-  const { products, categories, searchQuery, setSearchQuery, selectedCategoryFilter, setSelectedCategoryFilter } = useStore();
+  const { products, categories, isLoading, settings, searchQuery, setSearchQuery, selectedCategoryFilter, setSelectedCategoryFilter } = useStore();
 
   // Local filter states for stationery page
   const [minPrice, setMinPrice] = useState<number>(0);
@@ -90,6 +92,10 @@ export function StationeryPage() {
     inStockOnly || 
     discountOnly || 
     ratingFilter > 0;
+
+  if (shouldShowSkeletonScreen(isLoading, settings.enableSkeletonLoading)) {
+    return <BooksCatalogSkeleton />;
+  }
 
   return (
     <div className="min-h-screen bg-white transition-colors pt-3 pb-16 sm:py-8">
