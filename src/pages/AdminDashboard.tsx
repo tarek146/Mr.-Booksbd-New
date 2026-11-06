@@ -1240,39 +1240,7 @@ export function AdminDashboard() {
     };
 
     return (
-      <div className="min-h-screen bg-[#0B0F17] text-slate-100 flex flex-col justify-between selection:bg-[#D71920] selection:text-white font-sans antialiased">
-        {/* Dedicated Admin Portal Top Bar */}
-        <header className="border-b border-slate-800/80 bg-[#0E131F]/90 backdrop-blur-md px-4 sm:px-8 py-3.5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#D71920] flex items-center justify-center text-white shadow-md shadow-[#D71920]/30">
-              <ShieldCheck size={20} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-black text-sm tracking-tight text-white">MR. BOOKS</span>
-                <span className="text-[10px] font-bold bg-[#D71920]/20 text-[#FF4D4D] border border-[#D71920]/30 px-2 py-0.5 rounded-full uppercase tracking-wider">
-                  Admin OS
-                </span>
-              </div>
-              <p className="text-[10px] text-slate-400">Enterprise Management System</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-1.5 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-full text-[11px] text-slate-300">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>Firebase Auth & Firestore: <strong className="text-white">mr-book-new</strong></span>
-            </div>
-            <button
-              onClick={() => setActivePage('home')}
-              className="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-xl border border-slate-800 hover:border-slate-700 bg-slate-900/60 transition-colors flex items-center gap-1.5 cursor-pointer"
-            >
-              <span>Storefront</span>
-              <ExternalLink size={13} />
-            </button>
-          </div>
-        </header>
-
+      <div className="min-h-screen bg-[#0B0F17] text-slate-100 flex flex-col justify-center selection:bg-[#D71920] selection:text-white font-sans antialiased">
         {/* Center: Dedicated Standalone Admin Authentication Card */}
         <main className="flex-1 flex items-center justify-center p-4 sm:p-6 py-12">
           <div className="w-full max-w-md bg-[#121826] border border-slate-800/90 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black/60 relative overflow-hidden">
@@ -1358,7 +1326,7 @@ export function AdminDashboard() {
               </button>
             </form>
 
-            <div className="mt-6 pt-5 border-t border-slate-800 flex items-center justify-between text-xs">
+            <div className="mt-6 pt-5 border-t border-slate-800 flex items-center justify-center text-xs">
               <button
                 type="button"
                 onClick={() => setActivePage('home')}
@@ -1366,26 +1334,9 @@ export function AdminDashboard() {
               >
                 ← Back to Book Store
               </button>
-              <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
-                <Server size={11} className="text-emerald-500" />
-                <span>Live Realtime Firestore</span>
-              </div>
             </div>
           </div>
         </main>
-
-        {/* Dedicated Admin Portal Footer */}
-        <footer className="border-t border-slate-800/80 bg-[#0E131F]/90 px-4 sm:px-8 py-3.5 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500 gap-2">
-          <div>
-            MR. BOOKS Administrative Management System © {new Date().getFullYear()}. All rights reserved.
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5 text-slate-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-              Direct Firestore Engine Connected
-            </span>
-          </div>
-        </footer>
       </div>
     );
   }
@@ -1393,23 +1344,7 @@ export function AdminDashboard() {
   // 3. Unauthorized Customer Barrier (100% Standalone Page)
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-[#0B0F17] text-slate-100 flex flex-col justify-between selection:bg-[#D71920] selection:text-white font-sans antialiased">
-        <header className="border-b border-slate-800/80 bg-[#0E131F]/90 px-4 sm:px-8 py-3.5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#D71920] flex items-center justify-center text-white">
-              <ShieldCheck size={20} />
-            </div>
-            <span className="font-black text-sm tracking-tight text-white">MR. BOOKS ADMIN OS</span>
-          </div>
-          <button
-            onClick={() => setActivePage('home')}
-            className="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-xl border border-slate-800 bg-slate-900 transition-colors flex items-center gap-1.5 cursor-pointer"
-          >
-            <span>Return to Store</span>
-            <ExternalLink size={13} />
-          </button>
-        </header>
-
+      <div className="min-h-screen bg-[#0B0F17] text-slate-100 flex flex-col justify-center selection:bg-[#D71920] selection:text-white font-sans antialiased">
         <main className="flex-1 flex items-center justify-center p-4 sm:p-6">
           <div className="bg-[#121826] rounded-3xl max-w-md w-full p-8 shadow-2xl border border-red-900/40 text-center space-y-5">
             <div className="w-14 h-14 bg-red-950/80 text-[#FF4D4D] rounded-2xl flex items-center justify-center mx-auto border border-red-800/40">
@@ -1445,10 +1380,6 @@ export function AdminDashboard() {
             </div>
           </div>
         </main>
-
-        <footer className="border-t border-slate-800/80 bg-[#0E131F]/90 px-4 sm:px-8 py-3 text-[11px] text-slate-500 text-center">
-          MR. BOOKS Enterprise Security • Protected Area
-        </footer>
       </div>
     );
   }
@@ -1730,12 +1661,6 @@ export function AdminDashboard() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Real-time status */}
-            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-emerald-400 text-xs font-bold">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>Firestore Sync: <code className="text-emerald-300 font-mono text-[11px]">mr-book-new</code></span>
-            </div>
-
             {/* Storefront button */}
             <button
               onClick={() => setActivePage('home')}
@@ -8579,19 +8504,6 @@ export function AdminDashboard() {
           />
         )}
         </main>
-
-        {/* Dedicated Standalone Admin Portal Footer */}
-        <footer className="mt-auto border-t border-slate-200/80 bg-white py-4 px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
-          <div>
-            MR. BOOKS Administrative Management Console • Connected to Firebase (<code className="text-slate-700 font-mono">mr-book-new</code>)
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5 text-emerald-600 font-semibold">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              Real-time Firestore Engine Active
-            </span>
-          </div>
-        </footer>
       </div>
     </div>
   );
