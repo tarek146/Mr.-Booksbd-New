@@ -5,6 +5,7 @@ import {
   initializeFirestore, 
   persistentLocalCache, 
   persistentMultipleTabManager,
+  setLogLevel,
   collection, 
   getDocs, 
   getDocsFromCache,
@@ -42,10 +43,15 @@ export const auth = getAuth(app);
 export const db = (() => {
   if (typeof window !== 'undefined') {
     try {
+      setLogLevel('error');
       return initializeFirestore(app, {
         localCache: persistentLocalCache({
           tabManager: persistentMultipleTabManager()
-        })
+        }),
+        experimentalForceLongPolling: true,
+        experimentalLongPollingOptions: {
+          timeoutSeconds: 30
+        }
       });
     } catch {
       return getFirestore(app);
