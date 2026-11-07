@@ -1459,7 +1459,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addProduct = async (productData: Omit<Product, 'id' | 'createdAt'>) => {
-    const id = 'prod-' + Date.now();
+    const id = 'prod-' + Date.now() + '-' + Math.random().toString(36).substring(2, 8);
     const newProd: Product = {
       ...productData,
       id,
@@ -1473,7 +1473,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       console.error('Firestore add product error:', err);
       throw err;
     }
-    setProducts(prev => [newProd, ...prev]);
+    setProducts(prev => [newProd, ...prev.filter(p => p.id !== id)]);
   };
 
   const updateProduct = async (id: string, data: Partial<Product>) => {

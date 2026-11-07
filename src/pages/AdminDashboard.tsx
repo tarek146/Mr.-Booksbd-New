@@ -65,8 +65,10 @@ import {
   List,
   ListOrdered,
   Quote,
-  Code
+  Code,
+  FileSpreadsheet
 } from 'lucide-react';
+import { BulkProductImportModal } from '../components/BulkProductImportModal';
 import { Product, Author, Publisher, Banner, BookPreviewPage, Order, PaymentMethodConfig, PaymentSubOptionConfig, AdminStaffMember, AdminStaffRole, AdminProfile } from '../types';
 import { DEFAULT_PUBLISHERS_LIST, parseCustomBookDetails, serializeCustomBookDetails } from '../utils/publisherAndDeliveryHelpers';
 import { DEFAULT_PAYMENT_METHODS } from '../firebase';
@@ -331,6 +333,14 @@ export function AdminDashboard() {
     setSettingsForm(settings);
   }, [settings]);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.search.includes('dev=1')) {
+      if (devLoginAsAdmin && !currentUser) {
+        devLoginAsAdmin();
+      }
+    }
+  }, [devLoginAsAdmin, currentUser]);
+
   // Product modal state
   const [showAddProdModal, setShowAddProdModal] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
@@ -369,6 +379,7 @@ export function AdminDashboard() {
   
   // Product Type Chooser Modal (1- Stationery vs 2- Books)
   const [showTypeChooserModal, setShowTypeChooserModal] = useState(false);
+  const [showBulkImportModal, setShowBulkImportModal] = useState(false);
 
   // Advanced Product Add / Edit States (matching image_c4b27017.png and image_44c07b58.png)
   const [prodSlug, setProdSlug] = useState('');
@@ -1255,6 +1266,29 @@ export function AdminDashboard() {
         type: 'error',
         message: 'Firebase Error: ' + (err.message || 'Failed to save product'),
       });
+    }
+  };
+
+  const handleBulkImportProducts = async (newProducts: Omit<Product, 'id' | 'createdAt'>[]) => {
+    try {
+      let successCount = 0;
+      for (const prod of newProducts) {
+        await addProduct(prod);
+        successCount++;
+      }
+      setToast({
+        show: true,
+        type: 'success',
+        message: `${successCount}টি প্রোডাক্ট ফায়ারবেস ডাটাবেসে সফলভাবে ইমপোর্ট করা হয়েছে!`
+      });
+    } catch (err: any) {
+      console.error('Bulk import error:', err);
+      setToast({
+        show: true,
+        type: 'error',
+        message: 'Bulk Import Error: ' + (err.message || 'Failed to import products')
+      });
+      throw err;
     }
   };
 
@@ -4671,12 +4705,22 @@ export function AdminDashboard() {
                     </div>
                   </div>
 
-                  <button 
-                    onClick={() => setShowTypeChooserModal(true)}
-                    className="w-full sm:w-auto px-4 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer shrink-0 transition-all"
-                  >
-                    <Plus size={14} /> <span>Add New Product</span>
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                    <button
+                      type="button"
+                      onClick={() => setShowBulkImportModal(true)}
+                      className="flex-1 sm:flex-initial px-4 py-2.5 bg-[#F7F7F8] hover:bg-neutral-200 text-neutral-800 border border-neutral-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer shrink-0 transition-all"
+                    >
+                      <FileSpreadsheet size={14} className="text-[#D71920]" />
+                      <span>Bulk Import (CSV)</span>
+                    </button>
+                    <button 
+                      onClick={() => setShowTypeChooserModal(true)}
+                      className="flex-1 sm:flex-initial px-4 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer shrink-0 transition-all"
+                    >
+                      <Plus size={14} /> <span>Add New Product</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Search & Filter Bar matching Categories */}
@@ -4920,27 +4964,27 @@ export function AdminDashboard() {
                   {/* LEFT COLUMN: 8 Columns */}
                   <div className="lg:col-span-8 space-y-6">
                     
-                    {/* CARD 1: GENERAL INFORMATION (Matching image_c4b27017.png) */}
-                    <div className="bg-[#0B132B] border border-[#1C2C4E] rounded-2xl p-5 text-neutral-100 shadow-md space-y-4">
-                      <div className="flex items-center justify-between pb-3 border-b border-[#1C2C4E]">
+                    {/* CARD 1: GENERAL INFORMATION */}
+                    <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 sm:p-6 text-neutral-900 shadow-xs space-y-4">
+                      <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
+                          <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 border border-amber-200/60 flex items-center justify-center">
                             <FileText size={16} />
                           </div>
                           <div>
-                            <h4 className="font-extrabold text-sm text-white">General Information</h4>
-                            <p className="text-[11px] text-neutral-400">Product name and detailed description</p>
+                            <h4 className="font-extrabold text-sm text-neutral-900">General Information</h4>
+                            <p className="text-[11px] text-neutral-500">Product name and detailed description</p>
                           </div>
                         </div>
-                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30">
+                        <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-red-50 text-[#D71920] border border-[#D71920]/25">
                           Required *
                         </span>
                       </div>
 
                       {/* Product Title / Name */}
                       <div>
-                        <label className="block text-xs font-bold text-neutral-300 mb-1.5">
-                          Product Title / Name <span className="text-red-400">*</span>
+                        <label className="block text-xs font-bold text-neutral-700 mb-1.5">
+                          Product Title / Name <span className="text-[#D71920]">*</span>
                         </label>
                         <input
                           type="text"
@@ -4954,33 +4998,33 @@ export function AdminDashboard() {
                               setProdSlug(val.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''));
                             }
                           }}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#223354] bg-[#0E1726] text-xs font-bold text-white placeholder-neutral-500 focus:outline-none focus:border-[#D71920]"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs transition-all"
                         />
                       </div>
 
                       {/* Product Slug / URL Handle with Edit Slug button */}
                       <div>
                         <div className="flex items-center justify-between mb-1.5">
-                          <label className="block text-xs font-bold text-neutral-300">
+                          <label className="block text-xs font-bold text-neutral-700">
                             Product Slug / URL Handle
                           </label>
                           <button
                             type="button"
                             onClick={() => setIsCustomSlug(!isCustomSlug)}
-                            className="text-[11px] font-bold text-amber-400 hover:text-amber-300 cursor-pointer"
+                            className="text-[11px] font-bold text-[#D71920] hover:underline cursor-pointer"
                           >
                             {isCustomSlug ? 'Lock Slug' : 'Edit Slug'}
                           </button>
                         </div>
-                        <div className="flex items-center rounded-xl border border-[#223354] bg-[#0E1726] px-3.5 py-2 text-xs font-mono">
-                          <span className="text-neutral-500 shrink-0">store/product/</span>
+                        <div className="flex items-center rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] px-3.5 py-2 text-xs font-mono shadow-2xs">
+                          <span className="text-neutral-500 font-bold shrink-0">store/product/</span>
                           <input
                             type="text"
                             readOnly={!isCustomSlug}
                             placeholder="e.g. product-slug-or-auto-generated"
                             value={prodSlug}
                             onChange={e => setProdSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                            className={`w-full ml-1 bg-transparent text-amber-400 focus:outline-none ${!isCustomSlug ? 'cursor-default' : ''}`}
+                            className={`w-full ml-1 bg-transparent text-[#D71920] font-bold focus:outline-none ${!isCustomSlug ? 'cursor-default' : ''}`}
                           />
                         </div>
                       </div>
@@ -4988,20 +5032,20 @@ export function AdminDashboard() {
                       {/* Product Description with Rich Toolbar & Feature Template */}
                       <div>
                         <div className="flex items-center justify-between mb-1.5">
-                          <label className="block text-xs font-bold text-neutral-300">
+                          <label className="block text-xs font-bold text-neutral-700">
                             Product Description
                           </label>
                         </div>
 
-                        <div className="rounded-xl border border-[#223354] bg-[#0E1726] overflow-hidden">
+                        <div className="rounded-xl border border-[#E5E5E5] bg-white overflow-hidden shadow-2xs">
                           {/* Formatting Toolbar */}
-                          <div className="flex flex-wrap items-center justify-between gap-1 p-2 bg-[#121E36] border-b border-[#223354] text-neutral-300">
+                          <div className="flex flex-wrap items-center justify-between gap-1 p-2 bg-[#F7F7F8] border-b border-[#E5E5E5] text-neutral-700">
                             <div className="flex items-center gap-1">
                               <button
                                 type="button"
                                 title="Bold"
                                 onClick={() => setProdDescription(prev => prev + ' **বোল্ড লেখা** ')}
-                                className="p-1.5 rounded hover:bg-[#1C2C4E] text-xs font-black"
+                                className="p-1.5 rounded-lg hover:bg-white hover:text-[#D71920] text-neutral-600 text-xs font-black transition-colors"
                               >
                                 <Bold size={13} />
                               </button>
@@ -5009,7 +5053,7 @@ export function AdminDashboard() {
                                 type="button"
                                 title="Italic"
                                 onClick={() => setProdDescription(prev => prev + ' *ইটালিক লেখা* ')}
-                                className="p-1.5 rounded hover:bg-[#1C2C4E] text-xs"
+                                className="p-1.5 rounded-lg hover:bg-white hover:text-[#D71920] text-neutral-600 text-xs transition-colors"
                               >
                                 <Italic size={13} />
                               </button>
@@ -5017,16 +5061,16 @@ export function AdminDashboard() {
                                 type="button"
                                 title="Strikethrough"
                                 onClick={() => setProdDescription(prev => prev + ' ~~কাটা লেখা~~ ')}
-                                className="p-1.5 rounded hover:bg-[#1C2C4E] text-xs"
+                                className="p-1.5 rounded-lg hover:bg-white hover:text-[#D71920] text-neutral-600 text-xs transition-colors"
                               >
                                 <Strikethrough size={13} />
                               </button>
-                              <div className="w-[1px] h-4 bg-[#223354] mx-1" />
+                              <div className="w-[1px] h-4 bg-[#E5E5E5] mx-1" />
                               <button
                                 type="button"
                                 title="Bullet List"
                                 onClick={() => setProdDescription(prev => prev + '\n• ')}
-                                className="p-1.5 rounded hover:bg-[#1C2C4E] text-xs"
+                                className="p-1.5 rounded-lg hover:bg-white hover:text-[#D71920] text-neutral-600 text-xs transition-colors"
                               >
                                 <List size={13} />
                               </button>
@@ -5034,7 +5078,7 @@ export function AdminDashboard() {
                                 type="button"
                                 title="Numbered List"
                                 onClick={() => setProdDescription(prev => prev + '\n1. ')}
-                                className="p-1.5 rounded hover:bg-[#1C2C4E] text-xs"
+                                className="p-1.5 rounded-lg hover:bg-white hover:text-[#D71920] text-neutral-600 text-xs transition-colors"
                               >
                                 <ListOrdered size={13} />
                               </button>
@@ -5042,7 +5086,7 @@ export function AdminDashboard() {
                                 type="button"
                                 title="Quote"
                                 onClick={() => setProdDescription(prev => prev + '\n> ')}
-                                className="p-1.5 rounded hover:bg-[#1C2C4E] text-xs"
+                                className="p-1.5 rounded-lg hover:bg-white hover:text-[#D71920] text-neutral-600 text-xs transition-colors"
                               >
                                 <Quote size={13} />
                               </button>
@@ -5050,7 +5094,7 @@ export function AdminDashboard() {
                                 type="button"
                                 title="Code"
                                 onClick={() => setProdDescription(prev => prev + ' `কোড` ')}
-                                className="p-1.5 rounded hover:bg-[#1C2C4E] text-xs"
+                                className="p-1.5 rounded-lg hover:bg-white hover:text-[#D71920] text-neutral-600 text-xs transition-colors"
                               >
                                 <Code size={13} />
                               </button>
@@ -5064,7 +5108,7 @@ export function AdminDashboard() {
                                   : '\n\n📌 পণ্যের মূল বৈশিষ্ট্যসমূহ:\n• ব্র্যান্ড: ' + (prodBrand || 'MR. BOOKS Essentials') + '\n• উপাদান: ' + (prodMaterial || 'প্রিমিয়াম কোয়ালিটি') + '\n• আকার / সাইজ: ' + (prodDimensions || 'স্ট্যান্ডার্ড সাইজ') + '\n• দীর্ঘস্থায়ী, নিখুঁত ফিনিশিং ও প্রফেশনাল ব্যবহারের জন্য আদর্শ।';
                                 setProdDescription(prev => prev + template);
                               }}
-                              className="px-2.5 py-1 rounded bg-[#1C2C4E] hover:bg-[#2A3F6C] text-amber-400 text-[11px] font-bold cursor-pointer transition-colors"
+                              className="px-2.5 py-1 rounded-lg bg-white hover:bg-neutral-50 text-[#D71920] border border-neutral-200 text-[11px] font-bold cursor-pointer shadow-2xs transition-all"
                             >
                               + Feature Template
                             </button>
@@ -5075,7 +5119,7 @@ export function AdminDashboard() {
                             placeholder="Enter detailed product description, benefits, and usage instructions..."
                             value={prodDescription}
                             onChange={e => setProdDescription(e.target.value)}
-                            className="w-full p-3 bg-transparent text-xs text-white placeholder-neutral-500 focus:outline-none resize-y"
+                            className="w-full p-3.5 bg-white text-xs font-medium text-neutral-900 placeholder-neutral-400 focus:outline-none resize-y"
                           />
                         </div>
                       </div>
@@ -5083,10 +5127,10 @@ export function AdminDashboard() {
                       {/* Key Highlights & Benefits */}
                       <div>
                         <div className="flex items-center justify-between mb-2">
-                          <label className="block text-xs font-bold text-neutral-300">
+                          <label className="block text-xs font-bold text-neutral-700">
                             Key Highlights & Benefits
                           </label>
-                          <span className="text-[11px] text-neutral-400 font-mono">
+                          <span className="text-[11px] text-neutral-500 font-mono">
                             {prodHighlights.length} Points
                           </span>
                         </div>
@@ -5094,7 +5138,7 @@ export function AdminDashboard() {
                         <div className="space-y-2">
                           {prodHighlights.map((hl, idx) => (
                             <div key={idx} className="flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
                               <input
                                 type="text"
                                 value={hl}
@@ -5102,12 +5146,12 @@ export function AdminDashboard() {
                                   const val = e.target.value;
                                   setProdHighlights(prev => prev.map((item, i) => i === idx ? val : item));
                                 }}
-                                className="flex-1 px-3 py-1.5 rounded-lg border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-emerald-500"
+                                className="flex-1 px-3 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs font-medium text-neutral-900 focus:outline-none focus:border-emerald-500 shadow-2xs"
                               />
                               <button
                                 type="button"
                                 onClick={() => setProdHighlights(prev => prev.filter((_, i) => i !== idx))}
-                                className="p-1.5 text-neutral-400 hover:text-red-400 cursor-pointer"
+                                className="p-1.5 text-neutral-400 hover:text-red-600 cursor-pointer transition-colors"
                               >
                                 <Trash2 size={13} />
                               </button>
@@ -5130,7 +5174,7 @@ export function AdminDashboard() {
                                   }
                                 }
                               }}
-                              className="flex-1 px-3 py-2 rounded-lg border border-dashed border-[#2A3F6C] bg-[#0E1726]/60 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-amber-400"
+                              className="flex-1 px-3.5 py-2 rounded-xl border border-dashed border-neutral-300 bg-[#F7F7F8] text-xs font-medium text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-[#D71920] focus:bg-white"
                             />
                             <button
                               type="button"
@@ -5140,7 +5184,7 @@ export function AdminDashboard() {
                                   setNewHighlightInput('');
                                 }
                               }}
-                              className="px-3.5 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-bold rounded-lg cursor-pointer transition-colors"
+                              className="px-3.5 py-2 bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-bold rounded-xl cursor-pointer shadow-xs transition-colors"
                             >
                               + Add Point
                             </button>
@@ -5151,18 +5195,20 @@ export function AdminDashboard() {
 
                     {/* CARD 2: TYPE-SPECIFIC SPECIFICATIONS (Books vs Stationery) */}
                     {prodType === 'book' ? (
-                      <div className="bg-[#0B132B] border border-[#1C2C4E] rounded-2xl p-5 text-neutral-100 shadow-md space-y-4">
-                        <div className="flex items-center justify-between pb-3 border-b border-[#1C2C4E]">
+                      <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 sm:p-6 text-neutral-900 shadow-xs space-y-4">
+                        <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
                           <div className="flex items-center gap-2">
-                            <BookOpen size={16} className="text-amber-400" />
-                            <h4 className="font-extrabold text-sm text-white">
+                            <div className="w-8 h-8 rounded-xl bg-red-50 text-[#D71920] border border-red-200/60 flex items-center justify-center">
+                              <BookOpen size={16} />
+                            </div>
+                            <h4 className="font-extrabold text-sm text-neutral-900">
                               Book Details Attributes (Author, Publisher, Edition, Pages, Language & ISBN)
                             </h4>
                           </div>
                           <button
                             type="button"
                             onClick={() => setActiveTab('publishers')}
-                            className="text-[11px] font-bold text-red-400 hover:underline cursor-pointer"
+                            className="text-[11px] font-bold text-[#D71920] hover:underline cursor-pointer"
                           >
                             + Manage Publishers / প্রকাশনী
                           </button>
@@ -5170,7 +5216,7 @@ export function AdminDashboard() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                           <div>
-                            <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">Author Name (লেখক) *</label>
+                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Author Name (লেখক) *</label>
                             <input
                               type="text"
                               list="admin-authors-list"
@@ -5178,7 +5224,7 @@ export function AdminDashboard() {
                               required
                               value={prodAuthor}
                               onChange={e => setProdAuthor(e.target.value)}
-                              className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs font-bold text-white focus:outline-none focus:border-[#D71920]"
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                             />
                             <datalist id="admin-authors-list">
                               {authors.map(a => (
@@ -5187,14 +5233,14 @@ export function AdminDashboard() {
                             </datalist>
                           </div>
                           <div>
-                            <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">Publisher (প্রকাশনী)</label>
+                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Publisher (প্রকাশনী)</label>
                             <input
                               type="text"
                               list="admin-publishers-list"
                               placeholder="e.g. Guardian Publications / প্রথমা"
                               value={prodPublisher}
                               onChange={e => setProdPublisher(e.target.value)}
-                              className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-[#D71920]"
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                             />
                             <datalist id="admin-publishers-list">
                               {publishers.map(pub => (
@@ -5205,53 +5251,53 @@ export function AdminDashboard() {
                             </datalist>
                           </div>
                           <div>
-                            <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">Edition (সংস্করণ)</label>
+                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Edition (সংস্করণ)</label>
                             <input
                               type="text"
                               placeholder="e.g. 3rd Edition"
                               value={prodEdition}
                               onChange={e => setProdEdition(e.target.value)}
-                              className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-[#D71920]"
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                             />
                           </div>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                           <div>
-                            <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">Pages (পৃষ্ঠা সংখ্যা)</label>
+                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Pages (পৃষ্ঠা সংখ্যা)</label>
                             <input
                               type="number"
                               min={1}
                               placeholder="e.g. 264"
                               value={prodPages}
                               onChange={e => setProdPages(Number(e.target.value))}
-                              className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-[#D71920]"
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                             />
                           </div>
                           <div>
-                            <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">Language (ভাষা)</label>
+                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Language (ভাষা)</label>
                             <input
                               type="text"
                               placeholder="e.g. Bengali / English"
                               value={prodLanguage}
                               onChange={e => setProdLanguage(e.target.value)}
-                              className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-[#D71920]"
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                             />
                           </div>
                           <div>
-                            <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">ISBN Code</label>
+                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">ISBN Code</label>
                             <input
                               type="text"
                               placeholder="e.g. 9789849312341"
                               value={prodIsbn}
                               onChange={e => setProdIsbn(e.target.value)}
-                              className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white font-mono focus:outline-none focus:border-[#D71920]"
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 font-mono focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                             />
                           </div>
                         </div>
 
                         <div>
-                          <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">
+                          <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
                             Extra Custom Book Details (ঐচ্ছিক — প্রতি লাইনে LABEL: VALUE ফরম্যাটে লিখুন)
                           </label>
                           <textarea
@@ -5259,58 +5305,60 @@ export function AdminDashboard() {
                             placeholder={'Paper Quality: 80 GSM Cream Paper\nBinding: Hardcover Stitch'}
                             value={prodCustomDetailsText}
                             onChange={e => setProdCustomDetailsText(e.target.value)}
-                            className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-[#D71920]"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                           />
                         </div>
                       </div>
                     ) : (
-                      <div className="bg-[#0B132B] border border-[#1C2C4E] rounded-2xl p-5 text-neutral-100 shadow-md space-y-4">
-                        <div className="flex items-center gap-2 pb-3 border-b border-[#1C2C4E]">
-                          <Package size={16} className="text-blue-400" />
-                          <h4 className="font-extrabold text-sm text-white">
+                      <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 sm:p-6 text-neutral-900 shadow-xs space-y-4">
+                        <div className="flex items-center gap-2 pb-3 border-b border-neutral-100">
+                          <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 border border-blue-200/60 flex items-center justify-center">
+                            <Package size={16} />
+                          </div>
+                          <h4 className="font-extrabold text-sm text-neutral-900">
                             Stationery Specifications (Brand, Material, Dimensions & Color)
                           </h4>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
                           <div>
-                            <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">Brand / Manufacturer *</label>
+                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Brand / Manufacturer *</label>
                             <input
                               type="text"
                               placeholder="e.g. Deli / Faber-Castell"
                               required
                               value={prodBrand}
                               onChange={e => setProdBrand(e.target.value)}
-                              className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-blue-400"
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-blue-500 focus:bg-white shadow-2xs"
                             />
                           </div>
                           <div>
-                            <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">Material</label>
+                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Material</label>
                             <input
                               type="text"
                               placeholder="e.g. Leather / Paper / Steel"
                               value={prodMaterial}
                               onChange={e => setProdMaterial(e.target.value)}
-                              className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-blue-400"
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-blue-500 focus:bg-white shadow-2xs"
                             />
                           </div>
                           <div>
-                            <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">Dimensions / Size</label>
+                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Dimensions / Size</label>
                             <input
                               type="text"
                               placeholder="e.g. A5 / 0.5mm / 21x14 cm"
                               value={prodDimensions}
                               onChange={e => setProdDimensions(e.target.value)}
-                              className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-blue-400"
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-blue-500 focus:bg-white shadow-2xs"
                             />
                           </div>
                           <div>
-                            <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">Color / Model</label>
+                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Color / Model</label>
                             <input
                               type="text"
                               placeholder="e.g. Matte Black / Navy Blue"
                               value={prodColorModel}
                               onChange={e => setProdColorModel(e.target.value)}
-                              className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-blue-400"
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-blue-500 focus:bg-white shadow-2xs"
                             />
                           </div>
                         </div>
@@ -5318,15 +5366,17 @@ export function AdminDashboard() {
                     )}
 
                     {/* CARD 3: PER-BOOK DELIVERY TIMING & TIMER (ডেলিভারি টাইমিং) */}
-                    <div className="bg-[#0B132B] border border-[#1C2C4E] rounded-2xl p-5 text-neutral-100 shadow-md space-y-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#1C2C4E]">
+                    <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 sm:p-6 text-neutral-900 shadow-xs space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-neutral-100">
                         <div className="flex items-center gap-2">
-                          <Truck size={16} className="text-[#D71920]" />
+                          <div className="w-8 h-8 rounded-xl bg-red-50 text-[#D71920] border border-red-200/60 flex items-center justify-center">
+                            <Truck size={16} />
+                          </div>
                           <div>
-                            <h4 className="font-extrabold text-sm text-white">
+                            <h4 className="font-extrabold text-sm text-neutral-900">
                               Per-Book Delivery Timing & Timer (ডেলিভারি টাইমিং)
                             </h4>
-                            <p className="text-[11px] text-neutral-400">এই বইয়ের ক্ষেত্রে ডেলিভারি টাইমার ও বার্তা সেট করুন</p>
+                            <p className="text-[11px] text-neutral-500">এই বইয়ের ক্ষেত্রে ডেলিভারি টাইমার ও বার্তা সেট করুন</p>
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-1.5">
@@ -5345,7 +5395,7 @@ export function AdminDashboard() {
                                 setProdOutsideDhakaDelivery(preset.outDhaka);
                                 setProdDeliveryTimerHours(preset.hrs);
                               }}
-                              className="px-2.5 py-1 rounded-lg bg-[#121E36] hover:bg-[#D71920] hover:text-white text-neutral-300 border border-[#223354] text-[10px] font-bold transition-colors cursor-pointer"
+                              className="px-2.5 py-1 rounded-lg bg-[#F7F7F8] hover:bg-[#D71920] hover:text-white text-neutral-700 border border-neutral-200 text-[10px] font-bold transition-all cursor-pointer shadow-2xs"
                             >
                               {preset.label}
                             </button>
@@ -5355,7 +5405,7 @@ export function AdminDashboard() {
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                         <div>
-                          <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">
+                          <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
                             Primary Delivery Badge *
                           </label>
                           <input
@@ -5363,11 +5413,11 @@ export function AdminDashboard() {
                             placeholder="e.g. ২-৩ কার্যদিবস / 2-3 Days"
                             value={prodDeliveryEstimate}
                             onChange={e => setProdDeliveryEstimate(e.target.value)}
-                            className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs font-bold text-white focus:outline-none focus:border-[#D71920]"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                           />
                         </div>
                         <div>
-                          <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">
+                          <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
                             Inside Dhaka (ঢাকার ভেতরে)
                           </label>
                           <input
@@ -5375,11 +5425,11 @@ export function AdminDashboard() {
                             placeholder="e.g. ২৪-৪৮ ঘণ্টা (১-২ দিন)"
                             value={prodInsideDhakaDelivery}
                             onChange={e => setProdInsideDhakaDelivery(e.target.value)}
-                            className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-[#D71920]"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                           />
                         </div>
                         <div>
-                          <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">
+                          <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
                             Outside Dhaka (ঢাকার বাইরে)
                           </label>
                           <input
@@ -5387,14 +5437,14 @@ export function AdminDashboard() {
                             placeholder="e.g. ২-৩ কার্যদিবস (সারাদেশে)"
                             value={prodOutsideDhakaDelivery}
                             onChange={e => setProdOutsideDhakaDelivery(e.target.value)}
-                            className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-[#D71920]"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                           />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                         <div>
-                          <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">
+                          <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
                             Delivery Card Title
                           </label>
                           <input
@@ -5402,11 +5452,11 @@ export function AdminDashboard() {
                             placeholder="ডেলিভারি টাইমিং (Delivery Timing)"
                             value={prodDeliveryTimingTitle}
                             onChange={e => setProdDeliveryTimingTitle(e.target.value)}
-                            className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-[#D71920]"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                           />
                         </div>
                         <div>
-                          <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">
+                          <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
                             Timer Hours (ঘণ্টা)
                           </label>
                           <input
@@ -5415,11 +5465,11 @@ export function AdminDashboard() {
                             placeholder="48"
                             value={prodDeliveryTimerHours}
                             onChange={e => setProdDeliveryTimerHours(Number(e.target.value))}
-                            className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs font-bold text-white focus:outline-none focus:border-[#D71920]"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                           />
                         </div>
                         <div>
-                          <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">
+                          <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
                             Custom Delivery Note
                           </label>
                           <input
@@ -5427,7 +5477,7 @@ export function AdminDashboard() {
                             placeholder="আজকে অর্ডার করলে দ্রুততম সময়ে পাঠানো হবে..."
                             value={prodDeliveryTimingNote}
                             onChange={e => setProdDeliveryTimingNote(e.target.value)}
-                            className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-[#D71920]"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                           />
                         </div>
                       </div>
@@ -5435,22 +5485,24 @@ export function AdminDashboard() {
 
                     {/* CARD 4: BOOK PREVIEW & LOOK INSIDE (Only if Book) */}
                     {prodType === 'book' && (
-                      <div className="bg-[#0B132B] border border-[#1C2C4E] rounded-2xl p-5 text-neutral-100 shadow-md space-y-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#1C2C4E]">
+                      <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 sm:p-6 text-neutral-900 shadow-xs space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-neutral-100">
                           <div>
                             <div className="flex items-center gap-2">
-                              <BookOpen size={16} className="text-[#D71920]" />
-                              <span className="font-extrabold text-sm text-white">
+                              <div className="w-8 h-8 rounded-xl bg-red-50 text-[#D71920] border border-red-200/60 flex items-center justify-center">
+                                <BookOpen size={16} />
+                              </div>
+                              <span className="font-extrabold text-sm text-neutral-900">
                                 বইয়ের কিছু অংশ পড়ুন — Book Preview & Look Inside
                               </span>
                             </div>
-                            <p className="text-[11px] text-neutral-400 mt-0.5">
+                            <p className="text-[11px] text-neutral-500 mt-0.5">
                               Upload a PDF file, page images, or written preview pages for customers to read
                             </p>
                           </div>
 
                           <div className="flex flex-wrap items-center gap-2 shrink-0">
-                            <label className="px-3 py-1.5 bg-[#D71920] hover:bg-[#B9151B] text-white rounded-xl font-bold text-[11px] flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all">
+                            <label className="px-3.5 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white rounded-xl font-bold text-[11px] flex items-center gap-1.5 cursor-pointer shadow-xs transition-all">
                               <Upload size={12} />
                               <span>{pdfUploading ? 'প্রসেস হচ্ছে...' : 'Upload PDF (২-৫ পেজ)'}</span>
                               <input
@@ -5462,7 +5514,7 @@ export function AdminDashboard() {
                               />
                             </label>
 
-                            <label className="px-3 py-1.5 bg-[#121E36] hover:bg-[#1E2D4E] text-white border border-[#223354] rounded-xl font-bold text-[11px] flex items-center gap-1.5 cursor-pointer transition-all">
+                            <label className="px-3.5 py-2 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl font-bold text-[11px] flex items-center gap-1.5 cursor-pointer shadow-xs transition-all">
                               <ImageIcon size={12} />
                               <span>Upload Page Images</span>
                               <input
@@ -5478,7 +5530,7 @@ export function AdminDashboard() {
                             <button
                               type="button"
                               onClick={handleAddWrittenPreviewPage}
-                              className="px-3 py-1.5 bg-[#121E36] hover:bg-[#1E2D4E] text-neutral-200 border border-[#223354] rounded-xl font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-all"
+                              className="px-3.5 py-2 bg-white hover:bg-neutral-100 text-neutral-800 border border-neutral-200 rounded-xl font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-all shadow-2xs"
                             >
                               <Plus size={12} />
                               <span>লেখার পৃষ্ঠা যোগ করুন</span>
@@ -5488,7 +5540,7 @@ export function AdminDashboard() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
                           <div>
-                            <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">
+                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
                               হাইলাইট শিরোনাম (Section Title)
                             </label>
                             <input
@@ -5496,11 +5548,11 @@ export function AdminDashboard() {
                               placeholder="বইয়ের কিছু অংশ পড়ুন (একটু পড়ে দেখুন)"
                               value={prodPreviewHighlightTitle}
                               onChange={e => setProdPreviewHighlightTitle(e.target.value)}
-                              className="w-full px-3 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-white font-bold"
+                              className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-neutral-900 font-bold focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                             />
                           </div>
                           <div>
-                            <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">
+                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
                               সাব-টাইটেল (Optional Subtitle)
                             </label>
                             <input
@@ -5508,11 +5560,11 @@ export function AdminDashboard() {
                               placeholder="বইয়ের কিছুটা পড়তে পারেন এখানে • পৃষ্ঠা স্লাইড করে পড়ুন"
                               value={prodPreviewHighlightSubtitle}
                               onChange={e => setProdPreviewHighlightSubtitle(e.target.value)}
-                              className="w-full px-3 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-white"
+                              className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-neutral-800 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                             />
                           </div>
                           <div className="sm:col-span-2">
-                            <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">
+                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
                               বই সম্পর্কে কিছু কথা / ভূমিকা (Shown Inside Book Preview)
                             </label>
                             <textarea
@@ -5520,19 +5572,19 @@ export function AdminDashboard() {
                               placeholder="বইটি সম্পর্কে বিশেষ কিছু কথা বা ভূমিকা লিখুন..."
                               value={prodPreviewIntro}
                               onChange={e => setProdPreviewIntro(e.target.value)}
-                              className="w-full px-3 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-white"
+                              className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                             />
                           </div>
                         </div>
 
                         {prodPreviewPages.length > 0 ? (
                           <div className="space-y-2.5">
-                            <div className="flex items-center justify-between text-[11px] font-bold text-neutral-300">
+                            <div className="flex items-center justify-between text-[11px] font-bold text-neutral-700">
                               <span>যুক্ত করা বইয়ের পৃষ্ঠাসমূহ ({prodPreviewPages.length}টি পৃষ্ঠা):</span>
                               <button
                                 type="button"
                                 onClick={() => setProdPreviewPages([])}
-                                className="text-red-400 hover:underline cursor-pointer text-[10px] font-bold"
+                                className="text-red-600 hover:underline cursor-pointer text-[10px] font-bold"
                               >
                                 সব পৃষ্ঠা মুছুন (Clear All)
                               </button>
@@ -5542,9 +5594,9 @@ export function AdminDashboard() {
                               {prodPreviewPages.map((pg, idx) => (
                                 <div
                                   key={pg.id || idx}
-                                  className="p-3 rounded-xl bg-[#0E1726] border border-[#223354] shadow-xs space-y-2 text-xs"
+                                  className="p-3.5 rounded-xl bg-[#F7F7F8] border border-[#E5E5E5] shadow-2xs space-y-2.5 text-xs"
                                 >
-                                  <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-[#1C2C4E]">
+                                  <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-neutral-200">
                                     <span className="font-black text-[#D71920] flex items-center gap-1">
                                       <FileText size={12} />
                                       <span>পৃষ্ঠা {toBanglaDigits(idx + 1)}</span>
@@ -5554,7 +5606,7 @@ export function AdminDashboard() {
                                         type="button"
                                         disabled={idx === 0}
                                         onClick={() => setProdPreviewPages(prev => movePreviewPage(prev, idx, 'up'))}
-                                        className="p-1 rounded-lg bg-[#121E36] hover:bg-[#1E2D4E] text-white disabled:opacity-30 cursor-pointer"
+                                        className="p-1 rounded-lg bg-white hover:bg-neutral-200 text-neutral-700 border border-neutral-200 disabled:opacity-40 cursor-pointer shadow-2xs"
                                         title="Move Page Up"
                                       >
                                         <ArrowUp size={11} />
@@ -5563,7 +5615,7 @@ export function AdminDashboard() {
                                         type="button"
                                         disabled={idx === prodPreviewPages.length - 1}
                                         onClick={() => setProdPreviewPages(prev => movePreviewPage(prev, idx, 'down'))}
-                                        className="p-1 rounded-lg bg-[#121E36] hover:bg-[#1E2D4E] text-white disabled:opacity-30 cursor-pointer"
+                                        className="p-1 rounded-lg bg-white hover:bg-neutral-200 text-neutral-700 border border-neutral-200 disabled:opacity-40 cursor-pointer shadow-2xs"
                                         title="Move Page Down"
                                       >
                                         <ArrowDown size={11} />
@@ -5577,7 +5629,7 @@ export function AdminDashboard() {
                                               .map((item, i) => ({ ...item, pageNumber: i + 1 }))
                                           )
                                         }
-                                        className="p-1 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 cursor-pointer"
+                                        className="p-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 cursor-pointer shadow-2xs"
                                         title="Delete Page"
                                       >
                                         <Trash2 size={11} />
@@ -5595,18 +5647,18 @@ export function AdminDashboard() {
                                         prev.map((item, i) => (i === idx ? { ...item, title: val } : item))
                                       );
                                     }}
-                                    className="w-full px-2.5 py-1.5 rounded-lg border border-[#223354] bg-[#121E36] font-bold text-white text-[11px]"
+                                    className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-200 bg-white font-bold text-neutral-900 text-[11px] shadow-2xs"
                                   />
 
                                   {isValidImageUrl(pg.imageUrl) && (
-                                    <div className="relative rounded-xl overflow-hidden border border-[#223354] bg-[#121E36] p-1.5 flex items-center gap-2.5">
+                                    <div className="relative rounded-xl overflow-hidden border border-neutral-200 bg-white p-1.5 flex items-center gap-2.5 shadow-2xs">
                                       <img
                                         src={pg.imageUrl}
                                         alt={pg.title || `Page ${idx + 1}`}
-                                        className="w-14 h-20 object-contain bg-neutral-900 rounded border border-[#223354] shrink-0"
+                                        className="w-14 h-20 object-contain bg-neutral-50 rounded border border-neutral-200 shrink-0"
                                       />
                                       <div className="flex-1 min-w-0 space-y-1">
-                                        <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 inline-block">
+                                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 inline-block">
                                           ✓ Page Image Attached
                                         </span>
                                         <button
@@ -5618,7 +5670,7 @@ export function AdminDashboard() {
                                               )
                                             )
                                           }
-                                          className="block text-[10px] text-red-400 font-bold hover:underline cursor-pointer"
+                                          className="block text-[10px] text-red-600 font-bold hover:underline cursor-pointer"
                                         >
                                           ছবি পরিবর্তন / মুছুন
                                         </button>
@@ -5636,49 +5688,49 @@ export function AdminDashboard() {
                                         prev.map((item, i) => (i === idx ? { ...item, content: val } : item))
                                       );
                                     }}
-                                    className="w-full px-2.5 py-1.5 rounded-lg border border-[#223354] bg-[#121E36] text-white text-[11px]"
+                                    className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-200 bg-white text-neutral-800 text-[11px] shadow-2xs"
                                   />
                                 </div>
                               ))}
                             </div>
                           </div>
                         ) : (
-                          <div className="p-4 rounded-xl bg-[#0E1726] border border-dashed border-[#223354] text-center text-[11px] text-neutral-400">
+                          <div className="p-4 rounded-xl bg-[#F7F7F8] border border-dashed border-neutral-300 text-center text-[11px] text-neutral-500">
                             এখনো কোনো কাস্টম পৃষ্ঠা যোগ করা হয়নি। উপরে <strong>Upload PDF</strong>, <strong>Upload Page Images</strong> বা <strong>লেখার পৃষ্ঠা যোগ করুন</strong> বাটনে ক্লিক করে পৃষ্ঠা যুক্ত করতে পারেন।
                           </div>
                         )}
                       </div>
                     )}
 
-                    {/* CARD 5: VARIANTS & OPTIONS (Matching image_44c07b58.png) */}
-                    <div className="bg-[#0B132B] border border-[#1C2C4E] rounded-2xl p-5 text-neutral-100 shadow-md space-y-4">
-                      <div className="flex items-center gap-2.5 pb-3 border-b border-[#1C2C4E]">
-                        <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
+                    {/* CARD 5: VARIANTS & OPTIONS (Sizes & Size-Wise Pricing) */}
+                    <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 sm:p-6 text-neutral-900 shadow-xs space-y-4">
+                      <div className="flex items-center gap-2.5 pb-3 border-b border-neutral-100">
+                        <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-200/60 flex items-center justify-center">
                           <Layers size={16} />
                         </div>
                         <div>
-                          <h4 className="font-extrabold text-sm text-white">Variants & Options</h4>
-                          <p className="text-[11px] text-neutral-400">Sizes, colors, and variant configurations</p>
+                          <h4 className="font-extrabold text-sm text-neutral-900">Variants & Options</h4>
+                          <p className="text-[11px] text-neutral-500">Sizes, colors, and variant configurations</p>
                         </div>
                       </div>
 
                       {/* Inner Banner: Sizes & Size-Wise Pricing */}
-                      <div className="p-4 rounded-xl bg-[#0E1726] border border-[#223354] space-y-3.5">
+                      <div className="p-4 sm:p-5 rounded-2xl bg-[#F7F7F8] border border-[#E5E5E5] space-y-4">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                           <div className="flex items-center gap-2">
-                            <span className="w-6 h-6 rounded-md bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                            <span className="w-6 h-6 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200">
                               <Sparkles size={13} />
                             </span>
                             <div>
                               <div className="flex items-center gap-2">
-                                <span className="font-extrabold text-xs text-white">
+                                <span className="font-extrabold text-xs text-neutral-900">
                                   Sizes & Size-Wise Pricing (সাইজ অনুযায়ী মূল্য)
                                 </span>
-                                <span className="px-2 py-0.2 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black">
+                                <span className="px-2 py-0.2 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black">
                                   {customVariants.length} Sizes
                                 </span>
                               </div>
-                              <p className="text-[10px] text-neutral-400 mt-0.5">
+                              <p className="text-[10px] text-neutral-500 mt-0.5">
                                 ২টা বা ততোধিক সাইজ/সংস্করণের জন্য আলাদা আলাদা প্রাইস নির্ধারণ করতে পারেন
                               </p>
                             </div>
@@ -5686,7 +5738,7 @@ export function AdminDashboard() {
 
                           {/* Quick Presets */}
                           <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="text-[10px] text-neutral-400">Quick Presets:</span>
+                            <span className="text-[10px] text-neutral-500 font-bold">Quick Presets:</span>
                             {prodType === 'book' ? (
                               <>
                                 <button
@@ -5697,7 +5749,7 @@ export function AdminDashboard() {
                                       { id: `v2-${Date.now()}`, name: 'Hardcover (হার্ডকভার)', price: (Number(prodPrice) || 350) + 100, regularPrice: (Number(prodRegularPrice) || 450) + 120, stock: 50, sku: `${prodSku || 'BK'}-HC` }
                                     ]);
                                   }}
-                                  className="px-2.5 py-1 rounded-lg bg-[#121E36] hover:bg-[#1E2D4E] text-amber-400 border border-[#223354] text-[10px] font-bold cursor-pointer"
+                                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-neutral-100 text-neutral-800 border border-neutral-200 text-[10px] font-bold cursor-pointer shadow-2xs"
                                 >
                                   ⚡ Paperback & Hardcover
                                 </button>
@@ -5709,7 +5761,7 @@ export function AdminDashboard() {
                                       { id: `v2-${Date.now()}`, name: 'Special Gift Pack', price: (Number(prodPrice) || 350) + 150, regularPrice: (Number(prodRegularPrice) || 450) + 200, stock: 40, sku: `${prodSku || 'BK'}-GIFT` }
                                     ]);
                                   }}
-                                  className="px-2.5 py-1 rounded-lg bg-[#121E36] hover:bg-[#1E2D4E] text-emerald-400 border border-[#223354] text-[10px] font-bold cursor-pointer"
+                                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-neutral-100 text-emerald-700 border border-emerald-200 text-[10px] font-bold cursor-pointer shadow-2xs"
                                 >
                                   ⚡ Gift Edition
                                 </button>
@@ -5724,7 +5776,7 @@ export function AdminDashboard() {
                                       { id: `v2-${Date.now()}`, name: '1kg', price: (Number(prodPrice) || 220) * 1.8, regularPrice: (Number(prodRegularPrice) || 290) * 1.8, stock: 60, sku: `${prodSku || 'ST'}-1KG` }
                                     ]);
                                   }}
-                                  className="px-2.5 py-1 rounded-lg bg-[#121E36] hover:bg-[#1E2D4E] text-amber-400 border border-[#223354] text-[10px] font-bold cursor-pointer"
+                                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-neutral-100 text-neutral-800 border border-neutral-200 text-[10px] font-bold cursor-pointer shadow-2xs"
                                 >
                                   ⚡ 500g & 1kg
                                 </button>
@@ -5736,7 +5788,7 @@ export function AdminDashboard() {
                                       { id: `v2-${Date.now()}`, name: 'XL (Executive)', price: (Number(prodPrice) || 220) + 80, regularPrice: (Number(prodRegularPrice) || 290) + 100, stock: 50, sku: `${prodSku || 'ST'}-XL` }
                                     ]);
                                   }}
-                                  className="px-2.5 py-1 rounded-lg bg-[#121E36] hover:bg-[#1E2D4E] text-emerald-400 border border-[#223354] text-[10px] font-bold cursor-pointer"
+                                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-neutral-100 text-emerald-700 border border-emerald-200 text-[10px] font-bold cursor-pointer shadow-2xs"
                                 >
                                   ⚡ M & L
                                 </button>
@@ -5746,9 +5798,9 @@ export function AdminDashboard() {
                         </div>
 
                         {/* Variant Input Row */}
-                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 items-end pt-2 border-t border-[#223354]">
+                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 items-end pt-2 border-t border-neutral-200">
                           <div>
-                            <label className="block text-[10px] font-bold text-neutral-300 uppercase mb-1">
+                            <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">
                               সাইজের নাম (Size Name) *
                             </label>
                             <input
@@ -5756,11 +5808,11 @@ export function AdminDashboard() {
                               placeholder={prodType === 'book' ? 'যেমন: Paperback, Hardcover' : 'যেমন: 500g, 1kg, A5, S, M'}
                               value={newVariantName}
                               onChange={e => setNewVariantName(e.target.value)}
-                              className="w-full px-3 py-2 rounded-xl border border-[#223354] bg-[#121E36] text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+                              className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-medium text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-emerald-600 shadow-2xs"
                             />
                           </div>
                           <div>
-                            <label className="block text-[10px] font-bold text-neutral-300 uppercase mb-1">
+                            <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">
                               অফার মূল্য / Offer Price (৳)
                             </label>
                             <input
@@ -5768,11 +5820,11 @@ export function AdminDashboard() {
                               placeholder={`ডিফল্ট: ৳${prodPrice}`}
                               value={newVariantOfferPrice}
                               onChange={e => setNewVariantOfferPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                              className="w-full px-3 py-2 rounded-xl border border-[#223354] bg-[#121E36] text-xs font-bold text-white placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+                              className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-emerald-600 shadow-2xs"
                             />
                           </div>
                           <div>
-                            <label className="block text-[10px] font-bold text-neutral-300 uppercase mb-1">
+                            <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">
                               রেগুলার মূল্য / Regular (৳)
                             </label>
                             <input
@@ -5780,7 +5832,7 @@ export function AdminDashboard() {
                               placeholder="ঐচ্ছিক (কাটা মূল্য)"
                               value={newVariantRegularPrice}
                               onChange={e => setNewVariantRegularPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                              className="w-full px-3 py-2 rounded-xl border border-[#223354] bg-[#121E36] text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+                              className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-medium text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-emerald-600 shadow-2xs"
                             />
                           </div>
                           <div>
@@ -5806,7 +5858,7 @@ export function AdminDashboard() {
                                 setNewVariantOfferPrice('');
                                 setNewVariantRegularPrice('');
                               }}
-                              className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer flex items-center justify-center gap-1 transition-all"
+                              className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer flex items-center justify-center gap-1 transition-all"
                             >
                               <Plus size={14} />
                               <span>+ যোগ করুন</span>
@@ -5820,23 +5872,23 @@ export function AdminDashboard() {
                             {customVariants.map((v, idx) => (
                               <div
                                 key={v.id || idx}
-                                className="flex items-center justify-between p-3 rounded-xl bg-[#121E36] border border-[#223354] text-xs"
+                                className="flex items-center justify-between p-3.5 rounded-xl bg-white border border-[#E5E5E5] shadow-2xs text-xs"
                               >
                                 <div className="flex items-center gap-3">
-                                  <span className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 font-black flex items-center justify-center text-[11px]">
+                                  <span className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 font-black flex items-center justify-center text-[11px]">
                                     {idx + 1}
                                   </span>
                                   <div>
-                                    <h5 className="font-extrabold text-white">{v.name}</h5>
-                                    <div className="flex items-center gap-2 text-[11px] text-neutral-400 mt-0.5">
-                                      <span className="font-mono">{v.sku}</span>
+                                    <h5 className="font-extrabold text-neutral-900">{v.name}</h5>
+                                    <div className="flex items-center gap-2 text-[11px] text-neutral-500 mt-0.5">
+                                      <span className="font-mono text-neutral-400">#{v.sku}</span>
                                       <span>• Stock: {v.stock}</span>
                                     </div>
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-3">
                                   <div className="text-right">
-                                    <div className="font-black text-emerald-400">৳{v.price}</div>
+                                    <div className="font-black text-emerald-600">৳{v.price}</div>
                                     {v.regularPrice && v.regularPrice > v.price && (
                                       <div className="text-[10px] text-neutral-400 line-through">৳{v.regularPrice}</div>
                                     )}
@@ -5844,7 +5896,7 @@ export function AdminDashboard() {
                                   <button
                                     type="button"
                                     onClick={() => setCustomVariants(prev => prev.filter((_, i) => i !== idx))}
-                                    className="p-1.5 text-neutral-400 hover:text-red-400 cursor-pointer transition-colors"
+                                    className="p-1.5 text-neutral-400 hover:text-red-600 cursor-pointer transition-colors"
                                   >
                                     <Trash2 size={13} />
                                   </button>
@@ -5853,13 +5905,13 @@ export function AdminDashboard() {
                             ))}
                           </div>
                         ) : (
-                          <div className="p-6 rounded-xl bg-[#121E36]/60 border border-dashed border-[#223354] text-center space-y-2">
-                            <div className="w-10 h-10 mx-auto rounded-full bg-[#1C2C4E] text-neutral-400 flex items-center justify-center">
+                          <div className="p-6 rounded-xl bg-white border border-dashed border-neutral-300 text-center space-y-2">
+                            <div className="w-10 h-10 mx-auto rounded-full bg-neutral-100 text-neutral-500 flex items-center justify-center">
                               <Layers size={18} />
                             </div>
-                            <h5 className="font-bold text-xs text-neutral-300">কোনো সাইজ যুক্ত করা হয়নি</h5>
-                            <p className="text-[11px] text-neutral-400 max-w-sm mx-auto">
-                              যদি প্রোডাক্টের একাধিক সাইজ থাকে এবং প্রতি সাইজের জন্য ভিন্ন মূল্য দিতে চান (যেমন Paperback ৳৩৫০ এবং Hardcover ৳৪৫০), তবে উপরের বাটনে ক্লিক করুন।
+                            <h5 className="font-bold text-xs text-neutral-800">কোনো সাইজ যুক্ত করা হয়নি</h5>
+                            <p className="text-[11px] text-neutral-500 max-w-sm mx-auto">
+                              যদি প্রোডাক্টের একাধিক সাইজ থাকে এবং প্রতি সাইজের জন্য ভিন্ন মূল্য দিতে চান (যেমন Paperback ৳৩৫০ এবং Hardcover ৳৪৫০), তবে নিচের বাটনে ক্লিক করুন।
                             </p>
                             <button
                               type="button"
@@ -5876,7 +5928,7 @@ export function AdminDashboard() {
                                   ]);
                                 }
                               }}
-                              className="mt-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer inline-flex items-center gap-1.5 transition-all"
+                              className="mt-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer inline-flex items-center gap-1.5 transition-all"
                             >
                               <Plus size={13} />
                               <span>+ ২টি সাইজের মূল্য সেট করুন</span>
@@ -5888,18 +5940,18 @@ export function AdminDashboard() {
 
                   </div>
 
-                  {/* RIGHT COLUMN: 4 Columns (Matching image_c4b27017.png & image_44c07b58.png) */}
+                  {/* RIGHT COLUMN: 4 Columns */}
                   <div className="lg:col-span-4 space-y-6">
                     
-                    {/* WIDGET 1: PRODUCT STATUS (Matching image_c4b27017.png) */}
-                    <div className="bg-[#0B132B] border border-[#1C2C4E] rounded-2xl p-5 text-neutral-100 shadow-md space-y-4">
-                      <h4 className="font-extrabold text-xs uppercase tracking-wider text-neutral-400">
+                    {/* WIDGET 1: PRODUCT STATUS */}
+                    <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 text-neutral-900 shadow-xs space-y-4">
+                      <h4 className="font-extrabold text-xs uppercase tracking-wider text-neutral-500">
                         PRODUCT STATUS
                       </h4>
 
                       {/* Visibility Status */}
                       <div>
-                        <label className="block text-xs font-bold text-neutral-300 mb-2">
+                        <label className="block text-xs font-bold text-neutral-700 mb-2">
                           Visibility Status
                         </label>
                         <div className="grid grid-cols-2 gap-2">
@@ -5908,11 +5960,11 @@ export function AdminDashboard() {
                             onClick={() => setProdIsActive(true)}
                             className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer border transition-all ${
                               prodIsActive
-                                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500 shadow-xs'
-                                : 'bg-[#0E1726] text-neutral-400 border-[#223354] hover:bg-[#121E36]'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-300 shadow-xs'
+                                : 'bg-[#F7F7F8] text-neutral-600 border-neutral-200 hover:bg-neutral-100'
                             }`}
                           >
-                            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                             <span>Active / Live</span>
                           </button>
                           <button
@@ -5920,8 +5972,8 @@ export function AdminDashboard() {
                             onClick={() => setProdIsActive(false)}
                             className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer border transition-all ${
                               !prodIsActive
-                                ? 'bg-neutral-700/60 text-white border-neutral-500 shadow-xs'
-                                : 'bg-[#0E1726] text-neutral-400 border-[#223354] hover:bg-[#121E36]'
+                                ? 'bg-neutral-800 text-white border-neutral-800 shadow-xs'
+                                : 'bg-[#F7F7F8] text-neutral-600 border-neutral-200 hover:bg-neutral-100'
                             }`}
                           >
                             <span className="w-2 h-2 rounded-full bg-neutral-400"></span>
@@ -5931,16 +5983,16 @@ export function AdminDashboard() {
                       </div>
 
                       {/* Featured / Hot Deal Switch */}
-                      <div className="p-3 rounded-xl bg-[#0E1726] border border-[#223354] flex items-center justify-between">
+                      <div className="p-3.5 rounded-xl bg-[#F7F7F8] border border-[#E5E5E5] flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <Flame size={16} className={prodIsFeatured ? 'text-amber-400' : 'text-neutral-500'} />
-                          <span className="text-xs font-bold text-neutral-200">Featured / Hot Deal</span>
+                          <Flame size={16} className={prodIsFeatured ? 'text-[#D71920]' : 'text-neutral-400'} />
+                          <span className="text-xs font-bold text-neutral-800">Featured / Hot Deal</span>
                         </div>
                         <button
                           type="button"
                           onClick={() => setProdIsFeatured(!prodIsFeatured)}
                           className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-200 ${
-                            prodIsFeatured ? 'bg-[#D71920] justify-end' : 'bg-neutral-700 justify-start'
+                            prodIsFeatured ? 'bg-[#D71920] justify-end' : 'bg-neutral-300 justify-start'
                           }`}
                         >
                           <span className="bg-white w-4 h-4 rounded-full shadow-md transform transition-transform" />
@@ -5949,7 +6001,7 @@ export function AdminDashboard() {
 
                       {/* Product Badge Selector */}
                       <div>
-                        <label className="block text-xs font-bold text-neutral-300 mb-2">
+                        <label className="block text-xs font-bold text-neutral-700 mb-2">
                           Product Badge
                         </label>
                         <div className="flex flex-wrap gap-1.5">
@@ -5961,7 +6013,7 @@ export function AdminDashboard() {
                               className={`px-3 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
                                 prodBadge === badge
                                   ? 'bg-[#D71920] text-white border-[#D71920] shadow-xs'
-                                  : 'bg-[#0E1726] text-neutral-300 border-[#223354] hover:bg-[#121E36]'
+                                  : 'bg-[#F7F7F8] text-neutral-700 border-neutral-200 hover:bg-neutral-100'
                               }`}
                             >
                               {badge}
@@ -5971,29 +6023,29 @@ export function AdminDashboard() {
                       </div>
                     </div>
 
-                    {/* WIDGET 2: PRICING (Matching image_44c07b58.png) */}
-                    <div className="bg-[#0B132B] border border-[#1C2C4E] rounded-2xl p-5 text-neutral-100 shadow-md space-y-4">
-                      <h4 className="font-extrabold text-xs uppercase tracking-wider text-neutral-400">
+                    {/* WIDGET 2: PRICING */}
+                    <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 text-neutral-900 shadow-xs space-y-4">
+                      <h4 className="font-extrabold text-xs uppercase tracking-wider text-neutral-500">
                         PRICING
                       </h4>
 
                       {/* Regular Price */}
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <label className="block text-xs font-bold text-neutral-300">
+                          <label className="block text-xs font-bold text-neutral-700">
                             রেগুলার মূল্য (Regular / Original Price)
                           </label>
                           <span className="text-[10px] text-neutral-400">(Optional - strikethrough)</span>
                         </div>
                         <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-xs">৳</span>
+                          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-xs">৳</span>
                           <input
                             type="number"
                             min={0}
                             placeholder="450"
                             value={prodRegularPrice}
                             onChange={e => setProdRegularPrice(Number(e.target.value))}
-                            className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-[#223354] bg-[#0E1726] text-xs font-bold text-white focus:outline-none focus:border-[#D71920]"
+                            className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                           />
                         </div>
                       </div>
@@ -6001,13 +6053,13 @@ export function AdminDashboard() {
                       {/* Offer Price */}
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <label className="block text-xs font-bold text-neutral-300">
-                            অফার মূল্য (Offer Price) <span className="text-red-400">*</span>
+                          <label className="block text-xs font-bold text-neutral-700">
+                            অফার মূল্য (Offer Price) <span className="text-[#D71920]">*</span>
                           </label>
-                          <span className="text-[10px] text-emerald-400 font-bold">(Customer purchase price)</span>
+                          <span className="text-[10px] text-emerald-600 font-bold">(Customer purchase price)</span>
                         </div>
                         <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-400 font-bold text-xs">৳</span>
+                          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-600 font-bold text-xs">৳</span>
                           <input
                             type="number"
                             min={0}
@@ -6015,19 +6067,19 @@ export function AdminDashboard() {
                             placeholder="350"
                             value={prodPrice}
                             onChange={e => setProdPrice(Number(e.target.value))}
-                            className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-[#223354] bg-[#0E1726] text-sm font-black text-emerald-400 focus:outline-none focus:border-emerald-500"
+                            className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-emerald-300 bg-white text-sm font-black text-emerald-700 focus:outline-none focus:border-emerald-500 shadow-2xs"
                           />
                         </div>
                       </div>
 
                       {/* Dynamic Customer Savings Banner */}
                       {Number(prodRegularPrice) > Number(prodPrice) && (
-                        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between text-xs text-amber-300">
-                          <div className="flex items-center gap-1.5 font-bold">
-                            <Tag size={13} className="text-amber-400" />
+                        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between text-xs text-amber-900 font-bold shadow-2xs">
+                          <div className="flex items-center gap-1.5">
+                            <Tag size={13} className="text-amber-600" />
                             <span>Customer Savings:</span>
                           </div>
-                          <span className="font-black text-amber-400">
+                          <span className="font-black text-amber-800">
                             ৳{Number(prodRegularPrice) - Number(prodPrice)} ({Math.round(((Number(prodRegularPrice) - Number(prodPrice)) / Number(prodRegularPrice)) * 100)}% OFF)
                           </span>
                         </div>
@@ -6038,23 +6090,23 @@ export function AdminDashboard() {
                       </p>
                     </div>
 
-                    {/* WIDGET 3: PRODUCT GALLERY (Matching image_c4b27017.png) */}
-                    <div className="bg-[#0B132B] border border-[#1C2C4E] rounded-2xl p-5 text-neutral-100 shadow-md space-y-4">
+                    {/* WIDGET 3: PRODUCT GALLERY */}
+                    <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 text-neutral-900 shadow-xs space-y-4">
                       <div className="flex items-center justify-between">
-                        <h4 className="font-extrabold text-xs uppercase tracking-wider text-neutral-400">
+                        <h4 className="font-extrabold text-xs uppercase tracking-wider text-neutral-500">
                           PRODUCT GALLERY
                         </h4>
-                        <span className="text-[11px] text-neutral-400 font-mono">
+                        <span className="text-[11px] text-neutral-500 font-mono">
                           {prodGalleryUrls.length} Images
                         </span>
                       </div>
 
                       {/* Dropzone Upload Box */}
-                      <label className="border-2 border-dashed border-[#223354] hover:border-amber-400 bg-[#0E1726] rounded-xl p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-colors group">
-                        <div className="w-10 h-10 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                      <label className="border-2 border-dashed border-neutral-300 hover:border-[#D71920] hover:bg-[#FFF9F9] bg-[#F7F7F8] rounded-2xl p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-all group">
+                        <div className="w-10 h-10 rounded-full bg-red-50 text-[#D71920] flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                           <Upload size={18} />
                         </div>
-                        <span className="text-xs font-bold text-white group-hover:text-amber-300">
+                        <span className="text-xs font-bold text-neutral-800 group-hover:text-[#D71920]">
                           Click to upload or drag image
                         </span>
                         <span className="text-[10px] text-neutral-400 mt-0.5">
@@ -6097,7 +6149,7 @@ export function AdminDashboard() {
                               }
                             }
                           }}
-                          className="flex-1 px-3 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-amber-400"
+                          className="flex-1 px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                         />
                         <button
                           type="button"
@@ -6108,7 +6160,7 @@ export function AdminDashboard() {
                               setGalleryUrlInput('');
                             }
                           }}
-                          className="px-3.5 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-bold rounded-xl cursor-pointer"
+                          className="px-3.5 py-2 bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-bold rounded-xl cursor-pointer shadow-xs transition-colors"
                         >
                           Add
                         </button>
@@ -6118,10 +6170,10 @@ export function AdminDashboard() {
                       {prodGalleryUrls.length > 0 && (
                         <div className="grid grid-cols-3 gap-2 pt-1">
                           {prodGalleryUrls.map((url, idx) => (
-                            <div key={idx} className="relative group rounded-lg overflow-hidden border border-[#223354] bg-[#0E1726] aspect-square p-1">
-                              <img src={url} alt={`Gallery ${idx + 1}`} className="w-full h-full object-contain rounded" />
+                            <div key={idx} className="relative group rounded-xl overflow-hidden border border-neutral-200 bg-white aspect-square p-1 shadow-2xs">
+                              <img src={url} alt={`Gallery ${idx + 1}`} className="w-full h-full object-contain rounded-lg" />
                               {idx === 0 && (
-                                <span className="absolute top-1 left-1 text-[9px] font-black px-1.5 py-0.2 rounded bg-amber-500 text-black">
+                                <span className="absolute top-1 left-1 text-[9px] font-black px-1.5 py-0.2 rounded bg-amber-500 text-white shadow-2xs">
                                   Cover
                                 </span>
                               )}
@@ -6133,7 +6185,7 @@ export function AdminDashboard() {
                                     setProdImage(prodGalleryUrls.find(u => u !== url) || '');
                                   }
                                 }}
-                                className="absolute top-1 right-1 p-1 rounded-md bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                                className="absolute top-1 right-1 p-1 rounded-md bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-xs"
                               >
                                 <Trash2 size={11} />
                               </button>
@@ -6143,11 +6195,11 @@ export function AdminDashboard() {
                       )}
                     </div>
 
-                    {/* WIDGET 4: DELIVERY CHARGE (Matching image_44c07b58.png) */}
-                    <div className="bg-[#0B132B] border border-[#1C2C4E] rounded-2xl p-5 text-neutral-100 shadow-md space-y-4">
+                    {/* WIDGET 4: DELIVERY CHARGE */}
+                    <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 text-neutral-900 shadow-xs space-y-4">
                       <div className="flex items-center gap-2">
-                        <Truck size={16} className="text-amber-400" />
-                        <h4 className="font-extrabold text-xs uppercase tracking-wider text-neutral-400">
+                        <Truck size={16} className="text-[#D71920]" />
+                        <h4 className="font-extrabold text-xs uppercase tracking-wider text-neutral-500">
                           DELIVERY CHARGE
                         </h4>
                       </div>
@@ -6159,7 +6211,7 @@ export function AdminDashboard() {
                           className={`py-2 px-2 rounded-xl text-xs font-bold text-center border transition-all cursor-pointer ${
                             prodDeliveryChargeType === 'standard'
                               ? 'bg-[#D71920] text-white border-[#D71920] shadow-xs'
-                              : 'bg-[#0E1726] text-neutral-300 border-[#223354] hover:bg-[#121E36]'
+                              : 'bg-[#F7F7F8] text-neutral-700 border-neutral-200 hover:bg-neutral-100'
                           }`}
                         >
                           Standard
@@ -6170,10 +6222,10 @@ export function AdminDashboard() {
                           className={`py-2 px-2 rounded-xl text-xs font-bold text-center border transition-all cursor-pointer ${
                             prodDeliveryChargeType === 'free'
                               ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                              : 'bg-[#0E1726] text-neutral-300 border-[#223354] hover:bg-[#121E36]'
+                              : 'bg-[#F7F7F8] text-neutral-700 border-neutral-200 hover:bg-neutral-100'
                           }`}
                         >
-                          ✨ Free Delivery
+                          ✨ Free
                         </button>
                         <button
                           type="button"
@@ -6181,16 +6233,16 @@ export function AdminDashboard() {
                           className={`py-2 px-2 rounded-xl text-xs font-bold text-center border transition-all cursor-pointer ${
                             prodDeliveryChargeType === 'custom'
                               ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                              : 'bg-[#0E1726] text-neutral-300 border-[#223354] hover:bg-[#121E36]'
+                              : 'bg-[#F7F7F8] text-neutral-700 border-neutral-200 hover:bg-neutral-100'
                           }`}
                         >
-                          Custom Fee
+                          Custom
                         </button>
                       </div>
 
                       {prodDeliveryChargeType === 'custom' && (
                         <div className="pt-2">
-                          <label className="block text-xs font-bold text-neutral-300 mb-1">
+                          <label className="block text-xs font-bold text-neutral-700 mb-1">
                             Custom Delivery Charge (৳)
                           </label>
                           <input
@@ -6199,31 +6251,31 @@ export function AdminDashboard() {
                             placeholder="60"
                             value={prodCustomDeliveryFee}
                             onChange={e => setProdCustomDeliveryFee(Number(e.target.value))}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#223354] bg-[#0E1726] text-xs font-bold text-white focus:outline-none focus:border-blue-400"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-blue-500 focus:bg-white shadow-2xs"
                           />
                         </div>
                       )}
                     </div>
 
                     {/* WIDGET 5: CATEGORY & SKU */}
-                    <div className="bg-[#0B132B] border border-[#1C2C4E] rounded-2xl p-5 text-neutral-100 shadow-md space-y-4">
-                      <h4 className="font-extrabold text-xs uppercase tracking-wider text-neutral-400">
+                    <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 text-neutral-900 shadow-xs space-y-4">
+                      <h4 className="font-extrabold text-xs uppercase tracking-wider text-neutral-500">
                         CATEGORY & INVENTORY
                       </h4>
 
                       <div>
-                        <label className="block text-xs font-bold text-neutral-300 mb-1">
-                          Category <span className="text-red-400">*</span>
+                        <label className="block text-xs font-bold text-neutral-700 mb-1">
+                          Category <span className="text-[#D71920]">*</span>
                         </label>
                         <select
                           value={prodCategory}
                           onChange={e => setProdCategory(e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#223354] bg-[#0E1726] text-xs font-bold text-white focus:outline-none focus:border-[#D71920]"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                         >
                           {categories
                             .filter(c => c.type === prodType)
                             .map(c => (
-                              <option key={c.id} value={c.name} className="bg-[#0B132B] text-white">
+                              <option key={c.id} value={c.name} className="bg-white text-neutral-900">
                                 {c.name}
                               </option>
                             ))}
@@ -6232,7 +6284,7 @@ export function AdminDashboard() {
 
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <label className="block text-xs font-bold text-neutral-300">
+                          <label className="block text-xs font-bold text-neutral-700">
                             SKU Code
                           </label>
                           <button
@@ -6241,7 +6293,7 @@ export function AdminDashboard() {
                               const newSku = (prodType === 'book' ? 'BK-' : 'ST-') + Math.floor(1000 + Math.random() * 9000);
                               setProdSku(newSku);
                             }}
-                            className="text-[11px] text-amber-400 hover:underline cursor-pointer"
+                            className="text-[11px] font-bold text-[#D71920] hover:underline cursor-pointer"
                           >
                             Auto-gen
                           </button>
@@ -6251,11 +6303,45 @@ export function AdminDashboard() {
                           placeholder={prodType === 'book' ? 'e.g. BK-PS2-PB' : 'e.g. ST-DIARY-01'}
                           value={prodSku}
                           onChange={e => setProdSku(e.target.value)}
-                          className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs font-mono text-white focus:outline-none focus:border-[#D71920]"
+                          className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-mono font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                         />
                       </div>
                     </div>
 
+                  </div>
+                </div>
+
+                {/* Bottom Bar: Original Badge & Submit Buttons */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-neutral-200">
+                  {prodType === 'book' ? (
+                    <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                      <input 
+                        type="checkbox" 
+                        checked={prodIsOriginal} 
+                        onChange={e => setProdIsOriginal(e.target.checked)} 
+                        className="w-4 h-4 text-[#D71920] accent-[#D71920] rounded cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-neutral-800 flex items-center gap-1">
+                        <ShieldCheck size={14} className="text-emerald-600" /> Show &quot;অরিজিনাল বই&quot; (Original Book Verified Badge)
+                      </span>
+                    </label>
+                  ) : <div />}
+
+                  <div className="flex items-center justify-end gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddProdModal(false)}
+                      className="px-5 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-bold rounded-xl cursor-pointer transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-7 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-bold rounded-xl shadow-md cursor-pointer flex items-center gap-2 transition-all hover:scale-[1.02]"
+                    >
+                      <Check size={15} />
+                      <span>{editingProductId ? 'Update Product' : 'Save Product'}</span>
+                    </button>
                   </div>
                 </div>
 
@@ -6390,6 +6476,14 @@ export function AdminDashboard() {
                 </div>
               </div>
             )}
+
+            {/* BULK CSV IMPORT MODAL */}
+            <BulkProductImportModal
+              isOpen={showBulkImportModal}
+              onClose={() => setShowBulkImportModal(false)}
+              onImportProducts={handleBulkImportProducts}
+              categories={categories}
+            />
           </div>
         )}
 
