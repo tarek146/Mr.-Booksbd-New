@@ -13,7 +13,7 @@ import { formatAddressPreview, sanitizeSavedAddress, SavedDeliveryAddress } from
 import { Truck, CreditCard, Check, ArrowLeft, ArrowRight, Phone, RotateCcw, Search, Sparkles } from 'lucide-react';
 
 const BANGLADESH_DISTRICTS = [
-  'Dhaka', 'Gazipur', 'Narayanganj', 'Chittagong', 'Sylhet', 'Rajshahi', 
+  'Dhaka', 'Sub Area', 'Gazipur', 'Narayanganj', 'Chittagong', 'Sylhet', 'Rajshahi', 
   'Khulna', 'Barisal', 'Rangpur', 'Mymensingh', 'Comilla', 'Cox\'s Bazar', 'Bogura'
 ];
 
@@ -270,7 +270,7 @@ export function CheckoutPage() {
     return prod?.isFreeDelivery === true || prod?.deliveryChargeType === 'free';
   });
 
-  // Base delivery charge
+  // Base delivery charge with Inside Dhaka, Outside Dhaka, Sub Area and Sundarban
   let baseDelivery = 0;
   if (hasFreeDelivery) {
     baseDelivery = 0;
@@ -278,16 +278,20 @@ export function CheckoutPage() {
     const customSundarbanFee = cart.map(item => (products || []).find(p => p.id === item.productId)?.sundarbanDeliveryFee).find(fee => fee !== undefined && fee > 0);
     baseDelivery = customSundarbanFee ?? (settings.sundarbanDeliveryCharge ?? 120);
   } else {
-    const customHomeFee = cart.map(item => (products || []).find(p => p.id === item.productId)?.homeDeliveryFee).find(fee => fee !== undefined && fee > 0);
-    if (customHomeFee !== undefined && customHomeFee > 0) {
-      baseDelivery = customHomeFee;
+    if (district === 'Dhaka') {
+      const customInside = cart.map(item => (products || []).find(p => p.id === item.productId)?.insideDhakaFee ?? (products || []).find(p => p.id === item.productId)?.homeDeliveryFee).find(f => f !== undefined && f > 0);
+      baseDelivery = customInside ?? (settings.insideDhakaCharge ?? 60);
+    } else if (district === 'Sub Area') {
+      const customSub = cart.map(item => (products || []).find(p => p.id === item.productId)?.subAreaFee).find(f => f !== undefined && f > 0);
+      baseDelivery = customSub ?? ((settings.insideDhakaCharge ?? 60) + 30);
     } else {
-      baseDelivery = district === 'Dhaka' ? settings.insideDhakaCharge : settings.outsideDhakaCharge;
+      const customOutside = cart.map(item => (products || []).find(p => p.id === item.productId)?.outsideDhakaFee).find(f => f !== undefined && f > 0);
+      baseDelivery = customOutside ?? (settings.outsideDhakaCharge ?? 120);
     }
   }
 
-  // Extra weight charge if total items > 1 kg/item (waived if free delivery)
-  const extraWeightCharge = hasFreeDelivery ? 0 : (totalQuantity > 1 ? (totalQuantity - 1) * (settings.extraWeightChargePerKg ?? 20) : 0);
+  // Weight-based extra charge: ৳20 added per extra kg/item when weight increases
+  const extraWeightCharge = hasFreeDelivery ? 0 : (totalQuantity > 1 ? (totalQuantity - 1) * 20 : 0);
   const deliveryCharge = hasFreeDelivery ? 0 : (baseDelivery + extraWeightCharge);
   const total = subtotal + deliveryCharge;
 

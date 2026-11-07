@@ -1028,30 +1028,30 @@ export function ProductDetail() {
                               </span>
                             </div>
 
-                            {/* Free delivery or custom courier rates */}
+                            {/* Free delivery or custom courier rates & weight note */}
                             {product.isFreeDelivery ? (
                               <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 font-bold text-xs flex items-center justify-between shadow-2xs">
                                 <span className="flex items-center gap-1.5">
                                   <Truck size={14} className="text-emerald-600" />
-                                  <span>এই বইটির ডেলিভারি চার্জ সম্পূর্ণ ফ্রি!</span>
+                                  <span>Free Delivery Service</span>
                                 </span>
                                 <span className="font-extrabold text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-300">
                                   ৳0 FREE
                                 </span>
                               </div>
-                            ) : (product.sundarbanDeliveryFee || product.homeDeliveryFee || product.otherCourierDeliveryFee) ? (
-                              <div className="p-2.5 rounded-xl bg-white border border-neutral-200 text-xs flex flex-wrap items-center gap-3 shadow-2xs">
-                                {product.homeDeliveryFee !== undefined && product.homeDeliveryFee > 0 && (
-                                  <span className="font-bold text-neutral-800">🏠 হোম ডেলিভারি: <strong className="text-[#D71920]">৳{product.homeDeliveryFee}</strong></span>
-                                )}
-                                {product.sundarbanDeliveryFee !== undefined && product.sundarbanDeliveryFee > 0 && (
-                                  <span className="font-bold text-neutral-800">📦 সুন্দরবন কুরিয়ার: <strong className="text-[#D71920]">৳{product.sundarbanDeliveryFee}</strong></span>
-                                )}
-                                {product.otherCourierDeliveryFee !== undefined && product.otherCourierDeliveryFee > 0 && (
-                                  <span className="font-bold text-neutral-800">🚚 অন্যান্য কুরিয়ার: <strong className="text-[#D71920]">৳{product.otherCourierDeliveryFee}</strong></span>
-                                )}
+                            ) : (
+                              <div className="space-y-2">
+                                <div className="p-2.5 rounded-xl bg-white border border-neutral-200 text-xs grid grid-cols-2 sm:grid-cols-4 gap-2 shadow-2xs">
+                                  <span className="font-bold text-neutral-800">Inside Dhaka: <strong className="text-[#D71920]">৳{product.insideDhakaFee || product.homeDeliveryFee || 60}</strong></span>
+                                  <span className="font-bold text-neutral-800">Outside Dhaka: <strong className="text-[#D71920]">৳{product.outsideDhakaFee || 120}</strong></span>
+                                  <span className="font-bold text-neutral-800">Sub Area: <strong className="text-[#D71920]">৳{product.subAreaFee || 90}</strong></span>
+                                  <span className="font-bold text-neutral-800">Sundarban: <strong className="text-[#D71920]">৳{product.sundarbanDeliveryFee || 120}</strong></span>
+                                </div>
+                                <div className="p-2 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 font-semibold flex items-center gap-1.5">
+                                  <span>ℹ️ Weight Note: Weight-based extra charge: ৳20 added per extra kg/item when weight increases.</span>
+                                </div>
                               </div>
-                            ) : null}
+                            )}
                           </div>
                         </div>
                       )}

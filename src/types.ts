@@ -67,6 +67,9 @@ export interface Product {
   homeDeliveryFee?: number;
   sundarbanDeliveryFee?: number;
   otherCourierDeliveryFee?: number;
+  insideDhakaFee?: number;
+  outsideDhakaFee?: number;
+  subAreaFee?: number;
   bookFormat?: 'original' | 'copy' | 'printed' | 'pdf';
   pdfUrl?: string;
   isNewProduct?: boolean;

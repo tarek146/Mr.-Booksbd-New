@@ -415,9 +415,12 @@ export function AdminDashboard() {
   const [prodSpecialOfferTitle, setProdSpecialOfferTitle] = useState('মেগা ডিসকাউন্ট অফার');
   const [prodSpecialOfferDiscount, setProdSpecialOfferDiscount] = useState<number | ''>('');
 
-  // Courier & Delivery Charges per Product (হোম ডেলিভারি, সুন্দরবন কুরিয়ার, অন্যান্য কুরিয়ার, ফ্রি ডেলিভারি)
+  // Courier & Delivery Charges per Product
   const [prodIsFreeDelivery, setProdIsFreeDelivery] = useState(false);
   const [prodHomeDeliveryFee, setProdHomeDeliveryFee] = useState<number>(60);
+  const [prodInsideDhakaFee, setProdInsideDhakaFee] = useState<number>(60);
+  const [prodOutsideDhakaFee, setProdOutsideDhakaFee] = useState<number>(120);
+  const [prodSubAreaFee, setProdSubAreaFee] = useState<number>(90);
   const [prodSundarbanDeliveryFee, setProdSundarbanDeliveryFee] = useState<number>(120);
   const [prodOtherCourierDeliveryFee, setProdOtherCourierDeliveryFee] = useState<number>(100);
 
@@ -1048,6 +1051,9 @@ export function AdminDashboard() {
     setProdSpecialOfferDiscount('');
     setProdIsFreeDelivery(false);
     setProdHomeDeliveryFee(60);
+    setProdInsideDhakaFee(60);
+    setProdOutsideDhakaFee(120);
+    setProdSubAreaFee(90);
     setProdSundarbanDeliveryFee(120);
     setProdOtherCourierDeliveryFee(100);
     setInFormReviews([]);
@@ -1154,6 +1160,9 @@ export function AdminDashboard() {
     setProdCustomDeliveryFee(p.customDeliveryFee || 60);
     setProdIsFreeDelivery(Boolean(p.isFreeDelivery || p.deliveryChargeType === 'free'));
     setProdHomeDeliveryFee(p.homeDeliveryFee ?? (p.customDeliveryFee || 60));
+    setProdInsideDhakaFee(p.insideDhakaFee ?? p.homeDeliveryFee ?? 60);
+    setProdOutsideDhakaFee(p.outsideDhakaFee ?? 120);
+    setProdSubAreaFee(p.subAreaFee ?? 90);
     setProdSundarbanDeliveryFee(p.sundarbanDeliveryFee ?? 120);
     setProdOtherCourierDeliveryFee(p.otherCourierDeliveryFee ?? 100);
     setProdBookFormat(p.bookFormat || (p.isOriginalBadge !== false ? 'original' : 'copy'));
@@ -1294,6 +1303,9 @@ export function AdminDashboard() {
       deliveryChargeType: prodIsFreeDelivery ? 'free' : prodDeliveryChargeType,
       customDeliveryFee: prodIsFreeDelivery ? 0 : (prodDeliveryChargeType === 'custom' ? Number(prodCustomDeliveryFee) || 60 : 0),
       homeDeliveryFee: Number(prodHomeDeliveryFee) || 60,
+      insideDhakaFee: Number(prodInsideDhakaFee) || 60,
+      outsideDhakaFee: Number(prodOutsideDhakaFee) || 120,
+      subAreaFee: Number(prodSubAreaFee) || 90,
       sundarbanDeliveryFee: Number(prodSundarbanDeliveryFee) || 120,
       otherCourierDeliveryFee: Number(prodOtherCourierDeliveryFee) || 100,
       deliveryEstimate: prodDeliveryEstimate.trim() || '২-৩ কার্যদিবস (2-3 Days)',
@@ -5913,72 +5925,127 @@ export function AdminDashboard() {
                         </div>
                       )}
 
-                      {/* Courier Wise Delivery Fee Row */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
-                        {/* 1. Home Delivery Fee */}
-                        <div className="p-3 rounded-xl border border-neutral-200 bg-[#FBFBFC] space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <label className="block text-[11px] font-bold text-neutral-700">
-                              🏠 হোম ডেলিভারি চার্জ
-                            </label>
-                            <span className="text-[10px] text-neutral-400">Home Delivery</span>
+                      {/* Courier Wise & Home Delivery Fee Section (English Only) */}
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          {/* 1. Inside Dhaka Fee */}
+                          <div className="p-3 rounded-xl border border-neutral-200 bg-[#FBFBFC] space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <label className="block text-[11px] font-bold text-neutral-700">
+                                Inside Dhaka Fee
+                              </label>
+                              <span className="text-[10px] text-neutral-400">Dhaka City</span>
+                            </div>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-xs">৳</span>
+                              <input
+                                type="number"
+                                min={0}
+                                disabled={prodIsFreeDelivery}
+                                placeholder="60"
+                                value={prodIsFreeDelivery ? 0 : prodInsideDhakaFee}
+                                onChange={e => setProdInsideDhakaFee(Number(e.target.value))}
+                                className="w-full pl-7 pr-3 py-2 rounded-lg border border-neutral-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] disabled:bg-neutral-100"
+                              />
+                            </div>
                           </div>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-xs">৳</span>
-                            <input
-                              type="number"
-                              min={0}
-                              disabled={prodIsFreeDelivery}
-                              placeholder="60"
-                              value={prodIsFreeDelivery ? 0 : prodHomeDeliveryFee}
-                              onChange={e => setProdHomeDeliveryFee(Number(e.target.value))}
-                              className="w-full pl-7 pr-3 py-2 rounded-lg border border-neutral-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] disabled:bg-neutral-100"
-                            />
+
+                          {/* 2. Outside Dhaka Fee */}
+                          <div className="p-3 rounded-xl border border-neutral-200 bg-[#FBFBFC] space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <label className="block text-[11px] font-bold text-neutral-700">
+                                Outside Dhaka Fee
+                              </label>
+                              <span className="text-[10px] text-neutral-400">Nationwide</span>
+                            </div>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-xs">৳</span>
+                              <input
+                                type="number"
+                                min={0}
+                                disabled={prodIsFreeDelivery}
+                                placeholder="120"
+                                value={prodIsFreeDelivery ? 0 : prodOutsideDhakaFee}
+                                onChange={e => setProdOutsideDhakaFee(Number(e.target.value))}
+                                className="w-full pl-7 pr-3 py-2 rounded-lg border border-neutral-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] disabled:bg-neutral-100"
+                              />
+                            </div>
+                          </div>
+
+                          {/* 3. Sub Area Fee */}
+                          <div className="p-3 rounded-xl border border-neutral-200 bg-[#FBFBFC] space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <label className="block text-[11px] font-bold text-neutral-700">
+                                Sub Area Fee
+                              </label>
+                              <span className="text-[10px] text-neutral-400">Suburbs</span>
+                            </div>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-xs">৳</span>
+                              <input
+                                type="number"
+                                min={0}
+                                disabled={prodIsFreeDelivery}
+                                placeholder="90"
+                                value={prodIsFreeDelivery ? 0 : prodSubAreaFee}
+                                onChange={e => setProdSubAreaFee(Number(e.target.value))}
+                                className="w-full pl-7 pr-3 py-2 rounded-lg border border-neutral-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] disabled:bg-neutral-100"
+                              />
+                            </div>
                           </div>
                         </div>
 
-                        {/* 2. Sundarban Courier Fee */}
-                        <div className="p-3 rounded-xl border border-neutral-200 bg-[#FBFBFC] space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <label className="block text-[11px] font-bold text-neutral-700">
-                              📦 সুন্দরবন কুরিয়ার চার্জ
-                            </label>
-                            <span className="text-[10px] text-neutral-400">Sundarban</span>
+                        {/* Sundarban & Other Courier Fee Row */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {/* Sundarban Courier Fee */}
+                          <div className="p-3 rounded-xl border border-neutral-200 bg-[#FBFBFC] space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <label className="block text-[11px] font-bold text-neutral-700">
+                                Sundarban Courier Charge
+                              </label>
+                              <span className="text-[10px] text-neutral-400">Sundarban</span>
+                            </div>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-xs">৳</span>
+                              <input
+                                type="number"
+                                min={0}
+                                disabled={prodIsFreeDelivery}
+                                placeholder="120"
+                                value={prodIsFreeDelivery ? 0 : prodSundarbanDeliveryFee}
+                                onChange={e => setProdSundarbanDeliveryFee(Number(e.target.value))}
+                                className="w-full pl-7 pr-3 py-2 rounded-lg border border-neutral-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] disabled:bg-neutral-100"
+                              />
+                            </div>
                           </div>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-xs">৳</span>
-                            <input
-                              type="number"
-                              min={0}
-                              disabled={prodIsFreeDelivery}
-                              placeholder="120"
-                              value={prodIsFreeDelivery ? 0 : prodSundarbanDeliveryFee}
-                              onChange={e => setProdSundarbanDeliveryFee(Number(e.target.value))}
-                              className="w-full pl-7 pr-3 py-2 rounded-lg border border-neutral-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] disabled:bg-neutral-100"
-                            />
+
+                          {/* Other Courier Fee */}
+                          <div className="p-3 rounded-xl border border-neutral-200 bg-[#FBFBFC] space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <label className="block text-[11px] font-bold text-neutral-700">
+                                Other Courier Charge
+                              </label>
+                              <span className="text-[10px] text-neutral-400">Steadfast/SA</span>
+                            </div>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-xs">৳</span>
+                              <input
+                                type="number"
+                                min={0}
+                                disabled={prodIsFreeDelivery}
+                                placeholder="100"
+                                value={prodIsFreeDelivery ? 0 : prodOtherCourierDeliveryFee}
+                                onChange={e => setProdOtherCourierDeliveryFee(Number(e.target.value))}
+                                className="w-full pl-7 pr-3 py-2 rounded-lg border border-neutral-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] disabled:bg-neutral-100"
+                              />
+                            </div>
                           </div>
                         </div>
 
-                        {/* 3. Other Courier Fee (Steadfast / SA Paribahan / Pathao) */}
-                        <div className="p-3 rounded-xl border border-neutral-200 bg-[#FBFBFC] space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <label className="block text-[11px] font-bold text-neutral-700">
-                              🚚 অন্যান্য কুরিয়ার চার্জ
-                            </label>
-                            <span className="text-[10px] text-neutral-400">Steadfast/SA</span>
-                          </div>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-xs">৳</span>
-                            <input
-                              type="number"
-                              min={0}
-                              disabled={prodIsFreeDelivery}
-                              placeholder="100"
-                              value={prodIsFreeDelivery ? 0 : prodOtherCourierDeliveryFee}
-                              onChange={e => setProdOtherCourierDeliveryFee(Number(e.target.value))}
-                              className="w-full pl-7 pr-3 py-2 rounded-lg border border-neutral-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] disabled:bg-neutral-100"
-                            />
-                          </div>
+                        {/* Weight-Based Extra Charge Note */}
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 font-semibold flex items-center gap-2 shadow-2xs">
+                          <span className="text-amber-600 font-black">ℹ️ Note:</span>
+                          <span>Weight-based extra charge: ৳20 added per extra kg/item when weight increases.</span>
                         </div>
                       </div>
 
