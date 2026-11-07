@@ -70,6 +70,7 @@ export interface Product {
   insideDhakaFee?: number;
   outsideDhakaFee?: number;
   subAreaFee?: number;
+  weightNote?: string;
   bookFormat?: 'original' | 'copy' | 'printed' | 'pdf';
   pdfUrl?: string;
   isNewProduct?: boolean;

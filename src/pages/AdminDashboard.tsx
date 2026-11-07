@@ -423,6 +423,7 @@ export function AdminDashboard() {
   const [prodSubAreaFee, setProdSubAreaFee] = useState<number>(90);
   const [prodSundarbanDeliveryFee, setProdSundarbanDeliveryFee] = useState<number>(120);
   const [prodOtherCourierDeliveryFee, setProdOtherCourierDeliveryFee] = useState<number>(100);
+  const [prodWeightNote, setProdWeightNote] = useState('Weight-based extra charge: ৳20 added per extra kg/item when weight increases.');
 
   // In-Form Customer Reviews for this product
   const [inFormReviews, setInFormReviews] = useState<{ id: string; userName: string; rating: number; comment: string; isVerifiedPurchase: boolean; createdAt: number }[]>([]);
@@ -1056,6 +1057,7 @@ export function AdminDashboard() {
     setProdSubAreaFee(90);
     setProdSundarbanDeliveryFee(120);
     setProdOtherCourierDeliveryFee(100);
+    setProdWeightNote('Weight-based extra charge: ৳20 added per extra kg/item when weight increases.');
     setInFormReviews([]);
     setNewRevName('');
     setNewRevRating(5);
@@ -1165,6 +1167,7 @@ export function AdminDashboard() {
     setProdSubAreaFee(p.subAreaFee ?? 90);
     setProdSundarbanDeliveryFee(p.sundarbanDeliveryFee ?? 120);
     setProdOtherCourierDeliveryFee(p.otherCourierDeliveryFee ?? 100);
+    setProdWeightNote(p.weightNote || 'Weight-based extra charge: ৳20 added per extra kg/item when weight increases.');
     setProdBookFormat(p.bookFormat || (p.isOriginalBadge !== false ? 'original' : 'copy'));
     setProdPdfUrl(p.pdfUrl || '');
     setProdClassification(p.isFeatured ? 'featured' : (p.badge === 'NEW' ? 'new' : 'regular'));
@@ -1308,6 +1311,7 @@ export function AdminDashboard() {
       subAreaFee: Number(prodSubAreaFee) || 90,
       sundarbanDeliveryFee: Number(prodSundarbanDeliveryFee) || 120,
       otherCourierDeliveryFee: Number(prodOtherCourierDeliveryFee) || 100,
+      weightNote: prodWeightNote.trim() || 'Weight-based extra charge: ৳20 added per extra kg/item when weight increases.',
       deliveryEstimate: prodDeliveryEstimate.trim() || '২-৩ কার্যদিবস (2-3 Days)',
       deliveryTimingTitle: prodDeliveryTimingTitle.trim() || 'ডেলিভারি টাইমিং (Delivery Timing)',
       insideDhakaDelivery: prodInsideDhakaDelivery.trim() || '২৪-৪৮ ঘণ্টা (১-২ দিন)',
@@ -6042,10 +6046,18 @@ export function AdminDashboard() {
                           </div>
                         </div>
 
-                        {/* Weight-Based Extra Charge Note */}
-                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 font-semibold flex items-center gap-2 shadow-2xs">
-                          <span className="text-amber-600 font-black">ℹ️ Note:</span>
-                          <span>Weight-based extra charge: ৳20 added per extra kg/item when weight increases.</span>
+                        {/* Weight-Based Extra Charge Note (Editable) */}
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-1.5 shadow-2xs">
+                          <label className="block text-[11px] font-bold text-amber-900 uppercase">
+                            Weight-Based Extra Charge Note (Editable)
+                          </label>
+                          <input
+                            type="text"
+                            value={prodWeightNote}
+                            onChange={e => setProdWeightNote(e.target.value)}
+                            placeholder="Weight-based extra charge: ৳20 added per extra kg/item when weight increases."
+                            className="w-full px-3 py-2 rounded-lg border border-amber-300 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                          />
                         </div>
                       </div>
 
