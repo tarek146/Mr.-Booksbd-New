@@ -34,7 +34,8 @@ import {
   ThumbsUp,
   ThumbsDown,
   Clock,
-  Building2
+  Building2,
+  Flame
 } from 'lucide-react';
 import { resolveProductDeliveryTiming } from '../utils/publisherAndDeliveryHelpers';
 import { ProductDetailSkeleton } from '../components/SkeletonScreens';
@@ -522,14 +523,60 @@ export function ProductDetail() {
                   {product.type === 'book' ? 'Book' : 'Stationery'}
                 </span>
 
-                {product.isOriginalBadge !== false && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 font-extrabold text-[11px] border border-emerald-300 shadow-2xs">
-                    <ShieldCheck size={12} className="text-emerald-600" />
-                    <span>অরিজিনাল বই</span>
+                {/* Book Format Badge */}
+                {product.type === 'book' && (
+                  product.bookFormat === 'copy' ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 font-extrabold text-[11px] border border-amber-300 shadow-2xs">
+                      <span>📑</span>
+                      <span>কপি / রিপ্রিন্ট সংস্করণ</span>
+                    </span>
+                  ) : product.bookFormat === 'pdf' ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-800 font-extrabold text-[11px] border border-indigo-300 shadow-2xs">
+                      <span>📱</span>
+                      <span>ই-বুক / পিডিএফ</span>
+                    </span>
+                  ) : product.bookFormat === 'printed' ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-800 font-extrabold text-[11px] border border-blue-300 shadow-2xs">
+                      <span>📖</span>
+                      <span>সাধারণ প্রিন্টেড বই</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 font-extrabold text-[11px] border border-emerald-300 shadow-2xs">
+                      <ShieldCheck size={12} className="text-emerald-600" />
+                      <span>১০০% অরিজিনাল বই</span>
+                    </span>
+                  )
+                )}
+
+                {/* Free Delivery Badge */}
+                {product.isFreeDelivery && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500 text-white font-black text-[11px] shadow-2xs animate-pulse">
+                    <Truck size={12} />
+                    <span>ফ্রি ডেলিভারি (৳০)</span>
                   </span>
                 )}
               </div>
             </div>
+
+            {/* Special Offer Banner if Active */}
+            {product.specialOfferActive && product.specialOfferTitle && (
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-red-50 via-rose-50 to-amber-50 border border-red-200/80 flex items-center justify-between shadow-2xs">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-7 h-7 rounded-lg bg-[#D71920] text-white flex items-center justify-center shadow-xs">
+                    <Flame size={15} />
+                  </span>
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-[#D71920] tracking-wider block">Special Offer</span>
+                    <span className="font-extrabold text-xs sm:text-sm text-neutral-900">{product.specialOfferTitle}</span>
+                  </div>
+                </div>
+                {product.specialOfferDiscount ? (
+                  <span className="px-3 py-1 rounded-full bg-[#D71920] text-white font-black text-xs shadow-xs">
+                    {product.specialOfferDiscount}% OFF
+                  </span>
+                ) : null}
+              </div>
+            )}
 
             {/* Price Card */}
             <div className="p-4 sm:p-5 rounded-2xl bg-neutral-50/90 border border-neutral-200/90 flex items-center justify-between shadow-2xs">
@@ -980,6 +1027,31 @@ export function ProductDetail() {
                                 <span>টার্গেট টাইমার: {deliveryTiming.timerHours} ঘণ্টা</span>
                               </span>
                             </div>
+
+                            {/* Free delivery or custom courier rates */}
+                            {product.isFreeDelivery ? (
+                              <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 font-bold text-xs flex items-center justify-between shadow-2xs">
+                                <span className="flex items-center gap-1.5">
+                                  <Truck size={14} className="text-emerald-600" />
+                                  <span>এই বইটির ডেলিভারি চার্জ সম্পূর্ণ ফ্রি!</span>
+                                </span>
+                                <span className="font-extrabold text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-300">
+                                  ৳0 FREE
+                                </span>
+                              </div>
+                            ) : (product.sundarbanDeliveryFee || product.homeDeliveryFee || product.otherCourierDeliveryFee) ? (
+                              <div className="p-2.5 rounded-xl bg-white border border-neutral-200 text-xs flex flex-wrap items-center gap-3 shadow-2xs">
+                                {product.homeDeliveryFee !== undefined && product.homeDeliveryFee > 0 && (
+                                  <span className="font-bold text-neutral-800">🏠 হোম ডেলিভারি: <strong className="text-[#D71920]">৳{product.homeDeliveryFee}</strong></span>
+                                )}
+                                {product.sundarbanDeliveryFee !== undefined && product.sundarbanDeliveryFee > 0 && (
+                                  <span className="font-bold text-neutral-800">📦 সুন্দরবন কুরিয়ার: <strong className="text-[#D71920]">৳{product.sundarbanDeliveryFee}</strong></span>
+                                )}
+                                {product.otherCourierDeliveryFee !== undefined && product.otherCourierDeliveryFee > 0 && (
+                                  <span className="font-bold text-neutral-800">🚚 অন্যান্য কুরিয়ার: <strong className="text-[#D71920]">৳{product.otherCourierDeliveryFee}</strong></span>
+                                )}
+                              </div>
+                            ) : null}
                           </div>
                         </div>
                       )}

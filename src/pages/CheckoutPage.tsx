@@ -18,7 +18,7 @@ const BANGLADESH_DISTRICTS = [
 ];
 
 export function CheckoutPage() {
-  const { cart, paymentMethods, settings, createOrder, submitPaymentProof, setActivePage, orders, trackOrder } = useStore();
+  const { cart, products, paymentMethods, settings, createOrder, submitPaymentProof, setActivePage, orders, trackOrder } = useStore();
   const { currentUser } = useAuth();
 
   const [name, setName] = useState(currentUser?.displayName || '');
@@ -264,14 +264,31 @@ export function CheckoutPage() {
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  // Base delivery charge
-  let baseDelivery = deliveryType === 'sundarban' 
-    ? (settings.sundarbanDeliveryCharge ?? 120)
-    : (district === 'Dhaka' ? settings.insideDhakaCharge : settings.outsideDhakaCharge);
+  // Check if cart has free delivery items
+  const hasFreeDelivery = cart.length > 0 && cart.some(item => {
+    const prod = (products || []).find(p => p.id === item.productId);
+    return prod?.isFreeDelivery === true || prod?.deliveryChargeType === 'free';
+  });
 
-  // Extra weight charge if total items > 1 kg/item
-  const extraWeightCharge = totalQuantity > 1 ? (totalQuantity - 1) * (settings.extraWeightChargePerKg ?? 20) : 0;
-  const deliveryCharge = baseDelivery + extraWeightCharge;
+  // Base delivery charge
+  let baseDelivery = 0;
+  if (hasFreeDelivery) {
+    baseDelivery = 0;
+  } else if (deliveryType === 'sundarban') {
+    const customSundarbanFee = cart.map(item => (products || []).find(p => p.id === item.productId)?.sundarbanDeliveryFee).find(fee => fee !== undefined && fee > 0);
+    baseDelivery = customSundarbanFee ?? (settings.sundarbanDeliveryCharge ?? 120);
+  } else {
+    const customHomeFee = cart.map(item => (products || []).find(p => p.id === item.productId)?.homeDeliveryFee).find(fee => fee !== undefined && fee > 0);
+    if (customHomeFee !== undefined && customHomeFee > 0) {
+      baseDelivery = customHomeFee;
+    } else {
+      baseDelivery = district === 'Dhaka' ? settings.insideDhakaCharge : settings.outsideDhakaCharge;
+    }
+  }
+
+  // Extra weight charge if total items > 1 kg/item (waived if free delivery)
+  const extraWeightCharge = hasFreeDelivery ? 0 : (totalQuantity > 1 ? (totalQuantity - 1) * (settings.extraWeightChargePerKg ?? 20) : 0);
+  const deliveryCharge = hasFreeDelivery ? 0 : (baseDelivery + extraWeightCharge);
   const total = subtotal + deliveryCharge;
 
   const selectedMethod =
@@ -855,7 +872,15 @@ export function CheckoutPage() {
                 </div>
                 <div className="flex justify-between text-[#5F6368]">
                   <span>Delivery ({deliveryType === 'sundarban' ? 'Sundarban' : district})</span>
-                  <span className="font-bold text-[#171717]">৳{baseDelivery}</span>
+                  <span className="font-bold text-[#171717]">
+                    {hasFreeDelivery ? (
+                      <span className="text-emerald-600 font-extrabold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        FREE (৳0)
+                      </span>
+                    ) : (
+                      `৳${baseDelivery}`
+                    )}
+                  </span>
                 </div>
                 {extraWeightCharge > 0 && (
                   <div className="flex justify-between text-[#5F6368]">

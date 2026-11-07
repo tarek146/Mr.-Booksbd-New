@@ -69,7 +69,7 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import { BulkProductImportModal } from '../components/BulkProductImportModal';
-import { Product, Author, Publisher, Banner, BookPreviewPage, Order, PaymentMethodConfig, PaymentSubOptionConfig, AdminStaffMember, AdminStaffRole, AdminProfile } from '../types';
+import { Product, Author, Publisher, Banner, BookPreviewPage, Order, PaymentMethodConfig, PaymentSubOptionConfig, AdminStaffMember, AdminStaffRole, AdminProfile, Review } from '../types';
 import { DEFAULT_PUBLISHERS_LIST, parseCustomBookDetails, serializeCustomBookDetails } from '../utils/publisherAndDeliveryHelpers';
 import { DEFAULT_PAYMENT_METHODS } from '../firebase';
 import { AdminAnalytics } from '../components/admin/AdminAnalytics';
@@ -402,6 +402,35 @@ export function AdminDashboard() {
   const [newVariantName, setNewVariantName] = useState('');
   const [newVariantOfferPrice, setNewVariantOfferPrice] = useState<number | ''>('');
   const [newVariantRegularPrice, setNewVariantRegularPrice] = useState<number | ''>('');
+
+  // Book Format (অরিজিনাল বই নাকি কপি বুক, প্রিন্টেড বুক নাকি পিডিএফ)
+  const [prodBookFormat, setProdBookFormat] = useState<'original' | 'copy' | 'printed' | 'pdf'>('original');
+  const [prodPdfUrl, setProdPdfUrl] = useState('');
+
+  // Product Classification (নিউ প্রোডাক্ট নাকি নিউ ফিচার প্রোডাক্ট)
+  const [prodClassification, setProdClassification] = useState<'new' | 'featured' | 'regular'>('new');
+
+  // Special Offer on this product (কোনো অফার চালাতে চাইলে সেই অফার অ্যাড করার অপশন)
+  const [prodSpecialOfferActive, setProdSpecialOfferActive] = useState(false);
+  const [prodSpecialOfferTitle, setProdSpecialOfferTitle] = useState('মেগা ডিসকাউন্ট অফার');
+  const [prodSpecialOfferDiscount, setProdSpecialOfferDiscount] = useState<number | ''>('');
+
+  // Courier & Delivery Charges per Product (হোম ডেলিভারি, সুন্দরবন কুরিয়ার, অন্যান্য কুরিয়ার, ফ্রি ডেলিভারি)
+  const [prodIsFreeDelivery, setProdIsFreeDelivery] = useState(false);
+  const [prodHomeDeliveryFee, setProdHomeDeliveryFee] = useState<number>(60);
+  const [prodSundarbanDeliveryFee, setProdSundarbanDeliveryFee] = useState<number>(120);
+  const [prodOtherCourierDeliveryFee, setProdOtherCourierDeliveryFee] = useState<number>(100);
+
+  // In-Form Customer Reviews for this product
+  const [inFormReviews, setInFormReviews] = useState<{ id: string; userName: string; rating: number; comment: string; isVerifiedPurchase: boolean; createdAt: number }[]>([]);
+  const [newRevName, setNewRevName] = useState('');
+  const [newRevRating, setNewRevRating] = useState<number>(5);
+  const [newRevComment, setNewRevComment] = useState('');
+  const [newRevVerified, setNewRevVerified] = useState(true);
+
+  // Writer & Publisher Custom Input Toggles
+  const [isCustomAuthorInput, setIsCustomAuthorInput] = useState(false);
+  const [isCustomPublisherInput, setIsCustomPublisherInput] = useState(false);
   
   const [inventoryFilter, setInventoryFilter] = useState<'all' | 'book' | 'stationery'>('all');
   const [productSearchQuery, setProductSearchQuery] = useState('');
@@ -1011,14 +1040,33 @@ export function AdminDashboard() {
     setProdOutsideDhakaDelivery('২-৩ কার্যদিবস (সারাদেশে)');
     setProdDeliveryTimingNote('আজকে অর্ডার করলে দ্রুততম সময়ে বাবল-র‍্যাপ প্যাকেজিংসহ কুরিয়ারে পাঠানো হবে।');
     setProdDeliveryTimerHours(48);
+    setProdBookFormat('original');
+    setProdPdfUrl('');
+    setProdClassification('new');
+    setProdSpecialOfferActive(false);
+    setProdSpecialOfferTitle('মেগা ডিসকাউন্ট অফার');
+    setProdSpecialOfferDiscount('');
+    setProdIsFreeDelivery(false);
+    setProdHomeDeliveryFee(60);
+    setProdSundarbanDeliveryFee(120);
+    setProdOtherCourierDeliveryFee(100);
+    setInFormReviews([]);
+    setNewRevName('');
+    setNewRevRating(5);
+    setNewRevComment('');
+    setNewRevVerified(true);
+    setIsCustomAuthorInput(false);
+    setIsCustomPublisherInput(false);
 
     if (type === 'book') {
       setProdPrice(350);
       setProdRegularPrice(450);
       const firstBookCat = categories.find(c => c.type === 'book')?.name || 'Fiction & Literature';
       setProdCategory(firstBookCat);
-      setProdAuthor('');
-      setProdPublisher('');
+      const defaultAuth = authors[0]?.name || 'আরিফ আজাদ';
+      setProdAuthor(defaultAuth);
+      const defaultPub = publishers[0]?.name || 'গার্ডিয়ান প্রকাশনী';
+      setProdPublisher(defaultPub);
       setProdIsbn('');
       setProdEdition('1st Edition');
       setProdPages(240);
@@ -1035,11 +1083,7 @@ export function AdminDashboard() {
       setProdPreviewHighlightSubtitle('');
       setProdPreviewIntro('');
       setProdPreviewPages([]);
-      setProdHighlights([
-        '১০০% অরিজিনাল মুদ্রিত বই (Original Authentic Copy)',
-        'দ্রুততম ক্যাশ অন ডেলিভারি (সারাদেশে হোম ডেলিভারি)',
-        'নিরাপদ বাবল-র‍্যাপ প্যাকেজিং ও সহজ রিপ্লেসমেন্ট পলিসি'
-      ]);
+      setProdHighlights([]);
       setCustomVariants([
         { id: `v-${Date.now()}-1`, name: 'Paperback (পেপারব্যাক)', price: 350, regularPrice: 450, stock: 100, sku: `${genSku}-PB` },
         { id: `v-${Date.now()}-2`, name: 'Hardcover (হার্ডকভার)', price: 450, regularPrice: 550, stock: 50, sku: `${genSku}-HC` }
@@ -1068,11 +1112,7 @@ export function AdminDashboard() {
       setProdPreviewHighlightSubtitle('');
       setProdPreviewIntro('');
       setProdPreviewPages([]);
-      setProdHighlights([
-        'প্রিমিয়াম কোয়ালিটি উপাদান ও টেকসই ফিনিশিং',
-        'দৈনন্দিন অফিস, স্টাডি ও নোট নেওয়ার জন্য পারফেক্ট',
-        'দ্রুততম কুরিয়ার ডেলিভারি ও রিপ্লেসমেন্ট সুবিধা'
-      ]);
+      setProdHighlights([]);
       setCustomVariants([
         { id: `v-${Date.now()}-1`, name: 'Standard Pack (১টি)', price: 220, regularPrice: 290, stock: 100, sku: `${genSku}-STD` },
         { id: `v-${Date.now()}-2`, name: 'Combo Pack (২টি)', price: 400, regularPrice: 580, stock: 60, sku: `${genSku}-CMB` }
@@ -1109,13 +1149,21 @@ export function AdminDashboard() {
     setProdIsActive(p.isActive !== false);
     setProdIsFeatured(Boolean(p.isFeatured));
     setProdBadge(p.badge || 'NEW');
-    setProdHighlights(p.highlights && p.highlights.length > 0 ? p.highlights : [
-      '১০০% আসল ও খাঁটি মুদ্রিত কপি',
-      'দ্রুততম ক্যাশ অন ডেলিভারি (সারাদেশে)',
-      'নিরাপদ প্যাকেজিং ও সহজ রিপ্লেসমেন্ট পলিসি'
-    ]);
+    setProdHighlights(p.highlights || []);
     setProdDeliveryChargeType(p.deliveryChargeType || 'standard');
     setProdCustomDeliveryFee(p.customDeliveryFee || 60);
+    setProdIsFreeDelivery(Boolean(p.isFreeDelivery || p.deliveryChargeType === 'free'));
+    setProdHomeDeliveryFee(p.homeDeliveryFee ?? (p.customDeliveryFee || 60));
+    setProdSundarbanDeliveryFee(p.sundarbanDeliveryFee ?? 120);
+    setProdOtherCourierDeliveryFee(p.otherCourierDeliveryFee ?? 100);
+    setProdBookFormat(p.bookFormat || (p.isOriginalBadge !== false ? 'original' : 'copy'));
+    setProdPdfUrl(p.pdfUrl || '');
+    setProdClassification(p.isFeatured ? 'featured' : (p.badge === 'NEW' ? 'new' : 'regular'));
+    setProdSpecialOfferActive(Boolean(p.specialOfferActive));
+    setProdSpecialOfferTitle(p.specialOfferTitle || 'মেগা ডিসকাউন্ট অফার');
+    setProdSpecialOfferDiscount(p.specialOfferDiscount || '');
+    setIsCustomAuthorInput(p.author ? !authors.some(a => a.name.toLowerCase() === p.author?.toLowerCase()) : false);
+    setIsCustomPublisherInput(p.publisher ? !publishers.some(pub => pub.name.toLowerCase() === p.publisher?.toLowerCase()) : false);
     setProdPreviewHighlightTitle(p.previewHighlightTitle || 'বইয়ের কিছু অংশ পড়ুন (একটু পড়ে দেখুন)');
     setProdPreviewHighlightSubtitle(p.previewHighlightSubtitle || '');
     setProdPreviewIntro(p.previewIntro || '');
@@ -1132,6 +1180,17 @@ export function AdminDashboard() {
     setProdOutsideDhakaDelivery(p.outsideDhakaDelivery || '২-৩ কার্যদিবস (সারাদেশে)');
     setProdDeliveryTimingNote(p.deliveryTimingNote || 'আজকে অর্ডার করলে দ্রুততম সময়ে বাবল-র‍্যাপ প্যাকেজিংসহ কুরিয়ারে পাঠানো হবে।');
     setProdDeliveryTimerHours(p.deliveryTimerHours || 48);
+
+    // Load customer reviews for this product
+    const prodRevs = (reviews || []).filter(r => r && r.productId === p.id);
+    setInFormReviews(prodRevs.map(r => ({
+      id: r.id,
+      userName: r.userName,
+      rating: r.rating || 5,
+      comment: r.comment || '',
+      isVerifiedPurchase: r.isVerifiedPurchase !== false,
+      createdAt: r.createdAt || Date.now()
+    })));
 
     if (p.variants && p.variants.length > 0) {
       setCustomVariants(p.variants.map((v: any, idx: number) => ({
@@ -1186,6 +1245,14 @@ export function AdminDashboard() {
     const cleanedPreviewPages = sanitizePreviewPages(prodPreviewPages);
     const parsedCustomDetails = parseCustomBookDetails(prodCustomDetailsText);
 
+    const resolvedBadge = prodClassification === 'featured'
+      ? 'HOT'
+      : (prodClassification === 'new' ? 'NEW' : (prodBadge || 'Original'));
+
+    const calculatedRating = inFormReviews.length > 0
+      ? Number((inFormReviews.reduce((sum, r) => sum + r.rating, 0) / inFormReviews.length).toFixed(1))
+      : 5.0;
+
     const payload = {
       type: prodType,
       title: prodTitle,
@@ -1211,15 +1278,24 @@ export function AdminDashboard() {
       previousPrice: Number(prodRegularPrice) > Number(prodPrice) ? Number(prodRegularPrice) : Number(prodPrice) + 100,
       stock: 100,
       sku: resolvedSku,
-      rating: 5.0,
-      reviewCount: 1,
-      isFeatured: Boolean(prodIsFeatured),
-      isOriginalBadge: prodIsOriginal,
+      rating: calculatedRating,
+      reviewCount: Math.max(1, inFormReviews.length),
+      isFeatured: prodClassification === 'featured' || Boolean(prodIsFeatured),
+      isOriginalBadge: prodBookFormat === 'original',
+      bookFormat: prodBookFormat,
+      pdfUrl: prodPdfUrl.trim() || undefined,
+      isNewProduct: prodClassification === 'new',
       isActive: prodIsActive,
-      badge: prodBadge,
-      highlights: prodHighlights.filter(h => h.trim().length > 0),
-      deliveryChargeType: prodDeliveryChargeType,
-      customDeliveryFee: prodDeliveryChargeType === 'custom' ? Number(prodCustomDeliveryFee) || 60 : 0,
+      badge: resolvedBadge,
+      specialOfferActive: prodSpecialOfferActive,
+      specialOfferTitle: prodSpecialOfferActive ? prodSpecialOfferTitle.trim() : undefined,
+      specialOfferDiscount: prodSpecialOfferActive && Number(prodSpecialOfferDiscount) > 0 ? Number(prodSpecialOfferDiscount) : undefined,
+      isFreeDelivery: prodIsFreeDelivery,
+      deliveryChargeType: prodIsFreeDelivery ? 'free' : prodDeliveryChargeType,
+      customDeliveryFee: prodIsFreeDelivery ? 0 : (prodDeliveryChargeType === 'custom' ? Number(prodCustomDeliveryFee) || 60 : 0),
+      homeDeliveryFee: Number(prodHomeDeliveryFee) || 60,
+      sundarbanDeliveryFee: Number(prodSundarbanDeliveryFee) || 120,
+      otherCourierDeliveryFee: Number(prodOtherCourierDeliveryFee) || 100,
       deliveryEstimate: prodDeliveryEstimate.trim() || '২-৩ কার্যদিবস (2-3 Days)',
       deliveryTimingTitle: prodDeliveryTimingTitle.trim() || 'ডেলিভারি টাইমিং (Delivery Timing)',
       insideDhakaDelivery: prodInsideDhakaDelivery.trim() || '২৪-৪৮ ঘণ্টা (১-২ দিন)',
@@ -1242,6 +1318,7 @@ export function AdminDashboard() {
     };
 
     try {
+      let savedProdId = editingProductId;
       if (editingProductId) {
         await updateProduct(editingProductId, payload);
         setToast({
@@ -1251,11 +1328,27 @@ export function AdminDashboard() {
         });
       } else {
         await addProduct(payload);
+        savedProdId = resolvedSku || `prod-${Date.now()}`;
         setToast({
           show: true,
           type: 'success',
           message: 'নতুন প্রোডাক্ট ফায়ারবেস ডাটাবেসে সফলভাবে যুক্ত হয়েছে!',
         });
+      }
+
+      // Automatically sync and persist any newly added customer reviews for this product
+      if (savedProdId && inFormReviews.length > 0) {
+        for (const rev of inFormReviews) {
+          if (!reviews.some(r => r.id === rev.id)) {
+            await addProductReview({
+              productId: savedProdId,
+              userName: rev.userName,
+              rating: rev.rating,
+              comment: rev.comment,
+              isVerifiedPurchase: rev.isVerifiedPurchase,
+            });
+          }
+        }
       }
 
       setEditingProductId(null);
@@ -5124,76 +5217,191 @@ export function AdminDashboard() {
                         </div>
                       </div>
 
-                      {/* Key Highlights & Benefits */}
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <label className="block text-xs font-bold text-neutral-700">
-                            Key Highlights & Benefits
+                      {/* Product Classifier: New Product vs New Featured Product */}
+                      <div className="pt-2 border-t border-neutral-100">
+                        <label className="block text-xs font-bold text-neutral-700 mb-2">
+                          প্রোডাক্ট টাইপ নির্ধারণ (Product Classification) <span className="text-[#D71920]">*</span>
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProdClassification('new');
+                              setProdBadge('NEW');
+                              setProdIsFeatured(false);
+                            }}
+                            className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                              prodClassification === 'new'
+                                ? 'bg-red-50 text-[#D71920] border-[#D71920] shadow-xs'
+                                : 'bg-[#F7F7F8] text-neutral-700 border-neutral-200 hover:bg-neutral-100'
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5 font-bold text-xs">
+                              <span>🆕</span>
+                              <span>নিউ প্রোডাক্ট (New Product)</span>
+                            </div>
+                            <p className="text-[10px] text-neutral-500 mt-1">ক্যাটালগে নতুন বই হিসেবে হাইলাইট হবে</p>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProdClassification('featured');
+                              setProdBadge('HOT');
+                              setProdIsFeatured(true);
+                            }}
+                            className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                              prodClassification === 'featured'
+                                ? 'bg-amber-50 text-amber-900 border-amber-400 shadow-xs'
+                                : 'bg-[#F7F7F8] text-neutral-700 border-neutral-200 hover:bg-neutral-100'
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5 font-bold text-xs">
+                              <span>🔥</span>
+                              <span>নিউ ফিচার প্রোডাক্ট (Featured)</span>
+                            </div>
+                            <p className="text-[10px] text-neutral-500 mt-1">হোমপেজ ও স্পেশাল ফিচার সেকশনে দেখাবে</p>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProdClassification('regular');
+                              setProdBadge('Original');
+                              setProdIsFeatured(false);
+                            }}
+                            className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                              prodClassification === 'regular'
+                                ? 'bg-neutral-100 text-neutral-900 border-neutral-400 shadow-xs'
+                                : 'bg-[#F7F7F8] text-neutral-700 border-neutral-200 hover:bg-neutral-100'
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5 font-bold text-xs">
+                              <span>⭐</span>
+                              <span>রেগুলার প্রোডাক্ট (Regular)</span>
+                            </div>
+                            <p className="text-[10px] text-neutral-500 mt-1">সাধারণ ক্যাটালগ ও ক্যাটাগরি আইটেম</p>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Book Format: অরিজিনাল বই নাকি কপি বুক, প্রিন্টেড বুক নাকি পিডিএফ */}
+                      {prodType === 'book' && (
+                        <div className="pt-2 border-t border-neutral-100">
+                          <label className="block text-xs font-bold text-neutral-700 mb-2">
+                            বইয়ের ফরম্যাট ও ধরন (Book Edition & Format) <span className="text-[#D71920]">*</span>
                           </label>
-                          <span className="text-[11px] text-neutral-500 font-mono">
-                            {prodHighlights.length} Points
-                          </span>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            {[
+                              { key: 'original', icon: '🛡️', label: 'অরিজিনাল বই', sub: 'Original Print' },
+                              { key: 'copy', icon: '📑', label: 'কপি / রিপ্রিন্ট', sub: 'Reprint Copy' },
+                              { key: 'printed', icon: '📖', label: 'প্রিন্টেড বই', sub: 'Standard Paper' },
+                              { key: 'pdf', icon: '📱', label: 'ই-বুক / পিডিএফ', sub: 'PDF / Digital' },
+                            ].map(fmt => (
+                              <button
+                                key={fmt.key}
+                                type="button"
+                                onClick={() => {
+                                  setProdBookFormat(fmt.key as any);
+                                  setProdIsOriginal(fmt.key === 'original');
+                                }}
+                                className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                                  prodBookFormat === fmt.key
+                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-400 font-bold shadow-xs'
+                                    : 'bg-[#F7F7F8] text-neutral-700 border-neutral-200 hover:bg-neutral-100'
+                                }`}
+                              >
+                                <div className="text-sm">{fmt.icon}</div>
+                                <div className="text-xs font-bold mt-1 leading-tight">{fmt.label}</div>
+                                <div className="text-[10px] text-neutral-400">{fmt.sub}</div>
+                              </button>
+                            ))}
+                          </div>
+
+                          {prodBookFormat === 'pdf' && (
+                            <div className="mt-3 p-3 bg-blue-50/80 border border-blue-200 rounded-xl space-y-2 animate-in fade-in duration-200">
+                              <label className="block text-[11px] font-bold text-blue-900">
+                                📱 পিডিএফ লিঙ্ক বা ই-বুক ফাইল ইউআরএল (PDF / eBook Link)
+                              </label>
+                              <input
+                                type="url"
+                                placeholder="https://example.com/books/sample-preview.pdf"
+                                value={prodPdfUrl}
+                                onChange={e => setProdPdfUrl(e.target.value)}
+                                className="w-full px-3 py-2 rounded-lg border border-blue-300 bg-white text-xs text-neutral-900 focus:outline-none focus:border-blue-500 shadow-2xs"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Special Offer Deal (কোনো অফার চালাতে চাইলে সেই অফার অ্যাড করার অপশন) */}
+                      <div className="pt-2 border-t border-neutral-100">
+                        <div className="p-3.5 rounded-xl bg-gradient-to-r from-red-50/80 via-white to-amber-50/80 border border-red-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-lg bg-red-100 text-[#D71920] flex items-center justify-center shrink-0">
+                              <Flame size={16} />
+                            </div>
+                            <div>
+                              <h5 className="font-extrabold text-xs text-neutral-900">
+                                স্পেশাল অফার ডিল (Special Discount Offer)
+                              </h5>
+                              <p className="text-[11px] text-neutral-500">
+                                এই প্রোডাক্টে কোনো বিশেষ ডিসকাউন্ট বা ক্যাম্পেইন অফার চালাতে চান?
+                              </p>
+                            </div>
+                          </div>
+
+                          <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={prodSpecialOfferActive}
+                              onChange={e => setProdSpecialOfferActive(e.target.checked)}
+                              className="w-4 h-4 text-[#D71920] accent-[#D71920] rounded cursor-pointer"
+                            />
+                            <span className="text-xs font-bold text-neutral-800">
+                              {prodSpecialOfferActive ? 'অফার সক্রিয় আছে' : 'অফার বন্ধ'}
+                            </span>
+                          </label>
                         </div>
 
-                        <div className="space-y-2">
-                          {prodHighlights.map((hl, idx) => (
-                            <div key={idx} className="flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                        {prodSpecialOfferActive && (
+                          <div className="mt-3 p-3.5 bg-red-50/50 border border-red-200 rounded-xl grid grid-cols-1 sm:grid-cols-2 gap-3 animate-in fade-in duration-200">
+                            <div>
+                              <label className="block text-[11px] font-bold text-neutral-700 mb-1">
+                                অফার শিরোনাম / ট্যাগ (Offer Title) *
+                              </label>
                               <input
                                 type="text"
-                                value={hl}
-                                onChange={e => {
-                                  const val = e.target.value;
-                                  setProdHighlights(prev => prev.map((item, i) => i === idx ? val : item));
-                                }}
-                                className="flex-1 px-3 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs font-medium text-neutral-900 focus:outline-none focus:border-emerald-500 shadow-2xs"
+                                placeholder="e.g. মেগা ডিসকাউন্ট অফার / ঈদ স্পেশাল ছাড় / Buy 1 Get 1"
+                                value={prodSpecialOfferTitle}
+                                onChange={e => setProdSpecialOfferTitle(e.target.value)}
+                                className="w-full px-3 py-2 rounded-lg border border-red-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] shadow-2xs"
                               />
-                              <button
-                                type="button"
-                                onClick={() => setProdHighlights(prev => prev.filter((_, i) => i !== idx))}
-                                className="p-1.5 text-neutral-400 hover:text-red-600 cursor-pointer transition-colors"
-                              >
-                                <Trash2 size={13} />
-                              </button>
                             </div>
-                          ))}
-
-                          {/* Add New Highlight Row */}
-                          <div className="flex items-center gap-2 pt-1">
-                            <input
-                              type="text"
-                              placeholder="Add a key highlight point (e.g. ১০০% অরিজিনাল মুদ্রিত সংস্করণ)..."
-                              value={newHighlightInput}
-                              onChange={e => setNewHighlightInput(e.target.value)}
-                              onKeyDown={e => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  if (newHighlightInput.trim()) {
-                                    setProdHighlights(prev => [...prev, newHighlightInput.trim()]);
-                                    setNewHighlightInput('');
-                                  }
-                                }
-                              }}
-                              className="flex-1 px-3.5 py-2 rounded-xl border border-dashed border-neutral-300 bg-[#F7F7F8] text-xs font-medium text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-[#D71920] focus:bg-white"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (newHighlightInput.trim()) {
-                                  setProdHighlights(prev => [...prev, newHighlightInput.trim()]);
-                                  setNewHighlightInput('');
-                                }
-                              }}
-                              className="px-3.5 py-2 bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-bold rounded-xl cursor-pointer shadow-xs transition-colors"
-                            >
-                              + Add Point
-                            </button>
+                            <div>
+                              <label className="block text-[11px] font-bold text-neutral-700 mb-1">
+                                অফার ডিসকাউন্ট পারসেন্ট (ঐচ্ছিক %)
+                              </label>
+                              <div className="relative">
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={99}
+                                  placeholder="e.g. 20"
+                                  value={prodSpecialOfferDiscount}
+                                  onChange={e => setProdSpecialOfferDiscount(e.target.value === '' ? '' : Number(e.target.value))}
+                                  className="w-full px-3 py-2 rounded-lg border border-red-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] shadow-2xs"
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-neutral-400">%</span>
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     </div>
 
-                    {/* CARD 2: TYPE-SPECIFIC SPECIFICATIONS (Books vs Stationery) */}
+                    {/* CARD 2: BOOK DETAILS & ATTRIBUTES */}
                     {prodType === 'book' ? (
                       <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 sm:p-6 text-neutral-900 shadow-xs space-y-4">
                         <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
@@ -5201,9 +5409,14 @@ export function AdminDashboard() {
                             <div className="w-8 h-8 rounded-xl bg-red-50 text-[#D71920] border border-red-200/60 flex items-center justify-center">
                               <BookOpen size={16} />
                             </div>
-                            <h4 className="font-extrabold text-sm text-neutral-900">
-                              Book Details Attributes (Author, Publisher, Edition, Pages, Language & ISBN)
-                            </h4>
+                            <div>
+                              <h4 className="font-extrabold text-sm text-neutral-900">
+                                Book Details (বইয়ের বিস্তারিত তথ্য)
+                              </h4>
+                              <p className="text-[11px] text-neutral-500">
+                                লেখক, প্রকাশনী, পৃষ্ঠা, ISBN, SKU ও ক্যাটাগরি
+                              </p>
+                            </div>
                           </div>
                           <button
                             type="button"
@@ -5214,68 +5427,196 @@ export function AdminDashboard() {
                           </button>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                        {/* Row 1: Writer Selection & Publisher Selection */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                          {/* Writer Selection (Writer আলাদাভাবে ইনপুট না নিয়ে সিলেক্ট করার অপশন) */}
                           <div>
-                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Author Name (লেখক) *</label>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="block text-[11px] font-bold text-neutral-600 uppercase">
+                                Writer / লেখক সিলেক্ট করুন <span className="text-[#D71920]">*</span>
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => setIsCustomAuthorInput(!isCustomAuthorInput)}
+                                className="text-[10px] font-bold text-[#D71920] hover:underline cursor-pointer"
+                              >
+                                {isCustomAuthorInput ? 'তালিকা থেকে সিলেক্ট' : '+ কাস্টম নাম'}
+                              </button>
+                            </div>
+
+                            {isCustomAuthorInput ? (
+                              <input
+                                type="text"
+                                placeholder="লেখকের নাম লিখুন (e.g. আরিফ আজাদ)"
+                                value={prodAuthor}
+                                onChange={e => setProdAuthor(e.target.value)}
+                                className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                              />
+                            ) : (
+                              <select
+                                value={prodAuthor}
+                                onChange={e => {
+                                  if (e.target.value === '__custom__') {
+                                    setIsCustomAuthorInput(true);
+                                  } else {
+                                    setProdAuthor(e.target.value);
+                                  }
+                                }}
+                                className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs cursor-pointer"
+                              >
+                                <option value="">-- লেখক সিলেক্ট করুন (Select Writer) --</option>
+                                {authors.map(a => (
+                                  <option key={a.id} value={a.name}>
+                                    ✍️ {a.name}
+                                  </option>
+                                ))}
+                                <option value="__custom__">✏️ + টাইপ করে নতুন লেখক যুক্ত করুন...</option>
+                              </select>
+                            )}
+                          </div>
+
+                          {/* Publisher Selection */}
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="block text-[11px] font-bold text-neutral-600 uppercase">
+                                প্রকাশনী নাম (Publisher) <span className="text-[#D71920]">*</span>
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => setIsCustomPublisherInput(!isCustomPublisherInput)}
+                                className="text-[10px] font-bold text-[#D71920] hover:underline cursor-pointer"
+                              >
+                                {isCustomPublisherInput ? 'তালিকা থেকে সিলেক্ট' : '+ কাস্টম নাম'}
+                              </button>
+                            </div>
+
+                            {isCustomPublisherInput ? (
+                              <input
+                                type="text"
+                                placeholder="প্রকাশনীর নাম লিখুন (e.g. গার্ডিয়ান প্রকাশনী)"
+                                value={prodPublisher}
+                                onChange={e => setProdPublisher(e.target.value)}
+                                className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                              />
+                            ) : (
+                              <select
+                                value={prodPublisher}
+                                onChange={e => {
+                                  if (e.target.value === '__custom__') {
+                                    setIsCustomPublisherInput(true);
+                                  } else {
+                                    setProdPublisher(e.target.value);
+                                  }
+                                }}
+                                className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs cursor-pointer"
+                              >
+                                <option value="">-- প্রকাশনী সিলেক্ট করুন (Select Publisher) --</option>
+                                {publishers.map(pub => (
+                                  <option key={pub.id} value={pub.name}>
+                                    🏢 {pub.banglaName ? `${pub.banglaName} (${pub.name})` : pub.name}
+                                  </option>
+                                ))}
+                                <option value="__custom__">✏️ + টাইপ করে নতুন প্রকাশনী যুক্ত করুন...</option>
+                              </select>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Row 2: Category, Pages, ISBN, SKU */}
+                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3.5">
+                          {/* Category */}
+                          <div>
+                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
+                              Category (ক্যাটাগরি) *
+                            </label>
+                            <select
+                              value={prodCategory}
+                              onChange={e => setProdCategory(e.target.value)}
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs cursor-pointer"
+                            >
+                              {categories
+                                .filter(c => c.type === 'book')
+                                .map(c => (
+                                  <option key={c.id} value={c.name}>
+                                    {c.name}
+                                  </option>
+                                ))}
+                            </select>
+                          </div>
+
+                          {/* Publisher's Pages (পৃষ্ঠা সংখ্যা) */}
+                          <div>
+                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
+                              Pages (পৃষ্ঠা সংখ্যা)
+                            </label>
                             <input
-                              type="text"
-                              list="admin-authors-list"
-                              placeholder="e.g. Arif Azad / Humayun Ahmed"
-                              required
-                              value={prodAuthor}
-                              onChange={e => setProdAuthor(e.target.value)}
+                              type="number"
+                              min={1}
+                              placeholder="e.g. 240"
+                              value={prodPages || ''}
+                              onChange={e => setProdPages(Number(e.target.value))}
                               className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                             />
-                            <datalist id="admin-authors-list">
-                              {authors.map(a => (
-                                <option key={a.id} value={a.name} />
-                              ))}
-                            </datalist>
                           </div>
+
+                          {/* ISBN */}
                           <div>
-                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Publisher (প্রকাশনী)</label>
+                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
+                              ISBN Code
+                            </label>
                             <input
                               type="text"
-                              list="admin-publishers-list"
-                              placeholder="e.g. Guardian Publications / প্রথমা"
-                              value={prodPublisher}
-                              onChange={e => setProdPublisher(e.target.value)}
-                              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                              placeholder="e.g. 9789849312341"
+                              value={prodIsbn}
+                              onChange={e => setProdIsbn(e.target.value)}
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-mono font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                             />
-                            <datalist id="admin-publishers-list">
-                              {publishers.map(pub => (
-                                <option key={pub.id} value={pub.name}>
-                                  {pub.banglaName ? `${pub.banglaName} (${pub.name})` : pub.name}
-                                </option>
-                              ))}
-                            </datalist>
                           </div>
+
+                          {/* SKU */}
                           <div>
-                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Edition (সংস্করণ)</label>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="block text-[11px] font-bold text-neutral-600 uppercase">
+                                SKU Code
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setProdSku('BK-' + Math.floor(1000 + Math.random() * 9000));
+                                }}
+                                className="text-[10px] font-bold text-[#D71920] hover:underline cursor-pointer"
+                              >
+                                Auto-gen
+                              </button>
+                            </div>
                             <input
                               type="text"
-                              placeholder="e.g. 3rd Edition"
+                              placeholder="e.g. BK-PS2-PB"
+                              value={prodSku}
+                              onChange={e => setProdSku(e.target.value)}
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-mono font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Row 3: Edition & Language */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                          <div>
+                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
+                              Edition (সংস্করণ)
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g. 1st Edition / ১ম প্রকাশ"
                               value={prodEdition}
                               onChange={e => setProdEdition(e.target.value)}
                               className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                             />
                           </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                           <div>
-                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Pages (পৃষ্ঠা সংখ্যা)</label>
-                            <input
-                              type="number"
-                              min={1}
-                              placeholder="e.g. 264"
-                              value={prodPages}
-                              onChange={e => setProdPages(Number(e.target.value))}
-                              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Language (ভাষা)</label>
+                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
+                              Language (ভাষা)
+                            </label>
                             <input
                               type="text"
                               placeholder="e.g. Bengali / English"
@@ -5284,18 +5625,9 @@ export function AdminDashboard() {
                               className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                             />
                           </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">ISBN Code</label>
-                            <input
-                              type="text"
-                              placeholder="e.g. 9789849312341"
-                              value={prodIsbn}
-                              onChange={e => setProdIsbn(e.target.value)}
-                              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 font-mono focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
-                            />
-                          </div>
                         </div>
 
+                        {/* Extra Custom Details */}
                         <div>
                           <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
                             Extra Custom Book Details (ঐচ্ছিক — প্রতি লাইনে LABEL: VALUE ফরম্যাটে লিখুন)
@@ -5305,7 +5637,7 @@ export function AdminDashboard() {
                             placeholder={'Paper Quality: 80 GSM Cream Paper\nBinding: Hardcover Stitch'}
                             value={prodCustomDetailsText}
                             onChange={e => setProdCustomDetailsText(e.target.value)}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs resize-none"
                           />
                         </div>
                       </div>
@@ -5365,7 +5697,179 @@ export function AdminDashboard() {
                       </div>
                     )}
 
-                    {/* CARD 3: PER-BOOK DELIVERY TIMING & TIMER (ডেলিভারি টাইমিং) */}
+                    {/* CARD 3: CUSTOMER REVIEWS (প্রোডাক্টের উপর কাস্টমার রিভিউ অ্যাড করার অপশন) */}
+                    <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 sm:p-6 text-neutral-900 shadow-xs space-y-4">
+                      <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 border border-amber-200/60 flex items-center justify-center">
+                            <Star size={16} className="fill-amber-500 text-amber-500" />
+                          </div>
+                          <div>
+                            <h4 className="font-extrabold text-sm text-neutral-900">
+                              Customer Reviews (কাস্টমার রিভিউ যুক্ত করুন)
+                            </h4>
+                            <p className="text-[11px] text-neutral-500">
+                              এই বইটির জন্য আসল ক্রেতাদের রিভিউ ও রেটিং যুক্ত করুন (সিঙ্গেল প্রোডাক্ট পেজে প্রদর্শিত হবে)
+                            </p>
+                          </div>
+                        </div>
+                        <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold">
+                          {inFormReviews.length} Reviews
+                        </span>
+                      </div>
+
+                      {/* Add Review Inline Form */}
+                      <div className="p-4 rounded-xl bg-[#FBFBFC] border border-[#E8E8E9] space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                          <div className="sm:col-span-6">
+                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
+                              ক্রেতার নাম (Customer Name) *
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g. রাকিব হাসান / সুমাইয়া জান্নাত"
+                              value={newRevName}
+                              onChange={e => setNewRevName(e.target.value)}
+                              className="w-full px-3 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] shadow-2xs"
+                            />
+                          </div>
+                          <div className="sm:col-span-6">
+                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
+                              রেটিং (Star Rating)
+                            </label>
+                            <div className="flex items-center gap-1.5 pt-1">
+                              {[1, 2, 3, 4, 5].map(star => (
+                                <button
+                                  key={star}
+                                  type="button"
+                                  onClick={() => setNewRevRating(star)}
+                                  className="p-1 rounded hover:bg-neutral-100 cursor-pointer transition-colors"
+                                >
+                                  <Star
+                                    size={18}
+                                    className={star <= newRevRating ? 'text-amber-500 fill-amber-500' : 'text-neutral-300'}
+                                  />
+                                </button>
+                              ))}
+                              <span className="text-xs font-black text-amber-700 ml-1.5">{newRevRating}.0 Stars</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
+                            রিভিউ মন্তব্য / ফিডব্যাক (Review Comment) *
+                          </label>
+                          <textarea
+                            rows={2}
+                            placeholder="e.g. বইটি সত্যিই অসাধারণ, পেপার কোয়ালিটি খুব ভালো এবং প্যাকেজিং নিরাপদ ছিল।"
+                            value={newRevComment}
+                            onChange={e => setNewRevComment(e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] shadow-2xs resize-none"
+                          />
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                          <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={newRevVerified}
+                              onChange={e => setNewRevVerified(e.target.checked)}
+                              className="w-4 h-4 text-emerald-600 accent-emerald-600 rounded cursor-pointer"
+                            />
+                            <span className="text-xs font-bold text-neutral-700 flex items-center gap-1">
+                              <ShieldCheck size={13} className="text-emerald-600" /> Verified Purchase (আসল ক্রেতা)
+                            </span>
+                          </label>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!newRevName.trim()) {
+                                setToast({ show: true, type: 'error', message: 'ক্রেতার নাম লিখুন' });
+                                return;
+                              }
+                              if (!newRevComment.trim()) {
+                                setToast({ show: true, type: 'error', message: 'রিভিউ মন্তব্য লিখুন' });
+                                return;
+                              }
+                              const newRevItem = {
+                                id: `rev-local-${Date.now()}`,
+                                userName: newRevName.trim(),
+                                rating: newRevRating,
+                                comment: newRevComment.trim(),
+                                isVerifiedPurchase: newRevVerified,
+                                createdAt: Date.now()
+                              };
+                              setInFormReviews(prev => [newRevItem, ...prev]);
+                              setNewRevName('');
+                              setNewRevComment('');
+                              setNewRevRating(5);
+                              setToast({ show: true, type: 'success', message: 'রিভিউ যুক্ত হয়েছে!' });
+                            }}
+                            className="px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition-all self-end"
+                          >
+                            <Plus size={14} />
+                            <span>রিভিউ যুক্ত করুন</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Display Existing Reviews List */}
+                      {inFormReviews.length === 0 ? (
+                        <div className="p-4 border border-dashed border-neutral-200 rounded-xl bg-neutral-50/60 text-center">
+                          <p className="text-xs text-neutral-500">
+                            এখনো কোনো রিভিউ যোগ করা হয়নি। উপরের ফর্ম থেকে বইটির জন্য ক্রেতার রিভিউ যুক্ত করতে পারেন।
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2 pt-1">
+                          {inFormReviews.map((rev, idx) => (
+                            <div
+                              key={rev.id || idx}
+                              className="p-3 rounded-xl border border-neutral-200 bg-white flex items-start justify-between gap-3 shadow-2xs hover:border-neutral-300 transition-all"
+                            >
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <h6 className="font-extrabold text-xs text-neutral-900">{rev.userName}</h6>
+                                  {rev.isVerifiedPurchase && (
+                                    <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded-full font-bold">
+                                      ✓ Verified
+                                    </span>
+                                  )}
+                                  <div className="flex items-center text-amber-500">
+                                    {[...Array(5)].map((_, i) => (
+                                      <Star
+                                        key={i}
+                                        size={11}
+                                        className={i < rev.rating ? 'fill-amber-500 text-amber-500' : 'text-neutral-200'}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                                <p className="text-xs text-neutral-700">{rev.comment}</p>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setInFormReviews(prev => prev.filter((_, i) => i !== idx));
+                                  if (rev.id && !rev.id.startsWith('rev-local-')) {
+                                    deleteProductReview(rev.id);
+                                  }
+                                }}
+                                className="p-1.5 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 cursor-pointer transition-colors shrink-0"
+                                title="মুছুন"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* CARD 4: PER-BOOK DELIVERY SYSTEM (ডেলিভারি সিস্টেম ও কুরিয়ার চার্জ নির্ধারণ) */}
                     <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 sm:p-6 text-neutral-900 shadow-xs space-y-4">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-neutral-100">
                         <div className="flex items-center gap-2">
@@ -5374,11 +5878,115 @@ export function AdminDashboard() {
                           </div>
                           <div>
                             <h4 className="font-extrabold text-sm text-neutral-900">
-                              Per-Book Delivery Timing & Timer (ডেলিভারি টাইমিং)
+                              Delivery System & Charges (ডেলিভারি সিস্টেম ও চার্জ)
                             </h4>
-                            <p className="text-[11px] text-neutral-500">এই বইয়ের ক্ষেত্রে ডেলিভারি টাইমার ও বার্তা সেট করুন</p>
+                            <p className="text-[11px] text-neutral-500">
+                              ফ্রি ডেলিভারি, সুন্দরবন কুরিয়ার, হোম ডেলিভারি ও অন্যান্য কুরিয়ার চার্জ নির্ধারণ করুন
+                            </p>
                           </div>
                         </div>
+
+                        {/* Free Delivery Quick Toggle */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nextFree = !prodIsFreeDelivery;
+                            setProdIsFreeDelivery(nextFree);
+                            setProdDeliveryChargeType(nextFree ? 'free' : 'custom');
+                          }}
+                          className={`px-3.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                            prodIsFreeDelivery
+                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                              : 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                          }`}
+                        >
+                          <span>🎁</span>
+                          <span>{prodIsFreeDelivery ? '✓ সম্পূর্ণ ফ্রি ডেলিভারি সক্রিয়' : 'এই বইয়ে ফ্রি ডেলিভারি দিন'}</span>
+                        </button>
+                      </div>
+
+                      {/* If Free Delivery Banner */}
+                      {prodIsFreeDelivery && (
+                        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-900 flex items-center gap-2 shadow-2xs">
+                          <CheckCircle2 size={15} className="text-emerald-600" />
+                          <span>এই বইটিতে কাস্টমারদের জন্য ডেলিভারি চার্জ সম্পূর্ণ ফ্রি (৳0) থাকবে।</span>
+                        </div>
+                      )}
+
+                      {/* Courier Wise Delivery Fee Row */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
+                        {/* 1. Home Delivery Fee */}
+                        <div className="p-3 rounded-xl border border-neutral-200 bg-[#FBFBFC] space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="block text-[11px] font-bold text-neutral-700">
+                              🏠 হোম ডেলিভারি চার্জ
+                            </label>
+                            <span className="text-[10px] text-neutral-400">Home Delivery</span>
+                          </div>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-xs">৳</span>
+                            <input
+                              type="number"
+                              min={0}
+                              disabled={prodIsFreeDelivery}
+                              placeholder="60"
+                              value={prodIsFreeDelivery ? 0 : prodHomeDeliveryFee}
+                              onChange={e => setProdHomeDeliveryFee(Number(e.target.value))}
+                              className="w-full pl-7 pr-3 py-2 rounded-lg border border-neutral-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] disabled:bg-neutral-100"
+                            />
+                          </div>
+                        </div>
+
+                        {/* 2. Sundarban Courier Fee */}
+                        <div className="p-3 rounded-xl border border-neutral-200 bg-[#FBFBFC] space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="block text-[11px] font-bold text-neutral-700">
+                              📦 সুন্দরবন কুরিয়ার চার্জ
+                            </label>
+                            <span className="text-[10px] text-neutral-400">Sundarban</span>
+                          </div>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-xs">৳</span>
+                            <input
+                              type="number"
+                              min={0}
+                              disabled={prodIsFreeDelivery}
+                              placeholder="120"
+                              value={prodIsFreeDelivery ? 0 : prodSundarbanDeliveryFee}
+                              onChange={e => setProdSundarbanDeliveryFee(Number(e.target.value))}
+                              className="w-full pl-7 pr-3 py-2 rounded-lg border border-neutral-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] disabled:bg-neutral-100"
+                            />
+                          </div>
+                        </div>
+
+                        {/* 3. Other Courier Fee (Steadfast / SA Paribahan / Pathao) */}
+                        <div className="p-3 rounded-xl border border-neutral-200 bg-[#FBFBFC] space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="block text-[11px] font-bold text-neutral-700">
+                              🚚 অন্যান্য কুরিয়ার চার্জ
+                            </label>
+                            <span className="text-[10px] text-neutral-400">Steadfast/SA</span>
+                          </div>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-xs">৳</span>
+                            <input
+                              type="number"
+                              min={0}
+                              disabled={prodIsFreeDelivery}
+                              placeholder="100"
+                              value={prodIsFreeDelivery ? 0 : prodOtherCourierDeliveryFee}
+                              onChange={e => setProdOtherCourierDeliveryFee(Number(e.target.value))}
+                              className="w-full pl-7 pr-3 py-2 rounded-lg border border-neutral-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] disabled:bg-neutral-100"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Delivery Timing Presets */}
+                      <div className="space-y-1.5 pt-1">
+                        <label className="block text-[11px] font-bold text-neutral-600 uppercase">
+                          ডেলিভারি টাইমিং প্রিসেট (Quick Presets)
+                        </label>
                         <div className="flex flex-wrap gap-1.5">
                           {[
                             { label: '⚡ ২৪ ঘণ্টা এক্সপ্রেস', est: '২৪ ঘণ্টায় এক্সপ্রেস ডেলিভারি', inDhaka: '১২-২৪ ঘণ্টা', outDhaka: '১-২ দিন', hrs: 24 },
@@ -5403,7 +6011,8 @@ export function AdminDashboard() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                      {/* Timing Badge & Timer Hours & Custom Delivery Note */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
                         <div>
                           <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
                             Primary Delivery Badge *
@@ -5414,45 +6023,6 @@ export function AdminDashboard() {
                             value={prodDeliveryEstimate}
                             onChange={e => setProdDeliveryEstimate(e.target.value)}
                             className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                            Inside Dhaka (ঢাকার ভেতরে)
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="e.g. ২৪-৪৮ ঘণ্টা (১-২ দিন)"
-                            value={prodInsideDhakaDelivery}
-                            onChange={e => setProdInsideDhakaDelivery(e.target.value)}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                            Outside Dhaka (ঢাকার বাইরে)
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="e.g. ২-৩ কার্যদিবস (সারাদেশে)"
-                            value={prodOutsideDhakaDelivery}
-                            onChange={e => setProdOutsideDhakaDelivery(e.target.value)}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                        <div>
-                          <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                            Delivery Card Title
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="ডেলিভারি টাইমিং (Delivery Timing)"
-                            value={prodDeliveryTimingTitle}
-                            onChange={e => setProdDeliveryTimingTitle(e.target.value)}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                           />
                         </div>
                         <div>
@@ -5660,14 +6230,19 @@ export function AdminDashboard() {
                         <input
                           type="file"
                           accept="image/*"
+                          multiple
                           onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
+                            const files = Array.from(e.target.files || []);
+                            if (files.length > 0) {
                               try {
-                                const compressed = await compressImageFile(file, 800, 1100, 0.84);
-                                setProdGalleryUrls(prev => Array.from(new Set([...prev, compressed])));
-                                if (!prodImage) setProdImage(compressed);
-                                setToast({ show: true, type: 'success', message: 'Gallery image uploaded!' });
+                                const compressedList = await Promise.all(
+                                  files.map(f => compressImageFile(f, 800, 1100, 0.84))
+                                );
+                                setProdGalleryUrls(prev => Array.from(new Set([...prev, ...compressedList])));
+                                if (!prodImage && compressedList.length > 0) {
+                                  setProdImage(compressedList[0]);
+                                }
+                                setToast({ show: true, type: 'success', message: `${files.length}টি ছবি সফলভাবে আপলোড হয়েছে!` });
                               } catch (err: any) {
                                 setToast({ show: true, type: 'error', message: err.message || 'Upload failed' });
                               }

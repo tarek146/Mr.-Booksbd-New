@@ -63,6 +63,16 @@ export interface Product {
   highlights?: string[];
   deliveryChargeType?: 'standard' | 'free' | 'custom';
   customDeliveryFee?: number;
+  isFreeDelivery?: boolean;
+  homeDeliveryFee?: number;
+  sundarbanDeliveryFee?: number;
+  otherCourierDeliveryFee?: number;
+  bookFormat?: 'original' | 'copy' | 'printed' | 'pdf';
+  pdfUrl?: string;
+  isNewProduct?: boolean;
+  specialOfferTitle?: string;
+  specialOfferActive?: boolean;
+  specialOfferDiscount?: number;
   createdAt: number;
 }
 
