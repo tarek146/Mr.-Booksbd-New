@@ -5483,461 +5483,6 @@ export function AdminDashboard() {
                       </div>
                     </div>
 
-                    {/* CARD 4: BOOK PREVIEW & LOOK INSIDE (Only if Book) */}
-                    {prodType === 'book' && (
-                      <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 sm:p-6 text-neutral-900 shadow-xs space-y-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-neutral-100">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-xl bg-red-50 text-[#D71920] border border-red-200/60 flex items-center justify-center">
-                                <BookOpen size={16} />
-                              </div>
-                              <span className="font-extrabold text-sm text-neutral-900">
-                                বইয়ের কিছু অংশ পড়ুন — Book Preview & Look Inside
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-neutral-500 mt-0.5">
-                              Upload a PDF file, page images, or written preview pages for customers to read
-                            </p>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-2 shrink-0">
-                            <label className="px-3.5 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white rounded-xl font-bold text-[11px] flex items-center gap-1.5 cursor-pointer shadow-xs transition-all">
-                              <Upload size={12} />
-                              <span>{pdfUploading ? 'প্রসেস হচ্ছে...' : 'Upload PDF (২-৫ পেজ)'}</span>
-                              <input
-                                type="file"
-                                accept="application/pdf,.pdf"
-                                onChange={handleBookPdfUpload}
-                                disabled={pdfUploading}
-                                className="hidden"
-                              />
-                            </label>
-
-                            <label className="px-3.5 py-2 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl font-bold text-[11px] flex items-center gap-1.5 cursor-pointer shadow-xs transition-all">
-                              <ImageIcon size={12} />
-                              <span>Upload Page Images</span>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                multiple
-                                onChange={handleBookPagesImageUpload}
-                                disabled={pdfUploading}
-                                className="hidden"
-                              />
-                            </label>
-
-                            <button
-                              type="button"
-                              onClick={handleAddWrittenPreviewPage}
-                              className="px-3.5 py-2 bg-white hover:bg-neutral-100 text-neutral-800 border border-neutral-200 rounded-xl font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-all shadow-2xs"
-                            >
-                              <Plus size={12} />
-                              <span>লেখার পৃষ্ঠা যোগ করুন</span>
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
-                          <div>
-                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                              হাইলাইট শিরোনাম (Section Title)
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="বইয়ের কিছু অংশ পড়ুন (একটু পড়ে দেখুন)"
-                              value={prodPreviewHighlightTitle}
-                              onChange={e => setProdPreviewHighlightTitle(e.target.value)}
-                              className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-neutral-900 font-bold focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                              সাব-টাইটেল (Optional Subtitle)
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="বইয়ের কিছুটা পড়তে পারেন এখানে • পৃষ্ঠা স্লাইড করে পড়ুন"
-                              value={prodPreviewHighlightSubtitle}
-                              onChange={e => setProdPreviewHighlightSubtitle(e.target.value)}
-                              className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-neutral-800 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
-                            />
-                          </div>
-                          <div className="sm:col-span-2">
-                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                              বই সম্পর্কে কিছু কথা / ভূমিকা (Shown Inside Book Preview)
-                            </label>
-                            <textarea
-                              rows={2}
-                              placeholder="বইটি সম্পর্কে বিশেষ কিছু কথা বা ভূমিকা লিখুন..."
-                              value={prodPreviewIntro}
-                              onChange={e => setProdPreviewIntro(e.target.value)}
-                              className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
-                            />
-                          </div>
-                        </div>
-
-                        {prodPreviewPages.length > 0 ? (
-                          <div className="space-y-2.5">
-                            <div className="flex items-center justify-between text-[11px] font-bold text-neutral-700">
-                              <span>যুক্ত করা বইয়ের পৃষ্ঠাসমূহ ({prodPreviewPages.length}টি পৃষ্ঠা):</span>
-                              <button
-                                type="button"
-                                onClick={() => setProdPreviewPages([])}
-                                className="text-red-600 hover:underline cursor-pointer text-[10px] font-bold"
-                              >
-                                সব পৃষ্ঠা মুছুন (Clear All)
-                              </button>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[360px] overflow-y-auto pr-1">
-                              {prodPreviewPages.map((pg, idx) => (
-                                <div
-                                  key={pg.id || idx}
-                                  className="p-3.5 rounded-xl bg-[#F7F7F8] border border-[#E5E5E5] shadow-2xs space-y-2.5 text-xs"
-                                >
-                                  <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-neutral-200">
-                                    <span className="font-black text-[#D71920] flex items-center gap-1">
-                                      <FileText size={12} />
-                                      <span>পৃষ্ঠা {toBanglaDigits(idx + 1)}</span>
-                                    </span>
-                                    <div className="flex items-center gap-1">
-                                      <button
-                                        type="button"
-                                        disabled={idx === 0}
-                                        onClick={() => setProdPreviewPages(prev => movePreviewPage(prev, idx, 'up'))}
-                                        className="p-1 rounded-lg bg-white hover:bg-neutral-200 text-neutral-700 border border-neutral-200 disabled:opacity-40 cursor-pointer shadow-2xs"
-                                        title="Move Page Up"
-                                      >
-                                        <ArrowUp size={11} />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        disabled={idx === prodPreviewPages.length - 1}
-                                        onClick={() => setProdPreviewPages(prev => movePreviewPage(prev, idx, 'down'))}
-                                        className="p-1 rounded-lg bg-white hover:bg-neutral-200 text-neutral-700 border border-neutral-200 disabled:opacity-40 cursor-pointer shadow-2xs"
-                                        title="Move Page Down"
-                                      >
-                                        <ArrowDown size={11} />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          setProdPreviewPages(prev =>
-                                            prev
-                                              .filter((_, i) => i !== idx)
-                                              .map((item, i) => ({ ...item, pageNumber: i + 1 }))
-                                          )
-                                        }
-                                        className="p-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 cursor-pointer shadow-2xs"
-                                        title="Delete Page"
-                                      >
-                                        <Trash2 size={11} />
-                                      </button>
-                                    </div>
-                                  </div>
-
-                                  <input
-                                    type="text"
-                                    placeholder={`পৃষ্ঠা ${toBanglaDigits(idx + 1)} শিরোনাম`}
-                                    value={pg.title || ''}
-                                    onChange={e => {
-                                      const val = e.target.value;
-                                      setProdPreviewPages(prev =>
-                                        prev.map((item, i) => (i === idx ? { ...item, title: val } : item))
-                                      );
-                                    }}
-                                    className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-200 bg-white font-bold text-neutral-900 text-[11px] shadow-2xs"
-                                  />
-
-                                  {isValidImageUrl(pg.imageUrl) && (
-                                    <div className="relative rounded-xl overflow-hidden border border-neutral-200 bg-white p-1.5 flex items-center gap-2.5 shadow-2xs">
-                                      <img
-                                        src={pg.imageUrl}
-                                        alt={pg.title || `Page ${idx + 1}`}
-                                        className="w-14 h-20 object-contain bg-neutral-50 rounded border border-neutral-200 shrink-0"
-                                      />
-                                      <div className="flex-1 min-w-0 space-y-1">
-                                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 inline-block">
-                                          ✓ Page Image Attached
-                                        </span>
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            setProdPreviewPages(prev =>
-                                              prev.map((item, i) =>
-                                                i === idx ? { ...item, imageUrl: undefined } : item
-                                              )
-                                            )
-                                          }
-                                          className="block text-[10px] text-red-600 font-bold hover:underline cursor-pointer"
-                                        >
-                                          ছবি পরিবর্তন / মুছুন
-                                        </button>
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  <textarea
-                                    rows={3}
-                                    placeholder="এই পৃষ্ঠার লেখা বা বইয়ের অংশ এখানে লিখুন..."
-                                    value={pg.content || ''}
-                                    onChange={e => {
-                                      const val = e.target.value;
-                                      setProdPreviewPages(prev =>
-                                        prev.map((item, i) => (i === idx ? { ...item, content: val } : item))
-                                      );
-                                    }}
-                                    className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-200 bg-white text-neutral-800 text-[11px] shadow-2xs"
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="p-4 rounded-xl bg-[#F7F7F8] border border-dashed border-neutral-300 text-center text-[11px] text-neutral-500">
-                            এখনো কোনো কাস্টম পৃষ্ঠা যোগ করা হয়নি। উপরে <strong>Upload PDF</strong>, <strong>Upload Page Images</strong> বা <strong>লেখার পৃষ্ঠা যোগ করুন</strong> বাটনে ক্লিক করে পৃষ্ঠা যুক্ত করতে পারেন।
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* CARD 5: VARIANTS & OPTIONS (Sizes & Size-Wise Pricing) */}
-                    <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 sm:p-6 text-neutral-900 shadow-xs space-y-4">
-                      <div className="flex items-center gap-2.5 pb-3 border-b border-neutral-100">
-                        <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-200/60 flex items-center justify-center">
-                          <Layers size={16} />
-                        </div>
-                        <div>
-                          <h4 className="font-extrabold text-sm text-neutral-900">Variants & Options</h4>
-                          <p className="text-[11px] text-neutral-500">Sizes, colors, and variant configurations</p>
-                        </div>
-                      </div>
-
-                      {/* Inner Banner: Sizes & Size-Wise Pricing */}
-                      <div className="p-4 sm:p-5 rounded-2xl bg-[#F7F7F8] border border-[#E5E5E5] space-y-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <span className="w-6 h-6 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200">
-                              <Sparkles size={13} />
-                            </span>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-extrabold text-xs text-neutral-900">
-                                  Sizes & Size-Wise Pricing (সাইজ অনুযায়ী মূল্য)
-                                </span>
-                                <span className="px-2 py-0.2 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black">
-                                  {customVariants.length} Sizes
-                                </span>
-                              </div>
-                              <p className="text-[10px] text-neutral-500 mt-0.5">
-                                ২টা বা ততোধিক সাইজ/সংস্করণের জন্য আলাদা আলাদা প্রাইস নির্ধারণ করতে পারেন
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Quick Presets */}
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="text-[10px] text-neutral-500 font-bold">Quick Presets:</span>
-                            {prodType === 'book' ? (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setCustomVariants([
-                                      { id: `v1-${Date.now()}`, name: 'Paperback (পেপারব্যাক)', price: Number(prodPrice) || 350, regularPrice: Number(prodRegularPrice) || 450, stock: 100, sku: `${prodSku || 'BK'}-PB` },
-                                      { id: `v2-${Date.now()}`, name: 'Hardcover (হার্ডকভার)', price: (Number(prodPrice) || 350) + 100, regularPrice: (Number(prodRegularPrice) || 450) + 120, stock: 50, sku: `${prodSku || 'BK'}-HC` }
-                                    ]);
-                                  }}
-                                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-neutral-100 text-neutral-800 border border-neutral-200 text-[10px] font-bold cursor-pointer shadow-2xs"
-                                >
-                                  ⚡ Paperback & Hardcover
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setCustomVariants([
-                                      { id: `v1-${Date.now()}`, name: 'Standard Edition', price: Number(prodPrice) || 350, regularPrice: Number(prodRegularPrice) || 450, stock: 100, sku: `${prodSku || 'BK'}-STD` },
-                                      { id: `v2-${Date.now()}`, name: 'Special Gift Pack', price: (Number(prodPrice) || 350) + 150, regularPrice: (Number(prodRegularPrice) || 450) + 200, stock: 40, sku: `${prodSku || 'BK'}-GIFT` }
-                                    ]);
-                                  }}
-                                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-neutral-100 text-emerald-700 border border-emerald-200 text-[10px] font-bold cursor-pointer shadow-2xs"
-                                >
-                                  ⚡ Gift Edition
-                                </button>
-                              </>
-                            ) : (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setCustomVariants([
-                                      { id: `v1-${Date.now()}`, name: '500g', price: Number(prodPrice) || 220, regularPrice: Number(prodRegularPrice) || 290, stock: 100, sku: `${prodSku || 'ST'}-500G` },
-                                      { id: `v2-${Date.now()}`, name: '1kg', price: (Number(prodPrice) || 220) * 1.8, regularPrice: (Number(prodRegularPrice) || 290) * 1.8, stock: 60, sku: `${prodSku || 'ST'}-1KG` }
-                                    ]);
-                                  }}
-                                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-neutral-100 text-neutral-800 border border-neutral-200 text-[10px] font-bold cursor-pointer shadow-2xs"
-                                >
-                                  ⚡ 500g & 1kg
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setCustomVariants([
-                                      { id: `v1-${Date.now()}`, name: 'M & L (Standard)', price: Number(prodPrice) || 220, regularPrice: Number(prodRegularPrice) || 290, stock: 100, sku: `${prodSku || 'ST'}-ML` },
-                                      { id: `v2-${Date.now()}`, name: 'XL (Executive)', price: (Number(prodPrice) || 220) + 80, regularPrice: (Number(prodRegularPrice) || 290) + 100, stock: 50, sku: `${prodSku || 'ST'}-XL` }
-                                    ]);
-                                  }}
-                                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-neutral-100 text-emerald-700 border border-emerald-200 text-[10px] font-bold cursor-pointer shadow-2xs"
-                                >
-                                  ⚡ M & L
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Variant Input Row */}
-                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 items-end pt-2 border-t border-neutral-200">
-                          <div>
-                            <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">
-                              সাইজের নাম (Size Name) *
-                            </label>
-                            <input
-                              type="text"
-                              placeholder={prodType === 'book' ? 'যেমন: Paperback, Hardcover' : 'যেমন: 500g, 1kg, A5, S, M'}
-                              value={newVariantName}
-                              onChange={e => setNewVariantName(e.target.value)}
-                              className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-medium text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-emerald-600 shadow-2xs"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">
-                              অফার মূল্য / Offer Price (৳)
-                            </label>
-                            <input
-                              type="number"
-                              placeholder={`ডিফল্ট: ৳${prodPrice}`}
-                              value={newVariantOfferPrice}
-                              onChange={e => setNewVariantOfferPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                              className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-emerald-600 shadow-2xs"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">
-                              রেগুলার মূল্য / Regular (৳)
-                            </label>
-                            <input
-                              type="number"
-                              placeholder="ঐচ্ছিক (কাটা মূল্য)"
-                              value={newVariantRegularPrice}
-                              onChange={e => setNewVariantRegularPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                              className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-medium text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-emerald-600 shadow-2xs"
-                            />
-                          </div>
-                          <div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (!newVariantName.trim()) return;
-                                const vPrice = Number(newVariantOfferPrice) || Number(prodPrice) || 350;
-                                const vRegPrice = newVariantRegularPrice ? Number(newVariantRegularPrice) : (Number(prodRegularPrice) || vPrice + 100);
-                                const vSku = `${prodSku || 'SKU'}-V${customVariants.length + 1}`;
-                                setCustomVariants(prev => [
-                                  ...prev,
-                                  {
-                                    id: `v-${Date.now()}-${prev.length + 1}`,
-                                    name: newVariantName.trim(),
-                                    price: vPrice,
-                                    regularPrice: vRegPrice,
-                                    stock: 100,
-                                    sku: vSku
-                                  }
-                                ]);
-                                setNewVariantName('');
-                                setNewVariantOfferPrice('');
-                                setNewVariantRegularPrice('');
-                              }}
-                              className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer flex items-center justify-center gap-1 transition-all"
-                            >
-                              <Plus size={14} />
-                              <span>+ যোগ করুন</span>
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* List of Variants or Friendly Empty State */}
-                        {customVariants.length > 0 ? (
-                          <div className="space-y-2 pt-2">
-                            {customVariants.map((v, idx) => (
-                              <div
-                                key={v.id || idx}
-                                className="flex items-center justify-between p-3.5 rounded-xl bg-white border border-[#E5E5E5] shadow-2xs text-xs"
-                              >
-                                <div className="flex items-center gap-3">
-                                  <span className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 font-black flex items-center justify-center text-[11px]">
-                                    {idx + 1}
-                                  </span>
-                                  <div>
-                                    <h5 className="font-extrabold text-neutral-900">{v.name}</h5>
-                                    <div className="flex items-center gap-2 text-[11px] text-neutral-500 mt-0.5">
-                                      <span className="font-mono text-neutral-400">#{v.sku}</span>
-                                      <span>• Stock: {v.stock}</span>
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <div className="text-right">
-                                    <div className="font-black text-emerald-600">৳{v.price}</div>
-                                    {v.regularPrice && v.regularPrice > v.price && (
-                                      <div className="text-[10px] text-neutral-400 line-through">৳{v.regularPrice}</div>
-                                    )}
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => setCustomVariants(prev => prev.filter((_, i) => i !== idx))}
-                                    className="p-1.5 text-neutral-400 hover:text-red-600 cursor-pointer transition-colors"
-                                  >
-                                    <Trash2 size={13} />
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="p-6 rounded-xl bg-white border border-dashed border-neutral-300 text-center space-y-2">
-                            <div className="w-10 h-10 mx-auto rounded-full bg-neutral-100 text-neutral-500 flex items-center justify-center">
-                              <Layers size={18} />
-                            </div>
-                            <h5 className="font-bold text-xs text-neutral-800">কোনো সাইজ যুক্ত করা হয়নি</h5>
-                            <p className="text-[11px] text-neutral-500 max-w-sm mx-auto">
-                              যদি প্রোডাক্টের একাধিক সাইজ থাকে এবং প্রতি সাইজের জন্য ভিন্ন মূল্য দিতে চান (যেমন Paperback ৳৩৫০ এবং Hardcover ৳৪৫০), তবে নিচের বাটনে ক্লিক করুন।
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (prodType === 'book') {
-                                  setCustomVariants([
-                                    { id: `v1-${Date.now()}`, name: 'Paperback (পেপারব্যাক)', price: Number(prodPrice) || 350, regularPrice: Number(prodRegularPrice) || 450, stock: 100, sku: `${prodSku || 'BK'}-PB` },
-                                    { id: `v2-${Date.now()}`, name: 'Hardcover (হার্ডকভার)', price: (Number(prodPrice) || 350) + 100, regularPrice: (Number(prodRegularPrice) || 450) + 120, stock: 50, sku: `${prodSku || 'BK'}-HC` }
-                                  ]);
-                                } else {
-                                  setCustomVariants([
-                                    { id: `v1-${Date.now()}`, name: 'Standard Pack (১টি)', price: Number(prodPrice) || 220, regularPrice: Number(prodRegularPrice) || 290, stock: 100, sku: `${prodSku || 'ST'}-STD` },
-                                    { id: `v2-${Date.now()}`, name: 'Combo Pack (২টি)', price: (Number(prodPrice) || 220) * 1.8, regularPrice: (Number(prodRegularPrice) || 290) * 2, stock: 60, sku: `${prodSku || 'ST'}-CMB` }
-                                  ]);
-                                }
-                              }}
-                              className="mt-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer inline-flex items-center gap-1.5 transition-all"
-                            >
-                              <Plus size={13} />
-                              <span>+ ২টি সাইজের মূল্য সেট করুন</span>
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
                   </div>
 
                   {/* RIGHT COLUMN: 4 Columns */}
@@ -6311,41 +5856,414 @@ export function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* Bottom Bar: Original Badge & Submit Buttons */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-neutral-200">
-                  {prodType === 'book' ? (
-                    <label className="inline-flex items-center gap-2 cursor-pointer select-none">
-                      <input 
-                        type="checkbox" 
-                        checked={prodIsOriginal} 
-                        onChange={e => setProdIsOriginal(e.target.checked)} 
-                        className="w-4 h-4 text-[#D71920] accent-[#D71920] rounded cursor-pointer"
-                      />
-                      <span className="text-xs font-bold text-neutral-800 flex items-center gap-1">
-                        <ShieldCheck size={14} className="text-emerald-600" /> Show &quot;অরিজিনাল বই&quot; (Original Book Verified Badge)
-                      </span>
-                    </label>
-                  ) : <div />}
+                {/* CARD 4 (FULL WIDTH): BOOK PREVIEW & LOOK INSIDE (বইয়ের কিছু অংশ পড়ুন) */}
+                {prodType === 'book' && (
+                  <div className="w-full bg-white border border-[#E5E5E5] rounded-2xl p-5 sm:p-6 text-neutral-900 shadow-xs space-y-5">
+                    {/* Header with Title and Action Buttons */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-neutral-100">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-red-50 text-[#D71920] border border-red-200/60 flex items-center justify-center shrink-0">
+                          <BookOpen size={20} />
+                        </div>
+                        <div>
+                          <h4 className="font-extrabold text-sm sm:text-base text-neutral-900">
+                            বইয়ের কিছু অংশ পড়ুন — Book Preview & Look Inside
+                          </h4>
+                          <p className="text-xs text-neutral-500 mt-0.5">
+                            Upload a PDF file, page images, or written preview pages for customers to read
+                          </p>
+                        </div>
+                      </div>
 
-                  <div className="flex items-center justify-end gap-2.5">
-                    <button
-                      type="button"
-                      onClick={() => setShowAddProdModal(false)}
-                      className="px-5 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-bold rounded-xl cursor-pointer transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-7 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-bold rounded-xl shadow-md cursor-pointer flex items-center gap-2 transition-all hover:scale-[1.02]"
-                    >
-                      <Check size={15} />
-                      <span>{editingProductId ? 'Update Product' : 'Save Product'}</span>
-                    </button>
+                      {/* Upload & Add Buttons */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {/* PDF Upload */}
+                        <input
+                          id="book-preview-pdf-input"
+                          type="file"
+                          accept="application/pdf"
+                          onChange={handleBookPdfUpload}
+                          className="hidden"
+                          disabled={pdfUploading}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => document.getElementById('book-preview-pdf-input')?.click()}
+                          disabled={pdfUploading}
+                          className="px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs cursor-pointer transition-all"
+                        >
+                          <Upload size={14} />
+                          <span>{pdfUploading ? 'প্রসেসিং...' : 'Upload PDF (২-৫ পেজ)'}</span>
+                        </button>
+
+                        {/* Page Images Upload */}
+                        <input
+                          id="book-preview-images-input"
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handleBookPagesImageUpload}
+                          className="hidden"
+                          disabled={pdfUploading}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => document.getElementById('book-preview-images-input')?.click()}
+                          disabled={pdfUploading}
+                          className="px-4 py-2 bg-neutral-900 hover:bg-neutral-800 disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs cursor-pointer transition-all"
+                        >
+                          <ImageIcon size={14} />
+                          <span>Upload Page Images</span>
+                        </button>
+
+                        {/* Written Page Button */}
+                        <button
+                          type="button"
+                          onClick={handleAddWrittenPreviewPage}
+                          className="px-4 py-2 bg-white hover:bg-neutral-50 text-neutral-800 border border-neutral-300 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-2xs cursor-pointer transition-all"
+                        >
+                          <Plus size={14} />
+                          <span>লেখার পৃষ্ঠা যোগ করুন</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Form Fields: Section Title, Subtitle, Intro Text */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
+                          হাইলাইট শিরোনাম (SECTION TITLE)
+                        </label>
+                        <input
+                          type="text"
+                          value={prodPreviewHighlightTitle}
+                          onChange={e => setProdPreviewHighlightTitle(e.target.value)}
+                          placeholder="বইয়ের কিছু অংশ পড়ুন (একটু পড়ে দেখুন)"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
+                          সাব-টাইটেল (OPTIONAL SUBTITLE)
+                        </label>
+                        <input
+                          type="text"
+                          value={prodPreviewHighlightSubtitle}
+                          onChange={e => setProdPreviewHighlightSubtitle(e.target.value)}
+                          placeholder="বইয়ের কিছুটা পড়তে পারেন এখানে • পৃষ্ঠা স্লাইড করে পড়ুন"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
+                        বই সম্পর্কে কিছু কথা / ভূমিকা (SHOWN INSIDE BOOK PREVIEW)
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={prodPreviewIntro}
+                        onChange={e => setProdPreviewIntro(e.target.value)}
+                        placeholder="বইটি সম্পর্কে বিশেষ কিছু কথা বা ভূমিকা লিখুন..."
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs resize-none"
+                      />
+                    </div>
+
+                    {/* Preview Pages Cards or Empty Notice */}
+                    {prodPreviewPages.length === 0 ? (
+                      <div className="p-6 border-2 border-dashed border-neutral-200 rounded-xl bg-neutral-50/60 text-center">
+                        <p className="text-xs text-neutral-500">
+                          এখনো কোনো কাস্টম পৃষ্ঠা যোগ করা হয়নি। উপরে <strong>Upload PDF</strong>, <strong>Upload Page Images</strong> বা <strong>লেখার পৃষ্ঠা যোগ করুন</strong> বাটনে ক্লিক করে পৃষ্ঠা যুক্ত করতে পারেন।
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 pt-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-neutral-700">
+                            সংযুক্ত প্রিভিউ পৃষ্ঠা সমূহ ({prodPreviewPages.length}টি পৃষ্ঠা)
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setProdPreviewPages([])}
+                            className="text-[11px] font-bold text-[#D71920] hover:underline cursor-pointer"
+                          >
+                            সবগুলো মুছুন
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {prodPreviewPages.map((page, idx) => (
+                            <div
+                              key={page.id || idx}
+                              className="p-3.5 rounded-xl border border-neutral-200 bg-[#FAFAFA] flex flex-col gap-2 relative group"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-6 h-6 rounded-lg bg-red-100 text-[#D71920] text-[11px] font-extrabold flex items-center justify-center">
+                                    {idx + 1}
+                                  </span>
+                                  <input
+                                    type="text"
+                                    value={page.title || ''}
+                                    onChange={e => {
+                                      const newTitle = e.target.value;
+                                      setProdPreviewPages(prev => prev.map((p, i) => i === idx ? { ...p, title: newTitle } : p));
+                                    }}
+                                    placeholder={`পৃষ্ঠা ${idx + 1}`}
+                                    className="px-2 py-1 rounded-lg border border-neutral-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                                  />
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  {idx > 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setProdPreviewPages(prev => movePreviewPage(prev, idx, 'up'))}
+                                      className="p-1 rounded text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200 cursor-pointer"
+                                      title="উপরে নিন"
+                                    >
+                                      <ArrowUp size={13} />
+                                    </button>
+                                  )}
+                                  {idx < prodPreviewPages.length - 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setProdPreviewPages(prev => movePreviewPage(prev, idx, 'down'))}
+                                      className="p-1 rounded text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200 cursor-pointer"
+                                      title="নিচে নিন"
+                                    >
+                                      <ArrowDown size={13} />
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => setProdPreviewPages(prev => prev.filter((_, i) => i !== idx).map((p, i) => ({ ...p, pageNumber: i + 1 })))}
+                                    className="p-1 rounded text-neutral-400 hover:text-red-600 hover:bg-red-50 cursor-pointer"
+                                    title="মুছুন"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {page.imageUrl ? (
+                                <div className="relative rounded-lg overflow-hidden border border-neutral-200 bg-white h-36 flex items-center justify-center">
+                                  <img src={page.imageUrl} alt={page.title} className="max-h-full object-contain" />
+                                  <span className="absolute bottom-1 right-2 bg-black/70 text-white text-[10px] px-2 py-0.5 rounded">
+                                    ছবি প্রিভিউ
+                                  </span>
+                                </div>
+                              ) : (
+                                <textarea
+                                  rows={3}
+                                  value={page.content || ''}
+                                  onChange={e => {
+                                    const newContent = e.target.value;
+                                    setProdPreviewPages(prev => prev.map((p, i) => i === idx ? { ...p, content: newContent } : p));
+                                  }}
+                                  placeholder="এই পৃষ্ঠার মূল পাঠ্য বা সারাংশ এখানে লিখুন..."
+                                  className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-200 bg-white text-xs text-neutral-800 focus:outline-none focus:border-[#D71920] resize-none"
+                                />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* CARD 5 (FULL WIDTH): VARIANTS & OPTIONS (সাইজ ও সংস্করণ) */}
+                <div className="w-full bg-white border border-[#E5E5E5] rounded-2xl p-5 sm:p-6 text-neutral-900 shadow-xs space-y-5">
+                  <div className="flex items-center gap-3 pb-3 border-b border-neutral-100">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 border border-blue-200/60 flex items-center justify-center shrink-0">
+                      <Layers size={20} />
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-sm sm:text-base text-neutral-900">
+                        Variants & Options
+                      </h4>
+                      <p className="text-xs text-neutral-500 mt-0.5">
+                        Sizes, colors, and variant configurations
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Inner Box: Sizes & Size-Wise Pricing */}
+                  <div className="bg-[#FBFBFC] border border-[#E8E8E9] rounded-xl p-4 sm:p-5 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <div className="flex items-center gap-2">
+                        <h5 className="font-extrabold text-xs sm:text-sm text-neutral-900">
+                          Sizes & Size-Wise Pricing (সাইজ অনুযায়ী মূল্য)
+                        </h5>
+                        <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-2.5 py-0.5 text-[11px] font-bold">
+                          {customVariants.length} Sizes
+                        </span>
+                      </div>
+                      
+                      {/* Quick Presets */}
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-[11px] text-neutral-500 font-semibold mr-1">Quick Presets:</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const baseP = Number(prodPrice) || 350;
+                            const baseReg = Number(prodRegularPrice) || 450;
+                            const baseSku = prodSku || 'BK-6530';
+                            setCustomVariants([
+                              { id: `var-${Date.now()}-1`, name: 'Paperback (পেপারব্যাক)', price: baseP, regularPrice: baseReg, stock: 100, sku: `${baseSku}-PB` },
+                              { id: `var-${Date.now()}-2`, name: 'Hardcover (হার্ডকভার)', price: baseP + 100, regularPrice: baseReg + 100, stock: 50, sku: `${baseSku}-HC` },
+                            ]);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-white hover:bg-neutral-100 text-neutral-800 border border-neutral-200 text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
+                        >
+                          ⚡ Paperback & Hardcover
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const baseP = Number(prodPrice) || 350;
+                            const baseReg = Number(prodRegularPrice) || 450;
+                            const baseSku = prodSku || 'BK-6530';
+                            setCustomVariants(prev => [
+                              ...prev,
+                              { id: `var-${Date.now()}-gift`, name: 'Gift Edition (উপহার বক্স)', price: baseP + 200, regularPrice: baseReg + 250, stock: 30, sku: `${baseSku}-GIFT` }
+                            ]);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-white hover:bg-neutral-100 text-neutral-800 border border-neutral-200 text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
+                        >
+                          ⚡ Gift Edition
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-neutral-500">
+                      ২টা বা ততোধিক সাইজ/সংস্করণের জন্য আলাদা আলাদা প্রাইস নির্ধারণ করতে পারেন
+                    </p>
+
+                    {/* Inputs row to add variant */}
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-2">
+                      <div>
+                        <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
+                          সাইজের নাম (SIZE NAME) *
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="যেমন: Paperback, Hardcover বা 500g"
+                          value={newVariantName}
+                          onChange={e => setNewVariantName(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] shadow-2xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
+                          অফার মূল্য / Offer Price (৳)
+                        </label>
+                        <input
+                          type="number"
+                          placeholder={`ডিফল্ট: ৳${prodPrice || 350}`}
+                          value={newVariantOfferPrice}
+                          onChange={e => setNewVariantOfferPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] shadow-2xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
+                          রেগুলার মূল্য / Regular (৳)
+                        </label>
+                        <input
+                          type="number"
+                          placeholder="ঐচ্ছিক (কাটা মূল্য)"
+                          value={newVariantRegularPrice}
+                          onChange={e => setNewVariantRegularPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] shadow-2xs"
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!newVariantName.trim()) {
+                              setToast({ show: true, type: 'error', message: 'সাইজ বা সংস্করণের নাম লিখুন' });
+                              return;
+                            }
+                            const priceNum = typeof newVariantOfferPrice === 'number' && newVariantOfferPrice > 0 
+                              ? newVariantOfferPrice 
+                              : (Number(prodPrice) || 350);
+                            const regNum = typeof newVariantRegularPrice === 'number' && newVariantRegularPrice > 0 
+                              ? newVariantRegularPrice 
+                              : (Number(prodRegularPrice) || undefined);
+                            const autoSku = (prodSku || 'ITEM') + '-' + newVariantName.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
+                            setCustomVariants(prev => [
+                              ...prev,
+                              {
+                                id: `var-${Date.now()}`,
+                                name: newVariantName.trim(),
+                                price: priceNum,
+                                regularPrice: regNum,
+                                stock: 100,
+                                sku: autoSku,
+                              }
+                            ]);
+                            setNewVariantName('');
+                            setNewVariantOfferPrice('');
+                            setNewVariantRegularPrice('');
+                          }}
+                          className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition-all"
+                        >
+                          <Plus size={14} />
+                          <span>যোগ করুন</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Variants list */}
+                    {customVariants.length === 0 ? (
+                      <div className="p-5 border-2 border-dashed border-neutral-200 rounded-xl bg-white text-center">
+                        <p className="text-xs text-neutral-500">
+                          কোনো সাইজ যুক্ত করা হয়নি। যদি প্রোডাক্টের একাধিক সাইজ বা সংস্করণ থাকে, উপরের ফিল্ড থেকে যুক্ত করুন।
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5 pt-1">
+                        {customVariants.map((v, idx) => (
+                          <div
+                            key={v.id || idx}
+                            className="p-3.5 rounded-xl border border-neutral-200 bg-white flex items-center justify-between gap-3 shadow-2xs hover:border-neutral-300 transition-all"
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-extrabold flex items-center justify-center">
+                                {idx + 1}
+                              </span>
+                              <div>
+                                <h5 className="text-xs font-extrabold text-neutral-900">{v.name}</h5>
+                                <p className="text-[11px] font-mono text-neutral-400 mt-0.5">
+                                  #{v.sku || 'SKU'} • Stock: {v.stock ?? 100}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-4">
+                              <div className="text-right">
+                                <div className="text-xs font-extrabold text-[#D71920]">৳{v.price}</div>
+                                {v.regularPrice && v.regularPrice > v.price && (
+                                  <div className="text-[10px] text-neutral-400 line-through">৳{v.regularPrice}</div>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setCustomVariants(prev => prev.filter((_, i) => i !== idx))}
+                                className="p-1.5 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 cursor-pointer transition-colors"
+                                title="মুছুন"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Bottom Bar: Original Badge & Submit Buttons */}
+                {/* Bottom Bar: Original Badge & Submit Buttons (Single unified bar) */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-neutral-200">
                   {prodType === 'book' ? (
                     <label className="inline-flex items-center gap-2 cursor-pointer select-none">
@@ -6355,8 +6273,8 @@ export function AdminDashboard() {
                         onChange={e => setProdIsOriginal(e.target.checked)} 
                         className="w-4 h-4 text-[#D71920] accent-[#D71920] rounded cursor-pointer"
                       />
-                      <span className="text-xs font-bold text-neutral-800 flex items-center gap-1">
-                        <ShieldCheck size={14} className="text-emerald-600" /> Show &quot;অরিজিনাল বই&quot; (Original Book Verified Badge)
+                      <span className="text-xs font-bold text-neutral-800 flex items-center gap-1.5">
+                        <ShieldCheck size={16} className="text-emerald-600" /> Show &quot;অরিজিনাল বই&quot; (Original Book Verified Badge)
                       </span>
                     </label>
                   ) : <div />}
