@@ -48,6 +48,7 @@ import {
   ArrowUp,
   ArrowDown,
   Sparkles,
+  Sparkle,
   Phone,
   FileText,
   ShoppingCart,
@@ -56,9 +57,17 @@ import {
   QrCode,
   User,
   UserCheck,
-  Building2
+  Building2,
+  Tag,
+  Bold,
+  Italic,
+  Strikethrough,
+  List,
+  ListOrdered,
+  Quote,
+  Code
 } from 'lucide-react';
-import { Author, Publisher, Banner, BookPreviewPage, Order, PaymentMethodConfig, PaymentSubOptionConfig, AdminStaffMember, AdminStaffRole, AdminProfile } from '../types';
+import { Product, Author, Publisher, Banner, BookPreviewPage, Order, PaymentMethodConfig, PaymentSubOptionConfig, AdminStaffMember, AdminStaffRole, AdminProfile } from '../types';
 import { DEFAULT_PUBLISHERS_LIST, parseCustomBookDetails, serializeCustomBookDetails } from '../utils/publisherAndDeliveryHelpers';
 import { DEFAULT_PAYMENT_METHODS } from '../firebase';
 import { AdminAnalytics } from '../components/admin/AdminAnalytics';
@@ -357,6 +366,32 @@ export function AdminDashboard() {
   const [prodPreviewIntro, setProdPreviewIntro] = useState('');
   const [prodPreviewPages, setProdPreviewPages] = useState<BookPreviewPage[]>([]);
   const [pdfUploading, setPdfUploading] = useState(false);
+  
+  // Product Type Chooser Modal (1- Stationery vs 2- Books)
+  const [showTypeChooserModal, setShowTypeChooserModal] = useState(false);
+
+  // Advanced Product Add / Edit States (matching image_c4b27017.png and image_44c07b58.png)
+  const [prodSlug, setProdSlug] = useState('');
+  const [isCustomSlug, setIsCustomSlug] = useState(false);
+  const [prodRegularPrice, setProdRegularPrice] = useState<number>(450);
+  const [prodIsActive, setProdIsActive] = useState(true);
+  const [prodIsFeatured, setProdIsFeatured] = useState(false);
+  const [prodBadge, setProdBadge] = useState('NEW');
+  const [prodHighlights, setProdHighlights] = useState<string[]>([
+    '১০০% খাঁটি ও আসল মুদ্রিত সংস্করণ',
+    'দ্রুততম ক্যাশ অন ডেলিভারি (সারাদেশে হোম ডেলিভারি)',
+    'নিরাপদ বাবল-র‍্যাপ প্যাকেজিং ও সহজ রিপ্লেসমেন্ট পলিসি'
+  ]);
+  const [newHighlightInput, setNewHighlightInput] = useState('');
+  const [prodDeliveryChargeType, setProdDeliveryChargeType] = useState<'standard' | 'free' | 'custom'>('standard');
+  const [prodCustomDeliveryFee, setProdCustomDeliveryFee] = useState<number>(60);
+  const [prodGalleryUrls, setProdGalleryUrls] = useState<string[]>([]);
+  const [galleryUrlInput, setGalleryUrlInput] = useState('');
+  const [customVariants, setCustomVariants] = useState<{ id: string; name: string; price: number; regularPrice?: number; stock: number; sku: string }[]>([]);
+  const [newVariantName, setNewVariantName] = useState('');
+  const [newVariantOfferPrice, setNewVariantOfferPrice] = useState<number | ''>('');
+  const [newVariantRegularPrice, setNewVariantRegularPrice] = useState<number | ''>('');
+  
   const [inventoryFilter, setInventoryFilter] = useState<'all' | 'book' | 'stationery'>('all');
   const [productSearchQuery, setProductSearchQuery] = useState('');
   const [authorSearchQuery, setAuthorSearchQuery] = useState('');
@@ -867,27 +902,275 @@ export function AdminDashboard() {
     });
   };
 
+  const handleDuplicateProduct = async (p: Product) => {
+    try {
+      const copyRand = Math.floor(100 + Math.random() * 900);
+      const newTitle = `${p.title} (Copy)`;
+      const baseSlug = (p.slug || p.title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const newSlug = `${baseSlug}-copy-${copyRand}`;
+      const newSku = p.sku ? `${p.sku}-CPY${copyRand}` : `SKU-${copyRand}`;
+
+      const duplicatedVariants = (p.variants && p.variants.length > 0)
+        ? p.variants.map((v: any, idx: number) => ({
+            ...v,
+            id: `v-${Date.now()}-${idx + 1}`,
+            sku: v.sku ? `${v.sku}-CPY` : `${newSku}-V${idx + 1}`,
+          }))
+        : [{ id: `v1-${Date.now()}`, name: p.type === 'book' ? 'Paperback' : 'Standard', price: p.price, stock: 100, sku: newSku }];
+
+      const payload = {
+        type: p.type,
+        title: newTitle,
+        slug: newSlug,
+        description: p.description || '',
+        category: p.category,
+        author: p.author || '',
+        publisher: p.publisher || '',
+        isbn: p.isbn || '',
+        edition: p.edition || '1st Edition',
+        pages: p.pages || 240,
+        language: p.language || 'Bengali',
+        brand: p.brand || '',
+        material: p.material || '',
+        dimensions: p.dimensions || '',
+        colorModel: p.colorModel || '',
+        images: p.images && p.images.length > 0 ? [...p.images] : ['https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600'],
+        price: p.price,
+        previousPrice: p.previousPrice || p.price + 100,
+        stock: p.stock || 100,
+        sku: newSku,
+        rating: 5.0,
+        reviewCount: 0,
+        isFeatured: Boolean(p.isFeatured),
+        isOriginalBadge: p.isOriginalBadge !== false,
+        isActive: p.isActive !== false,
+        badge: p.badge || 'NEW',
+        highlights: p.highlights && p.highlights.length > 0 ? [...p.highlights] : ['১০০% আসল মুদ্রিত বই', 'দ্রুততম ক্যাশ অন ডেলিভারি'],
+        deliveryChargeType: p.deliveryChargeType || 'standard',
+        customDeliveryFee: p.customDeliveryFee || 60,
+        deliveryEstimate: p.deliveryEstimate || '২-৩ কার্যদিবস (2-3 Days)',
+        deliveryTimingTitle: p.deliveryTimingTitle || 'ডেলিভারি টাইমিং (Delivery Timing)',
+        insideDhakaDelivery: p.insideDhakaDelivery || '২৪-৪৮ ঘণ্টা (১-২ দিন)',
+        outsideDhakaDelivery: p.outsideDhakaDelivery || '২-৩ কার্যদিবস (সারাদেশে)',
+        deliveryTimingNote: p.deliveryTimingNote || 'আজকে অর্ডার করলে দ্রুততম সময়ে বাবল-র‍্যাপ প্যাকেজিংসহ কুরিয়ারে পাঠানো হবে।',
+        deliveryTimerHours: p.deliveryTimerHours || 48,
+        customBookDetails: p.customBookDetails ? [...p.customBookDetails] : [],
+        previewHighlightTitle: p.previewHighlightTitle || 'বইয়ের কিছু অংশ পড়ুন (একটু পড়ে দেখুন)',
+        previewHighlightSubtitle: p.previewHighlightSubtitle || '',
+        previewIntro: p.previewIntro || '',
+        previewPages: p.previewPages ? sanitizePreviewPages(p.previewPages) : [],
+        variants: duplicatedVariants,
+        createdAt: Date.now()
+      };
+
+      await addProduct(payload as any);
+      setToast({
+        show: true,
+        type: 'success',
+        message: `"${p.title}" সফলভাবে ডুপ্লিকেট (কপি) হয়েছে!`
+      });
+    } catch (err: any) {
+      setToast({
+        show: true,
+        type: 'error',
+        message: 'ডুপ্লিকেট করতে ব্যর্থ হয়েছে: ' + (err.message || 'Error')
+      });
+    }
+  };
+
+  const handleStartAddProduct = (type: 'book' | 'stationery') => {
+    setEditingProductId(null);
+    setProdType(type);
+    setProdTitle('');
+    setProdSlug('');
+    setIsCustomSlug(false);
+    setProdDescription('');
+    setProdImage('');
+    setProdExtraImages('');
+    setProdGalleryUrls([]);
+    setGalleryUrlInput('');
+    setProdIsActive(true);
+    setProdIsFeatured(false);
+    setProdBadge('NEW');
+    setProdDeliveryChargeType('standard');
+    setProdCustomDeliveryFee(60);
+    setProdDeliveryEstimate('২-৩ কার্যদিবস (2-3 Days)');
+    setProdDeliveryTimingTitle('ডেলিভারি টাইমিং (Delivery Timing)');
+    setProdInsideDhakaDelivery('২৪-৪৮ ঘণ্টা (১-২ দিন)');
+    setProdOutsideDhakaDelivery('২-৩ কার্যদিবস (সারাদেশে)');
+    setProdDeliveryTimingNote('আজকে অর্ডার করলে দ্রুততম সময়ে বাবল-র‍্যাপ প্যাকেজিংসহ কুরিয়ারে পাঠানো হবে।');
+    setProdDeliveryTimerHours(48);
+
+    if (type === 'book') {
+      setProdPrice(350);
+      setProdRegularPrice(450);
+      const firstBookCat = categories.find(c => c.type === 'book')?.name || 'Fiction & Literature';
+      setProdCategory(firstBookCat);
+      setProdAuthor('');
+      setProdPublisher('');
+      setProdIsbn('');
+      setProdEdition('1st Edition');
+      setProdPages(240);
+      setProdLanguage('Bengali');
+      const genSku = `BK-${Math.floor(1000 + Math.random() * 9000)}`;
+      setProdSku(genSku);
+      setProdCustomDetailsText('');
+      setProdBrand('');
+      setProdMaterial('');
+      setProdDimensions('');
+      setProdColorModel('');
+      setProdIsOriginal(true);
+      setProdPreviewHighlightTitle('বইয়ের কিছু অংশ পড়ুন (একটু পড়ে দেখুন)');
+      setProdPreviewHighlightSubtitle('');
+      setProdPreviewIntro('');
+      setProdPreviewPages([]);
+      setProdHighlights([
+        '১০০% অরিজিনাল মুদ্রিত বই (Original Authentic Copy)',
+        'দ্রুততম ক্যাশ অন ডেলিভারি (সারাদেশে হোম ডেলিভারি)',
+        'নিরাপদ বাবল-র‍্যাপ প্যাকেজিং ও সহজ রিপ্লেসমেন্ট পলিসি'
+      ]);
+      setCustomVariants([
+        { id: `v-${Date.now()}-1`, name: 'Paperback (পেপারব্যাক)', price: 350, regularPrice: 450, stock: 100, sku: `${genSku}-PB` },
+        { id: `v-${Date.now()}-2`, name: 'Hardcover (হার্ডকভার)', price: 450, regularPrice: 550, stock: 50, sku: `${genSku}-HC` }
+      ]);
+      setProdPrintVariants('Paperback, Hardcover');
+    } else {
+      setProdPrice(220);
+      setProdRegularPrice(290);
+      const firstStatCat = categories.find(c => c.type === 'stationery')?.name || 'Notebooks & Diaries';
+      setProdCategory(firstStatCat);
+      setProdAuthor('');
+      setProdPublisher('');
+      setProdIsbn('');
+      setProdEdition('');
+      setProdPages(0);
+      setProdLanguage('');
+      const genSku = `ST-${Math.floor(1000 + Math.random() * 9000)}`;
+      setProdSku(genSku);
+      setProdCustomDetailsText('');
+      setProdBrand('MR. BOOKS Essentials');
+      setProdMaterial('Executive 80 GSM Paper & Leather Stitch');
+      setProdDimensions('A5 (148 x 210 mm)');
+      setProdColorModel('Matte Black');
+      setProdIsOriginal(true);
+      setProdPreviewHighlightTitle('');
+      setProdPreviewHighlightSubtitle('');
+      setProdPreviewIntro('');
+      setProdPreviewPages([]);
+      setProdHighlights([
+        'প্রিমিয়াম কোয়ালিটি উপাদান ও টেকসই ফিনিশিং',
+        'দৈনন্দিন অফিস, স্টাডি ও নোট নেওয়ার জন্য পারফেক্ট',
+        'দ্রুততম কুরিয়ার ডেলিভারি ও রিপ্লেসমেন্ট সুবিধা'
+      ]);
+      setCustomVariants([
+        { id: `v-${Date.now()}-1`, name: 'Standard Pack (১টি)', price: 220, regularPrice: 290, stock: 100, sku: `${genSku}-STD` },
+        { id: `v-${Date.now()}-2`, name: 'Combo Pack (২টি)', price: 400, regularPrice: 580, stock: 60, sku: `${genSku}-CMB` }
+      ]);
+      setProdPrintVariants('Standard Pack, Combo Pack');
+    }
+
+    setShowTypeChooserModal(false);
+    setShowAddProdModal(true);
+  };
+
+  const openEditProduct = (p: Product) => {
+    setEditingProductId(p.id);
+    setProdTitle(p.title);
+    setProdType(p.type);
+    setProdSlug(p.slug || p.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''));
+    setIsCustomSlug(false);
+    setProdPrice(p.price || 350);
+    setProdRegularPrice(p.previousPrice || (p.price ? p.price + 100 : 450));
+    setProdCategory(p.category);
+    setProdAuthor(p.author || '');
+    setProdPublisher(p.publisher || '');
+    setProdIsbn(p.isbn || '');
+    setProdEdition(p.edition || '3rd Edition');
+    setProdPages(p.pages || 264);
+    setProdLanguage(p.language || 'Bengali');
+    setProdSku(p.sku || '');
+    setProdCustomDetailsText(serializeCustomBookDetails(p.customBookDetails));
+    setProdBrand(p.brand || p.author || '');
+    setProdMaterial(p.material || '');
+    setProdDimensions(p.dimensions || '');
+    setProdColorModel(p.colorModel || '');
+    setProdDescription(p.description || '');
+    setProdIsActive(p.isActive !== false);
+    setProdIsFeatured(Boolean(p.isFeatured));
+    setProdBadge(p.badge || 'NEW');
+    setProdHighlights(p.highlights && p.highlights.length > 0 ? p.highlights : [
+      '১০০% আসল ও খাঁটি মুদ্রিত কপি',
+      'দ্রুততম ক্যাশ অন ডেলিভারি (সারাদেশে)',
+      'নিরাপদ প্যাকেজিং ও সহজ রিপ্লেসমেন্ট পলিসি'
+    ]);
+    setProdDeliveryChargeType(p.deliveryChargeType || 'standard');
+    setProdCustomDeliveryFee(p.customDeliveryFee || 60);
+    setProdPreviewHighlightTitle(p.previewHighlightTitle || 'বইয়ের কিছু অংশ পড়ুন (একটু পড়ে দেখুন)');
+    setProdPreviewHighlightSubtitle(p.previewHighlightSubtitle || '');
+    setProdPreviewIntro(p.previewIntro || '');
+    setProdPreviewPages(sanitizePreviewPages(p.previewPages));
+    setProdImage(p.images?.[0] || '');
+    setProdExtraImages(p.images?.slice(1).join(', ') || '');
+    setProdGalleryUrls(p.images || []);
+    setGalleryUrlInput('');
+    setProdIsOriginal(p.isOriginalBadge !== false);
+    setProdPrintVariants(p.variants ? p.variants.map((v: any) => v.name).join(', ') : 'Paperback, Hardcover');
+    setProdDeliveryEstimate(p.deliveryEstimate || '২-৩ কার্যদিবস (2-3 Days)');
+    setProdDeliveryTimingTitle(p.deliveryTimingTitle || 'ডেলিভারি টাইমিং (Delivery Timing)');
+    setProdInsideDhakaDelivery(p.insideDhakaDelivery || '২৪-৪৮ ঘণ্টা (১-২ দিন)');
+    setProdOutsideDhakaDelivery(p.outsideDhakaDelivery || '২-৩ কার্যদিবস (সারাদেশে)');
+    setProdDeliveryTimingNote(p.deliveryTimingNote || 'আজকে অর্ডার করলে দ্রুততম সময়ে বাবল-র‍্যাপ প্যাকেজিংসহ কুরিয়ারে পাঠানো হবে।');
+    setProdDeliveryTimerHours(p.deliveryTimerHours || 48);
+
+    if (p.variants && p.variants.length > 0) {
+      setCustomVariants(p.variants.map((v: any, idx: number) => ({
+        id: v.id || `v-${idx + 1}`,
+        name: v.name,
+        price: v.price || p.price,
+        regularPrice: v.previousPrice || (v.price ? v.price + 100 : undefined),
+        stock: v.stock || 100,
+        sku: v.sku || `${p.sku || 'SKU'}-V${idx + 1}`
+      })));
+    } else {
+      setCustomVariants([
+        { id: 'v1', name: p.type === 'book' ? 'Paperback' : 'Standard Pack', price: p.price, regularPrice: p.previousPrice || p.price + 100, stock: 100, sku: p.sku || 'SKU-01' }
+      ]);
+    }
+    setShowAddProdModal(true);
+  };
+
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    const primaryImg = prodImage.trim() || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600';
+    const primaryImg = prodImage.trim() || prodGalleryUrls[0] || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600';
     const extraList = prodExtraImages
       ? prodExtraImages.split(/[\n,]+/).map(s => s.trim()).filter(s => s.length > 5)
       : [];
-    const allImages = Array.from(new Set([primaryImg, ...extraList]));
+    const allImages = Array.from(new Set([primaryImg, ...prodGalleryUrls, ...extraList])).filter(Boolean);
 
     const resolvedSku =
       prodSku.trim() ||
       (prodType === 'book' ? 'MRB-BK-' : 'MRB-ST-') + Math.floor(1000 + Math.random() * 9000);
 
-    const parsedVariants = prodPrintVariants
-      ? prodPrintVariants.split(',').map((vName, idx) => ({
-          id: `v${idx + 1}`,
-          name: vName.trim(),
-          price: prodPrice,
-          stock: 100,
-          sku: idx === 0 ? resolvedSku : `${resolvedSku}-V${idx + 1}`
-        })).filter(v => v.name.length > 0)
-      : [{ id: 'v1', name: 'Paperback', price: prodPrice, stock: 100, sku: resolvedSku }];
+    const resolvedSlug =
+      prodSlug.trim() ||
+      prodTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') ||
+      `product-${Date.now().toString().slice(-6)}`;
+
+    // Build variants
+    let finalVariants = customVariants.filter(v => v.name.trim().length > 0);
+    if (finalVariants.length === 0) {
+      const parsedVariants = prodPrintVariants
+        ? prodPrintVariants.split(',').map((vName, idx) => ({
+            id: `v${idx + 1}`,
+            name: vName.trim(),
+            price: prodPrice,
+            previousPrice: prodRegularPrice,
+            stock: 100,
+            sku: idx === 0 ? resolvedSku : `${resolvedSku}-V${idx + 1}`
+          })).filter(v => v.name.length > 0)
+        : [{ id: 'v1', name: prodType === 'book' ? 'Paperback' : 'Standard', price: prodPrice, previousPrice: prodRegularPrice, stock: 100, sku: resolvedSku }];
+      finalVariants = parsedVariants;
+    }
 
     const cleanedPreviewPages = sanitizePreviewPages(prodPreviewPages);
     const parsedCustomDetails = parseCustomBookDetails(prodCustomDetailsText);
@@ -895,7 +1178,7 @@ export function AdminDashboard() {
     const payload = {
       type: prodType,
       title: prodTitle,
-      slug: prodTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+      slug: resolvedSlug,
       description:
         prodDescription.trim() ||
         (prodType === 'book'
@@ -912,14 +1195,20 @@ export function AdminDashboard() {
       material: prodType === 'stationery' ? prodMaterial : undefined,
       dimensions: prodType === 'stationery' ? prodDimensions : undefined,
       colorModel: prodType === 'stationery' ? prodColorModel : undefined,
-      images: allImages,
-      price: prodPrice,
-      previousPrice: prodPrice + 100,
+      images: allImages.length > 0 ? allImages : ['https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600'],
+      price: Number(prodPrice) || 350,
+      previousPrice: Number(prodRegularPrice) > Number(prodPrice) ? Number(prodRegularPrice) : Number(prodPrice) + 100,
       stock: 100,
       sku: resolvedSku,
       rating: 5.0,
       reviewCount: 1,
+      isFeatured: Boolean(prodIsFeatured),
       isOriginalBadge: prodIsOriginal,
+      isActive: prodIsActive,
+      badge: prodBadge,
+      highlights: prodHighlights.filter(h => h.trim().length > 0),
+      deliveryChargeType: prodDeliveryChargeType,
+      customDeliveryFee: prodDeliveryChargeType === 'custom' ? Number(prodCustomDeliveryFee) || 60 : 0,
       deliveryEstimate: prodDeliveryEstimate.trim() || '২-৩ কার্যদিবস (2-3 Days)',
       deliveryTimingTitle: prodDeliveryTimingTitle.trim() || 'ডেলিভারি টাইমিং (Delivery Timing)',
       insideDhakaDelivery: prodInsideDhakaDelivery.trim() || '২৪-৪৮ ঘণ্টা (১-২ দিন)',
@@ -931,9 +1220,14 @@ export function AdminDashboard() {
       previewHighlightSubtitle: prodPreviewHighlightSubtitle.trim(),
       previewIntro: prodPreviewIntro.trim(),
       previewPages: cleanedPreviewPages,
-      variants: parsedVariants.length > 0 ? parsedVariants : [
-        { id: 'v1', name: prodType === 'book' ? 'Paperback' : 'Standard', price: prodPrice, stock: 100, sku: resolvedSku }
-      ]
+      variants: finalVariants.map((v, i) => ({
+        id: v.id || `v${i+1}`,
+        name: v.name,
+        price: Number(v.price) || Number(prodPrice) || 350,
+        previousPrice: v.regularPrice ? Number(v.regularPrice) : undefined,
+        stock: Number(v.stock) || 100,
+        sku: v.sku || `${resolvedSku}-V${i+1}`
+      }))
     };
 
     try {
@@ -942,46 +1236,18 @@ export function AdminDashboard() {
         setToast({
           show: true,
           type: 'success',
-          message: 'বইয়ের ডিটেইলস, ডেলিভারি টাইমিং ও প্রিভিউ ফায়ারবেসে সেভ হয়েছে!',
+          message: 'প্রোডাক্টের সমস্ত ডিটেইলস ও অপশন ফায়ারবেসে সফলভাবে আপডেট হয়েছে!',
         });
       } else {
         await addProduct(payload);
         setToast({
           show: true,
           type: 'success',
-          message: 'নতুন বই, ডেলিভারি টাইমিং ও প্রিভিউ সফলভাবে যুক্ত হয়েছে!',
+          message: 'নতুন প্রোডাক্ট ফায়ারবেস ডাটাবেসে সফলভাবে যুক্ত হয়েছে!',
         });
       }
 
       setEditingProductId(null);
-      setProdTitle('');
-      setProdAuthor('');
-      setProdPublisher('');
-      setProdIsbn('');
-      setProdEdition('3rd Edition');
-      setProdPages(264);
-      setProdLanguage('Bengali');
-      setProdSku('');
-      setProdCustomDetailsText('');
-      setProdBrand('');
-      setProdMaterial('');
-      setProdDimensions('');
-      setProdColorModel('');
-      setProdDescription('');
-      setProdPreviewHighlightTitle('বইয়ের কিছু অংশ পড়ুন (একটু পড়ে দেখুন)');
-      setProdPreviewHighlightSubtitle('');
-      setProdPreviewIntro('');
-      setProdPreviewPages([]);
-      setProdImage('');
-      setProdExtraImages('');
-      setProdPrintVariants('Paperback, Hardcover');
-      setProdIsOriginal(true);
-      setProdDeliveryEstimate('২-৩ কার্যদিবস (2-3 Days)');
-      setProdDeliveryTimingTitle('ডেলিভারি টাইমিং (Delivery Timing)');
-      setProdInsideDhakaDelivery('২৪-৪৮ ঘণ্টা (১-২ দিন)');
-      setProdOutsideDhakaDelivery('২-৩ কার্যদিবস (সারাদেশে)');
-      setProdDeliveryTimingNote('আজকে অর্ডার করলে দ্রুততম সময়ে বাবল-র‍্যাপ প্যাকেজিংসহ কুরিয়ারে পাঠানো হবে।');
-      setProdDeliveryTimerHours(48);
       setShowAddProdModal(false);
     } catch (err: any) {
       setToast({
@@ -4406,41 +4672,7 @@ export function AdminDashboard() {
                   </div>
 
                   <button 
-                    onClick={() => {
-                      setEditingProductId(null);
-                      setProdTitle('');
-                      setProdType('book');
-                      setProdPrice(350);
-                      setProdCategory(categories[0]?.name || 'Fiction & Literature');
-                      setProdAuthor('');
-                      setProdPublisher('');
-                      setProdIsbn('');
-                      setProdEdition('3rd Edition');
-                      setProdPages(264);
-                      setProdLanguage('Bengali');
-                      setProdSku('');
-                      setProdCustomDetailsText('');
-                      setProdBrand('');
-                      setProdMaterial('');
-                      setProdDimensions('');
-                      setProdColorModel('');
-                      setProdDescription('');
-                      setProdPreviewHighlightTitle('বইয়ের কিছু অংশ পড়ুন (একটু পড়ে দেখুন)');
-                      setProdPreviewHighlightSubtitle('');
-                      setProdPreviewIntro('');
-                      setProdPreviewPages([]);
-                      setProdImage('');
-                      setProdExtraImages('');
-                      setProdPrintVariants('Paperback, Hardcover');
-                      setProdIsOriginal(true);
-                      setProdDeliveryEstimate('২-৩ কার্যদিবস (2-3 Days)');
-                      setProdDeliveryTimingTitle('ডেলিভারি টাইমিং (Delivery Timing)');
-                      setProdInsideDhakaDelivery('২৪-৪৮ ঘণ্টা (১-২ দিন)');
-                      setProdOutsideDhakaDelivery('২-৩ কার্যদিবস (সারাদেশে)');
-                      setProdDeliveryTimingNote('আজকে অর্ডার করলে দ্রুততম সময়ে বাবল-র‍্যাপ প্যাকেজিংসহ কুরিয়ারে পাঠানো হবে।');
-                      setProdDeliveryTimerHours(48);
-                      setShowAddProdModal(true);
-                    }}
+                    onClick={() => setShowTypeChooserModal(true)}
                     className="w-full sm:w-auto px-4 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer shrink-0 transition-all"
                   >
                     <Plus size={14} /> <span>Add New Product</span>
@@ -4583,52 +4815,28 @@ export function AdminDashboard() {
                               </span>
                             </td>
                             <td className="py-3 px-4 text-right">
-                              <div className="flex items-center justify-end gap-2">
+                              <div className="flex items-center justify-end gap-1.5">
                                 <button 
-                                  onClick={() => {
-                                    setEditingProductId(p.id);
-                                    setProdTitle(p.title);
-                                    setProdType(p.type);
-                                    setProdPrice(p.price);
-                                    setProdCategory(p.category);
-                                    setProdAuthor(p.author || '');
-                                    setProdPublisher(p.publisher || '');
-                                    setProdIsbn(p.isbn || '');
-                                    setProdEdition(p.edition || '3rd Edition');
-                                    setProdPages(p.pages || 264);
-                                    setProdLanguage(p.language || 'Bengali');
-                                    setProdSku(p.sku || '');
-                                    setProdCustomDetailsText(serializeCustomBookDetails(p.customBookDetails));
-                                    setProdBrand(p.brand || p.author || '');
-                                    setProdMaterial(p.material || '');
-                                    setProdDimensions(p.dimensions || '');
-                                    setProdColorModel(p.colorModel || '');
-                                    setProdDescription(p.description || '');
-                                    setProdPreviewHighlightTitle(p.previewHighlightTitle || 'বইয়ের কিছু অংশ পড়ুন (একটু পড়ে দেখুন)');
-                                    setProdPreviewHighlightSubtitle(p.previewHighlightSubtitle || '');
-                                    setProdPreviewIntro(p.previewIntro || '');
-                                    setProdPreviewPages(sanitizePreviewPages(p.previewPages));
-                                    setProdImage(p.images[0] || '');
-                                    setProdExtraImages(p.images.slice(1).join(', '));
-                                    setProdIsOriginal(p.isOriginalBadge !== false);
-                                    setProdPrintVariants(p.variants ? p.variants.map(v => v.name).join(', ') : 'Paperback, Hardcover');
-                                    setProdDeliveryEstimate(p.deliveryEstimate || '২-৩ কার্যদিবস (2-3 Days)');
-                                    setProdDeliveryTimingTitle(p.deliveryTimingTitle || 'ডেলিভারি টাইমিং (Delivery Timing)');
-                                    setProdInsideDhakaDelivery(p.insideDhakaDelivery || '২৪-৪৮ ঘণ্টা (১-২ দিন)');
-                                    setProdOutsideDhakaDelivery(p.outsideDhakaDelivery || '২-৩ কার্যদিবস (সারাদেশে)');
-                                    setProdDeliveryTimingNote(p.deliveryTimingNote || 'আজকে অর্ডার করলে দ্রুততম সময়ে বাবল-র‍্যাপ প্যাকেজিংসহ কুরিয়ারে পাঠানো হবে।');
-                                    setProdDeliveryTimerHours(p.deliveryTimerHours || 48);
-                                    setShowAddProdModal(true);
-                                  }}
-                                  className="p-1.5 rounded-lg border border-neutral-200 bg-white text-neutral-700 hover:text-[#D71920] hover:border-[#D71920] cursor-pointer transition-colors"
-                                  title="Edit Product"
+                                  type="button"
+                                  onClick={() => handleDuplicateProduct(p)}
+                                  className="p-1.5 rounded-lg border border-neutral-200 bg-white text-neutral-700 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50/50 cursor-pointer transition-colors"
+                                  title="Duplicate / Copy Product (ডুপ্লিকেট করুন)"
+                                >
+                                  <Copy size={13} />
+                                </button>
+                                <button 
+                                  type="button"
+                                  onClick={() => openEditProduct(p)}
+                                  className="p-1.5 rounded-lg border border-neutral-200 bg-white text-neutral-700 hover:text-[#D71920] hover:border-[#D71920] hover:bg-red-50/50 cursor-pointer transition-colors"
+                                  title="Edit Product (এডিট করুন)"
                                 >
                                   <Edit2 size={13} />
                                 </button>
                                 <button 
+                                  type="button"
                                   onClick={() => deleteProduct(p.id)}
-                                  className="p-1.5 rounded-lg border border-neutral-200 bg-white text-neutral-700 hover:text-red-600 hover:border-red-300 cursor-pointer transition-colors"
-                                  title="Delete Product"
+                                  className="p-1.5 rounded-lg border border-neutral-200 bg-white text-neutral-700 hover:text-red-600 hover:border-red-300 hover:bg-red-50/50 cursor-pointer transition-colors"
+                                  title="Delete Product (মুছে ফেলুন)"
                                 >
                                   <Trash2 size={13} />
                                 </button>
@@ -4660,113 +4868,1198 @@ export function AdminDashboard() {
                 </div>
               </>
             ) : (
-              /* DEDICATED ADD / EDIT PRODUCT PAGE VIEW */
-              <form onSubmit={handleCreateProduct} className="space-y-5">
-                {/* Top Page Header with Back to Inventory Button */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-neutral-200">
+              /* DEDICATED ADD / EDIT PRODUCT PAGE VIEW (MATCHING image_c4b27017.png & image_44c07b58.png) */
+              <form onSubmit={handleCreateProduct} className="space-y-6">
+                {/* Top Sticky-Style Action Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-neutral-200">
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
                       onClick={() => setShowAddProdModal(false)}
-                      className="px-3 py-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+                      className="px-3.5 py-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
                     >
-                      <span>← Back</span>
+                      <span>← Back to Inventory</span>
                     </button>
                     <div>
-                      <h3 className="font-extrabold text-base sm:text-lg text-neutral-900">
-                        {editingProductId ? 'Edit Product Details' : 'Add New Product'}
-                      </h3>
-                      <p className="text-xs text-neutral-500">
-                        Fill in the book or stationery details below and click Save Product
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-extrabold text-base sm:text-lg text-neutral-900">
+                          {editingProductId ? 'Edit Product Details' : 'Add New Product'}
+                        </h3>
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-black uppercase ${
+                          prodType === 'book' ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-blue-100 text-blue-800 border border-blue-300'
+                        }`}>
+                          {prodType === 'book' ? '📚 Book Catalog' : '✏️ Stationery Catalog'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-neutral-500 mt-0.5">
+                        Configure general info, slug, description, specifications, delivery & pricing
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2.5">
                     <button
                       type="button"
                       onClick={() => setShowAddProdModal(false)}
-                      className="px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-bold rounded-xl cursor-pointer transition-colors"
+                      className="px-4 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-bold rounded-xl cursor-pointer transition-colors"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="px-5 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5 transition-all"
+                      className="px-6 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-bold rounded-xl shadow-md cursor-pointer flex items-center gap-2 transition-all hover:scale-[1.02]"
                     >
-                      <Check size={14} />
+                      <Check size={15} />
                       <span>{editingProductId ? 'Update Product' : 'Save Product'}</span>
                     </button>
                   </div>
                 </div>
 
-                {/* Section 1: Basic Item Information */}
-                <div className="p-4 sm:p-5 rounded-2xl bg-neutral-50/80 border border-neutral-200/80 space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                    <div>
-                      <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Item Title *</label>
-                      <input type="text" placeholder="e.g. Paradoxical Sajid 2" required value={prodTitle} onChange={e => setProdTitle(e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]" />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Catalog Type</label>
-                      <select value={prodType} onChange={e => setProdType(e.target.value as any)} className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]">
-                        <option value="book">📚 Book (Literature / Text)</option>
-                        <option value="stationery">✏️ Stationery & Office Supply</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Category</label>
-                      <select value={prodCategory} onChange={e => setProdCategory(e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]">
-                        {categories
-                          .filter(c => c.type === prodType)
-                          .map(c => (
-                            <option key={c.id} value={c.name}>{c.name}</option>
+                {/* 2-COLUMN GRID (Matching image_c4b27017.png & image_44c07b58.png) */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                  
+                  {/* LEFT COLUMN: 8 Columns */}
+                  <div className="lg:col-span-8 space-y-6">
+                    
+                    {/* CARD 1: GENERAL INFORMATION (Matching image_c4b27017.png) */}
+                    <div className="bg-[#0B132B] border border-[#1C2C4E] rounded-2xl p-5 text-neutral-100 shadow-md space-y-4">
+                      <div className="flex items-center justify-between pb-3 border-b border-[#1C2C4E]">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
+                            <FileText size={16} />
+                          </div>
+                          <div>
+                            <h4 className="font-extrabold text-sm text-white">General Information</h4>
+                            <p className="text-[11px] text-neutral-400">Product name and detailed description</p>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30">
+                          Required *
+                        </span>
+                      </div>
+
+                      {/* Product Title / Name */}
+                      <div>
+                        <label className="block text-xs font-bold text-neutral-300 mb-1.5">
+                          Product Title / Name <span className="text-red-400">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder={prodType === 'book' ? 'e.g. Paradoxical Sajid 2 (প্যারাডক্সিক্যাল সাজিদ ২)' : 'e.g. Premium Executive Leather Diary A5'}
+                          value={prodTitle}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setProdTitle(val);
+                            if (!isCustomSlug) {
+                              setProdSlug(val.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''));
+                            }
+                          }}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#223354] bg-[#0E1726] text-xs font-bold text-white placeholder-neutral-500 focus:outline-none focus:border-[#D71920]"
+                        />
+                      </div>
+
+                      {/* Product Slug / URL Handle with Edit Slug button */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="block text-xs font-bold text-neutral-300">
+                            Product Slug / URL Handle
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setIsCustomSlug(!isCustomSlug)}
+                            className="text-[11px] font-bold text-amber-400 hover:text-amber-300 cursor-pointer"
+                          >
+                            {isCustomSlug ? 'Lock Slug' : 'Edit Slug'}
+                          </button>
+                        </div>
+                        <div className="flex items-center rounded-xl border border-[#223354] bg-[#0E1726] px-3.5 py-2 text-xs font-mono">
+                          <span className="text-neutral-500 shrink-0">store/product/</span>
+                          <input
+                            type="text"
+                            readOnly={!isCustomSlug}
+                            placeholder="e.g. product-slug-or-auto-generated"
+                            value={prodSlug}
+                            onChange={e => setProdSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                            className={`w-full ml-1 bg-transparent text-amber-400 focus:outline-none ${!isCustomSlug ? 'cursor-default' : ''}`}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Product Description with Rich Toolbar & Feature Template */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="block text-xs font-bold text-neutral-300">
+                            Product Description
+                          </label>
+                        </div>
+
+                        <div className="rounded-xl border border-[#223354] bg-[#0E1726] overflow-hidden">
+                          {/* Formatting Toolbar */}
+                          <div className="flex flex-wrap items-center justify-between gap-1 p-2 bg-[#121E36] border-b border-[#223354] text-neutral-300">
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                title="Bold"
+                                onClick={() => setProdDescription(prev => prev + ' **বোল্ড লেখা** ')}
+                                className="p-1.5 rounded hover:bg-[#1C2C4E] text-xs font-black"
+                              >
+                                <Bold size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                title="Italic"
+                                onClick={() => setProdDescription(prev => prev + ' *ইটালিক লেখা* ')}
+                                className="p-1.5 rounded hover:bg-[#1C2C4E] text-xs"
+                              >
+                                <Italic size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                title="Strikethrough"
+                                onClick={() => setProdDescription(prev => prev + ' ~~কাটা লেখা~~ ')}
+                                className="p-1.5 rounded hover:bg-[#1C2C4E] text-xs"
+                              >
+                                <Strikethrough size={13} />
+                              </button>
+                              <div className="w-[1px] h-4 bg-[#223354] mx-1" />
+                              <button
+                                type="button"
+                                title="Bullet List"
+                                onClick={() => setProdDescription(prev => prev + '\n• ')}
+                                className="p-1.5 rounded hover:bg-[#1C2C4E] text-xs"
+                              >
+                                <List size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                title="Numbered List"
+                                onClick={() => setProdDescription(prev => prev + '\n1. ')}
+                                className="p-1.5 rounded hover:bg-[#1C2C4E] text-xs"
+                              >
+                                <ListOrdered size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                title="Quote"
+                                onClick={() => setProdDescription(prev => prev + '\n> ')}
+                                className="p-1.5 rounded hover:bg-[#1C2C4E] text-xs"
+                              >
+                                <Quote size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                title="Code"
+                                onClick={() => setProdDescription(prev => prev + ' `কোড` ')}
+                                className="p-1.5 rounded hover:bg-[#1C2C4E] text-xs"
+                              >
+                                <Code size={13} />
+                              </button>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const template = prodType === 'book'
+                                  ? '\n\n📌 বইয়ের পরিচিতি ও বৈশিষ্ট্যসমূহ:\n• মূল লেখক: ' + (prodAuthor || 'প্রখ্যাত লেখক') + '\n• প্রকাশনী: ' + (prodPublisher || 'MR. BOOKS') + '\n• সারসংক্ষেপ: এই বইটিতে গভীর জীবনবোধ ও বাস্তব দৃষ্টিভঙ্গি চমৎকারভাবে উপস্থাপিত হয়েছে।\n• বাঁধাই ও কাগজের মান: উন্নত মানের ক্রিম পেপার ও শক্ত মজবুত বাঁধাই।\n• প্রতিটি বই ১০০% অরিজিনাল মুদ্রিত সংস্করণ।'
+                                  : '\n\n📌 পণ্যের মূল বৈশিষ্ট্যসমূহ:\n• ব্র্যান্ড: ' + (prodBrand || 'MR. BOOKS Essentials') + '\n• উপাদান: ' + (prodMaterial || 'প্রিমিয়াম কোয়ালিটি') + '\n• আকার / সাইজ: ' + (prodDimensions || 'স্ট্যান্ডার্ড সাইজ') + '\n• দীর্ঘস্থায়ী, নিখুঁত ফিনিশিং ও প্রফেশনাল ব্যবহারের জন্য আদর্শ।';
+                                setProdDescription(prev => prev + template);
+                              }}
+                              className="px-2.5 py-1 rounded bg-[#1C2C4E] hover:bg-[#2A3F6C] text-amber-400 text-[11px] font-bold cursor-pointer transition-colors"
+                            >
+                              + Feature Template
+                            </button>
+                          </div>
+
+                          <textarea
+                            rows={4}
+                            placeholder="Enter detailed product description, benefits, and usage instructions..."
+                            value={prodDescription}
+                            onChange={e => setProdDescription(e.target.value)}
+                            className="w-full p-3 bg-transparent text-xs text-white placeholder-neutral-500 focus:outline-none resize-y"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Key Highlights & Benefits */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="block text-xs font-bold text-neutral-300">
+                            Key Highlights & Benefits
+                          </label>
+                          <span className="text-[11px] text-neutral-400 font-mono">
+                            {prodHighlights.length} Points
+                          </span>
+                        </div>
+
+                        <div className="space-y-2">
+                          {prodHighlights.map((hl, idx) => (
+                            <div key={idx} className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                              <input
+                                type="text"
+                                value={hl}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  setProdHighlights(prev => prev.map((item, i) => i === idx ? val : item));
+                                }}
+                                className="flex-1 px-3 py-1.5 rounded-lg border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-emerald-500"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setProdHighlights(prev => prev.filter((_, i) => i !== idx))}
+                                className="p-1.5 text-neutral-400 hover:text-red-400 cursor-pointer"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
                           ))}
-                      </select>
+
+                          {/* Add New Highlight Row */}
+                          <div className="flex items-center gap-2 pt-1">
+                            <input
+                              type="text"
+                              placeholder="Add a key highlight point (e.g. ১০০% অরিজিনাল মুদ্রিত সংস্করণ)..."
+                              value={newHighlightInput}
+                              onChange={e => setNewHighlightInput(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  if (newHighlightInput.trim()) {
+                                    setProdHighlights(prev => [...prev, newHighlightInput.trim()]);
+                                    setNewHighlightInput('');
+                                  }
+                                }
+                              }}
+                              className="flex-1 px-3 py-2 rounded-lg border border-dashed border-[#2A3F6C] bg-[#0E1726]/60 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-amber-400"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (newHighlightInput.trim()) {
+                                  setProdHighlights(prev => [...prev, newHighlightInput.trim()]);
+                                  setNewHighlightInput('');
+                                }
+                              }}
+                              className="px-3.5 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-bold rounded-lg cursor-pointer transition-colors"
+                            >
+                              + Add Point
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
+
+                    {/* CARD 2: TYPE-SPECIFIC SPECIFICATIONS (Books vs Stationery) */}
+                    {prodType === 'book' ? (
+                      <div className="bg-[#0B132B] border border-[#1C2C4E] rounded-2xl p-5 text-neutral-100 shadow-md space-y-4">
+                        <div className="flex items-center justify-between pb-3 border-b border-[#1C2C4E]">
+                          <div className="flex items-center gap-2">
+                            <BookOpen size={16} className="text-amber-400" />
+                            <h4 className="font-extrabold text-sm text-white">
+                              Book Details Attributes (Author, Publisher, Edition, Pages, Language & ISBN)
+                            </h4>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab('publishers')}
+                            className="text-[11px] font-bold text-red-400 hover:underline cursor-pointer"
+                          >
+                            + Manage Publishers / প্রকাশনী
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                          <div>
+                            <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">Author Name (লেখক) *</label>
+                            <input
+                              type="text"
+                              list="admin-authors-list"
+                              placeholder="e.g. Arif Azad / Humayun Ahmed"
+                              required
+                              value={prodAuthor}
+                              onChange={e => setProdAuthor(e.target.value)}
+                              className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs font-bold text-white focus:outline-none focus:border-[#D71920]"
+                            />
+                            <datalist id="admin-authors-list">
+                              {authors.map(a => (
+                                <option key={a.id} value={a.name} />
+                              ))}
+                            </datalist>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">Publisher (প্রকাশনী)</label>
+                            <input
+                              type="text"
+                              list="admin-publishers-list"
+                              placeholder="e.g. Guardian Publications / প্রথমা"
+                              value={prodPublisher}
+                              onChange={e => setProdPublisher(e.target.value)}
+                              className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-[#D71920]"
+                            />
+                            <datalist id="admin-publishers-list">
+                              {publishers.map(pub => (
+                                <option key={pub.id} value={pub.name}>
+                                  {pub.banglaName ? `${pub.banglaName} (${pub.name})` : pub.name}
+                                </option>
+                              ))}
+                            </datalist>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">Edition (সংস্করণ)</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. 3rd Edition"
+                              value={prodEdition}
+                              onChange={e => setProdEdition(e.target.value)}
+                              className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-[#D71920]"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                          <div>
+                            <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">Pages (পৃষ্ঠা সংখ্যা)</label>
+                            <input
+                              type="number"
+                              min={1}
+                              placeholder="e.g. 264"
+                              value={prodPages}
+                              onChange={e => setProdPages(Number(e.target.value))}
+                              className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-[#D71920]"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">Language (ভাষা)</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Bengali / English"
+                              value={prodLanguage}
+                              onChange={e => setProdLanguage(e.target.value)}
+                              className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-[#D71920]"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">ISBN Code</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. 9789849312341"
+                              value={prodIsbn}
+                              onChange={e => setProdIsbn(e.target.value)}
+                              className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white font-mono focus:outline-none focus:border-[#D71920]"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">
+                            Extra Custom Book Details (ঐচ্ছিক — প্রতি লাইনে LABEL: VALUE ফরম্যাটে লিখুন)
+                          </label>
+                          <textarea
+                            rows={2}
+                            placeholder={'Paper Quality: 80 GSM Cream Paper\nBinding: Hardcover Stitch'}
+                            value={prodCustomDetailsText}
+                            onChange={e => setProdCustomDetailsText(e.target.value)}
+                            className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-[#D71920]"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-[#0B132B] border border-[#1C2C4E] rounded-2xl p-5 text-neutral-100 shadow-md space-y-4">
+                        <div className="flex items-center gap-2 pb-3 border-b border-[#1C2C4E]">
+                          <Package size={16} className="text-blue-400" />
+                          <h4 className="font-extrabold text-sm text-white">
+                            Stationery Specifications (Brand, Material, Dimensions & Color)
+                          </h4>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                          <div>
+                            <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">Brand / Manufacturer *</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Deli / Faber-Castell"
+                              required
+                              value={prodBrand}
+                              onChange={e => setProdBrand(e.target.value)}
+                              className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-blue-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">Material</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Leather / Paper / Steel"
+                              value={prodMaterial}
+                              onChange={e => setProdMaterial(e.target.value)}
+                              className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-blue-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">Dimensions / Size</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. A5 / 0.5mm / 21x14 cm"
+                              value={prodDimensions}
+                              onChange={e => setProdDimensions(e.target.value)}
+                              className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-blue-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">Color / Model</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Matte Black / Navy Blue"
+                              value={prodColorModel}
+                              onChange={e => setProdColorModel(e.target.value)}
+                              className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-blue-400"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* CARD 3: PER-BOOK DELIVERY TIMING & TIMER (ডেলিভারি টাইমিং) */}
+                    <div className="bg-[#0B132B] border border-[#1C2C4E] rounded-2xl p-5 text-neutral-100 shadow-md space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#1C2C4E]">
+                        <div className="flex items-center gap-2">
+                          <Truck size={16} className="text-[#D71920]" />
+                          <div>
+                            <h4 className="font-extrabold text-sm text-white">
+                              Per-Book Delivery Timing & Timer (ডেলিভারি টাইমিং)
+                            </h4>
+                            <p className="text-[11px] text-neutral-400">এই বইয়ের ক্ষেত্রে ডেলিভারি টাইমার ও বার্তা সেট করুন</p>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { label: '⚡ ২৪ ঘণ্টা এক্সপ্রেস', est: '২৪ ঘণ্টায় এক্সপ্রেস ডেলিভারি', inDhaka: '১২-২৪ ঘণ্টা', outDhaka: '১-২ দিন', hrs: 24 },
+                            { label: '🚚 ১-২ দিন', est: '১-২ কার্যদিবস (1-2 Days)', inDhaka: '২৪ ঘণ্টা (১ দিন)', outDhaka: '১-২ কার্যদিবস', hrs: 36 },
+                            { label: '📦 ২-৩ দিন (ডিফল্ট)', est: '২-৩ কার্যদিবস (2-3 Days)', inDhaka: '২৪-৪৮ ঘণ্টা (১-২ দিন)', outDhaka: '২-৩ কার্যদিবস (সারাদেশে)', hrs: 48 },
+                            { label: '⏳ ৩-৫ দিন (প্রি-অর্ডার)', est: '৩-৫ কার্যদিবস (Pre-Order)', inDhaka: '২-৩ দিন', outDhaka: '৩-৫ কার্যদিবস', hrs: 96 },
+                          ].map((preset, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => {
+                                setProdDeliveryEstimate(preset.est);
+                                setProdInsideDhakaDelivery(preset.inDhaka);
+                                setProdOutsideDhakaDelivery(preset.outDhaka);
+                                setProdDeliveryTimerHours(preset.hrs);
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-[#121E36] hover:bg-[#D71920] hover:text-white text-neutral-300 border border-[#223354] text-[10px] font-bold transition-colors cursor-pointer"
+                            >
+                              {preset.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                        <div>
+                          <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">
+                            Primary Delivery Badge *
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. ২-৩ কার্যদিবস / 2-3 Days"
+                            value={prodDeliveryEstimate}
+                            onChange={e => setProdDeliveryEstimate(e.target.value)}
+                            className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs font-bold text-white focus:outline-none focus:border-[#D71920]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">
+                            Inside Dhaka (ঢাকার ভেতরে)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. ২৪-৪৮ ঘণ্টা (১-২ দিন)"
+                            value={prodInsideDhakaDelivery}
+                            onChange={e => setProdInsideDhakaDelivery(e.target.value)}
+                            className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-[#D71920]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">
+                            Outside Dhaka (ঢাকার বাইরে)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. ২-৩ কার্যদিবস (সারাদেশে)"
+                            value={prodOutsideDhakaDelivery}
+                            onChange={e => setProdOutsideDhakaDelivery(e.target.value)}
+                            className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-[#D71920]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                        <div>
+                          <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">
+                            Delivery Card Title
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="ডেলিভারি টাইমিং (Delivery Timing)"
+                            value={prodDeliveryTimingTitle}
+                            onChange={e => setProdDeliveryTimingTitle(e.target.value)}
+                            className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-[#D71920]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">
+                            Timer Hours (ঘণ্টা)
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            placeholder="48"
+                            value={prodDeliveryTimerHours}
+                            onChange={e => setProdDeliveryTimerHours(Number(e.target.value))}
+                            className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs font-bold text-white focus:outline-none focus:border-[#D71920]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">
+                            Custom Delivery Note
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="আজকে অর্ডার করলে দ্রুততম সময়ে পাঠানো হবে..."
+                            value={prodDeliveryTimingNote}
+                            onChange={e => setProdDeliveryTimingNote(e.target.value)}
+                            className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white focus:outline-none focus:border-[#D71920]"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* CARD 4: BOOK PREVIEW & LOOK INSIDE (Only if Book) */}
+                    {prodType === 'book' && (
+                      <div className="bg-[#0B132B] border border-[#1C2C4E] rounded-2xl p-5 text-neutral-100 shadow-md space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#1C2C4E]">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <BookOpen size={16} className="text-[#D71920]" />
+                              <span className="font-extrabold text-sm text-white">
+                                বইয়ের কিছু অংশ পড়ুন — Book Preview & Look Inside
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-neutral-400 mt-0.5">
+                              Upload a PDF file, page images, or written preview pages for customers to read
+                            </p>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2 shrink-0">
+                            <label className="px-3 py-1.5 bg-[#D71920] hover:bg-[#B9151B] text-white rounded-xl font-bold text-[11px] flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all">
+                              <Upload size={12} />
+                              <span>{pdfUploading ? 'প্রসেস হচ্ছে...' : 'Upload PDF (২-৫ পেজ)'}</span>
+                              <input
+                                type="file"
+                                accept="application/pdf,.pdf"
+                                onChange={handleBookPdfUpload}
+                                disabled={pdfUploading}
+                                className="hidden"
+                              />
+                            </label>
+
+                            <label className="px-3 py-1.5 bg-[#121E36] hover:bg-[#1E2D4E] text-white border border-[#223354] rounded-xl font-bold text-[11px] flex items-center gap-1.5 cursor-pointer transition-all">
+                              <ImageIcon size={12} />
+                              <span>Upload Page Images</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={handleBookPagesImageUpload}
+                                disabled={pdfUploading}
+                                className="hidden"
+                              />
+                            </label>
+
+                            <button
+                              type="button"
+                              onClick={handleAddWrittenPreviewPage}
+                              className="px-3 py-1.5 bg-[#121E36] hover:bg-[#1E2D4E] text-neutral-200 border border-[#223354] rounded-xl font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-all"
+                            >
+                              <Plus size={12} />
+                              <span>লেখার পৃষ্ঠা যোগ করুন</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
+                          <div>
+                            <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">
+                              হাইলাইট শিরোনাম (Section Title)
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="বইয়ের কিছু অংশ পড়ুন (একটু পড়ে দেখুন)"
+                              value={prodPreviewHighlightTitle}
+                              onChange={e => setProdPreviewHighlightTitle(e.target.value)}
+                              className="w-full px-3 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-white font-bold"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">
+                              সাব-টাইটেল (Optional Subtitle)
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="বইয়ের কিছুটা পড়তে পারেন এখানে • পৃষ্ঠা স্লাইড করে পড়ুন"
+                              value={prodPreviewHighlightSubtitle}
+                              onChange={e => setProdPreviewHighlightSubtitle(e.target.value)}
+                              className="w-full px-3 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-white"
+                            />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="block text-[11px] font-bold text-neutral-300 uppercase mb-1">
+                              বই সম্পর্কে কিছু কথা / ভূমিকা (Shown Inside Book Preview)
+                            </label>
+                            <textarea
+                              rows={2}
+                              placeholder="বইটি সম্পর্কে বিশেষ কিছু কথা বা ভূমিকা লিখুন..."
+                              value={prodPreviewIntro}
+                              onChange={e => setProdPreviewIntro(e.target.value)}
+                              className="w-full px-3 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-white"
+                            />
+                          </div>
+                        </div>
+
+                        {prodPreviewPages.length > 0 ? (
+                          <div className="space-y-2.5">
+                            <div className="flex items-center justify-between text-[11px] font-bold text-neutral-300">
+                              <span>যুক্ত করা বইয়ের পৃষ্ঠাসমূহ ({prodPreviewPages.length}টি পৃষ্ঠা):</span>
+                              <button
+                                type="button"
+                                onClick={() => setProdPreviewPages([])}
+                                className="text-red-400 hover:underline cursor-pointer text-[10px] font-bold"
+                              >
+                                সব পৃষ্ঠা মুছুন (Clear All)
+                              </button>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[360px] overflow-y-auto pr-1">
+                              {prodPreviewPages.map((pg, idx) => (
+                                <div
+                                  key={pg.id || idx}
+                                  className="p-3 rounded-xl bg-[#0E1726] border border-[#223354] shadow-xs space-y-2 text-xs"
+                                >
+                                  <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-[#1C2C4E]">
+                                    <span className="font-black text-[#D71920] flex items-center gap-1">
+                                      <FileText size={12} />
+                                      <span>পৃষ্ঠা {toBanglaDigits(idx + 1)}</span>
+                                    </span>
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        type="button"
+                                        disabled={idx === 0}
+                                        onClick={() => setProdPreviewPages(prev => movePreviewPage(prev, idx, 'up'))}
+                                        className="p-1 rounded-lg bg-[#121E36] hover:bg-[#1E2D4E] text-white disabled:opacity-30 cursor-pointer"
+                                        title="Move Page Up"
+                                      >
+                                        <ArrowUp size={11} />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={idx === prodPreviewPages.length - 1}
+                                        onClick={() => setProdPreviewPages(prev => movePreviewPage(prev, idx, 'down'))}
+                                        className="p-1 rounded-lg bg-[#121E36] hover:bg-[#1E2D4E] text-white disabled:opacity-30 cursor-pointer"
+                                        title="Move Page Down"
+                                      >
+                                        <ArrowDown size={11} />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setProdPreviewPages(prev =>
+                                            prev
+                                              .filter((_, i) => i !== idx)
+                                              .map((item, i) => ({ ...item, pageNumber: i + 1 }))
+                                          )
+                                        }
+                                        className="p-1 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 cursor-pointer"
+                                        title="Delete Page"
+                                      >
+                                        <Trash2 size={11} />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <input
+                                    type="text"
+                                    placeholder={`পৃষ্ঠা ${toBanglaDigits(idx + 1)} শিরোনাম`}
+                                    value={pg.title || ''}
+                                    onChange={e => {
+                                      const val = e.target.value;
+                                      setProdPreviewPages(prev =>
+                                        prev.map((item, i) => (i === idx ? { ...item, title: val } : item))
+                                      );
+                                    }}
+                                    className="w-full px-2.5 py-1.5 rounded-lg border border-[#223354] bg-[#121E36] font-bold text-white text-[11px]"
+                                  />
+
+                                  {isValidImageUrl(pg.imageUrl) && (
+                                    <div className="relative rounded-xl overflow-hidden border border-[#223354] bg-[#121E36] p-1.5 flex items-center gap-2.5">
+                                      <img
+                                        src={pg.imageUrl}
+                                        alt={pg.title || `Page ${idx + 1}`}
+                                        className="w-14 h-20 object-contain bg-neutral-900 rounded border border-[#223354] shrink-0"
+                                      />
+                                      <div className="flex-1 min-w-0 space-y-1">
+                                        <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 inline-block">
+                                          ✓ Page Image Attached
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setProdPreviewPages(prev =>
+                                              prev.map((item, i) =>
+                                                i === idx ? { ...item, imageUrl: undefined } : item
+                                              )
+                                            )
+                                          }
+                                          className="block text-[10px] text-red-400 font-bold hover:underline cursor-pointer"
+                                        >
+                                          ছবি পরিবর্তন / মুছুন
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  <textarea
+                                    rows={3}
+                                    placeholder="এই পৃষ্ঠার লেখা বা বইয়ের অংশ এখানে লিখুন..."
+                                    value={pg.content || ''}
+                                    onChange={e => {
+                                      const val = e.target.value;
+                                      setProdPreviewPages(prev =>
+                                        prev.map((item, i) => (i === idx ? { ...item, content: val } : item))
+                                      );
+                                    }}
+                                    className="w-full px-2.5 py-1.5 rounded-lg border border-[#223354] bg-[#121E36] text-white text-[11px]"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-4 rounded-xl bg-[#0E1726] border border-dashed border-[#223354] text-center text-[11px] text-neutral-400">
+                            এখনো কোনো কাস্টম পৃষ্ঠা যোগ করা হয়নি। উপরে <strong>Upload PDF</strong>, <strong>Upload Page Images</strong> বা <strong>লেখার পৃষ্ঠা যোগ করুন</strong> বাটনে ক্লিক করে পৃষ্ঠা যুক্ত করতে পারেন।
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* CARD 5: VARIANTS & OPTIONS (Matching image_44c07b58.png) */}
+                    <div className="bg-[#0B132B] border border-[#1C2C4E] rounded-2xl p-5 text-neutral-100 shadow-md space-y-4">
+                      <div className="flex items-center gap-2.5 pb-3 border-b border-[#1C2C4E]">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
+                          <Layers size={16} />
+                        </div>
+                        <div>
+                          <h4 className="font-extrabold text-sm text-white">Variants & Options</h4>
+                          <p className="text-[11px] text-neutral-400">Sizes, colors, and variant configurations</p>
+                        </div>
+                      </div>
+
+                      {/* Inner Banner: Sizes & Size-Wise Pricing */}
+                      <div className="p-4 rounded-xl bg-[#0E1726] border border-[#223354] space-y-3.5">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="w-6 h-6 rounded-md bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                              <Sparkles size={13} />
+                            </span>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-extrabold text-xs text-white">
+                                  Sizes & Size-Wise Pricing (সাইজ অনুযায়ী মূল্য)
+                                </span>
+                                <span className="px-2 py-0.2 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black">
+                                  {customVariants.length} Sizes
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-neutral-400 mt-0.5">
+                                ২টা বা ততোধিক সাইজ/সংস্করণের জন্য আলাদা আলাদা প্রাইস নির্ধারণ করতে পারেন
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Quick Presets */}
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-[10px] text-neutral-400">Quick Presets:</span>
+                            {prodType === 'book' ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCustomVariants([
+                                      { id: `v1-${Date.now()}`, name: 'Paperback (পেপারব্যাক)', price: Number(prodPrice) || 350, regularPrice: Number(prodRegularPrice) || 450, stock: 100, sku: `${prodSku || 'BK'}-PB` },
+                                      { id: `v2-${Date.now()}`, name: 'Hardcover (হার্ডকভার)', price: (Number(prodPrice) || 350) + 100, regularPrice: (Number(prodRegularPrice) || 450) + 120, stock: 50, sku: `${prodSku || 'BK'}-HC` }
+                                    ]);
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-[#121E36] hover:bg-[#1E2D4E] text-amber-400 border border-[#223354] text-[10px] font-bold cursor-pointer"
+                                >
+                                  ⚡ Paperback & Hardcover
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCustomVariants([
+                                      { id: `v1-${Date.now()}`, name: 'Standard Edition', price: Number(prodPrice) || 350, regularPrice: Number(prodRegularPrice) || 450, stock: 100, sku: `${prodSku || 'BK'}-STD` },
+                                      { id: `v2-${Date.now()}`, name: 'Special Gift Pack', price: (Number(prodPrice) || 350) + 150, regularPrice: (Number(prodRegularPrice) || 450) + 200, stock: 40, sku: `${prodSku || 'BK'}-GIFT` }
+                                    ]);
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-[#121E36] hover:bg-[#1E2D4E] text-emerald-400 border border-[#223354] text-[10px] font-bold cursor-pointer"
+                                >
+                                  ⚡ Gift Edition
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCustomVariants([
+                                      { id: `v1-${Date.now()}`, name: '500g', price: Number(prodPrice) || 220, regularPrice: Number(prodRegularPrice) || 290, stock: 100, sku: `${prodSku || 'ST'}-500G` },
+                                      { id: `v2-${Date.now()}`, name: '1kg', price: (Number(prodPrice) || 220) * 1.8, regularPrice: (Number(prodRegularPrice) || 290) * 1.8, stock: 60, sku: `${prodSku || 'ST'}-1KG` }
+                                    ]);
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-[#121E36] hover:bg-[#1E2D4E] text-amber-400 border border-[#223354] text-[10px] font-bold cursor-pointer"
+                                >
+                                  ⚡ 500g & 1kg
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCustomVariants([
+                                      { id: `v1-${Date.now()}`, name: 'M & L (Standard)', price: Number(prodPrice) || 220, regularPrice: Number(prodRegularPrice) || 290, stock: 100, sku: `${prodSku || 'ST'}-ML` },
+                                      { id: `v2-${Date.now()}`, name: 'XL (Executive)', price: (Number(prodPrice) || 220) + 80, regularPrice: (Number(prodRegularPrice) || 290) + 100, stock: 50, sku: `${prodSku || 'ST'}-XL` }
+                                    ]);
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-[#121E36] hover:bg-[#1E2D4E] text-emerald-400 border border-[#223354] text-[10px] font-bold cursor-pointer"
+                                >
+                                  ⚡ M & L
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Variant Input Row */}
+                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 items-end pt-2 border-t border-[#223354]">
+                          <div>
+                            <label className="block text-[10px] font-bold text-neutral-300 uppercase mb-1">
+                              সাইজের নাম (Size Name) *
+                            </label>
+                            <input
+                              type="text"
+                              placeholder={prodType === 'book' ? 'যেমন: Paperback, Hardcover' : 'যেমন: 500g, 1kg, A5, S, M'}
+                              value={newVariantName}
+                              onChange={e => setNewVariantName(e.target.value)}
+                              className="w-full px-3 py-2 rounded-xl border border-[#223354] bg-[#121E36] text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-neutral-300 uppercase mb-1">
+                              অফার মূল্য / Offer Price (৳)
+                            </label>
+                            <input
+                              type="number"
+                              placeholder={`ডিফল্ট: ৳${prodPrice}`}
+                              value={newVariantOfferPrice}
+                              onChange={e => setNewVariantOfferPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                              className="w-full px-3 py-2 rounded-xl border border-[#223354] bg-[#121E36] text-xs font-bold text-white placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-neutral-300 uppercase mb-1">
+                              রেগুলার মূল্য / Regular (৳)
+                            </label>
+                            <input
+                              type="number"
+                              placeholder="ঐচ্ছিক (কাটা মূল্য)"
+                              value={newVariantRegularPrice}
+                              onChange={e => setNewVariantRegularPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                              className="w-full px-3 py-2 rounded-xl border border-[#223354] bg-[#121E36] text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                          <div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!newVariantName.trim()) return;
+                                const vPrice = Number(newVariantOfferPrice) || Number(prodPrice) || 350;
+                                const vRegPrice = newVariantRegularPrice ? Number(newVariantRegularPrice) : (Number(prodRegularPrice) || vPrice + 100);
+                                const vSku = `${prodSku || 'SKU'}-V${customVariants.length + 1}`;
+                                setCustomVariants(prev => [
+                                  ...prev,
+                                  {
+                                    id: `v-${Date.now()}-${prev.length + 1}`,
+                                    name: newVariantName.trim(),
+                                    price: vPrice,
+                                    regularPrice: vRegPrice,
+                                    stock: 100,
+                                    sku: vSku
+                                  }
+                                ]);
+                                setNewVariantName('');
+                                setNewVariantOfferPrice('');
+                                setNewVariantRegularPrice('');
+                              }}
+                              className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer flex items-center justify-center gap-1 transition-all"
+                            >
+                              <Plus size={14} />
+                              <span>+ যোগ করুন</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* List of Variants or Friendly Empty State */}
+                        {customVariants.length > 0 ? (
+                          <div className="space-y-2 pt-2">
+                            {customVariants.map((v, idx) => (
+                              <div
+                                key={v.id || idx}
+                                className="flex items-center justify-between p-3 rounded-xl bg-[#121E36] border border-[#223354] text-xs"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <span className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 font-black flex items-center justify-center text-[11px]">
+                                    {idx + 1}
+                                  </span>
+                                  <div>
+                                    <h5 className="font-extrabold text-white">{v.name}</h5>
+                                    <div className="flex items-center gap-2 text-[11px] text-neutral-400 mt-0.5">
+                                      <span className="font-mono">{v.sku}</span>
+                                      <span>• Stock: {v.stock}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <div className="text-right">
+                                    <div className="font-black text-emerald-400">৳{v.price}</div>
+                                    {v.regularPrice && v.regularPrice > v.price && (
+                                      <div className="text-[10px] text-neutral-400 line-through">৳{v.regularPrice}</div>
+                                    )}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => setCustomVariants(prev => prev.filter((_, i) => i !== idx))}
+                                    className="p-1.5 text-neutral-400 hover:text-red-400 cursor-pointer transition-colors"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-6 rounded-xl bg-[#121E36]/60 border border-dashed border-[#223354] text-center space-y-2">
+                            <div className="w-10 h-10 mx-auto rounded-full bg-[#1C2C4E] text-neutral-400 flex items-center justify-center">
+                              <Layers size={18} />
+                            </div>
+                            <h5 className="font-bold text-xs text-neutral-300">কোনো সাইজ যুক্ত করা হয়নি</h5>
+                            <p className="text-[11px] text-neutral-400 max-w-sm mx-auto">
+                              যদি প্রোডাক্টের একাধিক সাইজ থাকে এবং প্রতি সাইজের জন্য ভিন্ন মূল্য দিতে চান (যেমন Paperback ৳৩৫০ এবং Hardcover ৳৪৫০), তবে উপরের বাটনে ক্লিক করুন।
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (prodType === 'book') {
+                                  setCustomVariants([
+                                    { id: `v1-${Date.now()}`, name: 'Paperback (পেপারব্যাক)', price: Number(prodPrice) || 350, regularPrice: Number(prodRegularPrice) || 450, stock: 100, sku: `${prodSku || 'BK'}-PB` },
+                                    { id: `v2-${Date.now()}`, name: 'Hardcover (হার্ডকভার)', price: (Number(prodPrice) || 350) + 100, regularPrice: (Number(prodRegularPrice) || 450) + 120, stock: 50, sku: `${prodSku || 'BK'}-HC` }
+                                  ]);
+                                } else {
+                                  setCustomVariants([
+                                    { id: `v1-${Date.now()}`, name: 'Standard Pack (১টি)', price: Number(prodPrice) || 220, regularPrice: Number(prodRegularPrice) || 290, stock: 100, sku: `${prodSku || 'ST'}-STD` },
+                                    { id: `v2-${Date.now()}`, name: 'Combo Pack (২টি)', price: (Number(prodPrice) || 220) * 1.8, regularPrice: (Number(prodRegularPrice) || 290) * 2, stock: 60, sku: `${prodSku || 'ST'}-CMB` }
+                                  ]);
+                                }
+                              }}
+                              className="mt-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer inline-flex items-center gap-1.5 transition-all"
+                            >
+                              <Plus size={13} />
+                              <span>+ ২টি সাইজের মূল্য সেট করুন</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                    <div>
-                      <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Price (BDT) *</label>
-                      <input type="number" placeholder="350" required value={prodPrice} onChange={e => setProdPrice(Number(e.target.value))} className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]" />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">SKU Code</label>
-                      <input type="text" placeholder="e.g. BK-PS2-PB" value={prodSku} onChange={e => setProdSku(e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white text-xs text-neutral-900 font-mono focus:outline-none focus:border-[#D71920]" />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                        {prodType === 'book' ? 'Print Editions / Formats' : 'Variants / Pack Sizes'}
-                      </label>
-                      <input 
-                        type="text" 
-                        placeholder={prodType === 'book' ? 'Paperback, Hardcover' : 'Single Piece, Pack of 5'} 
-                        value={prodPrintVariants} 
-                        onChange={e => setProdPrintVariants(e.target.value)} 
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white text-xs text-neutral-900 focus:outline-none focus:border-[#D71920]"
-                      />
-                    </div>
-                  </div>
+                  {/* RIGHT COLUMN: 4 Columns (Matching image_c4b27017.png & image_44c07b58.png) */}
+                  <div className="lg:col-span-4 space-y-6">
+                    
+                    {/* WIDGET 1: PRODUCT STATUS (Matching image_c4b27017.png) */}
+                    <div className="bg-[#0B132B] border border-[#1C2C4E] rounded-2xl p-5 text-neutral-100 shadow-md space-y-4">
+                      <h4 className="font-extrabold text-xs uppercase tracking-wider text-neutral-400">
+                        PRODUCT STATUS
+                      </h4>
 
-                  {/* Main Cover Image URL + Upload */}
-                  <div>
-                    <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                      Main Cover Photo (URL or Upload from Device)
-                    </label>
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-                      {prodImage && (
-                        <img src={prodImage} alt="Preview" className="w-12 h-16 object-contain rounded-lg border border-neutral-200 bg-white p-0.5 shrink-0" />
+                      {/* Visibility Status */}
+                      <div>
+                        <label className="block text-xs font-bold text-neutral-300 mb-2">
+                          Visibility Status
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setProdIsActive(true)}
+                            className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer border transition-all ${
+                              prodIsActive
+                                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500 shadow-xs'
+                                : 'bg-[#0E1726] text-neutral-400 border-[#223354] hover:bg-[#121E36]'
+                            }`}
+                          >
+                            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                            <span>Active / Live</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setProdIsActive(false)}
+                            className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer border transition-all ${
+                              !prodIsActive
+                                ? 'bg-neutral-700/60 text-white border-neutral-500 shadow-xs'
+                                : 'bg-[#0E1726] text-neutral-400 border-[#223354] hover:bg-[#121E36]'
+                            }`}
+                          >
+                            <span className="w-2 h-2 rounded-full bg-neutral-400"></span>
+                            <span>Draft / Hidden</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Featured / Hot Deal Switch */}
+                      <div className="p-3 rounded-xl bg-[#0E1726] border border-[#223354] flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Flame size={16} className={prodIsFeatured ? 'text-amber-400' : 'text-neutral-500'} />
+                          <span className="text-xs font-bold text-neutral-200">Featured / Hot Deal</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setProdIsFeatured(!prodIsFeatured)}
+                          className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-200 ${
+                            prodIsFeatured ? 'bg-[#D71920] justify-end' : 'bg-neutral-700 justify-start'
+                          }`}
+                        >
+                          <span className="bg-white w-4 h-4 rounded-full shadow-md transform transition-transform" />
+                        </button>
+                      </div>
+
+                      {/* Product Badge Selector */}
+                      <div>
+                        <label className="block text-xs font-bold text-neutral-300 mb-2">
+                          Product Badge
+                        </label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {['NEW', 'HOT', 'SALE', '100% Pure', 'Best Offer', '50% Off', 'Original'].map(badge => (
+                            <button
+                              key={badge}
+                              type="button"
+                              onClick={() => setProdBadge(badge)}
+                              className={`px-3 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
+                                prodBadge === badge
+                                  ? 'bg-[#D71920] text-white border-[#D71920] shadow-xs'
+                                  : 'bg-[#0E1726] text-neutral-300 border-[#223354] hover:bg-[#121E36]'
+                              }`}
+                            >
+                              {badge}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* WIDGET 2: PRICING (Matching image_44c07b58.png) */}
+                    <div className="bg-[#0B132B] border border-[#1C2C4E] rounded-2xl p-5 text-neutral-100 shadow-md space-y-4">
+                      <h4 className="font-extrabold text-xs uppercase tracking-wider text-neutral-400">
+                        PRICING
+                      </h4>
+
+                      {/* Regular Price */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-xs font-bold text-neutral-300">
+                            রেগুলার মূল্য (Regular / Original Price)
+                          </label>
+                          <span className="text-[10px] text-neutral-400">(Optional - strikethrough)</span>
+                        </div>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-xs">৳</span>
+                          <input
+                            type="number"
+                            min={0}
+                            placeholder="450"
+                            value={prodRegularPrice}
+                            onChange={e => setProdRegularPrice(Number(e.target.value))}
+                            className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-[#223354] bg-[#0E1726] text-xs font-bold text-white focus:outline-none focus:border-[#D71920]"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Offer Price */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-xs font-bold text-neutral-300">
+                            অফার মূল্য (Offer Price) <span className="text-red-400">*</span>
+                          </label>
+                          <span className="text-[10px] text-emerald-400 font-bold">(Customer purchase price)</span>
+                        </div>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-400 font-bold text-xs">৳</span>
+                          <input
+                            type="number"
+                            min={0}
+                            required
+                            placeholder="350"
+                            value={prodPrice}
+                            onChange={e => setProdPrice(Number(e.target.value))}
+                            className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-[#223354] bg-[#0E1726] text-sm font-black text-emerald-400 focus:outline-none focus:border-emerald-500"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Dynamic Customer Savings Banner */}
+                      {Number(prodRegularPrice) > Number(prodPrice) && (
+                        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between text-xs text-amber-300">
+                          <div className="flex items-center gap-1.5 font-bold">
+                            <Tag size={13} className="text-amber-400" />
+                            <span>Customer Savings:</span>
+                          </div>
+                          <span className="font-black text-amber-400">
+                            ৳{Number(prodRegularPrice) - Number(prodPrice)} ({Math.round(((Number(prodRegularPrice) - Number(prodPrice)) / Number(prodRegularPrice)) * 100)}% OFF)
+                          </span>
+                        </div>
                       )}
-                      <input
-                        type="url"
-                        placeholder="https://... or upload cover image"
-                        value={prodImage}
-                        onChange={e => setProdImage(e.target.value)}
-                        className="flex-1 px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white text-xs text-neutral-900 focus:outline-none focus:border-[#D71920]"
-                      />
-                      <label className="px-4 py-2.5 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shrink-0 transition-colors">
-                        <Upload size={13} />
-                        <span>Upload Cover</span>
+
+                      <p className="text-[10px] text-neutral-400 text-center">
+                        Purchase Cost Price দিলে প্রফিট হিসাব হবে
+                      </p>
+                    </div>
+
+                    {/* WIDGET 3: PRODUCT GALLERY (Matching image_c4b27017.png) */}
+                    <div className="bg-[#0B132B] border border-[#1C2C4E] rounded-2xl p-5 text-neutral-100 shadow-md space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-extrabold text-xs uppercase tracking-wider text-neutral-400">
+                          PRODUCT GALLERY
+                        </h4>
+                        <span className="text-[11px] text-neutral-400 font-mono">
+                          {prodGalleryUrls.length} Images
+                        </span>
+                      </div>
+
+                      {/* Dropzone Upload Box */}
+                      <label className="border-2 border-dashed border-[#223354] hover:border-amber-400 bg-[#0E1726] rounded-xl p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-colors group">
+                        <div className="w-10 h-10 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                          <Upload size={18} />
+                        </div>
+                        <span className="text-xs font-bold text-white group-hover:text-amber-300">
+                          Click to upload or drag image
+                        </span>
+                        <span className="text-[10px] text-neutral-400 mt-0.5">
+                          PNG, JPG, WEBP up to 5MB
+                        </span>
                         <input
                           type="file"
                           accept="image/*"
@@ -4775,500 +6068,199 @@ export function AdminDashboard() {
                             if (file) {
                               try {
                                 const compressed = await compressImageFile(file, 800, 1100, 0.84);
-                                setProdImage(compressed);
-                                setToast({ show: true, type: 'success', message: 'Cover photo uploaded!' });
+                                setProdGalleryUrls(prev => Array.from(new Set([...prev, compressed])));
+                                if (!prodImage) setProdImage(compressed);
+                                setToast({ show: true, type: 'success', message: 'Gallery image uploaded!' });
                               } catch (err: any) {
-                                setToast({ show: true, type: 'error', message: err.message || 'Failed to upload image' });
+                                setToast({ show: true, type: 'error', message: err.message || 'Upload failed' });
                               }
                             }
                           }}
                           className="hidden"
                         />
                       </label>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Section 2: Tailored Book / Stationery Attributes */}
-                {prodType === 'book' ? (
-                  <div className="p-4 sm:p-5 rounded-2xl bg-neutral-50/80 border border-neutral-200/80 space-y-3.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-extrabold text-neutral-800 uppercase tracking-wider">
-                        📚 Book Specifications (Author, Publisher, Edition & Pages)
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab('publishers')}
-                        className="text-[11px] font-bold text-[#D71920] hover:underline cursor-pointer"
-                      >
-                        + Manage Publishers / প্রকাশনী
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div>
-                        <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Author Name (লেখক) *</label>
+                      {/* Paste Image URL Input */}
+                      <div className="flex items-center gap-1.5">
                         <input
-                          type="text"
-                          list="admin-authors-list"
-                          placeholder="e.g. Arif Azad / Humayun Ahmed"
-                          required
-                          value={prodAuthor}
-                          onChange={e => setProdAuthor(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white text-xs text-neutral-900"
+                          type="url"
+                          placeholder="Or paste image URL..."
+                          value={galleryUrlInput}
+                          onChange={e => setGalleryUrlInput(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (galleryUrlInput.trim()) {
+                                setProdGalleryUrls(prev => Array.from(new Set([...prev, galleryUrlInput.trim()])));
+                                if (!prodImage) setProdImage(galleryUrlInput.trim());
+                                setGalleryUrlInput('');
+                              }
+                            }
+                          }}
+                          className="flex-1 px-3 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-amber-400"
                         />
-                        <datalist id="admin-authors-list">
-                          {authors.map(a => (
-                            <option key={a.id} value={a.name} />
-                          ))}
-                        </datalist>
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Publisher (প্রকাশনী)</label>
-                        <input
-                          type="text"
-                          list="admin-publishers-list"
-                          placeholder="e.g. Guardian Publications / প্রথমা"
-                          value={prodPublisher}
-                          onChange={e => setProdPublisher(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white text-xs text-neutral-900"
-                        />
-                        <datalist id="admin-publishers-list">
-                          {publishers.map(pub => (
-                            <option key={pub.id} value={pub.name}>
-                              {pub.banglaName ? `${pub.banglaName} (${pub.name})` : pub.name}
-                            </option>
-                          ))}
-                        </datalist>
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Edition (সংস্করণ)</label>
-                        <input
-                          type="text"
-                          placeholder="e.g. 3rd Edition"
-                          value={prodEdition}
-                          onChange={e => setProdEdition(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white text-xs text-neutral-900"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div>
-                        <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Pages (পৃষ্ঠা সংখ্যা)</label>
-                        <input
-                          type="number"
-                          min={1}
-                          placeholder="e.g. 264"
-                          value={prodPages}
-                          onChange={e => setProdPages(Number(e.target.value))}
-                          className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white text-xs text-neutral-900"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Language (ভাষা)</label>
-                        <input
-                          type="text"
-                          placeholder="e.g. Bengali / English"
-                          value={prodLanguage}
-                          onChange={e => setProdLanguage(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white text-xs text-neutral-900"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">ISBN Code</label>
-                        <input
-                          type="text"
-                          placeholder="e.g. 9789849312341"
-                          value={prodIsbn}
-                          onChange={e => setProdIsbn(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white text-xs text-neutral-900 font-mono"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">
-                        Extra Custom Book Details (ঐচ্ছিক — প্রতি লাইনে Label: Value ফরম্যাটে লিখুন)
-                      </label>
-                      <textarea
-                        rows={2}
-                        placeholder={'Paper Quality: 80 GSM Cream Paper\nBinding: Hardcover Stitch'}
-                        value={prodCustomDetailsText}
-                        onChange={e => setProdCustomDetailsText(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white text-xs text-neutral-900"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-4 sm:p-5 rounded-2xl bg-neutral-50/80 border border-neutral-200/80 space-y-3">
-                    <div className="text-xs font-extrabold text-neutral-800 uppercase tracking-wider">
-                      ✏️ Stationery & Office Supply Attributes
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                      <div>
-                        <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Brand / Manufacturer *</label>
-                        <input type="text" placeholder="e.g. Faber-Castell / Deli" required value={prodBrand} onChange={e => setProdBrand(e.target.value)} className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white text-xs" />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Material</label>
-                        <input type="text" placeholder="e.g. Plastic / Wood / Metal" value={prodMaterial} onChange={e => setProdMaterial(e.target.value)} className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white text-xs" />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Dimensions / Size</label>
-                        <input type="text" placeholder="e.g. A4 / 0.5mm / 30cm" value={prodDimensions} onChange={e => setProdDimensions(e.target.value)} className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white text-xs" />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Color / Model</label>
-                        <input type="text" placeholder="e.g. Blue / Matte Black" value={prodColorModel} onChange={e => setProdColorModel(e.target.value)} className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white text-xs" />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Section 3: Per-Book Custom Delivery Timing */}
-                <div className="p-4 sm:p-5 rounded-2xl bg-neutral-50/80 border border-neutral-200/80 space-y-3.5">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <div className="text-xs font-extrabold text-neutral-900 flex items-center gap-1.5">
-                        <Truck size={14} className="text-[#D71920]" />
-                        <span>Per-Book Delivery Timing & Timer (ডেলিভারি টাইমিং)</span>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {[
-                        { label: '⚡ ২৪ ঘণ্টা এক্সপ্রেস', est: '২৪ ঘণ্টায় এক্সপ্রেস ডেলিভারি', inDhaka: '১২-২৪ ঘণ্টা', outDhaka: '১-২ দিন', hrs: 24 },
-                        { label: '🚚 ১-২ দিন', est: '১-২ কার্যদিবস (1-2 Days)', inDhaka: '২৪ ঘণ্টা (১ দিন)', outDhaka: '১-২ কার্যদিবস', hrs: 36 },
-                        { label: '📦 ২-৩ দিন (ডিফল্ট)', est: '২-৩ কার্যদিবস (2-3 Days)', inDhaka: '২৪-৪৮ ঘণ্টা (১-২ দিন)', outDhaka: '২-৩ কার্যদিবস (সারাদেশে)', hrs: 48 },
-                        { label: '⏳ ৩-৫ দিন (প্রি-অর্ডার)', est: '৩-৫ কার্যদিবস (Pre-Order)', inDhaka: '২-৩ দিন', outDhaka: '৩-৫ কার্যদিবস', hrs: 96 },
-                      ].map((preset, idx) => (
                         <button
-                          key={idx}
                           type="button"
                           onClick={() => {
-                            setProdDeliveryEstimate(preset.est);
-                            setProdInsideDhakaDelivery(preset.inDhaka);
-                            setProdOutsideDhakaDelivery(preset.outDhaka);
-                            setProdDeliveryTimerHours(preset.hrs);
+                            if (galleryUrlInput.trim()) {
+                              setProdGalleryUrls(prev => Array.from(new Set([...prev, galleryUrlInput.trim()])));
+                              if (!prodImage) setProdImage(galleryUrlInput.trim());
+                              setGalleryUrlInput('');
+                            }
                           }}
-                          className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#D71920] hover:text-white text-neutral-700 border border-neutral-200 text-[10px] font-bold transition-colors cursor-pointer"
+                          className="px-3.5 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-bold rounded-xl cursor-pointer"
                         >
-                          {preset.label}
+                          Add
                         </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">
-                        Primary Delivery Badge *
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. ২-৩ কার্যদিবস / 2-3 Days"
-                        value={prodDeliveryEstimate}
-                        onChange={e => setProdDeliveryEstimate(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white text-xs font-bold text-neutral-900"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">
-                        Inside Dhaka (ঢাকার ভেতরে)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. ২৪-৪৮ ঘণ্টা (১-২ দিন)"
-                        value={prodInsideDhakaDelivery}
-                        onChange={e => setProdInsideDhakaDelivery(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white text-xs text-neutral-900"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">
-                        Outside Dhaka (ঢাকার বাইরে)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. ২-৩ কার্যদিবস (সারাদেশে)"
-                        value={prodOutsideDhakaDelivery}
-                        onChange={e => setProdOutsideDhakaDelivery(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white text-xs text-neutral-900"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">
-                        Delivery Card Title
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="ডেলিভারি টাইমিং (Delivery Timing)"
-                        value={prodDeliveryTimingTitle}
-                        onChange={e => setProdDeliveryTimingTitle(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white text-xs text-neutral-900"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">
-                        Timer Hours (ঘণ্টা)
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        placeholder="48"
-                        value={prodDeliveryTimerHours}
-                        onChange={e => setProdDeliveryTimerHours(Number(e.target.value))}
-                        className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white text-xs font-bold text-neutral-900"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">
-                        Custom Delivery Note
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="আজকে অর্ডার করলে দ্রুততম সময়ে পাঠানো হবে..."
-                        value={prodDeliveryTimingNote}
-                        onChange={e => setProdDeliveryTimingNote(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white text-xs text-neutral-900"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section 4: Book / Item Overview Description */}
-                <div className="p-4 sm:p-5 rounded-2xl bg-neutral-50/80 border border-neutral-200/80 space-y-2">
-                  <label className="block text-[11px] font-bold text-neutral-600 uppercase">
-                    Book / Item Description (Overview)
-                  </label>
-                  <textarea
-                    rows={3}
-                    placeholder="Write general overview or summary about this book..."
-                    value={prodDescription}
-                    onChange={e => setProdDescription(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white text-xs text-neutral-900 focus:outline-none focus:border-[#D71920]"
-                  />
-                </div>
-
-                {/* Section 5: Book Preview & PDF / Page Slider Manager */}
-                <div className="p-4 sm:p-5 rounded-2xl bg-neutral-50/80 border border-neutral-200/80 space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-neutral-200/80">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <BookOpen size={15} className="text-[#D71920]" />
-                        <span className="font-extrabold text-xs sm:text-sm text-neutral-900">
-                          বইয়ের কিছু অংশ পড়ুন — Book Preview & Pages Slider
-                        </span>
                       </div>
-                      <p className="text-[11px] text-neutral-500 mt-0.5">
-                        Upload a PDF file, page images, or written preview pages for customers to read
-                      </p>
+
+                      {/* Gallery Thumbnails Grid */}
+                      {prodGalleryUrls.length > 0 && (
+                        <div className="grid grid-cols-3 gap-2 pt-1">
+                          {prodGalleryUrls.map((url, idx) => (
+                            <div key={idx} className="relative group rounded-lg overflow-hidden border border-[#223354] bg-[#0E1726] aspect-square p-1">
+                              <img src={url} alt={`Gallery ${idx + 1}`} className="w-full h-full object-contain rounded" />
+                              {idx === 0 && (
+                                <span className="absolute top-1 left-1 text-[9px] font-black px-1.5 py-0.2 rounded bg-amber-500 text-black">
+                                  Cover
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setProdGalleryUrls(prev => prev.filter((_, i) => i !== idx));
+                                  if (prodImage === url) {
+                                    setProdImage(prodGalleryUrls.find(u => u !== url) || '');
+                                  }
+                                }}
+                                className="absolute top-1 right-1 p-1 rounded-md bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                              >
+                                <Trash2 size={11} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 shrink-0">
-                      <label className="px-3 py-1.5 bg-[#D71920] hover:bg-[#B9151B] text-white rounded-xl font-bold text-[11px] flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all">
-                        <Upload size={12} />
-                        <span>{pdfUploading ? 'প্রসেস হচ্ছে...' : 'Upload PDF (২-৫ পেজ)'}</span>
-                        <input
-                          type="file"
-                          accept="application/pdf,.pdf"
-                          onChange={handleBookPdfUpload}
-                          disabled={pdfUploading}
-                          className="hidden"
-                        />
-                      </label>
+                    {/* WIDGET 4: DELIVERY CHARGE (Matching image_44c07b58.png) */}
+                    <div className="bg-[#0B132B] border border-[#1C2C4E] rounded-2xl p-5 text-neutral-100 shadow-md space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Truck size={16} className="text-amber-400" />
+                        <h4 className="font-extrabold text-xs uppercase tracking-wider text-neutral-400">
+                          DELIVERY CHARGE
+                        </h4>
+                      </div>
 
-                      <label className="px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl font-bold text-[11px] flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all">
-                        <ImageIcon size={12} />
-                        <span>Upload Page Images</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={handleBookPagesImageUpload}
-                          disabled={pdfUploading}
-                          className="hidden"
-                        />
-                      </label>
-
-                      <button
-                        type="button"
-                        onClick={handleAddWrittenPreviewPage}
-                        className="px-3 py-1.5 bg-white hover:bg-neutral-100 text-neutral-800 border border-neutral-200 rounded-xl font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-all"
-                      >
-                        <Plus size={12} />
-                        <span>লেখার পৃষ্ঠা যোগ করুন</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">
-                        হাইলাইট শিরোনাম (Section Title)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="বইয়ের কিছু অংশ পড়ুন (একটু পড়ে দেখুন)"
-                        value={prodPreviewHighlightTitle}
-                        onChange={e => setProdPreviewHighlightTitle(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white font-bold text-neutral-900"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">
-                        সাব-টাইটেল (Optional Subtitle)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="বইয়ের কিছুটা পড়তে পারেন এখানে • পৃষ্ঠা স্লাইড করে পড়ুন"
-                        value={prodPreviewHighlightSubtitle}
-                        onChange={e => setProdPreviewHighlightSubtitle(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white text-neutral-800"
-                      />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">
-                        বই সম্পর্কে কিছু কথা / ভূমিকা (Shown Inside Book Preview)
-                      </label>
-                      <textarea
-                        rows={2}
-                        placeholder="বইটি সম্পর্কে বিশেষ কিছু কথা বা ভূমিকা লিখুন..."
-                        value={prodPreviewIntro}
-                        onChange={e => setProdPreviewIntro(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white text-neutral-900"
-                      />
-                    </div>
-                  </div>
-
-                  {prodPreviewPages.length > 0 ? (
-                    <div className="space-y-2.5">
-                      <div className="flex items-center justify-between text-[11px] font-bold text-neutral-700">
-                        <span>যুক্ত করা বইয়ের পৃষ্ঠাসমূহ ({prodPreviewPages.length}টি পৃষ্ঠা):</span>
+                      <div className="grid grid-cols-3 gap-1.5">
                         <button
                           type="button"
-                          onClick={() => setProdPreviewPages([])}
-                          className="text-red-600 hover:underline cursor-pointer text-[10px] font-bold"
+                          onClick={() => setProdDeliveryChargeType('standard')}
+                          className={`py-2 px-2 rounded-xl text-xs font-bold text-center border transition-all cursor-pointer ${
+                            prodDeliveryChargeType === 'standard'
+                              ? 'bg-[#D71920] text-white border-[#D71920] shadow-xs'
+                              : 'bg-[#0E1726] text-neutral-300 border-[#223354] hover:bg-[#121E36]'
+                          }`}
                         >
-                          সব পৃষ্ঠা মুছুন (Clear All)
+                          Standard
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setProdDeliveryChargeType('free')}
+                          className={`py-2 px-2 rounded-xl text-xs font-bold text-center border transition-all cursor-pointer ${
+                            prodDeliveryChargeType === 'free'
+                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                              : 'bg-[#0E1726] text-neutral-300 border-[#223354] hover:bg-[#121E36]'
+                          }`}
+                        >
+                          ✨ Free Delivery
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setProdDeliveryChargeType('custom')}
+                          className={`py-2 px-2 rounded-xl text-xs font-bold text-center border transition-all cursor-pointer ${
+                            prodDeliveryChargeType === 'custom'
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                              : 'bg-[#0E1726] text-neutral-300 border-[#223354] hover:bg-[#121E36]'
+                          }`}
+                        >
+                          Custom Fee
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[380px] overflow-y-auto pr-1">
-                        {prodPreviewPages.map((pg, idx) => (
-                          <div
-                            key={pg.id || idx}
-                            className="p-3 rounded-xl bg-white border border-neutral-200 shadow-2xs space-y-2 text-xs"
+                      {prodDeliveryChargeType === 'custom' && (
+                        <div className="pt-2">
+                          <label className="block text-xs font-bold text-neutral-300 mb-1">
+                            Custom Delivery Charge (৳)
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            placeholder="60"
+                            value={prodCustomDeliveryFee}
+                            onChange={e => setProdCustomDeliveryFee(Number(e.target.value))}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#223354] bg-[#0E1726] text-xs font-bold text-white focus:outline-none focus:border-blue-400"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* WIDGET 5: CATEGORY & SKU */}
+                    <div className="bg-[#0B132B] border border-[#1C2C4E] rounded-2xl p-5 text-neutral-100 shadow-md space-y-4">
+                      <h4 className="font-extrabold text-xs uppercase tracking-wider text-neutral-400">
+                        CATEGORY & INVENTORY
+                      </h4>
+
+                      <div>
+                        <label className="block text-xs font-bold text-neutral-300 mb-1">
+                          Category <span className="text-red-400">*</span>
+                        </label>
+                        <select
+                          value={prodCategory}
+                          onChange={e => setProdCategory(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#223354] bg-[#0E1726] text-xs font-bold text-white focus:outline-none focus:border-[#D71920]"
+                        >
+                          {categories
+                            .filter(c => c.type === prodType)
+                            .map(c => (
+                              <option key={c.id} value={c.name} className="bg-[#0B132B] text-white">
+                                {c.name}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-xs font-bold text-neutral-300">
+                            SKU Code
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newSku = (prodType === 'book' ? 'BK-' : 'ST-') + Math.floor(1000 + Math.random() * 9000);
+                              setProdSku(newSku);
+                            }}
+                            className="text-[11px] text-amber-400 hover:underline cursor-pointer"
                           >
-                            <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-neutral-100">
-                              <span className="font-black text-[#D71920] flex items-center gap-1">
-                                <FileText size={12} />
-                                <span>পৃষ্ঠা {toBanglaDigits(idx + 1)}</span>
-                              </span>
-                              <div className="flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  disabled={idx === 0}
-                                  onClick={() => setProdPreviewPages(prev => movePreviewPage(prev, idx, 'up'))}
-                                  className="p-1 rounded-lg bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40 cursor-pointer"
-                                  title="Move Page Up"
-                                >
-                                  <ArrowUp size={11} />
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={idx === prodPreviewPages.length - 1}
-                                  onClick={() => setProdPreviewPages(prev => movePreviewPage(prev, idx, 'down'))}
-                                  className="p-1 rounded-lg bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40 cursor-pointer"
-                                  title="Move Page Down"
-                                >
-                                  <ArrowDown size={11} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setProdPreviewPages(prev =>
-                                      prev
-                                        .filter((_, i) => i !== idx)
-                                        .map((item, i) => ({ ...item, pageNumber: i + 1 }))
-                                    )
-                                  }
-                                  className="p-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer"
-                                  title="Delete Page"
-                                >
-                                  <Trash2 size={11} />
-                                </button>
-                              </div>
-                            </div>
-
-                            <input
-                              type="text"
-                              placeholder={`পৃষ্ঠা ${toBanglaDigits(idx + 1)} শিরোনাম (যেমন: প্রথম অধ্যায়)`}
-                              value={pg.title || ''}
-                              onChange={e => {
-                                const val = e.target.value;
-                                setProdPreviewPages(prev =>
-                                  prev.map((item, i) => (i === idx ? { ...item, title: val } : item))
-                                );
-                              }}
-                              className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-200 bg-neutral-50 font-bold text-neutral-800 text-[11px]"
-                            />
-
-                            {isValidImageUrl(pg.imageUrl) && (
-                              <div className="relative rounded-xl overflow-hidden border border-neutral-200 bg-neutral-50 p-1.5 flex items-center gap-2.5">
-                                <img
-                                  src={pg.imageUrl}
-                                  alt={pg.title || `Page ${idx + 1}`}
-                                  className="w-14 h-20 object-contain bg-white rounded border border-neutral-200 shrink-0"
-                                />
-                                <div className="flex-1 min-w-0 space-y-1">
-                                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 inline-block">
-                                    ✓ Page Image Attached
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setProdPreviewPages(prev =>
-                                        prev.map((item, i) =>
-                                          i === idx ? { ...item, imageUrl: undefined } : item
-                                        )
-                                      )
-                                    }
-                                    className="block text-[10px] text-red-600 font-bold hover:underline cursor-pointer"
-                                  >
-                                    ছবি পরিবর্তন / মুছুন
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-
-                            <textarea
-                              rows={3}
-                              placeholder="এই পৃষ্ঠার লেখা বা বইয়ের অংশ এখানে লিখুন..."
-                              value={pg.content || ''}
-                              onChange={e => {
-                                const val = e.target.value;
-                                setProdPreviewPages(prev =>
-                                  prev.map((item, i) => (i === idx ? { ...item, content: val } : item))
-                                );
-                              }}
-                              className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-200 bg-white text-neutral-800 text-[11px]"
-                            />
-                          </div>
-                        ))}
+                            Auto-gen
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder={prodType === 'book' ? 'e.g. BK-PS2-PB' : 'e.g. ST-DIARY-01'}
+                          value={prodSku}
+                          onChange={e => setProdSku(e.target.value)}
+                          className="w-full px-3.5 py-2 rounded-xl border border-[#223354] bg-[#0E1726] text-xs font-mono text-white focus:outline-none focus:border-[#D71920]"
+                        />
                       </div>
                     </div>
-                  ) : (
-                    <div className="p-3.5 rounded-xl bg-white border border-dashed border-neutral-200 text-center text-[11px] text-neutral-500">
-                      এখনো কোনো কাস্টম পৃষ্ঠা যোগ করা হয়নি। উপরে <strong>Upload PDF</strong>, <strong>Upload Page Images</strong> বা <strong>লেখার পৃষ্ঠা যোগ করুন</strong> বাটনে ক্লিক করে পৃষ্ঠা যুক্ত করতে পারেন।
-                    </div>
-                  )}
+
+                  </div>
                 </div>
 
                 {/* Bottom Bar: Original Badge & Submit Buttons */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-neutral-200">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-neutral-200">
                   {prodType === 'book' ? (
                     <label className="inline-flex items-center gap-2 cursor-pointer select-none">
                       <input 
@@ -5287,20 +6279,116 @@ export function AdminDashboard() {
                     <button
                       type="button"
                       onClick={() => setShowAddProdModal(false)}
-                      className="px-4 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-bold rounded-xl cursor-pointer transition-colors"
+                      className="px-5 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-bold rounded-xl cursor-pointer transition-colors"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="px-6 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-bold rounded-xl shadow-sm cursor-pointer flex items-center gap-1.5 transition-all"
+                      className="px-7 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-bold rounded-xl shadow-md cursor-pointer flex items-center gap-2 transition-all hover:scale-[1.02]"
                     >
-                      <Check size={14} />
+                      <Check size={15} />
                       <span>{editingProductId ? 'Update Product' : 'Save Product'}</span>
                     </button>
                   </div>
                 </div>
               </form>
+            )}
+
+            {/* PRODUCT TYPE CHOOSER MODAL (1- Stationery vs 2- Books) */}
+            {showTypeChooserModal && (
+              <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+                <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-neutral-200 space-y-5 animate-in zoom-in-95 duration-200">
+                  <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
+                    <div>
+                      <h3 className="text-base font-extrabold text-neutral-900">
+                        Select Product Catalog Type (প্রোডাক্ট নির্বাচন)
+                      </h3>
+                      <p className="text-xs text-neutral-500 mt-0.5">
+                        নতুন প্রোডাক্ট যোগ করতে নিচের যে কোনো একটি অপশন সিলেক্ট করুন:
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowTypeChooserModal(false)}
+                      className="p-1.5 rounded-xl text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 cursor-pointer"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Option 1: Stationery */}
+                    <button
+                      type="button"
+                      onClick={() => handleStartAddProduct('stationery')}
+                      className="group relative p-5 rounded-2xl border-2 border-neutral-200 hover:border-blue-500 hover:bg-blue-50/30 text-left transition-all cursor-pointer shadow-xs hover:shadow-md flex flex-col justify-between"
+                    >
+                      <div className="space-y-3">
+                        <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <Package size={24} />
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <span className="font-black text-sm text-neutral-900 group-hover:text-blue-600">
+                              1. Stationery
+                            </span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                              স্টেশনারি
+                            </span>
+                          </div>
+                          <p className="text-xs text-neutral-500 mt-1.5 leading-relaxed">
+                            খাতা, ডায়েরি, কলম, বুকমার্ক, অফিস সরঞ্জাম ও গিফট এক্সেসরিজ যুক্ত করুন।
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-4 pt-3 border-t border-neutral-100 flex items-center gap-1 text-xs font-bold text-blue-600">
+                        <span>স্টেশনারি সিলেক্ট করুন</span>
+                        <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </button>
+
+                    {/* Option 2: Books */}
+                    <button
+                      type="button"
+                      onClick={() => handleStartAddProduct('book')}
+                      className="group relative p-5 rounded-2xl border-2 border-neutral-200 hover:border-[#D71920] hover:bg-red-50/30 text-left transition-all cursor-pointer shadow-xs hover:shadow-md flex flex-col justify-between"
+                    >
+                      <div className="space-y-3">
+                        <div className="w-12 h-12 rounded-2xl bg-red-100 text-[#D71920] flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <BookOpen size={24} />
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <span className="font-black text-sm text-neutral-900 group-hover:text-[#D71920]">
+                              2. Books
+                            </span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-[#D71920]">
+                              বই ও সাহিত্য
+                            </span>
+                          </div>
+                          <p className="text-xs text-neutral-500 mt-1.5 leading-relaxed">
+                            উপন্যাস, সাহিত্য, ইসলামিক, একাডেমি বই, লেখক, প্রকাশনী ও প্রিভিউ স্লাইডার যুক্ত করুন।
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-4 pt-3 border-t border-neutral-100 flex items-center gap-1 text-xs font-bold text-[#D71920]">
+                        <span>বই সিলেক্ট করুন</span>
+                        <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-end pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowTypeChooserModal(false)}
+                      className="px-4 py-2 text-xs font-bold text-neutral-500 hover:text-neutral-800 cursor-pointer"
+                    >
+                      বাতিল করুন (Cancel)
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         )}

@@ -58,6 +58,11 @@ export interface Product {
   previewHighlightSubtitle?: string;
   previewIntro?: string;
   previewPages?: BookPreviewPage[];
+  isActive?: boolean;
+  badge?: string;
+  highlights?: string[];
+  deliveryChargeType?: 'standard' | 'free' | 'custom';
+  customDeliveryFee?: number;
   createdAt: number;
 }
 
