@@ -10,6 +10,11 @@ import {
 } from '../utils/reviewHelpers';
 import { PaymentMethodConfig } from '../types';
 import { formatAddressPreview, sanitizeSavedAddress, SavedDeliveryAddress } from '../utils/addressHelpers';
+import {
+  trackFacebookConversionEvent,
+  buildCartCustomData,
+  saveCustomerMatchProfile,
+} from '../utils/facebookCapiHelpers';
 import { Truck, CreditCard, Check, ArrowLeft, ArrowRight, Phone, RotateCcw, Search, Sparkles } from 'lucide-react';
 
 const BANGLADESH_DISTRICTS = [
@@ -18,7 +23,7 @@ const BANGLADESH_DISTRICTS = [
 ];
 
 export function CheckoutPage() {
-  const { cart, products, paymentMethods, settings, createOrder, submitPaymentProof, setActivePage, orders, trackOrder } = useStore();
+  const { cart, products, paymentMethods, settings, createOrder, submitPaymentProof, setActivePage, orders, trackOrder, visitorId } = useStore();
   const { currentUser } = useAuth();
 
   const [name, setName] = useState(currentUser?.displayName || '');
@@ -73,6 +78,40 @@ export function CheckoutPage() {
       }
     }
   }, [currentUser, orders]);
+
+  // Fire Facebook InitiateCheckout when entering Checkout Page with items in cart
+  useEffect(() => {
+    if (!cart || cart.length === 0) return;
+    void trackFacebookConversionEvent({
+      eventName: 'InitiateCheckout',
+      settings,
+      customData: buildCartCustomData(cart),
+      customerProfile: {
+        fullName: name || savedAddressData?.name || currentUser?.displayName || undefined,
+        phone: phone || savedAddressData?.phone || undefined,
+        email: email || savedAddressData?.email || currentUser?.email || undefined,
+        city: city || savedAddressData?.city || district || 'Dhaka',
+        state: district || savedAddressData?.district || 'Dhaka',
+        externalId: currentUser?.uid || visitorId,
+      },
+      uniqueKey: cart.map(i => `${i.productId}_${i.quantity}`).join('-'),
+    });
+  }, [cart.length]);
+
+  // Keep customer match profile continuously enriched as customer fills checkout fields
+  useEffect(() => {
+    if (!name && !phone && !email) return;
+    saveCustomerMatchProfile({
+      fullName: name || undefined,
+      phone: phone || undefined,
+      email: email || undefined,
+      city: city || district || 'Dhaka',
+      state: district || 'Dhaka',
+      zipCode: district.toLowerCase() === 'dhaka' ? '1200' : '1000',
+      country: 'bd',
+      externalId: currentUser?.uid || visitorId,
+    });
+  }, [name, phone, email, district, city, currentUser?.uid, visitorId]);
 
   const hasSavedAddress = Boolean(savedAddressData?.address || savedAddressData?.phone);
 
@@ -224,6 +263,21 @@ export function CheckoutPage() {
     const isSwitchingMethod = selectedPaymentId !== method.id;
     setSelectedPaymentId(method.id);
     setErrorMsg('');
+
+    void trackFacebookConversionEvent({
+      eventName: 'AddPaymentInfo',
+      settings,
+      customData: buildCartCustomData(cart, { paymentType: method.name }),
+      customerProfile: {
+        fullName: name || savedAddressData?.name || currentUser?.displayName || undefined,
+        phone: phone || savedAddressData?.phone || undefined,
+        email: email || savedAddressData?.email || currentUser?.email || undefined,
+        city: city || savedAddressData?.city || district || 'Dhaka',
+        state: district || savedAddressData?.district || 'Dhaka',
+        externalId: currentUser?.uid || visitorId,
+      },
+      uniqueKey: `${method.id}_${cart.length}`,
+    });
 
     if (method.type === 'cod') {
       setIsPaymentModalOpen(false);

@@ -232,6 +232,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check specific tab permissions configured by the Admin
     if (Array.isArray(currentStaff.permissions)) {
       if (currentStaff.permissions.includes(tabId)) return true;
+      if (tabId === 'capi' && currentStaff.permissions.includes('settings')) return true;
       if (tabId === 'publishers' && (currentStaff.permissions.includes('authors') || currentStaff.permissions.includes('products'))) {
         return true;
       }

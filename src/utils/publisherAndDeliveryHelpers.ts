@@ -7,7 +7,7 @@ export const DEFAULT_PUBLISHERS_LIST: Publisher[] = [
     banglaName: 'গার্ডিয়ান পাবলিকেশন্স',
     description: 'সমকালীন ইসলামিক, আদর্শিক ও গবেষণাধর্মী বইয়ের অন্যতম শীর্ষ প্রকাশনী।',
     logoUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=300&auto=format&fit=crop&q=80',
-    booksCount: 45,
+    booksCount: 0,
     establishedYear: '2014',
     isFeatured: true,
   },
@@ -17,7 +17,7 @@ export const DEFAULT_PUBLISHERS_LIST: Publisher[] = [
     banglaName: 'অন্যপ্রকাশ',
     description: 'হুমায়ূন আহমেদসহ বাংলাদেশের প্রথিতযশা কথাসাহিত্যিকদের কালজয়ী বইয়ের প্রকাশনা সংস্থা।',
     logoUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=300&auto=format&fit=crop&q=80',
-    booksCount: 120,
+    booksCount: 0,
     establishedYear: '1997',
     isFeatured: true,
   },
@@ -27,7 +27,7 @@ export const DEFAULT_PUBLISHERS_LIST: Publisher[] = [
     banglaName: 'প্রথমা প্রকাশন',
     description: 'মুক্তিযুদ্ধ, ইতিহাস, সাহিত্য, রাজনীতি ও গবেষণাধর্মী সৃজনশীল বইয়ের বিশ্বস্ত প্রকাশনী।',
     logoUrl: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=300&auto=format&fit=crop&q=80',
-    booksCount: 95,
+    booksCount: 0,
     establishedYear: '2009',
     isFeatured: true,
   },
@@ -37,7 +37,7 @@ export const DEFAULT_PUBLISHERS_LIST: Publisher[] = [
     banglaName: 'তাম্রলিপি',
     description: 'তরুণ ও জনপ্রিয় লেখকদের উপন্যাস, সায়েন্স ফিকশন ও কিশোর সাহিত্যের জনপ্রিয় প্রকাশনী।',
     logoUrl: 'https://images.unsplash.com/photo-1495640388908-05fa85288e61?w=300&auto=format&fit=crop&q=80',
-    booksCount: 80,
+    booksCount: 0,
     establishedYear: '2005',
     isFeatured: true,
   },
@@ -47,7 +47,7 @@ export const DEFAULT_PUBLISHERS_LIST: Publisher[] = [
     banglaName: 'সময় প্রকাশন',
     description: 'বাংলা সাহিত্যের আধুনিক ও ধ্রুপদী গ্রন্থের অন্যতম ঐতিহ্যবাহী প্রকাশনা প্রতিষ্ঠান।',
     logoUrl: 'https://images.unsplash.com/photo-1516979187457-637abb4f9353?w=300&auto=format&fit=crop&q=80',
-    booksCount: 110,
+    booksCount: 0,
     establishedYear: '1988',
     isFeatured: true,
   },
@@ -57,7 +57,7 @@ export const DEFAULT_PUBLISHERS_LIST: Publisher[] = [
     banglaName: 'অনন্যা',
     description: 'বাংলাদেশের সৃজনশীল সাহিত্য, উপন্যাস ও রচনাবলীর সুপরিচিত প্রকাশনা সংস্থা।',
     logoUrl: 'https://images.unsplash.com/photo-1506880018603-83d5b814b5a6?w=300&auto=format&fit=crop&q=80',
-    booksCount: 85,
+    booksCount: 0,
     establishedYear: '1987',
     isFeatured: true,
   },
@@ -69,8 +69,32 @@ export interface EnrichedPublisher extends Publisher {
 }
 
 /**
+ * Automatically counts the exact number of books in the catalog belonging to a publisher
+ * (matching either English name or Bangla name, case-insensitively).
+ */
+export function countBooksForPublisher(
+  pub: { name: string; banglaName?: string },
+  products: Product[]
+): number {
+  const enKey = (pub.name || '').trim().toLowerCase();
+  const bnKey = (pub.banglaName || '').trim().toLowerCase();
+  if (!enKey && !bnKey) return 0;
+
+  let count = 0;
+  for (const prod of products) {
+    if (prod.type !== 'book') continue;
+    const prodPub = (prod.publisher || '').trim().toLowerCase();
+    if (!prodPub) continue;
+    if ((enKey && prodPub === enKey) || (bnKey && prodPub === bnKey)) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+/**
  * Merges configured publishers from Firestore (or defaults if empty) with any custom publisher
- * names present on products in the catalog.
+ * names present on products in the catalog, computing real-time book counts automatically.
  */
 export function buildEnrichedPublishersList(
   storedPublishers: Publisher[],
@@ -105,14 +129,13 @@ export function buildEnrichedPublishersList(
     seenKeys.add(key);
     if (banglaKey) seenKeys.add(banglaKey);
 
-    const matchedByEn = bookCountByNormalizedName.get(key)?.count || 0;
-    const matchedByBn = banglaKey ? bookCountByNormalizedName.get(banglaKey)?.count || 0 : 0;
-    const liveCount = matchedByEn + (banglaKey && banglaKey !== key ? matchedByBn : 0);
+    const liveCount = countBooksForPublisher(pub, products);
 
     result.push({
       ...pub,
+      booksCount: liveCount,
       liveBooksCount: liveCount,
-      displayBooksCount: liveCount > 0 ? liveCount : pub.booksCount || 15,
+      displayBooksCount: liveCount,
     });
   }
 
@@ -124,7 +147,7 @@ export function buildEnrichedPublishersList(
         id: `derived-pub-${key.replace(/[^a-z0-9]+/g, '-')}`,
         name: info.rawName,
         banglaName: info.rawName,
-        description: `${info.rawName} থেকে প্রকাশিত সকল অরিজিনাল বইয়ের সংগ্রহ।`,
+        description: `All original books published by ${info.rawName}.`,
         logoUrl: info.sampleImage || '',
         booksCount: info.count,
         liveBooksCount: info.count,

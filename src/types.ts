@@ -320,9 +320,23 @@ export interface StoreSettings {
   firestoreFetchStrategy?: 'cache-first' | 'realtime-snapshot' | 'network-first';
   firestoreQueryLimit?: number;
   enableIndexedQuerySnapshots?: boolean;
-  // Marketing & Tracking APIs
+  // Marketing & Tracking APIs (Facebook Pixel & Conversion API / CAPI)
   facebookPixelId?: string;
   facebookCapiToken?: string;
+  facebookCapiEnabled?: boolean;
+  facebookTestEventCode?: string;
+  facebookTestModeEnabled?: boolean;
+  facebookCapiVersion?: string;
+  facebookDomainVerification?: string;
+  facebookEnableAdvancedMatching?: boolean;
+  facebookTrackPageView?: boolean;
+  facebookTrackViewContent?: boolean;
+  facebookTrackAddToCart?: boolean;
+  facebookTrackInitiateCheckout?: boolean;
+  facebookTrackAddPaymentInfo?: boolean;
+  facebookTrackPurchase?: boolean;
+  facebookTrackSearch?: boolean;
+  facebookTrackAddToWishlist?: boolean;
   gaMeasurementId?: string;
   tiktokPixelId?: string;
   // Footer Customizations

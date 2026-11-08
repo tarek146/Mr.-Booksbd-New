@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  countBooksForPublisher,
   buildEnrichedPublishersList,
   resolveProductDeliveryTiming,
   parseCustomBookDetails,
@@ -40,13 +41,19 @@ test('resolveProductDeliveryTiming falls back to clean defaults when fields are 
   assert.ok(resolved.note.length > 10);
 });
 
-test('buildEnrichedPublishersList merges stored publishers with book publisher counts and derived publishers', () => {
+test('countBooksForPublisher and buildEnrichedPublishersList dynamically count books per publisher like categories', () => {
   const stored: Publisher[] = [
     {
       id: 'pub-1',
       name: 'Guardian Publications',
       banglaName: 'গার্ডিয়ান পাবলিকেশন্স',
-      booksCount: 40,
+      booksCount: 45, // legacy stored count should be overridden by actual catalog count
+    },
+    {
+      id: 'pub-2',
+      name: 'Empty House',
+      banglaName: 'খালি প্রকাশনী',
+      booksCount: 99,
     },
   ];
 
@@ -71,33 +78,67 @@ test('buildEnrichedPublishersList merges stored publishers with book publisher c
     {
       id: 'p2',
       type: 'book',
-      title: 'New Book',
-      slug: 'new-book',
+      title: 'Bella Furabar Age',
+      slug: 'bfa',
       description: 'Book 2',
-      category: 'Fiction',
-      publisher: 'Mowla Brothers',
+      category: 'Islamic Books',
+      publisher: 'গার্ডিয়ান পাবলিকেশন্স',
       images: ['https://example.com/2.jpg'],
-      price: 250,
-      stock: 5,
+      price: 300,
+      stock: 8,
       sku: 'SKU2',
       variants: [],
       rating: 5,
       reviewCount: 1,
       createdAt: 2,
     },
+    {
+      id: 'p3',
+      type: 'book',
+      title: 'New Book',
+      slug: 'new-book',
+      description: 'Book 3',
+      category: 'Fiction',
+      publisher: 'Mowla Brothers',
+      images: ['https://example.com/3.jpg'],
+      price: 250,
+      stock: 5,
+      sku: 'SKU3',
+      variants: [],
+      rating: 5,
+      reviewCount: 1,
+      createdAt: 3,
+    },
   ];
 
+  assert.equal(
+    countBooksForPublisher({ name: 'Guardian Publications', banglaName: 'গার্ডিয়ান পাবলিকেশন্স' }, products),
+    2
+  );
+  assert.equal(
+    countBooksForPublisher({ name: 'Empty House', banglaName: 'খালি প্রকাশনী' }, products),
+    0
+  );
+
   const enriched = buildEnrichedPublishersList(stored, products);
-  assert.equal(enriched.length, 2);
+  assert.equal(enriched.length, 3);
 
   const guardian = enriched.find(p => p.name === 'Guardian Publications');
   assert.ok(guardian);
-  assert.equal(guardian.liveBooksCount, 1);
-  assert.equal(guardian.displayBooksCount, 1);
+  assert.equal(guardian.liveBooksCount, 2);
+  assert.equal(guardian.displayBooksCount, 2);
+  assert.equal(guardian.booksCount, 2);
+
+  const emptyHouse = enriched.find(p => p.name === 'Empty House');
+  assert.ok(emptyHouse);
+  assert.equal(emptyHouse.liveBooksCount, 0);
+  assert.equal(emptyHouse.displayBooksCount, 0);
+  assert.equal(emptyHouse.booksCount, 0);
 
   const mowla = enriched.find(p => p.name === 'Mowla Brothers');
   assert.ok(mowla);
   assert.equal(mowla.liveBooksCount, 1);
+  assert.equal(mowla.displayBooksCount, 1);
 });
 
 test('parseCustomBookDetails and serializeCustomBookDetails round-trip properly', () => {

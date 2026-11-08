@@ -47,14 +47,14 @@ export function PublishersPage() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-black text-[#171717] tracking-tight">
-                  Publishers / প্রকাশনী সমূহ
+                  Publishers
                 </h1>
                 <span className="px-2.5 py-0.5 rounded-full bg-[#FFF1F2] text-[#D71920] text-xs font-extrabold border border-[#D71920]/25">
                   {enrichedPublishers.length}
                 </span>
               </div>
               <p className="text-xs text-[#5F6368] mt-0.5">
-                দেশের শীর্ষস্থানীয় সকল প্রকাশনী ও তাদের প্রকাশিত অরিজিনাল বইসমূহ এক নজরে দেখুন
+                Explore all official publishing houses and their published books
               </p>
             </div>
           </div>
@@ -65,7 +65,7 @@ export function PublishersPage() {
               type="text"
               value={filterText}
               onChange={e => setFilterText(e.target.value)}
-              placeholder="প্রকাশনী খুঁজুন (Search Publisher)..."
+              placeholder="Search publishers..."
               className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-xs font-semibold text-[#171717] focus:outline-none focus:border-[#D71920]"
             />
           </div>
@@ -75,8 +75,8 @@ export function PublishersPage() {
         {filteredPublishers.length === 0 ? (
           <div className="p-10 text-center rounded-3xl border border-[#E5E5E5] bg-[#F7F7F8] space-y-3">
             <Layers size={36} className="mx-auto text-neutral-400" />
-            <h3 className="text-base font-bold text-[#171717]">কোনো প্রকাশনী পাওয়া যায়নি</h3>
-            <p className="text-xs text-[#5F6368]">অন্য কোনো নাম দিয়ে পুনরায় অনুসন্ধান করুন।</p>
+            <h3 className="text-base font-bold text-[#171717]">No Publishers Found</h3>
+            <p className="text-xs text-[#5F6368]">Try searching with a different publisher name.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -109,7 +109,7 @@ export function PublishersPage() {
                       <div className="flex items-center gap-1.5 flex-wrap">
                         {pub.isFeatured !== false && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FFF1F2] text-[#D71920] text-[10px] font-bold border border-[#D71920]/20">
-                            <Sparkles size={10} /> ভেরিফাইড প্রকাশনী
+                            <Sparkles size={10} /> Verified Publisher
                           </span>
                         )}
                         {pub.establishedYear && (
@@ -137,10 +137,12 @@ export function PublishersPage() {
                 <div className="mt-5 pt-3.5 border-t border-[#EEEEEE] flex items-center justify-between text-xs font-bold text-[#D71920]">
                   <span className="flex items-center gap-1.5">
                     <BookOpen size={14} />
-                    <span>{pub.displayBooksCount}+ প্রকাশিত বই</span>
+                    <span>
+                      {pub.displayBooksCount} {pub.displayBooksCount === 1 ? 'Book' : 'Books'}
+                    </span>
                   </span>
                   <span className="flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                    বইগুলো দেখুন <ArrowRight size={13} />
+                    View Books <ArrowRight size={13} />
                   </span>
                 </div>
               </div>

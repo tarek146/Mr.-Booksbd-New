@@ -16,6 +16,13 @@ import {
   AdminStaffMember
 } from '../types';
 import { DEFAULT_PUBLISHERS_LIST } from '../utils/publisherAndDeliveryHelpers';
+import {
+  initFacebookBrowserPixel,
+  trackFacebookConversionEvent,
+  buildProductCustomData,
+  buildOrderPurchaseCustomData,
+  saveCustomerMatchProfile,
+} from '../utils/facebookCapiHelpers';
 import { 
   db, 
   seedInitialDataIfNeeded,
@@ -614,6 +621,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (settings.keywords) {
       updateMetaTag('keywords', settings.keywords, false);
     }
+    if (settings.facebookDomainVerification) {
+      updateMetaTag('facebook-domain-verification', settings.facebookDomainVerification, false);
+    }
+
+    // Initialize Facebook Browser Pixel & CAPI customer match context
+    initFacebookBrowserPixel(settings, {
+      externalId: currentUser?.uid || visitorId,
+      email: currentUser?.email || undefined,
+      fullName: currentUser?.displayName || undefined,
+    });
 
     // Real-time Favicon update
     const defaultBookFavicon =
@@ -631,7 +648,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
       link.href = favHref;
     });
-  }, [settings]);
+  }, [settings, currentUser, visitorId]);
+
+  // Track PageView on route navigation across the storefront
+  useEffect(() => {
+    if (activePage === 'admin') return;
+    void trackFacebookConversionEvent({
+      eventName: 'PageView',
+      settings,
+      customData: {
+        content_name: `Page: ${activePage}`,
+        currency: 'BDT',
+      },
+      customerProfile: {
+        externalId: currentUser?.uid || visitorId,
+        email: currentUser?.email || undefined,
+        fullName: currentUser?.displayName || undefined,
+      },
+      uniqueKey: `${activePage}_${selectedProductId || 'index'}`,
+    });
+  }, [activePage, selectedProductId]);
 
   const setActivePage = (page: string, productId?: string) => {
     setActivePageState(page);
@@ -1254,6 +1290,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }];
       }
     });
+
+    // Fire Dual-Channel Facebook AddToCart (Browser Pixel + CAPI with deduplicated event_id)
+    void trackFacebookConversionEvent({
+      eventName: 'AddToCart',
+      settings,
+      customData: buildProductCustomData(product, quantity, variant?.id),
+      customerProfile: {
+        externalId: currentUser?.uid || visitorId,
+        email: currentUser?.email || undefined,
+        fullName: currentUser?.displayName || undefined,
+      },
+      uniqueKey: `${product.id}_${variant?.id || 'v1'}_${quantity}`,
+    });
   };
 
   const removeFromCart = (variantId: string) => {
@@ -1271,9 +1320,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const clearCart = () => setCart([]);
 
   const toggleWishlist = (productId: string) => {
+    const isAdding = !wishlist.includes(productId);
     setWishlist(prev => 
       prev.includes(productId) ? prev.filter(id => id !== productId) : [...prev, productId]
     );
+    if (isAdding) {
+      const prod = products.find(p => p.id === productId);
+      if (prod) {
+        void trackFacebookConversionEvent({
+          eventName: 'AddToWishlist',
+          settings,
+          customData: buildProductCustomData(prod, 1),
+          customerProfile: {
+            externalId: currentUser?.uid || visitorId,
+            email: currentUser?.email || undefined,
+            fullName: currentUser?.displayName || undefined,
+          },
+          uniqueKey: prod.id,
+        });
+      }
+    }
   };
 
   // Admin action auditing helper
@@ -1416,6 +1482,32 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
 
     await batch.commit();
+
+    // Persist customer match profile & fire Dual-Channel Facebook Purchase event (EMQ 9.9/10)
+    const purchaseCustomerProfile = {
+      fullName: newOrder.customerName,
+      phone: newOrder.phone,
+      email: newOrder.email || undefined,
+      city: newOrder.city || newOrder.district || 'Dhaka',
+      state: newOrder.district || 'Dhaka',
+      zipCode: newOrder.district.toLowerCase() === 'dhaka' ? '1200' : '1000',
+      country: 'bd',
+      externalId: resolvedUserId,
+    };
+    saveCustomerMatchProfile(purchaseCustomerProfile);
+    void trackFacebookConversionEvent({
+      eventName: 'Purchase',
+      settings,
+      customData: buildOrderPurchaseCustomData({
+        id: orderId,
+        items: verifiedItems,
+        totalAmount: verifiedTotal,
+        deliveryFee: verifiedDeliveryFee,
+        paymentMethodName: newOrder.paymentMethodName,
+      }),
+      customerProfile: purchaseCustomerProfile,
+      uniqueKey: orderId,
+    });
 
     setOrders(prev => [newOrder, ...prev]);
     clearCart();

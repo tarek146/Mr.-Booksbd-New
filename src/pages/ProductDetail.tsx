@@ -38,6 +38,7 @@ import {
   Flame
 } from 'lucide-react';
 import { resolveProductDeliveryTiming } from '../utils/publisherAndDeliveryHelpers';
+import { trackFacebookConversionEvent, buildProductCustomData } from '../utils/facebookCapiHelpers';
 import { ProductDetailSkeleton } from '../components/SkeletonScreens';
 import { shouldShowSkeletonScreen, resolveFirestoreFetchStrategy } from '../utils/instantStoreCache';
 import { db, getDocCacheFirst } from '../firebase';
@@ -96,12 +97,23 @@ export function ProductDetail() {
   const product = inMemoryProduct || directFetchedProduct || products[0];
   const [selectedAuthorId, setSelectedAuthorId] = useState<string>('current');
   const [authorAvatarError, setAuthorAvatarError] = useState<Record<string, boolean>>({});
+  const [selectedVariantId, setSelectedVariantId] = useState<string>(product?.variants?.[0]?.id || '');
 
   useEffect(() => {
     setSelectedAuthorId('current');
     setActiveReviewIndex(0);
+    if (product) {
+      void trackFacebookConversionEvent({
+        eventName: 'ViewContent',
+        settings,
+        customData: buildProductCustomData(product, 1, product.variants?.[0]?.id),
+        customerProfile: {
+          externalId: visitorId,
+        },
+        uniqueKey: product.id,
+      });
+    }
   }, [product?.id]);
-  const [selectedVariantId, setSelectedVariantId] = useState<string>(product?.variants?.[0]?.id || '');
   const [quantity, setQuantity] = useState(1);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [copiedLink, setCopiedLink] = useState(false);
