@@ -221,6 +221,7 @@ export const KNOWN_CACHE_SLICES = [
   'banners',
   'paymentMethods',
   'settings',
+  'homeConfig',
   'reviews',
   'reels'
 ] as const;

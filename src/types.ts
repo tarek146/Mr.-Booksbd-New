@@ -337,6 +337,20 @@ export interface StoreSettings {
   facebookTrackPurchase?: boolean;
   facebookTrackSearch?: boolean;
   facebookTrackAddToWishlist?: boolean;
+  facebookConnectionStatus?: 'connected' | 'disconnected' | 'unverified';
+  facebookLastResponseCode?: number;
+  facebookLastCheckedAt?: number;
+  facebookLastTraceId?: string;
+  facebookLastValidationMessage?: string;
+  // Homepage Review Display, Slot Replacement & Green Icon Customizations
+  showHomeReviewsSection?: boolean;
+  homeReviewsSlotReplacement?: 'reviews' | 'trust_features' | 'publishers_spotlight' | 'reading_benefits' | 'off';
+  homeReviewIconStyle?: 'heart' | 'verified_shield' | 'thumbs_up' | 'check_badge' | 'sparkles' | 'book_love' | 'star';
+  productCardReviewSlotMode?: 'green_rating' | 'publisher_tag' | 'verified_badge' | 'stock_status' | 'off';
+  // Homepage Writer / Featured Authors Display & Slot Replacement Customizations
+  showHomeWritersSection?: boolean;
+  homeWritersSlotReplacement?: 'writers' | 'publishers_spotlight' | 'bestsellers_showcase' | 'trust_features' | 'reading_benefits' | 'off';
+  productCardWriterSlotMode?: 'writer_name' | 'publisher_name' | 'category_name' | 'edition_info' | 'delivery_badge' | 'off';
   gaMeasurementId?: string;
   tiktokPixelId?: string;
   // Footer Customizations
@@ -473,3 +487,15 @@ export interface AdminStaffMember {
   updatedAt: number;
   createdBy?: string;
 }
+
+export interface HomeConfig {
+  showReviews: boolean;
+  showAuthors: boolean;
+  reviewsSlotReplacement?: 'reviews' | 'trust_features' | 'publishers_spotlight' | 'reading_benefits' | 'off';
+  authorsSlotReplacement?: 'writers' | 'publishers_spotlight' | 'bestsellers_showcase' | 'trust_features' | 'reading_benefits' | 'off';
+  reviewIconStyle?: 'heart' | 'verified_shield' | 'thumbs_up' | 'check_badge' | 'sparkles' | 'book_love' | 'star';
+  productCardReviewSlotMode?: 'green_rating' | 'publisher_tag' | 'verified_badge' | 'stock_status' | 'off';
+  productCardWriterSlotMode?: 'writer_name' | 'publisher_name' | 'category_name' | 'edition_info' | 'delivery_badge' | 'off';
+  updatedAt?: number;
+}
+

@@ -5,12 +5,17 @@ import {
   trackFacebookConversionEvent,
   getCapiEventLogs,
   clearCapiEventLogs,
+  validateFacebookCapiConnection,
+  resolveDashboardHeaderCapiStatus,
+  CapiConnectionValidationResult,
   CapiEventLogEntry,
   FacebookStandardEventName,
 } from '../../utils/facebookCapiHelpers';
 import {
   ShieldCheck,
   CheckCircle2,
+  XCircle,
+  AlertTriangle,
   Eye,
   EyeOff,
   Check,
@@ -21,6 +26,7 @@ import {
   Sparkles,
   Server,
   TrendingUp,
+  Activity,
 } from 'lucide-react';
 
 interface AdminConversionApiManagerProps {
@@ -63,6 +69,9 @@ export function AdminConversionApiManager({
 
   const [showToken, setShowToken] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [validatingConnection, setValidatingConnection] = useState(false);
+  const [lastValidationResult, setLastValidationResult] =
+    useState<CapiConnectionValidationResult | null>(null);
   const [testingEvent, setTestingEvent] = useState<FacebookStandardEventName | null>(null);
   const [eventLogs, setEventLogs] = useState<CapiEventLogEntry[]>(() => getCapiEventLogs());
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -141,10 +150,57 @@ export function AdminConversionApiManager({
     [liveDraftSettings, settings.adminProfile?.email, settings.callNumber]
   );
 
+  const headerConnectionState = useMemo(
+    () => resolveDashboardHeaderCapiStatus(liveDraftSettings),
+    [liveDraftSettings]
+  );
+
+  const handleValidateConnection = async () => {
+    setValidatingConnection(true);
+    try {
+      const result = await validateFacebookCapiConnection(liveDraftSettings);
+      setLastValidationResult(result);
+      setEventLogs(getCapiEventLogs());
+      await onUpdateSettings({
+        facebookPixelId: pixelId.trim(),
+        facebookCapiToken: capiToken.trim(),
+        facebookCapiEnabled: capiEnabled,
+        facebookTestEventCode: testEventCode.trim(),
+        facebookTestModeEnabled: testModeEnabled,
+        facebookCapiVersion: capiVersion,
+        facebookDomainVerification: domainVerification.trim(),
+        facebookEnableAdvancedMatching: enableAdvancedMatching,
+        facebookConnectionStatus: result.status,
+        facebookLastResponseCode: result.responseCode,
+        facebookLastCheckedAt: result.checkedAt,
+        facebookLastTraceId: result.fbtraceId || '',
+        facebookLastValidationMessage: result.message,
+      });
+      if (result.isConnected) {
+        onShowToast?.(
+          `Connected! HTTP ${result.responseCode}: ${result.message}`,
+          'success'
+        );
+      } else {
+        onShowToast?.(
+          `Disconnected (HTTP ${result.responseCode || 'ERR'}): ${result.message}`,
+          'error'
+        );
+      }
+    } catch (err: any) {
+      onShowToast?.(err?.message || 'Failed to validate connection', 'error');
+    } finally {
+      setValidatingConnection(false);
+    }
+  };
+
   const handleSaveConfig = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
+      const validation = await validateFacebookCapiConnection(liveDraftSettings);
+      setLastValidationResult(validation);
+      setEventLogs(getCapiEventLogs());
       await onUpdateSettings({
         facebookPixelId: pixelId.trim(),
         facebookCapiToken: capiToken.trim(),
@@ -162,8 +218,16 @@ export function AdminConversionApiManager({
         facebookTrackPurchase: trackPurchase,
         facebookTrackSearch: trackSearch,
         facebookTrackAddToWishlist: trackAddToWishlist,
+        facebookConnectionStatus: validation.status,
+        facebookLastResponseCode: validation.responseCode,
+        facebookLastCheckedAt: validation.checkedAt,
+        facebookLastTraceId: validation.fbtraceId || '',
+        facebookLastValidationMessage: validation.message,
       });
-      onShowToast?.('Facebook Pixel & Conversion API settings saved to Firebase!', 'success');
+      onShowToast?.(
+        `Saved & Verified (${validation.isConnected ? 'Connected' : 'Disconnected'} • HTTP ${validation.responseCode})`,
+        validation.isConnected ? 'success' : 'error'
+      );
     } catch (err: any) {
       onShowToast?.(err?.message || 'Failed to save Conversion API settings', 'error');
     } finally {
@@ -250,14 +314,28 @@ export function AdminConversionApiManager({
       });
 
       setEventLogs(getCapiEventLogs());
+      if (entry) {
+        const isOk =
+          entry.capiResponseStatus === 'delivered' ||
+          entry.capiResponseStatus === 'browser-only';
+        await onUpdateSettings({
+          facebookConnectionStatus: isOk ? 'connected' : 'disconnected',
+          facebookLastResponseCode: entry.httpResponseCode ?? (isOk ? 200 : 400),
+          facebookLastCheckedAt: Date.now(),
+          facebookLastTraceId: entry.fbtraceId || '',
+          facebookLastValidationMessage: isOk
+            ? `${eventName} event accepted (HTTP ${entry.httpResponseCode || 200})`
+            : entry.errorMessage || 'Data event rejected by endpoint',
+        });
+      }
       if (entry?.capiResponseStatus === 'delivered') {
         onShowToast?.(
-          `${eventName} delivered to Meta CAPI & Browser Pixel! (EMQ: ${entry.emqScore}/10)`,
+          `${eventName} delivered to Meta CAPI & Browser Pixel! (HTTP ${entry.httpResponseCode || 200} • EMQ: ${entry.emqScore}/10)`,
           'success'
         );
       } else if (entry?.capiResponseStatus === 'error') {
         onShowToast?.(
-          `${eventName} logged (Pixel fired; CAPI notice: ${entry.errorMessage || 'Check Pixel ID / Token'})`,
+          `${eventName} logged (HTTP ${entry.httpResponseCode || 400}: ${entry.errorMessage || 'Check Pixel ID / Token'})`,
           'error'
         );
       } else {
@@ -410,6 +488,125 @@ export function AdminConversionApiManager({
             <p className="text-[11px] text-neutral-500 font-semibold">
               Full Customer + Order Match
             </p>
+          </div>
+        </div>
+
+        {/* CONNECTION VALIDATOR & DATA EVENT RESPONSE CODE INSPECTOR */}
+        <div
+          data-testid="capi-connection-validator-module"
+          className={`p-4 sm:p-5 rounded-2xl border space-y-3.5 transition-all ${
+            (lastValidationResult?.isConnected ?? headerConnectionState.isConnected)
+              ? 'bg-emerald-50/60 border-emerald-200'
+              : 'bg-red-50/50 border-red-200'
+          }`}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div
+                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
+                  (lastValidationResult?.isConnected ?? headerConnectionState.isConnected)
+                    ? 'bg-emerald-600 text-white border-emerald-600'
+                    : 'bg-red-600 text-white border-red-600'
+                }`}
+              >
+                {(lastValidationResult?.isConnected ?? headerConnectionState.isConnected) ? (
+                  <CheckCircle2 size={20} />
+                ) : (
+                  <XCircle size={20} />
+                )}
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-xs sm:text-sm font-black uppercase tracking-wide text-neutral-900">
+                    Pixel & Conversions API Connection Validator
+                  </h3>
+                  <span
+                    data-testid="capi-validator-status-badge"
+                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-black border inline-flex items-center gap-1 ${
+                      (lastValidationResult?.isConnected ?? headerConnectionState.isConnected)
+                        ? 'bg-emerald-600 text-white border-emerald-700'
+                        : 'bg-red-600 text-white border-red-700'
+                    }`}
+                  >
+                    <Activity size={11} />
+                    <span>
+                      {(lastValidationResult?.isConnected ?? headerConnectionState.isConnected)
+                        ? 'Connected'
+                        : 'Disconnected'}
+                    </span>
+                  </span>
+
+                  <span
+                    data-testid="capi-validator-http-code"
+                    className={`px-2.5 py-0.5 rounded-lg text-[11px] font-mono font-extrabold border ${
+                      (lastValidationResult?.responseCode ?? headerConnectionState.responseCode) >= 200 &&
+                      (lastValidationResult?.responseCode ?? headerConnectionState.responseCode) < 300
+                        ? 'bg-white text-emerald-800 border-emerald-300'
+                        : 'bg-white text-red-700 border-red-300'
+                    }`}
+                  >
+                    HTTP Response Code:{' '}
+                    {lastValidationResult?.responseCode ??
+                      headerConnectionState.responseCode ??
+                      (headerConnectionState.isConnected ? 200 : 400)}{' '}
+                    {(lastValidationResult?.responseCode ?? headerConnectionState.responseCode) >= 200 &&
+                    (lastValidationResult?.responseCode ?? headerConnectionState.responseCode) < 300
+                      ? 'OK'
+                      : 'ERR'}
+                  </span>
+                </div>
+                <p className="text-xs font-semibold text-neutral-700 mt-1">
+                  {lastValidationResult?.message ||
+                    settings.facebookLastValidationMessage ||
+                    headerConnectionState.subtitle}
+                </p>
+                <div className="flex flex-wrap items-center gap-3 text-[11px] text-neutral-500 mt-1">
+                  <span>
+                    Channel Mode:{' '}
+                    <strong className="text-neutral-800">
+                      {lastValidationResult?.channelMode === 'dual-capi-pixel' || metrics.isDualChannelActive
+                        ? 'Server CAPI + Browser Pixel'
+                        : metrics.isPixelConfigured
+                          ? 'Browser Pixel (fbq)'
+                          : 'Unconfigured'}
+                    </strong>
+                  </span>
+                  {(lastValidationResult?.fbtraceId || settings.facebookLastTraceId) && (
+                    <span>
+                      Meta Trace ID:{' '}
+                      <code className="font-mono font-bold text-neutral-800">
+                        {lastValidationResult?.fbtraceId || settings.facebookLastTraceId}
+                      </code>
+                    </span>
+                  )}
+                  {(lastValidationResult?.checkedAt || settings.facebookLastCheckedAt) && (
+                    <span>
+                      Last Verified:{' '}
+                      <strong className="text-neutral-700">
+                        {new Date(
+                          lastValidationResult?.checkedAt || settings.facebookLastCheckedAt || Date.now()
+                        ).toLocaleTimeString()}
+                      </strong>
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              data-testid="validate-capi-connection-btn"
+              disabled={validatingConnection}
+              onClick={handleValidateConnection}
+              className="px-4 py-2.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 disabled:opacity-50 text-white text-xs font-extrabold flex items-center justify-center gap-2 cursor-pointer shrink-0 shadow-xs transition-all"
+            >
+              <RefreshCw size={13} className={validatingConnection ? 'animate-spin' : ''} />
+              <span>
+                {validatingConnection
+                  ? 'Checking Event Response Code...'
+                  : 'Validate Connection & Response Code'}
+              </span>
+            </button>
           </div>
         </div>
 
@@ -697,7 +894,7 @@ export function AdminConversionApiManager({
               Real-Time Conversion API & Pixel Event Feed ({eventLogs.length})
             </h3>
             <p className="text-xs text-neutral-500">
-              Monitor live events fired from Single Product Page, Checkout Page, and Order Confirmation with deduplication status.
+              Monitor live events fired from Single Product Page, Checkout Page, and Order Confirmation with HTTP response codes & deduplication status.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -731,7 +928,7 @@ export function AdminConversionApiManager({
               No conversion events logged in this session yet.
             </p>
             <p className="text-[11px] text-neutral-500">
-              Click any "Test ViewContent / Test InitiateCheckout / Test Purchase" button above or browse a product on the storefront to see live deduplicated events.
+              Click "Validate Connection & Response Code" or any "Test ViewContent / Test InitiateCheckout / Test Purchase" button above to inspect data event response codes.
             </p>
           </div>
         ) : (
@@ -741,6 +938,7 @@ export function AdminConversionApiManager({
                 <tr className="border-b border-neutral-200 text-[11px] font-extrabold uppercase text-neutral-500">
                   <th className="py-2.5 pr-3">Event</th>
                   <th className="py-2.5 px-3">Event ID (Deduplication)</th>
+                  <th className="py-2.5 px-3">HTTP Code</th>
                   <th className="py-2.5 px-3">Value</th>
                   <th className="py-2.5 px-3">EMQ Score</th>
                   <th className="py-2.5 px-3">Transfer Ratio</th>
@@ -748,51 +946,68 @@ export function AdminConversionApiManager({
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
-                {eventLogs.slice(0, 12).map(log => (
-                  <tr key={log.id} className="hover:bg-neutral-50/80">
-                    <td className="py-2.5 pr-3 font-extrabold text-neutral-900">
-                      {log.eventName}
-                      <span className="block text-[10px] font-normal text-neutral-400">
-                        {new Date(log.timestamp).toLocaleTimeString()}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 font-mono text-[11px] text-neutral-600">
-                      {log.eventId}
-                    </td>
-                    <td className="py-2.5 px-3 font-bold text-neutral-800">
-                      {log.value !== undefined ? `৳${log.value} ${log.currency}` : '—'}
-                    </td>
-                    <td className="py-2.5 px-3">
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-extrabold text-[11px] border border-emerald-200">
-                        {log.emqScore} / 10
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3">
-                      <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-extrabold text-[11px] border border-blue-200">
-                        {log.dataTransferRatio} / 10
-                      </span>
-                    </td>
-                    <td className="py-2.5 pl-3">
-                      {log.capiResponseStatus === 'delivered' ? (
-                        <span className="text-emerald-700 font-bold text-[11px]">
-                          ✓ Pixel + CAPI Delivered {log.fbtraceId ? `(${log.fbtraceId.slice(0, 8)})` : ''}
+                {eventLogs.slice(0, 12).map(log => {
+                  const httpCode =
+                    log.httpResponseCode ??
+                    (log.capiResponseStatus === 'error' ? 400 : 200);
+                  const isCodeOk = httpCode >= 200 && httpCode < 300;
+                  return (
+                    <tr key={log.id} className="hover:bg-neutral-50/80">
+                      <td className="py-2.5 pr-3 font-extrabold text-neutral-900">
+                        {log.eventName}
+                        <span className="block text-[10px] font-normal text-neutral-400">
+                          {new Date(log.timestamp).toLocaleTimeString()}
                         </span>
-                      ) : log.capiResponseStatus === 'browser-only' ? (
-                        <span className="text-blue-700 font-bold text-[11px]">
-                          ✓ Browser Pixel Fired (Deduplicated)
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-[11px] text-neutral-600">
+                        {log.eventId}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span
+                          className={`px-2 py-0.5 rounded-lg font-mono font-extrabold text-[11px] border ${
+                            isCodeOk
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : 'bg-red-50 text-red-700 border-red-200'
+                          }`}
+                        >
+                          {httpCode} {isCodeOk ? 'OK' : 'ERR'}
                         </span>
-                      ) : log.capiResponseStatus === 'error' ? (
-                        <span className="text-amber-700 font-bold text-[11px]" title={log.errorMessage}>
-                          Pixel Fired • CAPI: {log.errorMessage?.slice(0, 38)}
+                      </td>
+                      <td className="py-2.5 px-3 font-bold text-neutral-800">
+                        {log.value !== undefined ? `৳${log.value} ${log.currency}` : '—'}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-extrabold text-[11px] border border-emerald-200">
+                          {log.emqScore} / 10
                         </span>
-                      ) : (
-                        <span className="text-neutral-600 font-bold text-[11px]">
-                          ✓ Payload Verified ({log.matchedParams.length} params)
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-extrabold text-[11px] border border-blue-200">
+                          {log.dataTransferRatio} / 10
                         </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="py-2.5 pl-3">
+                        {log.capiResponseStatus === 'delivered' ? (
+                          <span className="text-emerald-700 font-bold text-[11px]">
+                            ✓ Pixel + CAPI Delivered {log.fbtraceId ? `(${log.fbtraceId.slice(0, 8)})` : ''}
+                          </span>
+                        ) : log.capiResponseStatus === 'browser-only' ? (
+                          <span className="text-blue-700 font-bold text-[11px]">
+                            ✓ Browser Pixel Fired (Deduplicated)
+                          </span>
+                        ) : log.capiResponseStatus === 'error' ? (
+                          <span className="text-amber-700 font-bold text-[11px]" title={log.errorMessage}>
+                            Pixel Fired • CAPI: {log.errorMessage?.slice(0, 38)}
+                          </span>
+                        ) : (
+                          <span className="text-neutral-600 font-bold text-[11px]">
+                            ✓ Payload Verified ({log.matchedParams.length} params)
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

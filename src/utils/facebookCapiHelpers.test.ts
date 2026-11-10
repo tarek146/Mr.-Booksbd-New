@@ -11,6 +11,9 @@ import {
   buildCartCustomData,
   buildOrderPurchaseCustomData,
   calculateCapiHealthMetrics,
+  evaluateDataEventResponseCode,
+  validateFacebookCapiConnection,
+  resolveDashboardHeaderCapiStatus,
 } from './facebookCapiHelpers';
 import { Product } from '../types';
 
@@ -192,3 +195,81 @@ test('calculateCapiHealthMetrics reports > 9.0 / 10 scores for Single Product Pa
   const eventId2 = generateDeterministicEventId('Purchase', 'ORD-100', 1700000000000);
   assert.equal(eventId1, eventId2);
 });
+
+test('evaluateDataEventResponseCode and validateFacebookCapiConnection validate HTTP response codes and resolve header status', async () => {
+  // 1. Missing Pixel ID -> Disconnected (400)
+  const missingRes = evaluateDataEventResponseCode({
+    httpStatus: 400,
+    hasPixelId: false,
+    hasCapiToken: false,
+    capiEnabled: true,
+  });
+  assert.equal(missingRes.isConnected, false);
+  assert.equal(missingRes.status, 'disconnected');
+  assert.equal(missingRes.responseCode, 400);
+
+  // 2. Valid 200 OK CAPI response with events_received: 1 -> Connected (200)
+  const connectedRes = evaluateDataEventResponseCode({
+    httpStatus: 200,
+    responseBody: { events_received: 1, fbtrace_id: 'trace_abc123' },
+    hasPixelId: true,
+    hasCapiToken: true,
+    capiEnabled: true,
+  });
+  assert.equal(connectedRes.isConnected, true);
+  assert.equal(connectedRes.status, 'connected');
+  assert.equal(connectedRes.responseCode, 200);
+  assert.equal(connectedRes.fbtraceId, 'trace_abc123');
+
+  // 3. Invalid Token 401 response -> Disconnected (401)
+  const unauthorizedRes = evaluateDataEventResponseCode({
+    httpStatus: 401,
+    responseBody: { error: { message: 'Invalid OAuth access token.', code: 190 } },
+    hasPixelId: true,
+    hasCapiToken: true,
+    capiEnabled: true,
+  });
+  assert.equal(unauthorizedRes.isConnected, false);
+  assert.equal(unauthorizedRes.status, 'disconnected');
+  assert.equal(unauthorizedRes.responseCode, 401);
+
+  // 4. validateFacebookCapiConnection with mocked fetch returning 200 OK
+  const mockFetchOk = async () =>
+    ({
+      status: 200,
+      json: async () => ({ events_received: 1, fbtrace_id: 'fb_trace_999' }),
+    }) as unknown as Response;
+
+  const liveVal = await validateFacebookCapiConnection(
+    {
+      facebookPixelId: '123456789012345',
+      facebookCapiToken: 'EAAB_VALID_TOKEN_123456',
+      facebookCapiEnabled: true,
+    },
+    mockFetchOk
+  );
+  assert.equal(liveVal.isConnected, true);
+  assert.equal(liveVal.responseCode, 200);
+  assert.equal(liveVal.fbtraceId, 'fb_trace_999');
+
+  // 5. resolveDashboardHeaderCapiStatus reflects Connected vs Disconnected
+  const headerConnected = resolveDashboardHeaderCapiStatus({
+    facebookPixelId: '123456789012345',
+    facebookCapiToken: 'EAAB_VALID_TOKEN_123456',
+    facebookCapiEnabled: true,
+    facebookConnectionStatus: 'connected',
+    facebookLastResponseCode: 200,
+  });
+  assert.equal(headerConnected.isConnected, true);
+  assert.equal(headerConnected.label, 'Connected');
+  assert.equal(headerConnected.responseCode, 200);
+
+  const headerDisconnected = resolveDashboardHeaderCapiStatus({
+    facebookPixelId: '',
+    facebookCapiToken: '',
+    facebookCapiEnabled: true,
+  });
+  assert.equal(headerDisconnected.isConnected, false);
+  assert.equal(headerDisconnected.label, 'Disconnected');
+});
+

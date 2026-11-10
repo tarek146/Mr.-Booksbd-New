@@ -76,6 +76,8 @@ import { AdminAnalytics } from '../components/admin/AdminAnalytics';
 import { AdminStaffManagement } from '../components/admin/AdminStaffManagement';
 import { AdminProfileManagement } from '../components/admin/AdminProfileManagement';
 import { AdminConversionApiManager } from '../components/admin/AdminConversionApiManager';
+import { resolveDashboardHeaderCapiStatus } from '../utils/facebookCapiHelpers';
+import { renderGreenReviewIcon } from '../components/ProductCard';
 import { compressImageFile, isValidImageUrl, sanitizeImageUrl } from '../utils/imageCompressor';
 import {
   sortPaymentMethods,
@@ -119,6 +121,7 @@ export function AdminDashboard() {
     authors,
     publishers,
     settings, 
+    homeConfig,
     reviewPaymentSubmission, 
     updateOrderStatus, 
     updateOrderPaymentStatus,
@@ -142,6 +145,7 @@ export function AdminDashboard() {
     updateCategory,
     deleteCategory,
     updateSettings,
+    updateHomeConfig,
     setActivePage,
     subscribers,
     addSubscriber,
@@ -328,7 +332,7 @@ export function AdminDashboard() {
   const [settingsForm, setSettingsForm] = useState(settings);
   const [settingsSuccess, setSettingsSuccess] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
-  const [settingsSubTab, setSettingsSubTab] = useState<'header' | 'footer' | 'shipping' | 'social' | 'seo'>('header');
+  const [settingsSubTab, setSettingsSubTab] = useState<'header' | 'footer' | 'shipping' | 'social' | 'seo' | 'homepage'>('header');
 
   useEffect(() => {
     setSettingsForm(settings);
@@ -2103,6 +2107,45 @@ export function AdminDashboard() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Facebook Pixel & CAPI Connection Status Indicator in Dashboard Header */}
+            {(() => {
+              const capiHeaderStatus = resolveDashboardHeaderCapiStatus(settings);
+              return (
+                <button
+                  type="button"
+                  data-testid="dashboard-header-capi-status"
+                  onClick={() => setActiveTab('capi')}
+                  title={`${capiHeaderStatus.subtitle} — Click to open Pixel & Conversion API Validator`}
+                  className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs font-extrabold flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-all border ${
+                    capiHeaderStatus.isConnected
+                      ? 'bg-emerald-950/80 hover:bg-emerald-900/80 text-emerald-300 border-emerald-500/40'
+                      : 'bg-red-950/70 hover:bg-red-900/70 text-red-300 border-red-500/40'
+                  }`}
+                >
+                  <span
+                    className={`w-2 h-2 rounded-full shrink-0 ${
+                      capiHeaderStatus.isConnected
+                        ? 'bg-emerald-400 animate-pulse'
+                        : 'bg-red-400'
+                    }`}
+                  />
+                  <span className="hidden md:inline text-slate-300 font-bold">Pixel & CAPI:</span>
+                  <span data-testid="dashboard-header-capi-label">
+                    {capiHeaderStatus.label}
+                  </span>
+                  <span
+                    className={`hidden sm:inline-block px-1.5 py-0.5 rounded text-[10px] font-mono font-black ${
+                      capiHeaderStatus.isConnected
+                        ? 'bg-emerald-500/20 text-emerald-200'
+                        : 'bg-red-500/20 text-red-200'
+                    }`}
+                  >
+                    HTTP {capiHeaderStatus.responseCode}
+                  </span>
+                </button>
+              );
+            })()}
+
             {/* Storefront button */}
             <button
               onClick={() => setActivePage('home')}
@@ -4172,6 +4215,354 @@ export function AdminDashboard() {
               >
                 <Plus size={14} /> Add Verified Review
               </button>
+            </div>
+
+            {/* HOMEPAGE REVIEW VISIBILITY, REPLACEMENT FEATURE & GREEN ICON (💚) SYSTEM */}
+            <div
+              data-testid="admin-home-review-system-panel"
+              className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-emerald-50/70 via-white to-emerald-50/40 border border-emerald-200/90 space-y-4"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-emerald-200/60">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    {renderGreenReviewIcon(settings.homeReviewIconStyle, 18)}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-sm font-black text-neutral-900">
+                        Homepage Review System, Slot Replacement & Green Icon (💚) Customizer
+                      </h3>
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                          settings.showHomeReviewsSection !== false &&
+                          settings.homeReviewsSlotReplacement !== 'off'
+                            ? 'bg-emerald-600 text-white border-emerald-700'
+                            : 'bg-neutral-200 text-neutral-700 border-neutral-300'
+                        }`}
+                      >
+                        {settings.showHomeReviewsSection === false ||
+                        settings.homeReviewsSlotReplacement === 'off'
+                          ? 'Homepage Review: OFF'
+                          : settings.homeReviewsSlotReplacement &&
+                              settings.homeReviewsSlotReplacement !== 'reviews'
+                            ? `Replaced with: ${settings.homeReviewsSlotReplacement.replace('_', ' ')}`
+                            : 'Homepage Review: SHOW (Active)'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-neutral-600 mt-0.5">
+                      Turn Homepage Reviews ON or OFF anytime, replace that Homepage space with another high-converting store feature, or customize the Green Review Icon (💚) without using a star.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Quick Show / Off Master Switch */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    data-testid="toggle-home-reviews-show-btn"
+                    onClick={async () => {
+                      const nextSlot =
+                        homeConfig.reviewsSlotReplacement === 'off'
+                          ? 'reviews'
+                          : homeConfig.reviewsSlotReplacement || 'reviews';
+                      await updateHomeConfig({
+                        showReviews: true,
+                        reviewsSlotReplacement: nextSlot,
+                      });
+                      setToast({ show: true, type: 'success', message: 'Homepage Reviews enabled in homeConfig!' });
+                    }}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-extrabold border cursor-pointer transition-all flex items-center gap-1.5 ${
+                      homeConfig.showReviews !== false &&
+                      homeConfig.reviewsSlotReplacement !== 'off'
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                        : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
+                    }`}
+                  >
+                    <Eye size={13} />
+                    <span>Show on Home</span>
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="toggle-home-reviews-off-btn"
+                    onClick={async () => {
+                      await updateHomeConfig({
+                        showReviews: false,
+                        reviewsSlotReplacement: 'off',
+                      });
+                      setToast({ show: true, type: 'success', message: 'Homepage Reviews turned OFF in homeConfig!' });
+                    }}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-extrabold border cursor-pointer transition-all flex items-center gap-1.5 ${
+                      homeConfig.showReviews === false ||
+                      homeConfig.reviewsSlotReplacement === 'off'
+                        ? 'bg-red-600 text-white border-red-600 shadow-xs'
+                        : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
+                    }`}
+                  >
+                    <EyeOff size={13} />
+                    <span>Turn Off</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* 1. Homepage Section Slot Selector (Reviews vs Alternative Feature vs Off) */}
+                <div className="p-3.5 rounded-2xl bg-white border border-emerald-200/80 space-y-2">
+                  <label className="block text-[11px] font-black uppercase text-emerald-950">
+                    1. Homepage Review Section Slot (What to Show)
+                  </label>
+                  <select
+                    data-testid="home-reviews-slot-select"
+                    value={
+                      settings.showHomeReviewsSection === false &&
+                      (!settings.homeReviewsSlotReplacement ||
+                        settings.homeReviewsSlotReplacement === 'reviews')
+                        ? 'off'
+                        : settings.homeReviewsSlotReplacement || 'reviews'
+                    }
+                    onChange={async e => {
+                      const val = e.target.value as
+                        | 'reviews'
+                        | 'trust_features'
+                        | 'publishers_spotlight'
+                        | 'reading_benefits'
+                        | 'off';
+                      await updateSettings({
+                        showHomeReviewsSection: val !== 'off',
+                        homeReviewsSlotReplacement: val,
+                      });
+                      setToast({
+                        show: true,
+                        type: 'success',
+                        message:
+                          val === 'off'
+                            ? 'Homepage review slot hidden (Off)'
+                            : `Homepage slot updated to: ${val.replace('_', ' ')}`,
+                      });
+                    }}
+                    className="w-full px-3 py-2.5 rounded-xl border border-neutral-300 bg-[#F8FAFC] text-xs font-bold text-neutral-900 focus:outline-none focus:border-emerald-600"
+                  >
+                    <option value="reviews">
+                      💚 Show Customer Reviews Carousel (Default)
+                    </option>
+                    <option value="trust_features">
+                      🛡️ Replace with: Store Trust & Fast Delivery Guarantees
+                    </option>
+                    <option value="publishers_spotlight">
+                      🏛️ Replace with: Official Publications & Partner Houses
+                    </option>
+                    <option value="reading_benefits">
+                      📖 Replace with: Look Inside Book Preview & Reader Perks Banner
+                    </option>
+                    <option value="off">🚫 Turn Off (Keep Homepage Slot Empty)</option>
+                  </select>
+                  <p className="text-[11px] text-neutral-500">
+                    Choose whether to display Customer Reviews on the Homepage, replace that space with another store feature, or keep it turned off.
+                  </p>
+                </div>
+
+                {/* 2. Product Card Small Review Badge Mode */}
+                <div className="p-3.5 rounded-2xl bg-white border border-emerald-200/80 space-y-2">
+                  <label className="block text-[11px] font-black uppercase text-emerald-950">
+                    2. Product Card Review Slot (On Book Cards)
+                  </label>
+                  <select
+                    data-testid="product-card-review-slot-select"
+                    value={settings.productCardReviewSlotMode || 'green_rating'}
+                    onChange={async e => {
+                      const val = e.target.value as
+                        | 'green_rating'
+                        | 'publisher_tag'
+                        | 'verified_badge'
+                        | 'stock_status'
+                        | 'off';
+                      await updateSettings({ productCardReviewSlotMode: val });
+                      setToast({ show: true, type: 'success', message: 'Product card review slot updated!' });
+                    }}
+                    className="w-full px-3 py-2.5 rounded-xl border border-neutral-300 bg-[#F8FAFC] text-xs font-bold text-neutral-900 focus:outline-none focus:border-emerald-600"
+                  >
+                    <option value="green_rating">
+                      💚 Green Review Score Badge (e.g. 💚 4.9 (12))
+                    </option>
+                    <option value="publisher_tag">
+                      🏛️ Replace with: Publisher Name Badge
+                    </option>
+                    <option value="verified_badge">
+                      🛡️ Replace with: "Verified Print" Green Badge
+                    </option>
+                    <option value="stock_status">
+                      ✅ Replace with: Live Stock Count Badge
+                    </option>
+                    <option value="off">🚫 Turn Off on Product Cards</option>
+                  </select>
+                  <p className="text-[11px] text-neutral-500">
+                    Customize or replace the small rating badge shown on Homepage & Storefront book cards.
+                  </p>
+                </div>
+
+                {/* 3. Green Review Icon Style Selector (Non-Star Curated Options) */}
+                <div className="p-3.5 rounded-2xl bg-white border border-emerald-200/80 space-y-2">
+                  <label className="block text-[11px] font-black uppercase text-emerald-950">
+                    3. Green Review Icon Style (💚 Instead of Star)
+                  </label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {[
+                      { id: 'heart', label: '💚 Green Heart' },
+                      { id: 'verified_shield', label: '🛡️ Trust Shield' },
+                      { id: 'thumbs_up', label: '👍 Thumbs Up' },
+                      { id: 'check_badge', label: '✅ Check Badge' },
+                      { id: 'sparkles', label: '✨ Sparkles' },
+                      { id: 'book_love', label: '📖 Book Icon' },
+                    ].map(opt => {
+                      const activeIcon = (settings.homeReviewIconStyle || 'heart') === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          data-testid={`review-icon-option-${opt.id}`}
+                          onClick={async () => {
+                            await updateSettings({
+                              homeReviewIconStyle: opt.id as any,
+                            });
+                            setToast({
+                              show: true,
+                              type: 'success',
+                              message: `Green review icon changed to ${opt.label}!`,
+                            });
+                          }}
+                          className={`px-2.5 py-2 rounded-xl border text-[11px] font-extrabold flex items-center gap-1.5 cursor-pointer transition-all ${
+                            activeIcon
+                              ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs'
+                              : 'bg-[#F8FAFC] text-neutral-700 border-neutral-200 hover:border-emerald-300'
+                          }`}
+                        >
+                          <span
+                            className={`inline-flex ${
+                              activeIcon ? '[&_svg]:!text-white' : ''
+                            }`}
+                          >
+                            {renderGreenReviewIcon(opt.id, 13)}
+                          </span>
+                          <span className="truncate">{opt.label.replace(/^[^\s]+\s/, '')}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center justify-between pt-1 text-[11px] text-emerald-800 font-bold">
+                    <span>Live Green Preview:</span>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-600">
+                      {[...Array(5)].map((_, i) => (
+                        <span key={i} className="inline-flex">
+                          {renderGreenReviewIcon(settings.homeReviewIconStyle, 13)}
+                        </span>
+                      ))}
+                      <span className="ml-1 text-emerald-800 font-black">5.0</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Co-Control for Homepage Writer / Author On/Off & Slot Replacement */}
+              <div className="pt-3 border-t border-emerald-200/70 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/20 flex items-center justify-center shrink-0">
+                    <UserCheck size={15} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-black text-neutral-900">
+                        Homepage Writer / Author Slot Control (Both Review & Writer Systems)
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                          settings.showHomeWritersSection !== false &&
+                          settings.homeWritersSlotReplacement !== 'off'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : 'bg-red-50 text-red-700 border-red-200'
+                        }`}
+                      >
+                        {settings.showHomeWritersSection === false ||
+                        settings.homeWritersSlotReplacement === 'off'
+                          ? 'Writers on Home: OFF'
+                          : settings.homeWritersSlotReplacement &&
+                              settings.homeWritersSlotReplacement !== 'writers'
+                            ? `Writers Slot: ${settings.homeWritersSlotReplacement.replace('_', ' ')}`
+                            : 'Writers on Home: ON'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-neutral-500">
+                      Control Homepage Writers section and Product Card Writer line right here or in the Writers tab.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    value={
+                      settings.showHomeWritersSection === false &&
+                      (!settings.homeWritersSlotReplacement ||
+                        settings.homeWritersSlotReplacement === 'writers')
+                        ? 'off'
+                        : settings.homeWritersSlotReplacement || 'writers'
+                    }
+                    onChange={async e => {
+                      const val = e.target.value as
+                        | 'writers'
+                        | 'publishers_spotlight'
+                        | 'bestsellers_showcase'
+                        | 'trust_features'
+                        | 'reading_benefits'
+                        | 'off';
+                      await updateSettings({
+                        showHomeWritersSection: val !== 'off',
+                        homeWritersSlotReplacement: val,
+                      });
+                      setToast({
+                        show: true,
+                        type: 'success',
+                        message:
+                          val === 'off'
+                            ? 'Homepage writer section turned OFF!'
+                            : `Homepage writer slot set to: ${val.replace('_', ' ')}`,
+                      });
+                    }}
+                    className="px-3 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                  >
+                    <option value="writers">✍️ Home Writers: Show Featured Authors</option>
+                    <option value="publishers_spotlight">🏛️ Home Writers Slot → Official Publishers</option>
+                    <option value="bestsellers_showcase">🔥 Home Writers Slot → Bestselling Books</option>
+                    <option value="trust_features">🛡️ Home Writers Slot → Store Trust Guarantees</option>
+                    <option value="reading_benefits">📖 Home Writers Slot → Look Inside Perks</option>
+                    <option value="off">🚫 Home Writers: Turn OFF</option>
+                  </select>
+
+                  <select
+                    value={settings.productCardWriterSlotMode || 'writer_name'}
+                    onChange={async e => {
+                      const val = e.target.value as
+                        | 'writer_name'
+                        | 'publisher_name'
+                        | 'category_name'
+                        | 'edition_info'
+                        | 'delivery_badge'
+                        | 'off';
+                      await updateSettings({ productCardWriterSlotMode: val });
+                      setToast({
+                        show: true,
+                        type: 'success',
+                        message: 'Product card writer slot updated!',
+                      });
+                    }}
+                    className="px-3 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                  >
+                    <option value="writer_name">✍️ Card Writer: Show Writer Name</option>
+                    <option value="publisher_name">🏛️ Card Writer → Publisher Name</option>
+                    <option value="category_name">📚 Card Writer → Category Name</option>
+                    <option value="edition_info">📖 Card Writer → Edition & Print Info</option>
+                    <option value="delivery_badge">🚚 Card Writer → Fast COD Tag</option>
+                    <option value="off">🚫 Card Writer: Turn OFF</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
             {/* Reaction Summary KPIs */}
@@ -7841,6 +8232,210 @@ export function AdminDashboard() {
               </div>
             </div>
 
+            {/* HOMEPAGE WRITER / AUTHOR VISIBILITY & FUTURE SLOT REPLACEMENT SYSTEM */}
+            <div
+              data-testid="admin-home-writer-system-panel"
+              className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-[#FFF1F2]/70 via-white to-emerald-50/40 border border-neutral-200/90 space-y-4"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-neutral-200/70">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#D71920] text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <UserCheck size={18} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-sm font-black text-neutral-900">
+                        Customer Homepage Writer On/Off & Slot Replacement System
+                      </h3>
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                          settings.showHomeWritersSection !== false &&
+                          settings.homeWritersSlotReplacement !== 'off'
+                            ? 'bg-emerald-600 text-white border-emerald-700'
+                            : 'bg-neutral-200 text-neutral-700 border-neutral-300'
+                        }`}
+                      >
+                        {settings.showHomeWritersSection === false ||
+                        settings.homeWritersSlotReplacement === 'off'
+                          ? 'Homepage Writer Section: OFF'
+                          : settings.homeWritersSlotReplacement &&
+                              settings.homeWritersSlotReplacement !== 'writers'
+                            ? `Replaced with: ${settings.homeWritersSlotReplacement.replace('_', ' ')}`
+                            : 'Homepage Writer Section: SHOW (Active)'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-neutral-600 mt-0.5">
+                      Turn the Customer Homepage Writer section ON or OFF anytime, or replace that Homepage space & Product Card Writer line with another feature whenever you want.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Quick Show / Off Master Switch for Homepage Writers */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    data-testid="toggle-home-writers-show-btn"
+                    onClick={async () => {
+                      const nextSlot =
+                        homeConfig.authorsSlotReplacement === 'off'
+                          ? 'writers'
+                          : homeConfig.authorsSlotReplacement || 'writers';
+                      await updateHomeConfig({
+                        showAuthors: true,
+                        authorsSlotReplacement: nextSlot,
+                      });
+                      setToast({
+                        show: true,
+                        type: 'success',
+                        message: 'Homepage Authors section enabled in homeConfig!',
+                      });
+                    }}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-extrabold border cursor-pointer transition-all flex items-center gap-1.5 ${
+                      homeConfig.showAuthors !== false &&
+                      homeConfig.authorsSlotReplacement !== 'off'
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                        : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
+                    }`}
+                  >
+                    <Eye size={13} />
+                    <span>Show on Home</span>
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="toggle-home-writers-off-btn"
+                    onClick={async () => {
+                      await updateHomeConfig({
+                        showAuthors: false,
+                        authorsSlotReplacement: 'off',
+                      });
+                      setToast({
+                        show: true,
+                        type: 'success',
+                        message: 'Homepage Authors section turned OFF in homeConfig!',
+                      });
+                    }}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-extrabold border cursor-pointer transition-all flex items-center gap-1.5 ${
+                      homeConfig.showAuthors === false ||
+                      homeConfig.authorsSlotReplacement === 'off'
+                        ? 'bg-red-600 text-white border-red-600 shadow-xs'
+                        : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
+                    }`}
+                  >
+                    <EyeOff size={13} />
+                    <span>Turn Off</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* 1. Customer Homepage Writer Section Slot (Show Writers vs Replace with Feature vs Off) */}
+                <div className="p-3.5 rounded-2xl bg-white border border-neutral-200/90 space-y-2">
+                  <label className="block text-[11px] font-black uppercase text-neutral-900">
+                    1. Customer Homepage Writer Section Slot (What to Show)
+                  </label>
+                  <select
+                    data-testid="home-writers-slot-select"
+                    value={
+                      settings.showHomeWritersSection === false &&
+                      (!settings.homeWritersSlotReplacement ||
+                        settings.homeWritersSlotReplacement === 'writers')
+                        ? 'off'
+                        : settings.homeWritersSlotReplacement || 'writers'
+                    }
+                    onChange={async e => {
+                      const val = e.target.value as
+                        | 'writers'
+                        | 'publishers_spotlight'
+                        | 'bestsellers_showcase'
+                        | 'trust_features'
+                        | 'reading_benefits'
+                        | 'off';
+                      await updateSettings({
+                        showHomeWritersSection: val !== 'off',
+                        homeWritersSlotReplacement: val,
+                      });
+                      setToast({
+                        show: true,
+                        type: 'success',
+                        message:
+                          val === 'off'
+                            ? 'Homepage Writer section hidden (Off)'
+                            : `Homepage Writer slot updated to: ${val.replace('_', ' ')}`,
+                      });
+                    }}
+                    className="w-full px-3 py-2.5 rounded-xl border border-neutral-300 bg-[#F8FAFC] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                  >
+                    <option value="writers">
+                      ✍️ Show Featured Writers / Authors Carousel (Default)
+                    </option>
+                    <option value="publishers_spotlight">
+                      🏛️ Replace with: Official Publications & Partner Houses
+                    </option>
+                    <option value="bestsellers_showcase">
+                      🔥 Replace with: Reader Favorites & Top Bestselling Books
+                    </option>
+                    <option value="trust_features">
+                      🛡️ Replace with: Store Trust & Fast Delivery Guarantees
+                    </option>
+                    <option value="reading_benefits">
+                      📖 Replace with: Look Inside Book Preview & Reader Perks Banner
+                    </option>
+                    <option value="off">🚫 Turn Off (Keep Homepage Writer Slot Empty)</option>
+                  </select>
+                  <p className="text-[11px] text-neutral-500">
+                    Keep Featured Writers active on the Customer Homepage, replace that space with another store feature, or turn it off completely.
+                  </p>
+                </div>
+
+                {/* 2. Product Card Writer Line Slot (Below Book Title on Cards) */}
+                <div className="p-3.5 rounded-2xl bg-white border border-neutral-200/90 space-y-2">
+                  <label className="block text-[11px] font-black uppercase text-neutral-900">
+                    2. Product Card Writer Slot (Below Book Title on Cards)
+                  </label>
+                  <select
+                    data-testid="product-card-writer-slot-select"
+                    value={settings.productCardWriterSlotMode || 'writer_name'}
+                    onChange={async e => {
+                      const val = e.target.value as
+                        | 'writer_name'
+                        | 'publisher_name'
+                        | 'category_name'
+                        | 'edition_info'
+                        | 'delivery_badge'
+                        | 'off';
+                      await updateSettings({ productCardWriterSlotMode: val });
+                      setToast({
+                        show: true,
+                        type: 'success',
+                        message: 'Product card writer line updated!',
+                      });
+                    }}
+                    className="w-full px-3 py-2.5 rounded-xl border border-neutral-300 bg-[#F8FAFC] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                  >
+                    <option value="writer_name">
+                      ✍️ Show Writer / Author Name (Default, e.g. Arif Azad)
+                    </option>
+                    <option value="publisher_name">
+                      🏛️ Replace with: Publisher Name (e.g. Guardian Publications)
+                    </option>
+                    <option value="category_name">
+                      📚 Replace with: Book Category Name (e.g. Islamic Books)
+                    </option>
+                    <option value="edition_info">
+                      📖 Replace with: Edition & Original Print Badge
+                    </option>
+                    <option value="delivery_badge">
+                      🚚 Replace with: "✓ Fast Cash on Delivery" Tag
+                    </option>
+                    <option value="off">🚫 Turn Off (Hide Writer Line on Product Cards)</option>
+                  </select>
+                  <p className="text-[11px] text-neutral-500">
+                    Control whether book cards on the Homepage show the Writer name, replace that line with Publisher/Category/Edition info, or turn it off.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Authors Responsive Grid: 1 col mobile, 2 col tablet, 3 col laptop, 4 col PC */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
               {authors
@@ -8682,8 +9277,8 @@ export function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Bottom Sub-Tab Selector Grid (1. Header & Logo, 2. Footer & Links, 3. Payment & Shipping, 4. Social Media, 5. SEO & Support) */}
-              <div className="p-2 sm:p-2.5 bg-white grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5 sm:gap-2">
+              {/* Bottom Sub-Tab Selector Grid (1. Header & Logo, 2. Footer & Links, 3. Payment & Shipping, 4. Social Media, 5. SEO & Support, 6. Home Page Settings) */}
+              <div className="p-2 sm:p-2.5 bg-white grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5 sm:gap-2">
                 {[
                   {
                     id: 'header' as const,
@@ -8714,6 +9309,12 @@ export function AdminDashboard() {
                     num: '5. SEO & Marketing',
                     sub: 'Meta Tags, Pixel, CAPI & Analytics',
                     icon: Sparkles
+                  },
+                  {
+                    id: 'homepage' as const,
+                    num: '6. Home Page Settings',
+                    sub: 'Reviews & Authors Toggles (homeConfig)',
+                    icon: Eye
                   }
                 ].map(tab => {
                   const IconComp = tab.icon;
@@ -8747,6 +9348,362 @@ export function AdminDashboard() {
                     </button>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* ===================================================================== */}
+            {/* HOME PAGE SETTINGS SECTION (`homeConfig` Document in Firebase)        */}
+            {/* ===================================================================== */}
+            <div
+              data-testid="admin-home-page-settings-section"
+              className="bg-white border border-[#E5E5E5] rounded-2xl p-4 sm:p-5 shadow-xs space-y-4"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#EEEEEE]">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
+                    <Settings size={17} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-sm sm:text-base font-black text-[#171717]">
+                        Home Page Settings
+                      </h3>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        Firebase: homeConfig
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#5F6368] mt-0.5">
+                      Toggle individual Home Page components ON or OFF in real time. Changes immediately update the <code className="font-mono font-bold text-[#171717]">homeConfig</code> document in Firebase and conditionally render sections on the customer Home page.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span
+                    className={`px-2.5 py-1 rounded-xl text-[11px] font-extrabold border ${
+                      homeConfig.showReviews !== false
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-neutral-100 text-neutral-600 border-neutral-200'
+                    }`}
+                  >
+                    Reviews: {homeConfig.showReviews !== false ? 'ON' : 'OFF'}
+                  </span>
+                  <span
+                    className={`px-2.5 py-1 rounded-xl text-[11px] font-extrabold border ${
+                      homeConfig.showAuthors !== false
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-neutral-100 text-neutral-600 border-neutral-200'
+                    }`}
+                  >
+                    Authors: {homeConfig.showAuthors !== false ? 'ON' : 'OFF'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Toggle Card 1: Reviews Component */}
+                <div
+                  data-testid="home-config-reviews-card"
+                  className={`p-4 rounded-2xl border transition-all space-y-3 ${
+                    homeConfig.showReviews !== false
+                      ? 'bg-emerald-50/40 border-emerald-200/90'
+                      : 'bg-[#F8FAFC] border-neutral-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                          homeConfig.showReviews !== false
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-neutral-200 text-neutral-600'
+                        }`}
+                      >
+                        {renderGreenReviewIcon(
+                          homeConfig.reviewIconStyle || settings.homeReviewIconStyle,
+                          16
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs sm:text-sm font-black text-[#171717]">
+                            Reviews Component
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                              homeConfig.showReviews !== false
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-neutral-200 text-neutral-700'
+                            }`}
+                          >
+                            {homeConfig.showReviews !== false ? 'Visible on Home' : 'Hidden on Home'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#5F6368] mt-0.5">
+                          Controls Customer Reviews & Green Rating section on the Home page (<code className="font-mono">homeConfig.showReviews</code>).
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Individual Toggle Switch for Reviews */}
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={homeConfig.showReviews !== false}
+                      aria-label="Toggle Reviews component on Home page"
+                      data-testid="home-config-reviews-toggle"
+                      onClick={async () => {
+                        const nextShow = !(homeConfig.showReviews !== false);
+                        await updateHomeConfig({
+                          showReviews: nextShow,
+                          reviewsSlotReplacement: nextShow
+                            ? homeConfig.reviewsSlotReplacement === 'off'
+                              ? 'reviews'
+                              : homeConfig.reviewsSlotReplacement || 'reviews'
+                            : 'off',
+                        });
+                        setToast({
+                          show: true,
+                          type: 'success',
+                          message: `Home Page 'Reviews' component turned ${nextShow ? 'ON' : 'OFF'} in Firebase homeConfig!`,
+                        });
+                      }}
+                      className={`relative inline-flex h-7 w-13 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        homeConfig.showReviews !== false ? 'bg-emerald-600' : 'bg-neutral-300'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                          homeConfig.showReviews !== false ? 'translate-x-6' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Optional Slot Mode & Green Icon Selector when Reviews is ON */}
+                  <div className="pt-2.5 border-t border-neutral-200/80 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[10px] font-black uppercase text-neutral-600 mb-1">
+                        Reviews Slot Mode
+                      </label>
+                      <select
+                        data-testid="home-config-reviews-slot-select"
+                        value={
+                          homeConfig.showReviews === false
+                            ? 'off'
+                            : homeConfig.reviewsSlotReplacement || 'reviews'
+                        }
+                        onChange={async e => {
+                          const val = e.target.value as
+                            | 'reviews'
+                            | 'trust_features'
+                            | 'publishers_spotlight'
+                            | 'reading_benefits'
+                            | 'off';
+                          await updateHomeConfig({
+                            showReviews: val !== 'off',
+                            reviewsSlotReplacement: val,
+                          });
+                          setToast({
+                            show: true,
+                            type: 'success',
+                            message: `Updated homeConfig Reviews slot to: ${val}`,
+                          });
+                        }}
+                        className="w-full px-2.5 py-1.5 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-neutral-900"
+                      >
+                        <option value="reviews">💚 Customer Reviews Carousel</option>
+                        <option value="trust_features">🛡️ Store Trust Guarantees</option>
+                        <option value="publishers_spotlight">🏛️ Official Publications</option>
+                        <option value="reading_benefits">📖 Reader Perks Banner</option>
+                        <option value="off">🚫 Off (Hidden)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase text-neutral-600 mb-1">
+                        Green Review Icon (💚)
+                      </label>
+                      <select
+                        data-testid="home-config-reviews-icon-select"
+                        value={homeConfig.reviewIconStyle || settings.homeReviewIconStyle || 'heart'}
+                        onChange={async e => {
+                          const style = e.target.value as
+                            | 'heart'
+                            | 'verified_shield'
+                            | 'thumbs_up'
+                            | 'check_badge'
+                            | 'sparkles'
+                            | 'book_love';
+                          await updateHomeConfig({ reviewIconStyle: style });
+                          setToast({
+                            show: true,
+                            type: 'success',
+                            message: `Updated green review icon to: ${style}`,
+                          });
+                        }}
+                        className="w-full px-2.5 py-1.5 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-neutral-900"
+                      >
+                        <option value="heart">💚 Green Heart</option>
+                        <option value="verified_shield">🛡️ Trust Shield</option>
+                        <option value="thumbs_up">👍 Thumbs Up</option>
+                        <option value="check_badge">✅ Check Badge</option>
+                        <option value="sparkles">✨ Sparkles</option>
+                        <option value="book_love">📖 Book Icon</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Toggle Card 2: Authors Component */}
+                <div
+                  data-testid="home-config-authors-card"
+                  className={`p-4 rounded-2xl border transition-all space-y-3 ${
+                    homeConfig.showAuthors !== false
+                      ? 'bg-emerald-50/40 border-emerald-200/90'
+                      : 'bg-[#F8FAFC] border-neutral-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                          homeConfig.showAuthors !== false
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-neutral-200 text-neutral-600'
+                        }`}
+                      >
+                        <Users size={16} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs sm:text-sm font-black text-[#171717]">
+                            Authors Component
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                              homeConfig.showAuthors !== false
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-neutral-200 text-neutral-700'
+                            }`}
+                          >
+                            {homeConfig.showAuthors !== false ? 'Visible on Home' : 'Hidden on Home'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#5F6368] mt-0.5">
+                          Controls Featured Authors / Writers section on the Home page (<code className="font-mono">homeConfig.showAuthors</code>).
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Individual Toggle Switch for Authors */}
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={homeConfig.showAuthors !== false}
+                      aria-label="Toggle Authors component on Home page"
+                      data-testid="home-config-authors-toggle"
+                      onClick={async () => {
+                        const nextShow = !(homeConfig.showAuthors !== false);
+                        await updateHomeConfig({
+                          showAuthors: nextShow,
+                          authorsSlotReplacement: nextShow
+                            ? homeConfig.authorsSlotReplacement === 'off'
+                              ? 'writers'
+                              : homeConfig.authorsSlotReplacement || 'writers'
+                            : 'off',
+                        });
+                        setToast({
+                          show: true,
+                          type: 'success',
+                          message: `Home Page 'Authors' component turned ${nextShow ? 'ON' : 'OFF'} in Firebase homeConfig!`,
+                        });
+                      }}
+                      className={`relative inline-flex h-7 w-13 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        homeConfig.showAuthors !== false ? 'bg-emerald-600' : 'bg-neutral-300'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                          homeConfig.showAuthors !== false ? 'translate-x-6' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Optional Slot Mode & Product Card Writer Line Selector */}
+                  <div className="pt-2.5 border-t border-neutral-200/80 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[10px] font-black uppercase text-neutral-600 mb-1">
+                        Authors Slot Mode
+                      </label>
+                      <select
+                        data-testid="home-config-authors-slot-select"
+                        value={
+                          homeConfig.showAuthors === false
+                            ? 'off'
+                            : homeConfig.authorsSlotReplacement || 'writers'
+                        }
+                        onChange={async e => {
+                          const val = e.target.value as
+                            | 'writers'
+                            | 'publishers_spotlight'
+                            | 'bestsellers_showcase'
+                            | 'trust_features'
+                            | 'reading_benefits'
+                            | 'off';
+                          await updateHomeConfig({
+                            showAuthors: val !== 'off',
+                            authorsSlotReplacement: val,
+                          });
+                          setToast({
+                            show: true,
+                            type: 'success',
+                            message: `Updated homeConfig Authors slot to: ${val}`,
+                          });
+                        }}
+                        className="w-full px-2.5 py-1.5 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-neutral-900"
+                      >
+                        <option value="writers">✍️ Featured Authors Carousel</option>
+                        <option value="publishers_spotlight">🏛️ Official Publications</option>
+                        <option value="bestsellers_showcase">🔥 Bestsellers Showcase</option>
+                        <option value="trust_features">🛡️ Store Trust Guarantees</option>
+                        <option value="reading_benefits">📖 Reader Perks Banner</option>
+                        <option value="off">🚫 Off (Hidden)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase text-neutral-600 mb-1">
+                        Book Card Writer Line
+                      </label>
+                      <select
+                        data-testid="home-config-card-writer-select"
+                        value={homeConfig.productCardWriterSlotMode || settings.productCardWriterSlotMode || 'writer_name'}
+                        onChange={async e => {
+                          const mode = e.target.value as
+                            | 'writer_name'
+                            | 'publisher_name'
+                            | 'category_name'
+                            | 'edition_info'
+                            | 'delivery_badge'
+                            | 'off';
+                          await updateHomeConfig({ productCardWriterSlotMode: mode });
+                          setToast({
+                            show: true,
+                            type: 'success',
+                            message: `Updated book card writer slot to: ${mode}`,
+                          });
+                        }}
+                        className="w-full px-2.5 py-1.5 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-neutral-900"
+                      >
+                        <option value="writer_name">✍️ Show Writer Name</option>
+                        <option value="publisher_name">🏛️ Show Publisher Name</option>
+                        <option value="category_name">📚 Show Category Name</option>
+                        <option value="edition_info">📖 Show Edition Badge</option>
+                        <option value="delivery_badge">🚚 Fast COD Badge</option>
+                        <option value="off">🚫 Hide Writer Line</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 

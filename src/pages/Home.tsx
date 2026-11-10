@@ -3,20 +3,30 @@ import { useStore } from '../context/StoreContext';
 import { Hero } from '../components/Hero';
 import { SpecialOfferSection } from '../components/SpecialOfferSection';
 import { ReelsSection } from '../components/ReelsSection';
-import { ProductCard } from '../components/ProductCard';
+import { ProductCard, renderGreenReviewIcon } from '../components/ProductCard';
 import { FeaturedAuthorsSection } from '../components/FeaturedAuthorsSection';
 import { HomePageSkeleton } from '../components/SkeletonScreens';
 import { shouldShowSkeletonScreen } from '../utils/instantStoreCache';
+import { buildEnrichedPublishersList } from '../utils/publisherAndDeliveryHelpers';
+import {
+  resolveHomeReviewsSlotMode,
+  resolveHomeAuthorsSlotMode,
+} from '../utils/homeConfigHelpers';
 import { 
-  Star, 
   ArrowRight, 
   ChevronRight,
   ChevronLeft,
-  Sparkles
+  Sparkles,
+  ShieldCheck,
+  Truck,
+  Building2,
+  BookOpen,
+  CheckCircle2,
+  Phone,
 } from 'lucide-react';
 
 export function Home() {
-  const { products, categories, reviews, isLoading, settings, setActivePage, setSelectedCategoryFilter } = useStore();
+  const { products, categories, publishers, reviews, isLoading, settings, homeConfig, setActivePage, setSelectedCategoryFilter } = useStore();
   
   const categoryScrollRef = useRef<HTMLDivElement>(null);
   const newArrivalsScrollRef = useRef<HTMLDivElement>(null);
@@ -358,62 +368,442 @@ export function Home() {
         </div>
       </section>
 
-      {/* 5. Verified Customer Reviews & Testimonials */}
-      {reviews.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
-          <div className="flex items-center justify-between mb-3 sm:mb-4 pb-1 border-b border-[#F0F0F0]">
-            <h2 className="text-lg sm:text-2xl font-black text-[#171717] tracking-tight">
-              What Book Lovers Say About MR. BOOKS
-            </h2>
-          </div>
+      {/* 5. Verified Customer Reviews & Testimonials (Controlled by Firebase homeConfig.showReviews) */}
+      {(() => {
+        if (homeConfig.showReviews === false) {
+          return null;
+        }
+        const slotMode = resolveHomeReviewsSlotMode(homeConfig, settings);
 
-          <div className="relative group/reviews-slider">
-            <button 
-              onClick={() => scrollContainer(reviewsScrollRef, 'left')}
-              className="absolute -left-2.5 sm:-left-3.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white border border-[#E5E5E5] shadow-lg flex items-center justify-center text-[#171717] hover:bg-[#D71920] hover:text-white hover:border-[#D71920] transition-all z-20 opacity-90 sm:opacity-0 sm:group-hover/reviews-slider:opacity-100 cursor-pointer active:scale-90"
-              aria-label="Scroll Reviews Left"
-            >
-              <ChevronLeft size={18} />
-            </button>
+        if (slotMode === 'off') {
+          return null;
+        }
 
-            <button 
-              onClick={() => scrollContainer(reviewsScrollRef, 'right')}
-              className="absolute -right-2.5 sm:-right-3.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white border border-[#E5E5E5] shadow-lg flex items-center justify-center text-[#171717] hover:bg-[#D71920] hover:text-white hover:border-[#D71920] transition-all z-20 opacity-90 sm:opacity-0 sm:group-hover/reviews-slider:opacity-100 cursor-pointer active:scale-90"
-              aria-label="Scroll Reviews Right"
+        if (slotMode === 'trust_features') {
+          return (
+            <section
+              data-testid="home-reviews-replacement-trust"
+              className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4"
             >
-              <ChevronRight size={18} />
-            </button>
-
-            <div 
-              ref={reviewsScrollRef}
-              className="flex items-stretch gap-3 sm:gap-4 overflow-x-auto scrollbar-none scroll-smooth snap-x snap-mandatory py-1 px-0.5"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              {reviews.map((rev) => (
-                <div key={rev.id} className="w-[calc(85%-8px)] sm:w-[calc(50%-8px)] md:w-[calc(33.333%-10px)] shrink-0 snap-start p-4 rounded-2xl bg-white border border-[#E5E5E5] space-y-2 shadow-2xs flex flex-col justify-between">
-                  <div className="space-y-2">
-                    <div className="flex items-center text-emerald-600">
-                      {[...Array(rev.rating || 5)].map((_, i) => (
-                        <Star key={i} size={13} fill="currentColor" />
-                      ))}
+              <div className="flex items-center justify-between mb-3 sm:mb-4 pb-1 border-b border-[#F0F0F0]">
+                <h2 className="text-lg sm:text-2xl font-black text-[#171717] tracking-tight">
+                  Why Book Lovers Trust MR. BOOKS
+                </h2>
+                <span className="text-[11px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                  100% Verified Store
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                {[
+                  {
+                    icon: <ShieldCheck size={20} className="text-emerald-600" />,
+                    title: '100% Authentic Print Books',
+                    desc: 'Direct from official publishers with crisp paper & original binding guarantee.',
+                    badge: 'Original Copy',
+                  },
+                  {
+                    icon: <Truck size={20} className="text-emerald-600" />,
+                    title: 'Fastest Nationwide Delivery',
+                    desc: 'Express doorstep delivery in Dhaka, Outside Dhaka, Sub Area & Sundarban Courier.',
+                    badge: 'Cash on Delivery',
+                  },
+                  {
+                    icon: <CheckCircle2 size={20} className="text-emerald-600" />,
+                    title: 'Bubble-Wrap Safe Packaging',
+                    desc: 'Multi-layer protective packaging so every hardcover & paperback arrives mint.',
+                    badge: 'Zero Damage',
+                  },
+                  {
+                    icon: <BookOpen size={20} className="text-emerald-600" />,
+                    title: '7-Day Easy Replacement',
+                    desc: 'Instant replacement guarantee for any printing or binding defect on arrival.',
+                    badge: 'Reader Protection',
+                  },
+                ].map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="p-4 rounded-2xl bg-white border border-[#E5E5E5] shadow-2xs flex flex-col justify-between space-y-2.5 hover:border-emerald-300 transition-all"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-center">
+                        {item.icon}
+                      </div>
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        {item.badge}
+                      </span>
                     </div>
-                    <p className="text-xs text-[#171717] leading-relaxed italic">
-                      "{rev.comment}"
-                    </p>
+                    <div>
+                      <h3 className="font-black text-sm text-[#171717]">{item.title}</h3>
+                      <p className="text-xs text-[#5F6368] mt-1 leading-relaxed">{item.desc}</p>
+                    </div>
                   </div>
-                  <div className="pt-2 border-t border-[#EEEEEE]">
-                    <div className="font-bold text-xs text-[#171717]">{rev.userName}</div>
-                    <div className="text-[10px] text-[#5F6368]">{rev.isVerifiedPurchase ? 'Verified Purchase' : 'Customer Review'}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
+                ))}
+              </div>
+            </section>
+          );
+        }
 
-      {/* 6. Writer / Featured Authors Section */}
-      <FeaturedAuthorsSection />
+        if (slotMode === 'publishers_spotlight') {
+          const enrichedPublishers = buildEnrichedPublishersList(publishers, products);
+          return (
+            <section
+              data-testid="home-reviews-replacement-publishers"
+              className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4"
+            >
+              <div className="flex items-center justify-between mb-3 sm:mb-4 pb-1 border-b border-[#F0F0F0]">
+                <h2 className="text-lg sm:text-2xl font-black text-[#171717] tracking-tight">
+                  Official Publications & Partner Houses
+                </h2>
+                <button
+                  onClick={() => setActivePage('publishers')}
+                  className="inline-flex items-center gap-1 text-xs sm:text-sm font-bold text-[#D71920] hover:text-[#B51218] transition-colors cursor-pointer"
+                >
+                  <span>View All</span>
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                {enrichedPublishers.slice(0, 6).map(pub => (
+                  <button
+                    key={pub.id}
+                    type="button"
+                    onClick={() => setActivePage('publishers')}
+                    className="p-3.5 rounded-2xl bg-white border border-[#E5E5E5] hover:border-emerald-400 shadow-2xs flex flex-col items-center text-center gap-2 cursor-pointer transition-all group"
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-emerald-50/70 border border-emerald-200/80 flex items-center justify-center overflow-hidden">
+                      {pub.logoUrl ? (
+                        <img src={pub.logoUrl} alt={pub.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <Building2 size={20} className="text-emerald-600" />
+                      )}
+                    </div>
+                    <div className="w-full">
+                      <div className="font-bold text-xs text-[#171717] truncate group-hover:text-emerald-700">
+                        {pub.name}
+                      </div>
+                      <div className="text-[10px] font-extrabold text-emerald-700 mt-0.5">
+                        {pub.booksCount || 0} Books Available
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </section>
+          );
+        }
+
+        if (slotMode === 'reading_benefits') {
+          return (
+            <section
+              data-testid="home-reviews-replacement-benefits"
+              className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4"
+            >
+              <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-emerald-50/90 via-white to-emerald-50/60 border border-emerald-200/90 shadow-2xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="space-y-1.5 max-w-2xl">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-extrabold uppercase tracking-wider">
+                    <Sparkles size={11} />
+                    <span>Reader First Experience</span>
+                  </div>
+                  <h2 className="text-lg sm:text-2xl font-black text-[#171717] tracking-tight">
+                    Look Inside Pages Before You Order Any Book
+                  </h2>
+                  <p className="text-xs sm:text-sm text-[#5F6368]">
+                    Preview sample pages on every book detail page, enjoy instant Cash on Delivery, and get dedicated book curator assistance anytime.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setActivePage('books')}
+                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
+                  >
+                    <BookOpen size={14} />
+                    <span>Browse Books</span>
+                  </button>
+                  {settings.callNumber && (
+                    <a
+                      href={`tel:${settings.callNumber}`}
+                      className="px-4 py-2.5 rounded-xl bg-white hover:bg-neutral-50 text-[#171717] border border-emerald-200 text-xs font-extrabold flex items-center gap-1.5"
+                    >
+                      <Phone size={13} className="text-emerald-600" />
+                      <span>Hotline: {settings.callNumber}</span>
+                    </a>
+                  )}
+                </div>
+              </div>
+            </section>
+          );
+        }
+
+        if (reviews.length === 0) return null;
+
+        return (
+          <section
+            data-testid="home-reviews-section"
+            className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4"
+          >
+            <div className="flex items-center justify-between mb-3 sm:mb-4 pb-1 border-b border-[#F0F0F0]">
+              <h2 className="text-lg sm:text-2xl font-black text-[#171717] tracking-tight">
+                What Book Lovers Say About MR. BOOKS
+              </h2>
+            </div>
+
+            <div className="relative group/reviews-slider">
+              <button 
+                onClick={() => scrollContainer(reviewsScrollRef, 'left')}
+                className="absolute -left-2.5 sm:-left-3.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white border border-[#E5E5E5] shadow-lg flex items-center justify-center text-[#171717] hover:bg-[#D71920] hover:text-white hover:border-[#D71920] transition-all z-20 opacity-90 sm:opacity-0 sm:group-hover/reviews-slider:opacity-100 cursor-pointer active:scale-90"
+                aria-label="Scroll Reviews Left"
+              >
+                <ChevronLeft size={18} />
+              </button>
+
+              <button 
+                onClick={() => scrollContainer(reviewsScrollRef, 'right')}
+                className="absolute -right-2.5 sm:-right-3.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white border border-[#E5E5E5] shadow-lg flex items-center justify-center text-[#171717] hover:bg-[#D71920] hover:text-white hover:border-[#D71920] transition-all z-20 opacity-90 sm:opacity-0 sm:group-hover/reviews-slider:opacity-100 cursor-pointer active:scale-90"
+                aria-label="Scroll Reviews Right"
+              >
+                <ChevronRight size={18} />
+              </button>
+
+              <div 
+                ref={reviewsScrollRef}
+                className="flex items-stretch gap-3 sm:gap-4 overflow-x-auto scrollbar-none scroll-smooth snap-x snap-mandatory py-1 px-0.5"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {reviews.map((rev) => (
+                  <div key={rev.id} className="w-[calc(85%-8px)] sm:w-[calc(50%-8px)] md:w-[calc(33.333%-10px)] shrink-0 snap-start p-4 rounded-2xl bg-white border border-[#E5E5E5] space-y-2 shadow-2xs flex flex-col justify-between">
+                    <div className="space-y-2">
+                      <div
+                        data-testid="home-review-green-icons"
+                        className="flex items-center gap-1 text-emerald-600"
+                      >
+                        {[...Array(rev.rating || 5)].map((_, i) => (
+                          <span key={i} className="inline-flex">
+                            {renderGreenReviewIcon(
+                              homeConfig.reviewIconStyle || settings.homeReviewIconStyle,
+                              13
+                            )}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="text-xs text-[#171717] leading-relaxed italic">
+                        "{rev.comment}"
+                      </p>
+                    </div>
+                    <div className="pt-2 border-t border-[#EEEEEE]">
+                      <div className="font-bold text-xs text-[#171717]">{rev.userName}</div>
+                      <div className="text-[10px] text-[#5F6368]">{rev.isVerifiedPurchase ? 'Verified Purchase' : 'Customer Review'}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        );
+      })()}
+
+      {/* 6. Writer / Featured Authors Section (Controlled by Firebase homeConfig.showAuthors) */}
+      {(() => {
+        if (homeConfig.showAuthors === false) {
+          return null;
+        }
+        const writerSlotMode = resolveHomeAuthorsSlotMode(homeConfig, settings);
+
+        if (writerSlotMode === 'off') {
+          return null;
+        }
+
+        if (writerSlotMode === 'publishers_spotlight') {
+          const enrichedPublishers = buildEnrichedPublishersList(publishers, products);
+          return (
+            <section
+              data-testid="home-writers-replacement-publishers"
+              className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5"
+            >
+              <div className="flex items-center justify-between mb-3 sm:mb-4 pb-1 border-b border-[#F0F0F0]">
+                <h2 className="text-lg sm:text-2xl font-black text-[#171717] tracking-tight">
+                  Official Publications & Partner Houses
+                </h2>
+                <button
+                  onClick={() => setActivePage('publishers')}
+                  className="inline-flex items-center gap-1 text-xs sm:text-sm font-bold text-[#D71920] hover:text-[#B51218] transition-colors cursor-pointer"
+                >
+                  <span>All Publishers ({enrichedPublishers.length})</span>
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                {enrichedPublishers.slice(0, 6).map(pub => (
+                  <button
+                    key={pub.id}
+                    type="button"
+                    onClick={() => setActivePage('publishers')}
+                    className="p-3.5 rounded-2xl bg-white border border-[#E5E5E5] hover:border-[#D71920]/40 shadow-2xs flex flex-col items-center text-center gap-2 cursor-pointer transition-all group"
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-[#FFF1F2] border border-[#D71920]/20 flex items-center justify-center overflow-hidden">
+                      {pub.logoUrl ? (
+                        <img src={pub.logoUrl} alt={pub.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <Building2 size={20} className="text-[#D71920]" />
+                      )}
+                    </div>
+                    <div className="w-full">
+                      <div className="font-bold text-xs text-[#171717] truncate group-hover:text-[#D71920]">
+                        {pub.name}
+                      </div>
+                      <div className="text-[10px] font-extrabold text-emerald-700 mt-0.5">
+                        {pub.booksCount || 0} Books Available
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </section>
+          );
+        }
+
+        if (writerSlotMode === 'bestsellers_showcase') {
+          const topBooks = [...featuredBooks]
+            .sort((a, b) => (b.reviewCount || 0) - (a.reviewCount || 0) || (b.rating || 5) - (a.rating || 5))
+            .slice(0, 5);
+          return (
+            <section
+              data-testid="home-writers-replacement-bestsellers"
+              className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5"
+            >
+              <div className="flex items-center justify-between mb-3 sm:mb-4 pb-1 border-b border-[#F0F0F0]">
+                <h2 className="text-lg sm:text-2xl font-black text-[#171717] tracking-tight">
+                  Reader Favorites & Top Bestselling Books
+                </h2>
+                <button
+                  onClick={() => {
+                    setSelectedCategoryFilter('all');
+                    setActivePage('books');
+                  }}
+                  className="inline-flex items-center gap-1 text-xs sm:text-sm font-bold text-[#D71920] hover:text-[#B51218] transition-colors cursor-pointer"
+                >
+                  <span>Browse All Books</span>
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4">
+                {topBooks.map(book => (
+                  <ProductCard key={book.id} product={book} />
+                ))}
+              </div>
+            </section>
+          );
+        }
+
+        if (writerSlotMode === 'trust_features') {
+          return (
+            <section
+              data-testid="home-writers-replacement-trust"
+              className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5"
+            >
+              <div className="flex items-center justify-between mb-3 sm:mb-4 pb-1 border-b border-[#F0F0F0]">
+                <h2 className="text-lg sm:text-2xl font-black text-[#171717] tracking-tight">
+                  Why Book Lovers Trust MR. BOOKS
+                </h2>
+                <span className="text-[11px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                  100% Verified Store
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                {[
+                  {
+                    icon: <ShieldCheck size={20} className="text-emerald-600" />,
+                    title: '100% Authentic Print Books',
+                    desc: 'Direct from official publishers with crisp paper & original binding guarantee.',
+                    badge: 'Original Copy',
+                  },
+                  {
+                    icon: <Truck size={20} className="text-emerald-600" />,
+                    title: 'Fastest Nationwide Delivery',
+                    desc: 'Express doorstep delivery in Dhaka, Outside Dhaka, Sub Area & Sundarban Courier.',
+                    badge: 'Cash on Delivery',
+                  },
+                  {
+                    icon: <CheckCircle2 size={20} className="text-emerald-600" />,
+                    title: 'Bubble-Wrap Safe Packaging',
+                    desc: 'Multi-layer protective packaging so every hardcover & paperback arrives mint.',
+                    badge: 'Zero Damage',
+                  },
+                  {
+                    icon: <BookOpen size={20} className="text-emerald-600" />,
+                    title: '7-Day Easy Replacement',
+                    desc: 'Instant replacement guarantee for any printing or binding defect on arrival.',
+                    badge: 'Reader Protection',
+                  },
+                ].map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="p-4 rounded-2xl bg-white border border-[#E5E5E5] shadow-2xs flex flex-col justify-between space-y-2.5 hover:border-emerald-300 transition-all"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-center">
+                        {item.icon}
+                      </div>
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        {item.badge}
+                      </span>
+                    </div>
+                    <div>
+                      <h3 className="font-black text-sm text-[#171717]">{item.title}</h3>
+                      <p className="text-xs text-[#5F6368] mt-1 leading-relaxed">{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          );
+        }
+
+        if (writerSlotMode === 'reading_benefits') {
+          return (
+            <section
+              data-testid="home-writers-replacement-benefits"
+              className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5"
+            >
+              <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-emerald-50/90 via-white to-emerald-50/60 border border-emerald-200/90 shadow-2xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="space-y-1.5 max-w-2xl">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-extrabold uppercase tracking-wider">
+                    <Sparkles size={11} />
+                    <span>Reader First Experience</span>
+                  </div>
+                  <h2 className="text-lg sm:text-2xl font-black text-[#171717] tracking-tight">
+                    Look Inside Pages Before You Order Any Book
+                  </h2>
+                  <p className="text-xs sm:text-sm text-[#5F6368]">
+                    Preview sample pages on every book detail page, enjoy instant Cash on Delivery, and get dedicated book curator assistance anytime.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setActivePage('books')}
+                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
+                  >
+                    <BookOpen size={14} />
+                    <span>Browse Books</span>
+                  </button>
+                  {settings.callNumber && (
+                    <a
+                      href={`tel:${settings.callNumber}`}
+                      className="px-4 py-2.5 rounded-xl bg-white hover:bg-neutral-50 text-[#171717] border border-emerald-200 text-xs font-extrabold flex items-center gap-1.5"
+                    >
+                      <Phone size={13} className="text-emerald-600" />
+                      <span>Hotline: {settings.callNumber}</span>
+                    </a>
+                  )}
+                </div>
+              </div>
+            </section>
+          );
+        }
+
+        return <FeaturedAuthorsSection />;
+      })()}
 
       {/* 7. Book Reels & Video Reviews Section */}
       <ReelsSection />

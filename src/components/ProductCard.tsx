@@ -1,10 +1,44 @@
 import React, { useState, useEffect } from 'react';
 import { Product } from '../types';
 import { useStore } from '../context/StoreContext';
-import { Star, ShoppingBag, Heart, Zap, ShieldCheck } from 'lucide-react';
+import {
+  Star,
+  ShoppingBag,
+  Heart,
+  Zap,
+  ShieldCheck,
+  ThumbsUp,
+  CheckCircle2,
+  Sparkles,
+  BookOpen,
+  Building2,
+} from 'lucide-react';
 
 interface ProductCardProps {
   product: Product;
+}
+
+export function renderGreenReviewIcon(
+  style: string | undefined,
+  size: number = 12
+) {
+  switch (style || 'heart') {
+    case 'verified_shield':
+      return <ShieldCheck size={size} className="text-emerald-600 shrink-0" />;
+    case 'thumbs_up':
+      return <ThumbsUp size={size} fill="currentColor" className="text-emerald-600 shrink-0" />;
+    case 'check_badge':
+      return <CheckCircle2 size={size} className="text-emerald-600 shrink-0" />;
+    case 'sparkles':
+      return <Sparkles size={size} fill="currentColor" className="text-emerald-600 shrink-0" />;
+    case 'book_love':
+      return <BookOpen size={size} className="text-emerald-600 shrink-0" />;
+    case 'star':
+      return <Star size={size} fill="currentColor" className="text-emerald-600 shrink-0" />;
+    case 'heart':
+    default:
+      return <Heart size={size} fill="currentColor" className="text-emerald-600 shrink-0" />;
+  }
 }
 
 export function ProductCard({ product }: ProductCardProps) {
@@ -140,16 +174,68 @@ export function ProductCard({ product }: ProductCardProps) {
       {/* Compact Native-App Product Content Body */}
       <div className="px-2.5 pb-2.5 sm:px-3 sm:pb-3 flex-1 flex flex-col justify-between space-y-1.5 bg-white">
         <div>
-          {/* Unit / Type Tag & Gold Rating Row */}
-          <div className="flex items-center justify-between text-[10px] sm:text-[11px] mb-1">
-            <span className="text-[#2979FF] font-semibold bg-blue-50 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px]">
+          {/* Unit / Type Tag & Configurable Green Review / Replacement Slot */}
+          <div className="flex items-center justify-between text-[10px] sm:text-[11px] mb-1 gap-1">
+            <span className="text-[#2979FF] font-semibold bg-blue-50 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] shrink-0">
               {product.type === 'book' ? 'Book' : 'Item'}
             </span>
-            <div className="flex items-center gap-0.5 text-amber-500 font-bold">
-              <Star size={10} fill="currentColor" />
-              <span className="text-neutral-900 font-extrabold text-[10px] sm:text-xs">{product.rating}</span>
-              <span className="text-neutral-400 font-normal text-[9px]">({product.reviewCount})</span>
-            </div>
+
+            {(() => {
+              const cardMode =
+                settings.showHomeReviewsSection === false && !settings.productCardReviewSlotMode
+                  ? 'off'
+                  : settings.productCardReviewSlotMode || 'green_rating';
+
+              if (cardMode === 'off') return null;
+
+              if (cardMode === 'publisher_tag') {
+                return (
+                  <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded truncate max-w-[115px]">
+                    <Building2 size={9} className="text-emerald-600 shrink-0" />
+                    <span className="truncate">{product.publisher || product.brand || 'Official'}</span>
+                  </span>
+                );
+              }
+
+              if (cardMode === 'verified_badge') {
+                return (
+                  <span className="inline-flex items-center gap-0.5 text-[9px] sm:text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded shrink-0">
+                    <ShieldCheck size={10} className="text-emerald-600 shrink-0" />
+                    <span>Verified Print</span>
+                  </span>
+                );
+              }
+
+              if (cardMode === 'stock_status') {
+                return (
+                  <span
+                    className={`inline-flex items-center gap-0.5 text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
+                      product.stock > 0
+                        ? 'text-emerald-700 bg-emerald-50 border border-emerald-200/80'
+                        : 'text-red-600 bg-red-50 border border-red-200'
+                    }`}
+                  >
+                    <CheckCircle2 size={9} className="shrink-0" />
+                    <span>{product.stock > 0 ? `In Stock (${product.stock})` : 'Out'}</span>
+                  </span>
+                );
+              }
+
+              return (
+                <div
+                  data-testid="product-card-green-review"
+                  className="flex items-center gap-1 text-emerald-600 font-bold bg-emerald-50/80 border border-emerald-200/70 px-1.5 py-0.5 rounded-md"
+                >
+                  {renderGreenReviewIcon(settings.homeReviewIconStyle, 10)}
+                  <span className="text-emerald-700 font-extrabold text-[10px] sm:text-xs">
+                    {product.rating}
+                  </span>
+                  <span className="text-emerald-600/80 font-semibold text-[9px]">
+                    ({product.reviewCount})
+                  </span>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Title - Strictly Truncated to 1 Single Line */}
@@ -160,10 +246,66 @@ export function ProductCard({ product }: ProductCardProps) {
             {product.title}
           </h3>
 
-          {/* Author or Category Tagline - Strictly Truncated to 1 Single Line */}
-          <p className="text-[10px] sm:text-[11px] text-neutral-500 truncate mt-0.5">
-            {product.type === 'book' ? (product.author || product.category) : (product.brand || product.category)}
-          </p>
+          {/* Configurable Writer / Author Slot (Show Writer, Replace with another feature, or Turn Off) */}
+          {(() => {
+            const writerSlotMode = settings.productCardWriterSlotMode || 'writer_name';
+            if (writerSlotMode === 'off') return null;
+
+            if (writerSlotMode === 'publisher_name') {
+              return (
+                <p
+                  data-testid="product-card-writer-slot"
+                  className="text-[10px] sm:text-[11px] text-neutral-500 truncate mt-0.5"
+                >
+                  {product.publisher || product.brand || product.category}
+                </p>
+              );
+            }
+
+            if (writerSlotMode === 'category_name') {
+              return (
+                <p
+                  data-testid="product-card-writer-slot"
+                  className="text-[10px] sm:text-[11px] text-neutral-500 truncate mt-0.5"
+                >
+                  {product.category}
+                </p>
+              );
+            }
+
+            if (writerSlotMode === 'edition_info') {
+              return (
+                <p
+                  data-testid="product-card-writer-slot"
+                  className="text-[10px] sm:text-[11px] text-emerald-700 font-semibold truncate mt-0.5"
+                >
+                  {product.edition || currentVariant.name || 'Paperback'} • Original Print
+                </p>
+              );
+            }
+
+            if (writerSlotMode === 'delivery_badge') {
+              return (
+                <p
+                  data-testid="product-card-writer-slot"
+                  className="text-[10px] sm:text-[11px] text-emerald-700 font-semibold truncate mt-0.5"
+                >
+                  ✓ Fast Cash on Delivery
+                </p>
+              );
+            }
+
+            return (
+              <p
+                data-testid="product-card-writer-slot"
+                className="text-[10px] sm:text-[11px] text-neutral-500 truncate mt-0.5"
+              >
+                {product.type === 'book'
+                  ? product.author || product.category
+                  : product.brand || product.category}
+              </p>
+            );
+          })()}
         </div>
 
         {/* Pricing & Native Buttons Row */}

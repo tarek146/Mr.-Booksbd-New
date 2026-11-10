@@ -13,8 +13,15 @@ import {
   Review,
   Subscriber,
   Reel,
-  AdminStaffMember
+  AdminStaffMember,
+  HomeConfig
 } from '../types';
+import {
+  DEFAULT_HOME_CONFIG,
+  resolveHomeConfig,
+  buildSettingsMirrorFromHomeConfig,
+  buildHomeConfigMirrorFromSettings,
+} from '../utils/homeConfigHelpers';
 import { DEFAULT_PUBLISHERS_LIST } from '../utils/publisherAndDeliveryHelpers';
 import {
   initFacebookBrowserPixel,
@@ -118,6 +125,7 @@ interface StoreContextType {
   cart: CartItem[];
   wishlist: string[];
   settings: StoreSettings;
+  homeConfig: HomeConfig;
   activePage: string;
   selectedProductId: string | null;
   selectedCategoryFilter: string;
@@ -180,6 +188,7 @@ interface StoreContextType {
   deleteOrder: (orderId: string) => Promise<void>;
   reviewPaymentSubmission: (subId: string, status: 'approved' | 'rejected', reason?: string) => Promise<void>;
   updateSettings: (newSettings: Partial<StoreSettings>) => Promise<void>;
+  updateHomeConfig: (newConfig: Partial<HomeConfig>) => Promise<void>;
   reviews: Review[];
   visitorId: string;
   addProductReview: (review: Omit<Review, 'id' | 'createdAt'>) => Promise<void>;
@@ -588,6 +597,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     )
   );
 
+  const [homeConfig, setHomeConfig] = useState<HomeConfig>(() =>
+    resolveHomeConfig(
+      readCachedSlice<HomeConfig>('homeConfig', DEFAULT_HOME_CONFIG),
+      readCachedSlice<Partial<StoreSettings>>('settings', {})
+    )
+  );
+
   // Real-time SEO, OpenGraph, and Favicon head synchronization
   useEffect(() => {
     if (settings.metaTitle) {
@@ -754,6 +770,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     try {
       const [
         settingsRes,
+        homeConfigRes,
         productsRes,
         categoriesRes,
         authorsRes,
@@ -762,6 +779,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         paymentsRes
       ] = await Promise.all([
         getDocCacheFirst<StoreSettings>(doc(db, 'settings', 'general'), strategy),
+        getDocCacheFirst<HomeConfig>(doc(db, 'settings', 'homeConfig'), strategy),
         getQueryDocsCacheFirst<Product>(
           buildIndexedQuery(collection(db, 'products'), enableIndexing, queryLimit),
           strategy
@@ -802,6 +820,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setSettings(prev => {
           const merged = { ...prev, ...st };
           writeCachedSlice('settings', merged);
+          return merged;
+        });
+      }
+
+      if (homeConfigRes.data) {
+        recordSource(homeConfigRes.source);
+        setHomeConfig(prev => {
+          const merged = resolveHomeConfig({ ...prev, ...homeConfigRes.data }, settingsRes.data);
+          writeCachedSlice('homeConfig', merged);
+          return merged;
+        });
+      } else if (settingsRes.data) {
+        setHomeConfig(prev => {
+          const merged = resolveHomeConfig(prev, settingsRes.data);
+          writeCachedSlice('homeConfig', merged);
           return merged;
         });
       }
@@ -1123,6 +1156,39 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
+    const unsubHomeConfig = onSnapshot(
+      doc(db, 'settings', 'homeConfig'),
+      { includeMetadataChanges: true },
+      (snap) => {
+        const fromCache = snap.metadata.fromCache;
+        if (!shouldApplyRealtimeSnapshot(!snap.exists(), fromCache, Boolean(serverConfirmed.homeConfig))) {
+          return;
+        }
+        if (!fromCache) {
+          serverConfirmed.homeConfig = true;
+        }
+        if (snap.exists()) {
+          const rawCfg = snap.data() as Partial<HomeConfig>;
+          setHomeConfig(prev => {
+            const merged = resolveHomeConfig({ ...prev, ...rawCfg });
+            writeCachedSlice('homeConfig', merged);
+            return merged;
+          });
+          const settingsMirror = buildSettingsMirrorFromHomeConfig(rawCfg);
+          if (Object.keys(settingsMirror).length > 0) {
+            setSettings(prev => {
+              const nextSettings = { ...prev, ...settingsMirror };
+              writeCachedSlice('settings', nextSettings);
+              return nextSettings;
+            });
+          }
+        }
+      },
+      (err) => {
+        console.warn('homeConfig realtime listener notice:', err.message);
+      }
+    );
+
     const unsubReviews = onSnapshot(
       reviewsQuery,
       { includeMetadataChanges: true },
@@ -1180,6 +1246,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubBanners();
       unsubPayments();
       unsubSettings();
+      unsubHomeConfig();
       unsubReviews();
       unsubReels();
     };
@@ -2016,15 +2083,71 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const updateSettings = async (newSettings: Partial<StoreSettings>) => {
     const sanitized = sanitizeStoreSettings(newSettings);
+    const homeConfigMirror = buildHomeConfigMirrorFromSettings(sanitized);
     try {
       const cleaned = cleanForFirestore(sanitized);
       await setDoc(doc(db, 'settings', 'general'), cleaned, { merge: true });
+      if (homeConfigMirror) {
+        await setDoc(
+          doc(db, 'settings', 'homeConfig'),
+          cleanForFirestore({ ...homeConfigMirror, updatedAt: Date.now() }),
+          { merge: true }
+        );
+      }
       await logAdminAction('settings_updated', 'general', `Updated settings fields: ${Object.keys(sanitized).join(', ')}`);
     } catch (err) {
       console.error('Firestore update settings error:', err);
       throw err;
     }
-    setSettings(prev => ({ ...prev, ...sanitized }));
+    setSettings(prev => {
+      const next = { ...prev, ...sanitized };
+      writeCachedSlice('settings', next);
+      return next;
+    });
+    if (homeConfigMirror) {
+      setHomeConfig(prev => {
+        const next = resolveHomeConfig({ ...prev, ...homeConfigMirror });
+        writeCachedSlice('homeConfig', next);
+        return next;
+      });
+    }
+  };
+
+  const updateHomeConfig = async (newConfig: Partial<HomeConfig>) => {
+    const payload: Partial<HomeConfig> = {
+      ...newConfig,
+      updatedAt: Date.now(),
+    };
+    const settingsMirror = buildSettingsMirrorFromHomeConfig(payload);
+
+    // Optimistic local state + cache update for instant UI responsiveness
+    setHomeConfig(prev => {
+      const next = resolveHomeConfig({ ...prev, ...payload });
+      writeCachedSlice('homeConfig', next);
+      return next;
+    });
+    if (Object.keys(settingsMirror).length > 0) {
+      setSettings(prev => {
+        const next = { ...prev, ...settingsMirror };
+        writeCachedSlice('settings', next);
+        return next;
+      });
+    }
+
+    try {
+      await setDoc(doc(db, 'settings', 'homeConfig'), cleanForFirestore(payload), { merge: true });
+      if (Object.keys(settingsMirror).length > 0) {
+        await setDoc(doc(db, 'settings', 'general'), cleanForFirestore(settingsMirror), { merge: true });
+      }
+      await logAdminAction(
+        'home_config_updated',
+        'homeConfig',
+        `Updated homeConfig fields: ${Object.keys(newConfig).join(', ')}`
+      );
+    } catch (err) {
+      console.error('Firestore update homeConfig error:', err);
+      throw err;
+    }
   };
 
   const addReel = async (reelData: Omit<Reel, 'id' | 'createdAt'>) => {
@@ -2126,6 +2249,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       cart,
       wishlist,
       settings,
+      homeConfig,
       activePage,
       selectedProductId,
       selectedCategoryFilter,
@@ -2172,6 +2296,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       deleteOrder,
       reviewPaymentSubmission,
       updateSettings,
+      updateHomeConfig,
       reviews,
       visitorId,
       addProductReview,
