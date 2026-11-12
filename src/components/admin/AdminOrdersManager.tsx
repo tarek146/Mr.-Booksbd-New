@@ -49,6 +49,11 @@ import {
   isOrderShippedGroup,
   toNumericTimestamp,
 } from '../../utils/adminOrderAndPaymentHelpers';
+import {
+  buildOrderSummaryCsv,
+  buildSalesReportCsv,
+  triggerCsvDownload,
+} from '../../utils/bookkeepingCsvHelpers';
 
 interface AdminOrdersManagerProps {
   orders: Order[];
@@ -236,58 +241,23 @@ export function AdminOrdersManager({
   };
 
   const handleExportCsv = () => {
-    const headers = [
-      'Order ID',
-      'Date',
-      'Customer Name',
-      'Phone',
-      'District',
-      'City',
-      'Address',
-      'Items',
-      'Subtotal',
-      'Delivery Charge',
-      'Discount',
-      'Total',
-      'Payment Method',
-      'Payment Status',
-      'Order Status',
-      'Courier',
-      'Tracking Code',
-    ];
-    const escapeCell = (val: unknown) => {
-      const str = String(val ?? '').replace(/"/g, '""');
-      return `"${str}"`;
-    };
-    const rows = filteredOrders.map(o => [
-      o.id,
-      new Date(toNumericTimestamp(o.createdAt)).toISOString(),
-      o.customerName,
-      o.phone,
-      o.district,
-      o.city,
-      o.address,
-      (o.items || []).map(i => `${i.quantity}x ${i.title}`).join('; '),
-      o.subtotal,
-      o.deliveryCharge,
-      o.discount || 0,
-      o.total,
-      o.paymentMethodName,
-      o.paymentStatus,
-      o.orderStatus,
-      o.courierName || '',
-      o.trackingCode || '',
-    ]);
-    const csvContent =
-      [headers.map(escapeCell).join(','), ...rows.map(r => r.map(escapeCell).join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `mr-books-orders-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setToast({ show: true, type: 'success', message: `Exported ${filteredOrders.length} orders to CSV.` });
+    const res = buildOrderSummaryCsv(filteredOrders, paymentSubmissions);
+    triggerCsvDownload(res.csv, res.filename);
+    setToast({
+      show: true,
+      type: 'success',
+      message: `Order Summary CSV downloaded (${res.rowCount} orders · ৳${res.totalRevenue.toLocaleString()}).`,
+    });
+  };
+
+  const handleExportSalesReportCsv = () => {
+    const res = buildSalesReportCsv(filteredOrders);
+    triggerCsvDownload(res.csv, res.filename);
+    setToast({
+      show: true,
+      type: 'success',
+      message: `Sales Report CSV downloaded (${res.dayCount} days · ৳${res.netRevenue.toLocaleString()}).`,
+    });
   };
 
   const handleBulkAction = async (action: 'processing' | 'shipped' | 'delivered' | 'trash' | 'restore') => {
@@ -428,6 +398,16 @@ export function AdminOrdersManager({
             >
               <Download size={13} className="text-neutral-600" />
               <span>Export CSV</span>
+            </button>
+
+            <button
+              type="button"
+              data-testid="orders-sales-report-csv-btn"
+              onClick={handleExportSalesReportCsv}
+              className="px-3.5 py-2.5 bg-white hover:bg-neutral-50 text-neutral-800 border border-neutral-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+            >
+              <Download size={13} className="text-[#D71920]" />
+              <span>Sales Report CSV</span>
             </button>
 
             <button

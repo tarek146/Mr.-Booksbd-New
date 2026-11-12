@@ -2235,92 +2235,22 @@ export function AdminDashboard() {
             </button>
           </div>
 
-          {/* Serial Organization & Reorder Controls Bar */}
-          <div className="px-3 py-2 border-b border-slate-800/80 bg-slate-900/70 flex items-center justify-between gap-1.5 shrink-0">
-            <div className="text-[11px] font-medium text-slate-400 truncate">
-              সিরিয়াল মেনু <span className="text-slate-600">·</span>{' '}
-              <span className="font-mono tabular-nums text-slate-300">{formatSerialIndex(totalVisibleCount)}</span>
-            </div>
-            <div className="flex items-center gap-1 shrink-0">
-              {isSidebarCustomized && (
-                <button
-                  type="button"
-                  onClick={handleResetSidebarOrder}
-                  data-testid="sidebar-reset-order-btn"
-                  title="ডিফল্ট সিরিয়ালে রিসেট করুন"
-                  className="px-2 py-1 rounded text-[10px] font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer whitespace-nowrap"
-                >
-                  রিসেট
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setSidebarReorderMode(prev => !prev)}
-                data-testid="sidebar-reorder-toggle-btn"
-                title="যেকোনো সেকশন বা অপশন ক্লিক করে উপরে-নিচে মুভ করুন"
-                className={`px-2 py-1 rounded text-[10px] font-semibold transition-colors cursor-pointer flex items-center gap-1 whitespace-nowrap ${
-                  sidebarReorderMode
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
-                }`}
-              >
-                <ArrowUp size={10} />
-                <ArrowDown size={10} className="-ml-1" />
-                <span>{sidebarReorderMode ? 'সেভ সম্পন্ন' : 'সিরিয়াল সাজান'}</span>
-              </button>
-            </div>
-          </div>
-
           {/* Navigation Sections Menu */}
-          <div className="py-2.5 px-2 space-y-3.5 overflow-y-auto flex-1" data-testid="admin-sidebar-sections">
+          <div className="py-3 px-2.5 space-y-4 overflow-y-auto flex-1" data-testid="admin-sidebar-sections">
             {visibleSections.map((sec, sIdx) => {
               const sectionSerial = formatSerialIndex(sIdx + 1);
-              const isFirstSection = sIdx === 0;
-              const isLastSection = sIdx === visibleSections.length - 1;
 
               return (
                 <div key={sec.id} data-testid={`sidebar-section-${sec.id}`}>
-                  {/* Section Header with Serial Number & Up/Down Section Controls */}
-                  <div className="flex items-center justify-between gap-1 px-1.5 mb-1 group/sec">
-                    <div className="text-[10px] uppercase font-semibold tracking-wider text-slate-400 truncate flex items-center gap-1">
+                  {/* Clean Section Header */}
+                  <div className="flex items-center justify-between gap-1 px-2 mb-1.5">
+                    <div className="text-[10px] uppercase font-semibold tracking-wider text-slate-400 truncate flex items-center gap-1.5">
                       <span className="font-mono tabular-nums text-slate-500">{sectionSerial}.</span>
                       <span className="truncate">{sec.title}</span>
                     </div>
-                    <div className="flex items-center gap-0.5 shrink-0">
-                      <button
-                        type="button"
-                        disabled={isFirstSection}
-                        onClick={() => handleMoveSidebarSection(sec.id, 'up')}
-                        data-testid={`move-section-up-${sec.id}`}
-                        aria-label={`Move section ${sec.title} up`}
-                        title="এই সেকশনটি উপরে নিন (Move Section Up)"
-                        className={`p-0.5 rounded transition-colors cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed ${
-                          sidebarReorderMode
-                            ? 'bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white'
-                            : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800/80'
-                        }`}
-                      >
-                        <ArrowUp size={11} />
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isLastSection}
-                        onClick={() => handleMoveSidebarSection(sec.id, 'down')}
-                        data-testid={`move-section-down-${sec.id}`}
-                        aria-label={`Move section ${sec.title} down`}
-                        title="এই সেকশনটি নিচে নিন (Move Section Down)"
-                        className={`p-0.5 rounded transition-colors cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed ${
-                          sidebarReorderMode
-                            ? 'bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white'
-                            : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800/80'
-                        }`}
-                      >
-                        <ArrowDown size={11} />
-                      </button>
-                    </div>
                   </div>
 
-                  {/* Section Items with Serial Index & Click-to-Move Up/Down Controls */}
+                  {/* Section Items in Serial Order */}
                   <div className="space-y-0.5">
                     {sec.visibleItems.map((item) => {
                       serialCounter += 1;
@@ -2328,12 +2258,11 @@ export function AdminDashboard() {
                       const serialLabel = formatSerialIndex(currentItemSerial);
                       const Icon = item.icon;
                       const isActive = activeTab === item.id;
-                      const isVeryFirstItem = currentItemSerial === 1;
-                      const isVeryLastItem = currentItemSerial === totalVisibleCount;
 
                       return (
-                        <div
+                        <button
                           key={item.id}
+                          type="button"
                           data-testid={`sidebar-item-row-${item.id}`}
                           draggable
                           onDragStart={() => setDraggedSidebarItemId(item.id)}
@@ -2349,100 +2278,55 @@ export function AdminDashboard() {
                             }
                             setDraggedSidebarItemId(null);
                           }}
-                          className={`w-full flex items-center gap-0.5 rounded-lg transition-colors group ${
+                          onClick={() => {
+                            selectAdminTab(item.id);
+                            setShowAddProdModal(false);
+                            setSidebarOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition-colors cursor-pointer group ${
                             isActive
-                              ? 'bg-[#D71920] text-white'
-                              : 'text-slate-300 hover:text-white hover:bg-slate-800/70'
+                              ? 'bg-[#D71920] text-white font-semibold'
+                              : 'text-slate-300 hover:text-white hover:bg-slate-800/70 font-medium'
                           }`}
                         >
-                          <button
-                            type="button"
-                            onClick={() => {
-                              selectAdminTab(item.id);
-                              setShowAddProdModal(false);
-                              setSidebarOpen(false);
-                            }}
-                            className={`flex-1 flex items-center justify-between pl-2 pr-1 py-1.5 text-xs cursor-pointer min-w-0 ${
-                              isActive ? 'font-semibold text-white' : 'font-medium text-slate-300 group-hover:text-white'
-                            }`}
-                          >
-                            <div className="flex items-center gap-1.5 min-w-0 truncate">
-                              <span
-                                className={`font-mono tabular-nums text-[10px] shrink-0 ${
-                                  isActive ? 'text-white/85 font-semibold' : 'text-slate-500 group-hover:text-slate-400'
-                                }`}
-                              >
-                                {serialLabel}
-                              </span>
-                              <Icon
-                                size={14}
-                                className={`shrink-0 transition-colors ${
-                                  isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'
-                                }`}
-                              />
-                              <span className="truncate">{item.label}</span>
-                            </div>
-                            {item.badge ? (
-                              <span
-                                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded tabular-nums shrink-0 ml-1 ${
-                                  isActive
-                                    ? 'bg-black/25 text-white'
-                                    : item.badgeColor || 'bg-slate-800 text-slate-300'
-                                }`}
-                              >
-                                {item.badge}
-                              </span>
-                            ) : item.count !== undefined ? (
-                              <span
-                                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded tabular-nums shrink-0 ml-1 ${
-                                  isActive
-                                    ? 'bg-black/25 text-white'
-                                    : item.badgeColor || 'bg-slate-800 text-slate-400 group-hover:text-slate-200'
-                                }`}
-                              >
-                                {item.count}
-                              </span>
-                            ) : null}
-                          </button>
-
-                          {/* Up / Down Click Controls for every Menu Item */}
-                          <div className="flex items-center pr-1 shrink-0">
-                            <button
-                              type="button"
-                              disabled={isVeryFirstItem}
-                              onClick={() => handleMoveSidebarItem(item.id, 'up')}
-                              data-testid={`move-item-up-${item.id}`}
-                              aria-label={`Move ${item.label} up`}
-                              title={`${item.label} উপরে নিন (Move Up)`}
-                              className={`p-0.5 rounded transition-colors cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed ${
-                                isActive
-                                  ? 'text-white/85 hover:text-white hover:bg-black/20'
-                                  : sidebarReorderMode
-                                  ? 'bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white'
-                                  : 'text-slate-500 hover:text-white hover:bg-slate-700/80'
+                          <div className="flex items-center gap-2 min-w-0 truncate">
+                            <span
+                              className={`font-mono tabular-nums text-[10px] shrink-0 ${
+                                isActive ? 'text-white/85 font-semibold' : 'text-slate-500 group-hover:text-slate-400'
                               }`}
                             >
-                              <ArrowUp size={11} />
-                            </button>
-                            <button
-                              type="button"
-                              disabled={isVeryLastItem}
-                              onClick={() => handleMoveSidebarItem(item.id, 'down')}
-                              data-testid={`move-item-down-${item.id}`}
-                              aria-label={`Move ${item.label} down`}
-                              title={`${item.label} নিচে নিন (Move Down)`}
-                              className={`p-0.5 rounded transition-colors cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed ${
-                                isActive
-                                  ? 'text-white/85 hover:text-white hover:bg-black/20'
-                                  : sidebarReorderMode
-                                  ? 'bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white'
-                                  : 'text-slate-500 hover:text-white hover:bg-slate-700/80'
+                              {serialLabel}
+                            </span>
+                            <Icon
+                              size={15}
+                              className={`shrink-0 transition-colors ${
+                                isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'
                               }`}
-                            >
-                              <ArrowDown size={11} />
-                            </button>
+                            />
+                            <span className="truncate">{item.label}</span>
                           </div>
-                        </div>
+                          {item.badge ? (
+                            <span
+                              className={`text-[10px] font-semibold px-1.5 py-0.5 rounded tabular-nums shrink-0 ml-1.5 ${
+                                isActive
+                                  ? 'bg-black/25 text-white'
+                                  : item.badgeColor || 'bg-slate-800 text-slate-300'
+                              }`}
+                            >
+                              {item.badge}
+                            </span>
+                          ) : item.count !== undefined ? (
+                            <span
+                              className={`text-[10px] font-semibold px-1.5 py-0.5 rounded tabular-nums shrink-0 ml-1.5 ${
+                                isActive
+                                  ? 'bg-black/25 text-white'
+                                  : item.badgeColor || 'bg-slate-800 text-slate-400 group-hover:text-slate-200'
+                              }`}
+                            >
+                              {item.count}
+                            </span>
+                          ) : null}
+                        </button>
                       );
                     })}
                   </div>

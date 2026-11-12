@@ -20,9 +20,20 @@ import {
   Percent,
   RefreshCw,
   ShoppingBag,
-  ExternalLink
+  ExternalLink,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Order, Product, PaymentSubmission } from '../../types';
+import {
+  BookkeepingDateRange,
+  BookkeepingStatusFilter,
+  filterOrdersByBookkeepingRange,
+  buildOrderSummaryCsv,
+  buildSalesReportCsv,
+  buildProductSalesReportCsv,
+  triggerCsvDownload,
+} from '../../utils/bookkeepingCsvHelpers';
 import { 
   ResponsiveContainer, 
   AreaChart, 
@@ -65,6 +76,52 @@ export function AdminAnalytics({
 
   // Hourly Report AM/PM
   const [hourlyAmPm, setHourlyAmPm] = useState<'AM' | 'PM'>('AM');
+
+  // Bookkeeping & CSV Export Filters
+  const [bookkeepingRange, setBookkeepingRange] = useState<BookkeepingDateRange>('all');
+  const [bookkeepingStatus, setBookkeepingStatus] = useState<BookkeepingStatusFilter>('all');
+  const [csvExportNotice, setCsvExportNotice] = useState<string | null>(null);
+
+  const filteredBookkeepingOrders = useMemo(
+    () => filterOrdersByBookkeepingRange(orders, bookkeepingRange, bookkeepingStatus),
+    [orders, bookkeepingRange, bookkeepingStatus]
+  );
+
+  const bookkeepingPreviewSummary = useMemo(() => {
+    const active = filteredBookkeepingOrders.filter(o => o.orderStatus !== 'cancelled');
+    const netSales = active.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+    return {
+      totalMatched: filteredBookkeepingOrders.length,
+      netSales,
+    };
+  }, [filteredBookkeepingOrders]);
+
+  const showExportFeedback = (msg: string) => {
+    setCsvExportNotice(msg);
+    setTimeout(() => {
+      setCsvExportNotice(prev => (prev === msg ? null : prev));
+    }, 3500);
+  };
+
+  const handleDownloadOrderSummaryCsv = (customOrders?: Order[]) => {
+    const targetOrders = customOrders ?? filteredBookkeepingOrders;
+    const res = buildOrderSummaryCsv(targetOrders, paymentSubmissions);
+    triggerCsvDownload(res.csv, res.filename);
+    showExportFeedback(`Order Summary CSV downloaded (${res.rowCount} orders · ৳${res.totalRevenue.toLocaleString()})`);
+  };
+
+  const handleDownloadSalesReportCsv = (customOrders?: Order[]) => {
+    const targetOrders = customOrders ?? filteredBookkeepingOrders;
+    const res = buildSalesReportCsv(targetOrders);
+    triggerCsvDownload(res.csv, res.filename);
+    showExportFeedback(`Sales Report CSV downloaded (${res.dayCount} days · ৳${res.netRevenue.toLocaleString()})`);
+  };
+
+  const handleDownloadProductSalesCsv = () => {
+    const res = buildProductSalesReportCsv(filteredBookkeepingOrders, products);
+    triggerCsvDownload(res.csv, res.filename);
+    showExportFeedback(`Product Sales CSV downloaded (${res.productCount} products · ${res.totalUnitsSold} units sold)`);
+  };
 
   // Metrics calculation
   const metrics = useMemo(() => {
@@ -261,6 +318,111 @@ export function AdminAnalytics({
 
   return (
     <div className="space-y-6">
+
+      {/* BOOKKEEPING & CSV REPORTS EXPORT MODULE */}
+      <div
+        data-testid="bookkeeping-csv-export-panel"
+        className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 flex flex-col gap-4"
+      >
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 shrink-0">
+              <FileSpreadsheet size={19} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-sm sm:text-base font-bold text-slate-900">
+                  Bookkeeping & CSV Financial Reports
+                </h2>
+                <span className="text-xs text-slate-500 font-mono tabular-nums">
+                  · {bookkeepingPreviewSummary.totalMatched} orders · ৳{bookkeepingPreviewSummary.netSales.toLocaleString()} net sales
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Download order summaries, daily sales ledgers, and product revenue breakdowns as Excel-ready CSV files.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              aria-label="Bookkeeping Report Date Range"
+              data-testid="bookkeeping-range-select"
+              value={bookkeepingRange}
+              onChange={e => setBookkeepingRange(e.target.value as BookkeepingDateRange)}
+              className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg px-3 py-2 focus:outline-none focus:border-slate-400 cursor-pointer"
+            >
+              <option value="all">All Time</option>
+              <option value="today">Today</option>
+              <option value="7days">Last 7 Days</option>
+              <option value="30days">Last 30 Days</option>
+              <option value="this_month">This Month</option>
+            </select>
+
+            <select
+              aria-label="Bookkeeping Report Order Status"
+              data-testid="bookkeeping-status-select"
+              value={bookkeepingStatus}
+              onChange={e => setBookkeepingStatus(e.target.value as BookkeepingStatusFilter)}
+              className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg px-3 py-2 focus:outline-none focus:border-slate-400 cursor-pointer"
+            >
+              <option value="all">All Statuses</option>
+              <option value="delivered">Delivered Only</option>
+              <option value="pending_processing">Active / Processing</option>
+              <option value="cancelled">Cancelled Only</option>
+            </select>
+
+            <button
+              type="button"
+              onClick={() => handleDownloadOrderSummaryCsv()}
+              data-testid="download-order-summary-csv-btn"
+              className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+            >
+              <Download size={14} />
+              <span>Order Summary CSV</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleDownloadSalesReportCsv()}
+              data-testid="download-sales-report-csv-btn"
+              className="px-3.5 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+            >
+              <Download size={14} />
+              <span>Sales Report CSV</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDownloadProductSalesCsv}
+              data-testid="download-product-sales-csv-btn"
+              className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+            >
+              <Download size={14} />
+              <span>Product Sales CSV</span>
+            </button>
+          </div>
+        </div>
+
+        {csvExportNotice && (
+          <div
+            data-testid="bookkeeping-csv-export-notice"
+            className="px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium flex items-center justify-between"
+          >
+            <span className="flex items-center gap-2">
+              <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+              <span>{csvExportNotice}</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setCsvExportNotice(null)}
+              className="text-emerald-700 hover:text-emerald-950 text-[11px] font-semibold cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* ========================================================================= */}
       {/* EXACT TOP SECTION MATCHING USER'S REFERENCE IMAGE (WHITE & RED BRANDING) */}
@@ -681,12 +843,23 @@ export function AdminAnalytics({
               <p className="text-xs text-neutral-500">Latest customer purchases</p>
             </div>
 
-            <button
-              onClick={() => onSelectTab && onSelectTab('orders')}
-              className="px-4 py-1.5 bg-[#D71920] text-white hover:bg-[#b5141a] rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors self-start sm:self-auto"
-            >
-              <span>View All</span> <ChevronRight size={14} />
-            </button>
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => handleDownloadOrderSummaryCsv(filteredRecentOrders)}
+                data-testid="recent-orders-export-csv-btn"
+                className="px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+              >
+                <Download size={13} />
+                <span>Export CSV</span>
+              </button>
+              <button
+                onClick={() => onSelectTab && onSelectTab('orders')}
+                className="px-4 py-1.5 bg-[#D71920] text-white hover:bg-[#b5141a] rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+              >
+                <span>View All</span> <ChevronRight size={14} />
+              </button>
+            </div>
           </div>
 
           {/* Sub tabs */}
