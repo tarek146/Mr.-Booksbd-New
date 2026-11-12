@@ -15,7 +15,12 @@ import {
   buildCartCustomData,
   saveCustomerMatchProfile,
 } from '../utils/facebookCapiHelpers';
-import { Truck, CreditCard, Check, ArrowLeft, ArrowRight, Phone, RotateCcw, Search, Sparkles } from 'lucide-react';
+import {
+  calculateCheckoutPricing,
+  evaluateCoupon,
+  resolveActiveCoupons,
+} from '../utils/storeEnhancementsHelpers';
+import { Truck, CreditCard, Check, ArrowLeft, ArrowRight, Phone, RotateCcw, Search, Sparkles, Tag, TicketPercent, X, CheckCircle2, AlertCircle } from 'lucide-react';
 
 const BANGLADESH_DISTRICTS = [
   'Dhaka', 'Sub Area', 'Gazipur', 'Narayanganj', 'Chittagong', 'Sylhet', 'Rajshahi', 
@@ -23,7 +28,21 @@ const BANGLADESH_DISTRICTS = [
 ];
 
 export function CheckoutPage() {
-  const { cart, products, paymentMethods, settings, createOrder, submitPaymentProof, setActivePage, orders, trackOrder, visitorId } = useStore();
+  const {
+    cart,
+    products,
+    paymentMethods,
+    settings,
+    createOrder,
+    submitPaymentProof,
+    setActivePage,
+    orders,
+    trackOrder,
+    visitorId,
+    coupons,
+    appliedCouponCode,
+    setAppliedCouponCode,
+  } = useStore();
   const { currentUser } = useAuth();
 
   const [name, setName] = useState(currentUser?.displayName || '');
@@ -314,40 +333,55 @@ export function CheckoutPage() {
     return score;
   }, [name, phone, district, address]);
 
-  // Subtotal & Delivery Calculation
-  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
+  // Coupon Input State synced with StoreContext
+  const [couponInput, setCouponInput] = useState(appliedCouponCode || '');
+  const [couponFeedback, setCouponFeedback] = useState<{ valid: boolean; text: string } | null>(null);
 
-  // Check if cart has free delivery items
-  const hasFreeDelivery = cart.length > 0 && cart.some(item => {
-    const prod = (products || []).find(p => p.id === item.productId);
-    return prod?.isFreeDelivery === true || prod?.deliveryChargeType === 'free';
-  });
-
-  // Base delivery charge with Inside Dhaka, Outside Dhaka, Sub Area and Sundarban
-  let baseDelivery = 0;
-  if (hasFreeDelivery) {
-    baseDelivery = 0;
-  } else if (deliveryType === 'sundarban') {
-    const customSundarbanFee = cart.map(item => (products || []).find(p => p.id === item.productId)?.sundarbanDeliveryFee).find(fee => fee !== undefined && fee > 0);
-    baseDelivery = customSundarbanFee ?? (settings.sundarbanDeliveryCharge ?? 120);
-  } else {
-    if (district === 'Dhaka') {
-      const customInside = cart.map(item => (products || []).find(p => p.id === item.productId)?.insideDhakaFee ?? (products || []).find(p => p.id === item.productId)?.homeDeliveryFee).find(f => f !== undefined && f > 0);
-      baseDelivery = customInside ?? (settings.insideDhakaCharge ?? 60);
-    } else if (district === 'Sub Area') {
-      const customSub = cart.map(item => (products || []).find(p => p.id === item.productId)?.subAreaFee).find(f => f !== undefined && f > 0);
-      baseDelivery = customSub ?? ((settings.insideDhakaCharge ?? 60) + 30);
-    } else {
-      const customOutside = cart.map(item => (products || []).find(p => p.id === item.productId)?.outsideDhakaFee).find(f => f !== undefined && f > 0);
-      baseDelivery = customOutside ?? (settings.outsideDhakaCharge ?? 120);
+  useEffect(() => {
+    if (appliedCouponCode) {
+      setCouponInput(appliedCouponCode);
     }
-  }
+  }, [appliedCouponCode]);
 
-  // Weight-based extra charge: ৳20 added per extra kg/item when weight increases
-  const extraWeightCharge = hasFreeDelivery ? 0 : (totalQuantity > 1 ? (totalQuantity - 1) * 20 : 0);
-  const deliveryCharge = hasFreeDelivery ? 0 : (baseDelivery + extraWeightCharge);
-  const total = subtotal + deliveryCharge;
+  const activeCouponsList = useMemo(
+    () => resolveActiveCoupons(coupons).filter(c => c.isActive !== false),
+    [coupons]
+  );
+
+  // Dynamic Pricing, Delivery, Free Threshold & Coupon Calculation
+  const pricingSummary = useMemo(
+    () =>
+      calculateCheckoutPricing({
+        cart,
+        products,
+        district,
+        deliveryType,
+        settings,
+        couponCode: appliedCouponCode,
+        coupons: activeCouponsList,
+      }),
+    [cart, products, district, deliveryType, settings, appliedCouponCode, activeCouponsList]
+  );
+
+  const subtotal = pricingSummary.subtotal;
+  const baseDelivery = pricingSummary.baseDelivery;
+  const extraWeightCharge = pricingSummary.extraWeightCharge;
+  const deliveryCharge = pricingSummary.deliveryCharge;
+  const hasFreeDelivery = pricingSummary.hasFreeDelivery;
+  const discount = pricingSummary.discount;
+  const total = pricingSummary.total;
+
+  const handleApplyCheckoutCoupon = (codeToApply?: string) => {
+    const raw = typeof codeToApply === 'string' ? codeToApply : couponInput;
+    const res = evaluateCoupon(raw, activeCouponsList, subtotal, baseDelivery + extraWeightCharge);
+    if (res.valid) {
+      setCouponInput(res.code);
+      setAppliedCouponCode(res.code);
+      setCouponFeedback({ valid: true, text: res.message });
+    } else {
+      setCouponFeedback({ valid: false, text: res.message });
+    }
+  };
 
   const selectedMethod =
     sortedPaymentMethods.find(m => m.id === selectedPaymentId) ||
@@ -440,7 +474,8 @@ export function CheckoutPage() {
         items: cart,
         subtotal,
         deliveryCharge,
-        discount: 0,
+        discount,
+        ...(appliedCouponCode ? { couponCode: appliedCouponCode } : {}),
         total,
         paymentMethodId: selectedMethod.id,
         paymentMethodName: resolvedPaymentMethodName
@@ -923,11 +958,98 @@ export function CheckoutPage() {
                 ))}
               </div>
 
+              {/* Coupon Code Application Section */}
+              <div className="pt-3 border-t border-[#E5E5E5] space-y-2">
+                <label className="block text-[11px] font-black uppercase tracking-wider text-neutral-600 flex items-center gap-1.5">
+                  <TicketPercent size={13} className="text-[#D71920]" /> Have a Coupon Code?
+                </label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Tag className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={13} />
+                    <input
+                      type="text"
+                      data-testid="checkout-coupon-input"
+                      value={couponInput}
+                      onChange={e => {
+                        setCouponInput(e.target.value);
+                        setCouponFeedback(null);
+                      }}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleApplyCheckoutCoupon();
+                        }
+                      }}
+                      placeholder="Enter code (e.g. MRBOOKS10)"
+                      className="w-full pl-8 pr-3 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-neutral-900 uppercase focus:outline-none focus:border-[#D71920]"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    data-testid="checkout-coupon-apply-btn"
+                    onClick={() => handleApplyCheckoutCoupon()}
+                    className="px-3.5 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-bold rounded-xl cursor-pointer transition-colors"
+                  >
+                    Apply
+                  </button>
+                  {appliedCouponCode && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAppliedCouponCode('');
+                        setCouponInput('');
+                        setCouponFeedback(null);
+                      }}
+                      aria-label="Clear applied coupon"
+                      className="px-2.5 py-2 bg-white border border-neutral-300 text-neutral-600 hover:text-red-600 rounded-xl cursor-pointer"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+
+                {activeCouponsList.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {activeCouponsList.slice(0, 3).map(c => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => handleApplyCheckoutCoupon(c.code)}
+                        className={`px-2 py-0.5 rounded-lg border text-[10px] font-extrabold cursor-pointer transition-colors ${
+                          appliedCouponCode === c.code
+                            ? 'bg-emerald-600 text-white border-emerald-600'
+                            : 'bg-white text-neutral-700 border-neutral-200 hover:border-[#D71920]'
+                        }`}
+                      >
+                        {c.code} • {c.badgeText || (c.discountType === 'percentage' ? `${c.discountValue}% OFF` : c.discountType === 'free_delivery' ? 'FREE DEL' : `৳${c.discountValue}`)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {couponFeedback && (
+                  <div className={`p-2 rounded-xl text-[11px] font-bold flex items-center gap-1.5 border ${
+                    couponFeedback.valid
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                      : 'bg-red-50 border-red-200 text-red-700'
+                  }`}>
+                    {couponFeedback.valid ? <CheckCircle2 size={13} className="shrink-0" /> : <AlertCircle size={13} className="shrink-0" />}
+                    <span>{couponFeedback.text}</span>
+                  </div>
+                )}
+              </div>
+
               <div className="space-y-2.5 pt-4 border-t border-[#E5E5E5] text-xs">
                 <div className="flex justify-between text-[#5F6368]">
                   <span>Subtotal</span>
                   <span className="font-bold text-[#171717]">৳{subtotal}</span>
                 </div>
+                {discount > 0 && (
+                  <div data-testid="checkout-discount-row" className="flex justify-between text-emerald-700 font-bold">
+                    <span>Coupon Discount ({appliedCouponCode})</span>
+                    <span>-৳{discount}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-[#5F6368]">
                   <span>Delivery ({deliveryType === 'sundarban' ? 'Sundarban' : district})</span>
                   <span className="font-bold text-[#171717]">
@@ -948,7 +1070,7 @@ export function CheckoutPage() {
                 )}
                 <div className="pt-2 border-t border-[#E5E5E5] flex justify-between text-sm font-black text-[#171717]">
                   <span>Total Payable</span>
-                  <span className="text-[#D71920] text-xl">৳{total}</span>
+                  <span data-testid="checkout-total-payable" className="text-[#D71920] text-xl">৳{total}</span>
                 </div>
               </div>
               {errorMsg && (

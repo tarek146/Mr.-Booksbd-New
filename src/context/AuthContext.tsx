@@ -233,6 +233,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (Array.isArray(currentStaff.permissions)) {
       if (currentStaff.permissions.includes(tabId)) return true;
       if (tabId === 'capi' && currentStaff.permissions.includes('settings')) return true;
+      if (tabId === 'coupons' && (currentStaff.permissions.includes('special-offer') || currentStaff.permissions.includes('orders'))) return true;
+      if (tabId === 'live-chat' && currentStaff.permissions.includes('orders')) return true;
       if (tabId === 'publishers' && (currentStaff.permissions.includes('authors') || currentStaff.permissions.includes('products'))) {
         return true;
       }

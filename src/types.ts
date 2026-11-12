@@ -8,6 +8,7 @@ export interface ProductVariant {
   stock: number;
   sku: string;
   image?: string;
+  description?: string;
 }
 
 export interface BookPreviewPage {
@@ -107,6 +108,7 @@ export interface Order {
   subtotal: number;
   deliveryCharge: number;
   discount: number;
+  couponCode?: string;
   total: number;
   paymentMethodId: string;
   paymentMethodName: string;
@@ -291,6 +293,7 @@ export interface StoreSettings {
   email: string;
   address: string;
   insideDhakaCharge: number;
+  subAreaCharge?: number;
   outsideDhakaCharge: number;
   freeShippingThreshold: number;
   logoUrl: string;
@@ -374,7 +377,7 @@ export interface StoreSettings {
   footerBottomTagline?: string;
   footerPaymentMethods?: FooterPaymentMethod[];
   socialLinks?: SocialLinkItem[];
-  // Footer Subscription & Tracking Settings
+  // Footer 4-Option Utility Strip (VIP Club, Tracking, Coupons, Cancel & Exchange Policy)
   showFooterSubscription?: boolean;
   subscriptionTitle?: string;
   subscriptionSubtitle?: string;
@@ -382,6 +385,17 @@ export interface StoreSettings {
   showFooterTracking?: boolean;
   trackingTitle?: string;
   trackingSubtitle?: string;
+  showFooterCoupons?: boolean;
+  couponsTitle?: string;
+  couponsBadge?: string;
+  showFooterPolicy?: boolean;
+  policyTitle?: string;
+  policyBadge?: string;
+  cancelExchangePolicyText?: string;
+  // Live Chat Widget Settings
+  enableLiveChat?: boolean;
+  liveChatTitle?: string;
+  liveChatWelcomeMessage?: string;
   // Quick Contact Buttons (Product Detail & Support)
   whatsappNumber?: string;
   callNumber?: string;
@@ -498,4 +512,45 @@ export interface HomeConfig {
   productCardWriterSlotMode?: 'writer_name' | 'publisher_name' | 'category_name' | 'edition_info' | 'delivery_badge' | 'off';
   updatedAt?: number;
 }
+
+export type CouponDiscountType = 'percentage' | 'fixed' | 'free_delivery';
+
+export interface Coupon {
+  id: string;
+  code: string;
+  title: string;
+  description: string;
+  discountType: CouponDiscountType;
+  discountValue: number; // % for percentage, BDT for fixed, 0 for free_delivery
+  minOrderAmount: number;
+  maxDiscountAmount?: number;
+  badgeText?: string;
+  isActive: boolean;
+  expiresAt?: number;
+  createdAt?: number;
+}
+
+export interface LiveChatMessage {
+  id: string;
+  sender: 'customer' | 'admin' | 'system';
+  senderName: string;
+  text: string;
+  createdAt: number;
+}
+
+export interface LiveChatSession {
+  id: string;
+  visitorId: string;
+  customerName: string;
+  customerPhone?: string;
+  topic?: string;
+  status: 'open' | 'resolved';
+  unreadByAdmin: number;
+  unreadByCustomer: number;
+  lastMessageText: string;
+  lastMessageAt: number;
+  createdAt: number;
+  messages: LiveChatMessage[];
+}
+
 

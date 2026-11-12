@@ -1,24 +1,54 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
-import { ShoppingBag, Trash2, ArrowRight, ArrowLeft, ShieldCheck, Tag } from 'lucide-react';
+import { ShoppingBag, Trash2, ArrowRight, ArrowLeft, ShieldCheck, Tag, X, AlertCircle, CheckCircle2 } from 'lucide-react';
+import {
+  calculateCheckoutPricing,
+  evaluateCoupon,
+  resolveActiveCoupons,
+} from '../utils/storeEnhancementsHelpers';
 
 export function CartPage() {
-  const { cart, updateCartQuantity, removeFromCart, setActivePage, settings } = useStore();
-  const [promoCode, setPromoCode] = useState('');
-  const [promoApplied, setPromoApplied] = useState(false);
+  const {
+    cart,
+    products,
+    updateCartQuantity,
+    removeFromCart,
+    setActivePage,
+    settings,
+    coupons,
+    appliedCouponCode,
+    setAppliedCouponCode,
+  } = useStore();
+  const [promoCode, setPromoCode] = useState(appliedCouponCode || '');
+  const [promoStatus, setPromoStatus] = useState<{ valid: boolean; text: string } | null>(null);
 
-  const totalCartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const discount = promoApplied ? Math.round(subtotal * 0.1) : 0;
-  const deliveryCharge = subtotal > settings.freeShippingThreshold ? 0 : settings.insideDhakaCharge;
-  const total = subtotal - discount + deliveryCharge;
+  useEffect(() => {
+    if (appliedCouponCode) {
+      setPromoCode(appliedCouponCode);
+    }
+  }, [appliedCouponCode]);
+
+  const activeCoupons = resolveActiveCoupons(coupons).filter(c => c.isActive !== false);
+  const pricing = calculateCheckoutPricing({
+    cart,
+    products,
+    district: 'Dhaka',
+    deliveryType: 'standard',
+    settings,
+    couponCode: appliedCouponCode,
+    coupons: activeCoupons,
+  });
+
+  const totalCartCount = pricing.totalQuantity;
 
   const handleApplyPromo = (e: React.FormEvent) => {
     e.preventDefault();
-    if (promoCode.trim().toUpperCase() === 'BOOKFAIR' || promoCode.trim().toUpperCase() === 'MRBOOKS10') {
-      setPromoApplied(true);
+    const res = evaluateCoupon(promoCode, activeCoupons, pricing.subtotal, settings.insideDhakaCharge ?? 60);
+    if (res.valid) {
+      setAppliedCouponCode(res.code);
+      setPromoStatus({ valid: true, text: res.message });
     } else {
-      alert('Invalid promo code. Try "BOOKFAIR" or "MRBOOKS10"');
+      setPromoStatus({ valid: false, text: res.message });
     }
   };
 
@@ -128,62 +158,115 @@ export function CartPage() {
 
           {/* Cart Summary */}
           <div className="lg:col-span-4 sticky top-28">
-            <div className="bg-[#F7F7F8] border border-[#E5E5E5] rounded-3xl p-6 shadow-xs space-y-6">
+            <div className="bg-[#F7F7F8] border border-[#E5E5E5] rounded-3xl p-6 shadow-xs space-y-5">
               <h3 className="text-base font-black text-[#171717] pb-3 border-b border-[#E5E5E5]">
                 Order Summary
               </h3>
 
               {/* Promo Code Form */}
-              <form onSubmit={handleApplyPromo} className="flex gap-2">
-                <div className="relative flex-1">
-                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 text-[#777777]" size={14} />
-                  <input 
-                    type="text" 
-                    placeholder="Coupon (e.g. BOOKFAIR)"
-                    value={promoCode}
-                    onChange={(e) => setPromoCode(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs font-bold text-[#171717] uppercase focus:outline-none focus:border-[#D71920]"
-                  />
-                </div>
-                <button 
-                  type="submit"
-                  className="px-3.5 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
-                >
-                  Apply
-                </button>
-              </form>
+              <div className="space-y-2.5">
+                <form onSubmit={handleApplyPromo} className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Tag className="absolute left-3 top-1/2 -translate-y-1/2 text-[#777777]" size={14} />
+                    <input 
+                      type="text" 
+                      placeholder="Coupon (e.g. MRBOOKS10)"
+                      value={promoCode}
+                      onChange={(e) => {
+                        setPromoCode(e.target.value);
+                        setPromoStatus(null);
+                      }}
+                      className="w-full pl-9 pr-3 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs font-bold text-[#171717] uppercase focus:outline-none focus:border-[#D71920]"
+                    />
+                  </div>
+                  <button 
+                    type="submit"
+                    className="px-3.5 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                  >
+                    Apply
+                  </button>
+                  {appliedCouponCode && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAppliedCouponCode('');
+                        setPromoCode('');
+                        setPromoStatus(null);
+                      }}
+                      aria-label="Remove coupon"
+                      className="px-2.5 py-2 bg-white border border-neutral-300 text-neutral-600 hover:text-red-600 rounded-xl cursor-pointer"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </form>
 
-              {promoApplied && (
-                <div className="text-xs text-emerald-700 font-bold bg-emerald-50 p-2.5 rounded-xl text-center border border-emerald-200">
-                  🎉 10% Discount Coupon Applied!
-                </div>
-              )}
+                {/* Clickable Coupon Quick Chips */}
+                {activeCoupons.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {activeCoupons.slice(0, 3).map(c => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => {
+                          setPromoCode(c.code);
+                          const res = evaluateCoupon(c.code, activeCoupons, pricing.subtotal, settings.insideDhakaCharge ?? 60);
+                          if (res.valid) {
+                            setAppliedCouponCode(res.code);
+                            setPromoStatus({ valid: true, text: res.message });
+                          } else {
+                            setPromoStatus({ valid: false, text: res.message });
+                          }
+                        }}
+                        className={`px-2 py-1 rounded-lg border text-[10px] font-extrabold cursor-pointer transition-colors ${
+                          appliedCouponCode === c.code
+                            ? 'bg-emerald-600 text-white border-emerald-600'
+                            : 'bg-white text-neutral-700 border-neutral-200 hover:border-[#D71920]'
+                        }`}
+                      >
+                        {c.code} ({c.badgeText || (c.discountType === 'percentage' ? `${c.discountValue}%` : c.discountType === 'free_delivery' ? 'FREE DEL' : `৳${c.discountValue}`)})
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {promoStatus && (
+                  <div className={`text-xs font-bold p-2.5 rounded-xl border flex items-center gap-1.5 ${
+                    promoStatus.valid
+                      ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                      : 'text-red-700 bg-red-50 border-red-200'
+                  }`}>
+                    {promoStatus.valid ? <CheckCircle2 size={14} className="shrink-0" /> : <AlertCircle size={14} className="shrink-0" />}
+                    <span>{promoStatus.text}</span>
+                  </div>
+                )}
+              </div>
 
               <div className="space-y-3 text-xs">
                 <div className="flex justify-between text-[#5F6368]">
                   <span>Subtotal</span>
-                  <span className="font-bold text-[#171717]">৳{subtotal}</span>
+                  <span className="font-bold text-[#171717]">৳{pricing.subtotal}</span>
                 </div>
-                {discount > 0 && (
+                {pricing.discount > 0 && (
                   <div className="flex justify-between text-emerald-700 font-bold">
-                    <span>Discount (10%)</span>
-                    <span>-৳{discount}</span>
+                    <span>Coupon Discount ({appliedCouponCode})</span>
+                    <span>-৳{pricing.discount}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-[#5F6368]">
                   <span>Estimated Delivery (Inside Dhaka)</span>
                   <span className="font-bold text-[#171717]">
-                    {deliveryCharge === 0 ? 'FREE' : `৳${deliveryCharge}`}
+                    {pricing.deliveryCharge === 0 ? 'FREE' : `৳${pricing.deliveryCharge}`}
                   </span>
                 </div>
-                {subtotal > settings.freeShippingThreshold && (
+                {pricing.freeDeliveryReason === 'threshold' && (
                   <div className="text-[11px] text-emerald-700 font-bold">
                     ✓ Qualified for Free Shipping over ৳{settings.freeShippingThreshold}
                   </div>
                 )}
                 <div className="pt-3 border-t border-[#E5E5E5] flex justify-between text-sm font-black text-[#171717]">
                   <span>Total Amount</span>
-                  <span className="text-[#D71920] text-xl">৳{total}</span>
+                  <span className="text-[#D71920] text-xl">৳{pricing.total}</span>
                 </div>
               </div>
 

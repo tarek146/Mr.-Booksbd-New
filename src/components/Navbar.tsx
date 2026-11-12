@@ -40,7 +40,8 @@ export function Navbar() {
     products,
     settings,
     darkMode,
-    toggleDarkMode
+    toggleDarkMode,
+    setIsSearchSpotlightOpen
   } = useStore();
   
   const { currentUser, logout } = useAuth();
@@ -212,43 +213,30 @@ export function Navbar() {
               </div>
             </div>
 
-            {/* Optimized Search Bar with Vertical Sliding Suggestions */}
+            {/* Iconic Search Bar Launcher (Opens Command Spotlight Modal) */}
             <div className="hidden md:block flex-1 max-w-xl mx-4 relative" ref={searchRef}>
               <AnimatedSearchInput 
                 value={searchQuery}
                 onChange={(val) => { setSearchQuery(val); setShowSuggestions(true); }}
                 onFocus={() => setShowSuggestions(true)}
                 onSubmit={handleSearchSubmit}
+                spotlightTrigger={true}
               />
-
-              {/* Autocomplete Dropdown Suggestions */}
-              {showSuggestions && suggestions.length > 0 && (
-                <div className="absolute left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-neutral-200 overflow-hidden z-50">
-                  <div className="p-2 border-b border-neutral-100 text-[11px] font-bold text-neutral-500 uppercase tracking-wider px-3">
-                    Matching Products
-                  </div>
-                  {suggestions.map(item => (
-                    <div 
-                      key={item.id}
-                      onClick={() => { setActivePage('product-detail', item.id); setSearchQuery(''); setShowSuggestions(false); }}
-                      className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-neutral-50 transition-colors border-b border-neutral-100 last:border-0"
-                    >
-                      <img src={item.images[0]} alt="" className="w-9 h-11 object-contain bg-neutral-50 rounded-md p-0.5 border border-neutral-200" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm text-neutral-900 truncate">{item.title}</p>
-                        <p className="text-xs text-neutral-500 truncate">{item.author || item.brand} • <span className="text-[#D71920] font-bold">৳{item.price}</span></p>
-                      </div>
-                      <span className="text-[11px] text-[#D71920] font-semibold flex items-center gap-1">
-                        View <ArrowRight size={12} />
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
 
-            {/* Actions: Contact Hotline, Wishlist, Cart, Single Sign Up / Profile button, and Mobile Menu Toggle */}
+            {/* Actions: Contact Hotline, Mobile Iconic Search, Wishlist, Cart, Auth, Mobile Menu */}
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+              {/* Mobile Iconic Search Button */}
+              <button
+                type="button"
+                data-testid="mobile-header-search-btn"
+                onClick={() => setIsSearchSpotlightOpen(true)}
+                aria-label="Open Search Spotlight"
+                className="md:hidden w-9 h-9 rounded-full bg-neutral-100 hover:bg-[#FFF1F2] border border-neutral-200 text-neutral-800 hover:text-[#D71920] flex items-center justify-center transition-all cursor-pointer active:scale-95"
+              >
+                <Search size={16} />
+              </button>
+
               {settings.showHeaderContact !== false && settings.phone && (
                 <a
                   href={`tel:${settings.phone.replace(/\s+/g, '')}`}

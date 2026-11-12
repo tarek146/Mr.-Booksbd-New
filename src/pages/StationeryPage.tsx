@@ -10,11 +10,16 @@ import {
   SlidersHorizontal, 
   X, 
   RotateCcw, 
-  Check 
+  Check,
+  LayoutGrid,
+  List,
+  ShoppingBag,
+  Zap
 } from 'lucide-react';
+import { resolveProductDetailsPresentation } from '../utils/storeEnhancementsHelpers';
 
 export function StationeryPage() {
-  const { products, categories, isLoading, settings, searchQuery, setSearchQuery, selectedCategoryFilter, setSelectedCategoryFilter } = useStore();
+  const { products, categories, isLoading, settings, searchQuery, setSearchQuery, selectedCategoryFilter, setSelectedCategoryFilter, setActivePage, addToCart } = useStore();
 
   // Local filter states for stationery page
   const [minPrice, setMinPrice] = useState<number>(0);
@@ -23,6 +28,7 @@ export function StationeryPage() {
   const [discountOnly, setDiscountOnly] = useState<boolean>(false);
   const [ratingFilter, setRatingFilter] = useState<number>(0);
   const [sortBy, setSortBy] = useState<'featured' | 'price-low' | 'price-high' | 'rating'>('featured');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState<boolean>(false);
 
   // Filter stationery products
@@ -153,6 +159,37 @@ export function StationeryPage() {
                   <option value="price-high">Price: High to Low</option>
                   <option value="rating">Top Rated</option>
                 </select>
+
+                <div className="flex items-center bg-white p-0.5 rounded-xl border border-[#E5E5E5] shadow-2xs shrink-0">
+                  <button
+                    type="button"
+                    data-testid="view-mode-grid"
+                    onClick={() => setViewMode('grid')}
+                    aria-label="Grid view"
+                    title="Grid View"
+                    className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                      viewMode === 'grid'
+                        ? 'bg-[#D71920] text-white shadow-2xs'
+                        : 'text-neutral-500 hover:text-neutral-900'
+                    }`}
+                  >
+                    <LayoutGrid size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="view-mode-list"
+                    onClick={() => setViewMode('list')}
+                    aria-label="List view"
+                    title="List View"
+                    className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                      viewMode === 'list'
+                        ? 'bg-[#D71920] text-white shadow-2xs'
+                        : 'text-neutral-500 hover:text-neutral-900'
+                    }`}
+                  >
+                    <List size={15} />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -401,11 +438,84 @@ export function StationeryPage() {
             </div>
 
             {sortedItems.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                {sortedItems.map(product => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </div>
+              viewMode === 'list' ? (
+                <div data-testid="stationery-list-container" className="space-y-3">
+                  {sortedItems.map(product => {
+                    const presentation = resolveProductDetailsPresentation(product);
+                    const defaultVariantId = product.variants[0]?.id || 'v1';
+                    return (
+                      <div
+                        key={product.id}
+                        data-testid="product-list-item"
+                        onClick={() => setActivePage('product-detail', product.id)}
+                        className="bg-white rounded-2xl border border-neutral-200/90 hover:border-[#D71920]/40 p-3 sm:p-4 flex items-center gap-3.5 sm:gap-5 shadow-2xs hover:shadow-md transition-all cursor-pointer group"
+                      >
+                        <div className="w-20 h-24 sm:w-24 sm:h-28 rounded-xl bg-[#F8F9FA] border border-neutral-100 p-2 flex items-center justify-center shrink-0 overflow-hidden">
+                          <img
+                            src={product.images[0] || 'https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?w=400'}
+                            alt={product.title}
+                            className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                          />
+                        </div>
+
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[10px] font-bold text-[#2979FF] bg-blue-50 px-2 py-0.5 rounded">
+                              {presentation.typeTag}
+                            </span>
+                            <span className="text-[10px] font-semibold text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded">
+                              {product.category}
+                            </span>
+                          </div>
+                          <h3 className="font-bold text-sm sm:text-base text-[#171717] group-hover:text-[#D71920] transition-colors truncate">
+                            {product.title}
+                          </h3>
+                          <p className="text-xs text-neutral-500 truncate">{presentation.creatorLabel}</p>
+                          <p className="hidden sm:block text-xs text-neutral-600 line-clamp-1">{product.description}</p>
+                        </div>
+
+                        <div className="flex flex-col items-end justify-between gap-2 shrink-0">
+                          <div className="text-right">
+                            <span className="text-base sm:text-lg font-black text-[#D71920] tabular-nums block">৳{product.price}</span>
+                            {product.previousPrice && product.previousPrice > product.price && (
+                              <span className="text-[11px] text-neutral-400 line-through tabular-nums">৳{product.previousPrice}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={e => {
+                                e.stopPropagation();
+                                addToCart(product, defaultVariantId, 1);
+                                setActivePage('cart');
+                              }}
+                              className="px-2.5 sm:px-3 py-1.5 bg-[#D71920] hover:bg-[#b8141a] text-white rounded-xl text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                            >
+                              <Zap size={12} /> <span>Order</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={e => {
+                                e.stopPropagation();
+                                addToCart(product, defaultVariantId, 1);
+                              }}
+                              className="px-2.5 sm:px-3 py-1.5 border border-[#D71920] text-[#D71920] hover:bg-[#FFF1F2] rounded-xl text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                            >
+                              <ShoppingBag size={12} /> <span className="hidden sm:inline">Cart</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                  {sortedItems.map(product => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+                </div>
+              )
             ) : (
               <div className="bg-[#F7F7F8] rounded-3xl p-12 text-center border border-[#E5E5E5] max-w-md mx-auto my-12">
                 <PenTool size={48} className="mx-auto text-[#777777] mb-3" />

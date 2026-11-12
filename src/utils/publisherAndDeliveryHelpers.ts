@@ -140,11 +140,14 @@ export function buildEnrichedPublishersList(
   }
 
   // Also include any publisher entered directly on a book that isn't in baseList yet
+  let derivedIdx = 0;
   for (const [key, info] of bookCountByNormalizedName.entries()) {
     if (!seenKeys.has(key)) {
       seenKeys.add(key);
+      derivedIdx += 1;
+      const slug = key.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || encodeURIComponent(key);
       result.push({
-        id: `derived-pub-${key.replace(/[^a-z0-9]+/g, '-')}`,
+        id: `derived-pub-${slug}-${derivedIdx}`,
         name: info.rawName,
         banglaName: info.rawName,
         description: `All original books published by ${info.rawName}.`,
@@ -158,6 +161,77 @@ export function buildEnrichedPublishersList(
   }
 
   return result;
+}
+
+/**
+ * Resolves the enriched Publisher profile for a single product on the Product Detail page.
+ * Matches `product.publisher` against the store's publishers list (by English or Bangla name),
+ * or falls back to author-based publisher inference / default publisher so a book always displays
+ * both Writer and Publisher/প্রকাশনী.
+ */
+export function resolveProductPublisherInfo(
+  product: Partial<Product> | null | undefined,
+  storedPublishers: Publisher[],
+  allProducts: Product[]
+): EnrichedPublisher {
+  const enrichedList = buildEnrichedPublishersList(storedPublishers, allProducts);
+  const rawPubName = (product?.publisher || '').trim();
+
+  if (rawPubName) {
+    const key = rawPubName.toLowerCase();
+    const matched = enrichedList.find(
+      p =>
+        p.name.trim().toLowerCase() === key ||
+        (p.banglaName || '').trim().toLowerCase() === key ||
+        p.name.trim().toLowerCase().includes(key) ||
+        key.includes(p.name.trim().toLowerCase())
+    );
+    if (matched) {
+      return matched;
+    }
+
+    const liveCount = countBooksForPublisher({ name: rawPubName }, allProducts);
+    return {
+      id: `pub-custom-${key.replace(/[^a-z0-9]+/g, '-')}`,
+      name: rawPubName,
+      banglaName: rawPubName,
+      description: `${rawPubName} থেকে প্রকাশিত ১০০% অরিজিনাল মুদ্রিত বইসমূহ।`,
+      logoUrl: product?.images?.[0] || '',
+      booksCount: liveCount || 1,
+      liveBooksCount: liveCount || 1,
+      displayBooksCount: liveCount || 1,
+      isFeatured: true,
+    };
+  }
+
+  // Fallback inference by author if legacy product did not have `publisher` field populated
+  const authorLower = (product?.author || '').trim().toLowerCase();
+  if (authorLower.includes('humayun') || authorLower.includes('হুমায়ূন')) {
+    const anya = enrichedList.find(p => p.name.toLowerCase().includes('anyaprokash'));
+    if (anya) return anya;
+  }
+  if (authorLower.includes('arif') || authorLower.includes('আরিফ')) {
+    const guardian = enrichedList.find(p => p.name.toLowerCase().includes('guardian'));
+    if (guardian) return guardian;
+  }
+  if (authorLower.includes('zafar') || authorLower.includes('জাফর')) {
+    const tamralipi = enrichedList.find(p => p.name.toLowerCase().includes('tamralipi'));
+    if (tamralipi) return tamralipi;
+  }
+
+  return (
+    enrichedList[0] || {
+      id: 'pub-default',
+      name: 'Guardian Publications',
+      banglaName: 'গার্ডিয়ান পাবলিকেশন্স',
+      description: 'সমকালীন ইসলামিক, আদর্শিক ও গবেষণাধর্মী বইয়ের অন্যতম শীর্ষ প্রকাশনী।',
+      logoUrl: '',
+      booksCount: 1,
+      liveBooksCount: 1,
+      displayBooksCount: 1,
+      isFeatured: true,
+    }
+  );
 }
 
 export interface ResolvedProductDeliveryTiming {

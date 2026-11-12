@@ -13,6 +13,7 @@ import {
   BookOpen,
   Building2,
 } from 'lucide-react';
+import { resolveProductDetailsPresentation } from '../utils/storeEnhancementsHelpers';
 
 interface ProductCardProps {
   product: Product;
@@ -146,12 +147,12 @@ export function ProductCard({ product }: ProductCardProps) {
             </span>
           </div>
 
-          {/* Bottom-Right: "অরিজিনাল বই" Badge (Fixed) */}
+          {/* Bottom-Right: "অরিজিনাল বই" / "অরিজিনাল প্রোডাক্ট" Badge */}
           <div className="absolute bottom-1.5 right-1.5 z-10 pointer-events-none">
             {product.isOriginalBadge !== false && (
               <span className="bg-[#D71920] text-white text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-md shadow-sm border border-white/20 flex items-center gap-0.5 shrink-0">
                 <ShieldCheck size={10} className="text-white shrink-0" />
-                <span>অরিজিনাল বই</span>
+                <span>{resolveProductDetailsPresentation(product).cardBadgeLabel}</span>
               </span>
             )}
           </div>

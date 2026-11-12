@@ -66,7 +66,9 @@ import {
   ListOrdered,
   Quote,
   Code,
-  FileSpreadsheet
+  FileSpreadsheet,
+  TicketPercent,
+  MessageCircle
 } from 'lucide-react';
 import { BulkProductImportModal } from '../components/BulkProductImportModal';
 import { Product, Author, Publisher, Banner, BookPreviewPage, Order, PaymentMethodConfig, PaymentSubOptionConfig, AdminStaffMember, AdminStaffRole, AdminProfile, Review } from '../types';
@@ -76,6 +78,9 @@ import { AdminAnalytics } from '../components/admin/AdminAnalytics';
 import { AdminStaffManagement } from '../components/admin/AdminStaffManagement';
 import { AdminProfileManagement } from '../components/admin/AdminProfileManagement';
 import { AdminConversionApiManager } from '../components/admin/AdminConversionApiManager';
+import { AdminCouponsManager } from '../components/admin/AdminCouponsManager';
+import { AdminLiveChatManager } from '../components/admin/AdminLiveChatManager';
+import { DEFAULT_CANCEL_EXCHANGE_POLICY } from '../utils/storeEnhancementsHelpers';
 import { resolveDashboardHeaderCapiStatus } from '../utils/facebookCapiHelpers';
 import { renderGreenReviewIcon } from '../components/ProductCard';
 import { compressImageFile, isValidImageUrl, sanitizeImageUrl } from '../utils/imageCompressor';
@@ -166,10 +171,19 @@ export function AdminDashboard() {
     deleteStaffMember,
     cacheTelemetry,
     refreshStoreCacheFirst,
-    clearLocalStoreCache
+    clearLocalStoreCache,
+    coupons,
+    addCoupon,
+    updateCoupon,
+    deleteCoupon,
+    liveChatSessions,
+    replyLiveChatAsAdmin,
+    updateLiveChatStatus,
+    markLiveChatReadByAdmin,
+    deleteLiveChatSession
   } = useStore();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'verifications' | 'payment-methods' | 'orders' | 'products' | 'categories' | 'banners' | 'authors' | 'publishers' | 'subscribers' | 'settings' | 'special-offer' | 'reels' | 'reviews' | 'staff' | 'profile' | 'capi'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'verifications' | 'payment-methods' | 'orders' | 'products' | 'categories' | 'banners' | 'authors' | 'publishers' | 'subscribers' | 'settings' | 'special-offer' | 'reels' | 'reviews' | 'staff' | 'profile' | 'capi' | 'coupons' | 'live-chat'>('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Staff & Team Access Management state
@@ -403,10 +417,11 @@ export function AdminDashboard() {
   const [prodCustomDeliveryFee, setProdCustomDeliveryFee] = useState<number>(60);
   const [prodGalleryUrls, setProdGalleryUrls] = useState<string[]>([]);
   const [galleryUrlInput, setGalleryUrlInput] = useState('');
-  const [customVariants, setCustomVariants] = useState<{ id: string; name: string; price: number; regularPrice?: number; stock: number; sku: string }[]>([]);
+  const [customVariants, setCustomVariants] = useState<{ id: string; name: string; price: number; regularPrice?: number; stock: number; sku: string; description?: string }[]>([]);
   const [newVariantName, setNewVariantName] = useState('');
   const [newVariantOfferPrice, setNewVariantOfferPrice] = useState<number | ''>('');
   const [newVariantRegularPrice, setNewVariantRegularPrice] = useState<number | ''>('');
+  const [newVariantDescription, setNewVariantDescription] = useState('');
 
   // Book Format (অরিজিনাল বই নাকি কপি বুক, প্রিন্টেড বুক নাকি পিডিএফ)
   const [prodBookFormat, setProdBookFormat] = useState<'original' | 'copy' | 'printed' | 'pdf'>('original');
@@ -1216,13 +1231,15 @@ export function AdminDashboard() {
         price: v.price || p.price,
         regularPrice: v.previousPrice || (v.price ? v.price + 100 : undefined),
         stock: v.stock || 100,
-        sku: v.sku || `${p.sku || 'SKU'}-V${idx + 1}`
+        sku: v.sku || `${p.sku || 'SKU'}-V${idx + 1}`,
+        description: v.description || ''
       })));
     } else {
       setCustomVariants([
-        { id: 'v1', name: p.type === 'book' ? 'Paperback' : 'Standard Pack', price: p.price, regularPrice: p.previousPrice || p.price + 100, stock: 100, sku: p.sku || 'SKU-01' }
+        { id: 'v1', name: p.type === 'book' ? 'Paperback' : 'Standard Pack', price: p.price, regularPrice: p.previousPrice || p.price + 100, stock: 100, sku: p.sku || 'SKU-01', description: '' }
       ]);
     }
+    setNewVariantDescription('');
     setShowAddProdModal(true);
   };
 
@@ -1334,7 +1351,8 @@ export function AdminDashboard() {
         price: Number(v.price) || Number(prodPrice) || 350,
         previousPrice: v.regularPrice ? Number(v.regularPrice) : undefined,
         stock: Number(v.stock) || 100,
-        sku: v.sku || `${resolvedSku}-V${i+1}`
+        sku: v.sku || `${resolvedSku}-V${i+1}`,
+        ...(v.description && v.description.trim() ? { description: v.description.trim() } : {})
       }))
     };
 
@@ -1880,6 +1898,14 @@ export function AdminDashboard() {
     {
       title: 'MARKETING & AUDIENCE',
       items: [
+        { id: 'coupons', label: 'Coupons & Promo Codes', icon: TicketPercent, count: coupons.length || 3 },
+        {
+          id: 'live-chat',
+          label: 'Live Chat Inbox',
+          icon: MessageCircle,
+          count: liveChatSessions.reduce((sum, s) => sum + (s.unreadByAdmin || 0), 0) || liveChatSessions.length,
+          badgeColor: liveChatSessions.some(s => (s.unreadByAdmin || 0) > 0) ? 'bg-[#D71920] text-white font-black animate-pulse' : undefined,
+        },
         { id: 'capi', label: 'Conversion API & Pixel', icon: Server, badge: '9.8/10', badgeColor: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' },
         { id: 'subscribers', label: 'VIP Subscribers', icon: Mail, count: subscribers.length },
       ]
@@ -7303,11 +7329,13 @@ export function AdminDashboard() {
                                 regularPrice: regNum,
                                 stock: 100,
                                 sku: autoSku,
+                                ...(newVariantDescription.trim() ? { description: newVariantDescription.trim() } : {})
                               }
                             ]);
                             setNewVariantName('');
                             setNewVariantOfferPrice('');
                             setNewVariantRegularPrice('');
+                            setNewVariantDescription('');
                           }}
                           className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition-all"
                         >
@@ -7315,6 +7343,16 @@ export function AdminDashboard() {
                           <span>যোগ করুন</span>
                         </button>
                       </div>
+                    </div>
+
+                    <div className="pt-1">
+                      <input
+                        type="text"
+                        placeholder="ঐচ্ছিক ফরম্যাট বিবরণ (Format description — যেমন: ১৮০ গ্রাম প্রিমিয়াম আর্ট পেপার ও হার্ডকভার বাঁধাই)"
+                        value={newVariantDescription}
+                        onChange={e => setNewVariantDescription(e.target.value)}
+                        className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-neutral-800 focus:outline-none focus:border-[#D71920] shadow-2xs"
+                      />
                     </div>
 
                     {/* Variants list */}
@@ -7329,36 +7367,48 @@ export function AdminDashboard() {
                         {customVariants.map((v, idx) => (
                           <div
                             key={v.id || idx}
-                            className="p-3.5 rounded-xl border border-neutral-200 bg-white flex items-center justify-between gap-3 shadow-2xs hover:border-neutral-300 transition-all"
+                            className="p-3.5 rounded-xl border border-neutral-200 bg-white space-y-2 shadow-2xs hover:border-neutral-300 transition-all"
                           >
-                            <div className="flex items-center gap-3">
-                              <span className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-extrabold flex items-center justify-center">
-                                {idx + 1}
-                              </span>
-                              <div>
-                                <h5 className="text-xs font-extrabold text-neutral-900">{v.name}</h5>
-                                <p className="text-[11px] font-mono text-neutral-400 mt-0.5">
-                                  #{v.sku || 'SKU'} • Stock: {v.stock ?? 100}
-                                </p>
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-3">
+                                <span className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-extrabold flex items-center justify-center">
+                                  {idx + 1}
+                                </span>
+                                <div>
+                                  <h5 className="text-xs font-extrabold text-neutral-900">{v.name}</h5>
+                                  <p className="text-[11px] font-mono text-neutral-400 mt-0.5">
+                                    #{v.sku || 'SKU'} • Stock: {v.stock ?? 100}
+                                  </p>
+                                </div>
                               </div>
-                            </div>
 
-                            <div className="flex items-center gap-4">
-                              <div className="text-right">
-                                <div className="text-xs font-extrabold text-[#D71920]">৳{v.price}</div>
-                                {v.regularPrice && v.regularPrice > v.price && (
-                                  <div className="text-[10px] text-neutral-400 line-through">৳{v.regularPrice}</div>
-                                )}
+                              <div className="flex items-center gap-4">
+                                <div className="text-right">
+                                  <div className="text-xs font-extrabold text-[#D71920]">৳{v.price}</div>
+                                  {v.regularPrice && v.regularPrice > v.price && (
+                                    <div className="text-[10px] text-neutral-400 line-through">৳{v.regularPrice}</div>
+                                  )}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setCustomVariants(prev => prev.filter((_, i) => i !== idx))}
+                                  className="p-1.5 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 cursor-pointer transition-colors"
+                                  title="মুছুন"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => setCustomVariants(prev => prev.filter((_, i) => i !== idx))}
-                                className="p-1.5 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 cursor-pointer transition-colors"
-                                title="মুছুন"
-                              >
-                                <Trash2 size={14} />
-                              </button>
                             </div>
+                            <input
+                              type="text"
+                              placeholder="এই ফরম্যাটের বিশেষ বিবরণ লিখুন (Description tab-এ অটো আপডেট হবে)..."
+                              value={v.description || ''}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setCustomVariants(prev => prev.map((item, i) => (i === idx ? { ...item, description: val } : item)));
+                              }}
+                              className="w-full px-3 py-1.5 rounded-lg border border-neutral-200 bg-neutral-50 focus:bg-white text-[11px] text-neutral-700 focus:outline-none focus:border-[#D71920]"
+                            />
                           </div>
                         ))}
                       </div>
@@ -10955,6 +11005,134 @@ export function AdminDashboard() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Row 5: Coupons, Cancel & Exchange Policy, and Live Chat Controls */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 text-xs">
+                    <div className="p-3.5 rounded-xl bg-[#F7F7F8] border border-neutral-200 space-y-2.5">
+                      <div className="flex items-center justify-between pb-1.5 border-b border-neutral-200">
+                        <div className="flex items-center gap-1.5">
+                          <TicketPercent size={14} className="text-[#D71920]" />
+                          <span className="font-black text-neutral-800">Footer Coupons Strip Option</span>
+                        </div>
+                        <label className="flex items-center gap-1.5 font-bold text-neutral-800 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settingsForm.showFooterCoupons !== false}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, showFooterCoupons: e.target.checked }))}
+                            className="w-3.5 h-3.5 accent-[#D71920]"
+                          />
+                          <span>Enabled</span>
+                        </label>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <label className="block font-bold text-neutral-600 mb-1 text-[10px] uppercase">Coupons Title</label>
+                          <input
+                            type="text"
+                            value={settingsForm.couponsTitle ?? 'Coupons'}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, couponsTitle: e.target.value }))}
+                            className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-300 bg-white font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-bold text-neutral-600 mb-1 text-[10px] uppercase">Coupons Badge</label>
+                          <input
+                            type="text"
+                            value={settingsForm.couponsBadge ?? '3 Offers'}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, couponsBadge: e.target.value }))}
+                            className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-300 bg-white font-bold"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-[#F7F7F8] border border-neutral-200 space-y-2.5">
+                      <div className="flex items-center justify-between pb-1.5 border-b border-neutral-200">
+                        <div className="flex items-center gap-1.5">
+                          <MessageCircle size={14} className="text-[#D71920]" />
+                          <span className="font-black text-neutral-800">Customer Live Chat Widget</span>
+                        </div>
+                        <label className="flex items-center gap-1.5 font-bold text-neutral-800 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settingsForm.enableLiveChat !== false}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, enableLiveChat: e.target.checked }))}
+                            className="w-3.5 h-3.5 accent-[#D71920]"
+                          />
+                          <span>Enabled</span>
+                        </label>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <label className="block font-bold text-neutral-600 mb-1 text-[10px] uppercase">Chat Title</label>
+                          <input
+                            type="text"
+                            value={settingsForm.liveChatTitle ?? 'MR. BOOKS Live Support'}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, liveChatTitle: e.target.value }))}
+                            className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-300 bg-white font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-bold text-neutral-600 mb-1 text-[10px] uppercase">Welcome Note</label>
+                          <input
+                            type="text"
+                            value={settingsForm.liveChatWelcomeMessage ?? ''}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, liveChatWelcomeMessage: e.target.value }))}
+                            placeholder="Welcome message..."
+                            className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-300 bg-white font-medium"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row 6: Cancel & Exchange Policy Dynamic Content */}
+                  <div className="p-3.5 rounded-xl bg-[#F7F7F8] border border-neutral-200 space-y-2.5 text-xs">
+                    <div className="flex items-center justify-between pb-1.5 border-b border-neutral-200">
+                      <div className="flex items-center gap-1.5">
+                        <RefreshCw size={14} className="text-[#D71920]" />
+                        <span className="font-black text-neutral-800">Footer Cancel & Exchange Policy Box</span>
+                      </div>
+                      <label className="flex items-center gap-1.5 font-bold text-neutral-800 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={settingsForm.showFooterPolicy !== false}
+                          onChange={e => setSettingsForm(prev => ({ ...prev, showFooterPolicy: e.target.checked }))}
+                          className="w-3.5 h-3.5 accent-[#D71920]"
+                        />
+                        <span>Enabled</span>
+                      </label>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <label className="block font-bold text-neutral-600 mb-1 text-[10px] uppercase">Policy Button Title</label>
+                        <input
+                          type="text"
+                          value={settingsForm.policyTitle ?? 'Cancel & Exchange'}
+                          onChange={e => setSettingsForm(prev => ({ ...prev, policyTitle: e.target.value }))}
+                          className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-300 bg-white font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-bold text-neutral-600 mb-1 text-[10px] uppercase">Policy Badge</label>
+                        <input
+                          type="text"
+                          value={settingsForm.policyBadge ?? 'Policy'}
+                          onChange={e => setSettingsForm(prev => ({ ...prev, policyBadge: e.target.value }))}
+                          className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-300 bg-white font-bold"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block font-bold text-neutral-600 mb-1 text-[10px] uppercase">Policy Text (Popup Content)</label>
+                      <textarea
+                        rows={3}
+                        value={settingsForm.cancelExchangePolicyText ?? DEFAULT_CANCEL_EXCHANGE_POLICY}
+                        onChange={e => setSettingsForm(prev => ({ ...prev, cancelExchangePolicyText: e.target.value }))}
+                        className="w-full px-3 py-2 rounded-lg border border-neutral-300 bg-white text-xs leading-relaxed"
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -10988,6 +11166,16 @@ export function AdminDashboard() {
                         required
                         value={settingsForm.insideDhakaCharge ?? 60}
                         onChange={e => setSettingsForm(prev => ({ ...prev, insideDhakaCharge: Number(e.target.value) }))}
+                        className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-[#171717] font-black text-sm"
+                      />
+                    </div>
+                    <div className="p-3.5 rounded-xl bg-[#F7F7F8] border border-neutral-200">
+                      <label className="block font-bold uppercase text-[#5F6368] mb-1">Sub Area Delivery Fee (৳)</label>
+                      <input
+                        type="number"
+                        required
+                        value={settingsForm.subAreaCharge ?? 90}
+                        onChange={e => setSettingsForm(prev => ({ ...prev, subAreaCharge: Number(e.target.value) }))}
                         className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-[#171717] font-black text-sm"
                       />
                     </div>
@@ -11542,6 +11730,29 @@ export function AdminDashboard() {
             totalOrdersCount={orders.length}
             totalProductsCount={products.length}
             totalStaffCount={staffMembers.length}
+            setToast={(t) => setToast({ show: t.show, type: t.type, message: t.message })}
+          />
+        )}
+
+        {/* TAB 16: COUPONS & PROMO OFFERS MANAGER */}
+        {activeTab === 'coupons' && (
+          <AdminCouponsManager
+            coupons={coupons}
+            onAddCoupon={addCoupon}
+            onUpdateCoupon={updateCoupon}
+            onDeleteCoupon={deleteCoupon}
+            setToast={(t) => setToast({ show: t.show, type: t.type, message: t.message })}
+          />
+        )}
+
+        {/* TAB 17: LIVE CHAT INBOX & SUPPORT MANAGER */}
+        {activeTab === 'live-chat' && (
+          <AdminLiveChatManager
+            sessions={liveChatSessions}
+            onReply={replyLiveChatAsAdmin}
+            onUpdateStatus={updateLiveChatStatus}
+            onMarkRead={markLiveChatReadByAdmin}
+            onDeleteSession={deleteLiveChatSession}
             setToast={(t) => setToast({ show: t.show, type: t.type, message: t.message })}
           />
         )}

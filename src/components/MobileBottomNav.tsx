@@ -3,7 +3,7 @@ import { useStore } from '../context/StoreContext';
 import { Home, ShoppingBag, ShoppingCart, Truck, Search } from 'lucide-react';
 
 export function MobileBottomNav() {
-  const { activePage, setActivePage, cart } = useStore();
+  const { activePage, setActivePage, cart, isSearchSpotlightOpen, setIsSearchSpotlightOpen } = useStore();
 
   const totalCartItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -24,7 +24,7 @@ export function MobileBottomNav() {
       id: 'search',
       label: 'Search',
       icon: Search,
-      page: 'books'
+      page: 'search-spotlight'
     },
     {
       id: 'cart',
@@ -46,12 +46,21 @@ export function MobileBottomNav() {
       <div className="flex items-center justify-around max-w-md mx-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = activePage === item.page || (item.page === 'books' && activePage === 'shop');
+          const isActive =
+            item.id === 'search'
+              ? isSearchSpotlightOpen
+              : activePage === item.page || (item.page === 'books' && activePage === 'shop');
 
           return (
             <button
               key={item.id}
-              onClick={() => setActivePage(item.page)}
+              onClick={() => {
+                if (item.id === 'search') {
+                  setIsSearchSpotlightOpen(true);
+                } else {
+                  setActivePage(item.page);
+                }
+              }}
               className={`relative flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
                 isActive 
                   ? 'text-[#D71920] font-black' 

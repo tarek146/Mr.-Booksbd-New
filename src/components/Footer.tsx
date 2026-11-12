@@ -13,11 +13,23 @@ import {
   CheckCircle2, 
   AlertCircle, 
   ArrowRight,
-  Gift
+  Gift,
+  TicketPercent,
+  RefreshCw,
+  Copy,
+  Check,
+  X,
+  MessageCircle,
+  ShieldCheck
 } from 'lucide-react';
 import { OrderTrackingModal } from './OrderTrackingModal';
 import { Order } from '../types';
 import { isValidImageUrl } from '../utils/imageCompressor';
+import {
+  DEFAULT_CANCEL_EXCHANGE_POLICY,
+  resolveActiveCoupons,
+  resolveFooterQuickLinks,
+} from '../utils/storeEnhancementsHelpers';
 
 const FacebookIcon = () => (
   <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
@@ -49,7 +61,19 @@ const WhatsAppIcon = () => (
   </svg>
 );
 export function Footer() {
-  const { settings, setActivePage, setSelectedCategoryFilter, addSubscriber, trackOrder, darkMode } = useStore();
+  const {
+    settings,
+    setActivePage,
+    setSelectedCategoryFilter,
+    setSearchQuery,
+    addSubscriber,
+    trackOrder,
+    darkMode,
+    coupons,
+    appliedCouponCode,
+    setAppliedCouponCode,
+    setIsLiveChatOpen,
+  } = useStore();
 
   const isDark = darkMode;
 
@@ -81,6 +105,10 @@ export function Footer() {
   const [trackLoading, setTrackLoading] = useState(false);
   const [trackError, setTrackError] = useState<string | null>(null);
   const [activeTrackingOrder, setActiveTrackingOrder] = useState<Order | null>(null);
+
+  // 4-option single-row active modal ('vip' | 'track' | 'coupons' | 'policy' | null)
+  const [activeStripModal, setActiveStripModal] = useState<'vip' | 'track' | 'coupons' | 'policy' | null>(null);
+  const [copiedCouponCode, setCopiedCouponCode] = useState<string | null>(null);
 
   // Image error fallback states
   const [footerLogoError, setFooterLogoError] = useState(false);
@@ -134,169 +162,174 @@ export function Footer() {
 
   const showSubscription = settings.showFooterSubscription !== false;
   const showTracking = settings.showFooterTracking !== false;
+  const showCoupons = settings.showFooterCoupons !== false;
+  const showPolicy = settings.showFooterPolicy !== false;
+
+  const activeCouponsList = resolveActiveCoupons(coupons).filter(c => c.isActive !== false);
+  const resolvedQuickLinks = resolveFooterQuickLinks(settings.footerQuickLinks);
+
+  const visibleOptionCount =
+    (showSubscription ? 1 : 0) +
+    (showTracking ? 1 : 0) +
+    (showCoupons ? 1 : 0) +
+    (showPolicy ? 1 : 0);
+
+  const gridColsClass =
+    visibleOptionCount === 4
+      ? 'grid-cols-4'
+      : visibleOptionCount === 3
+      ? 'grid-cols-3'
+      : visibleOptionCount === 2
+      ? 'grid-cols-2'
+      : 'grid-cols-1';
+
+  const handleCopyCoupon = (code: string) => {
+    navigator.clipboard?.writeText(code).catch(() => {});
+    setCopiedCouponCode(code);
+    setTimeout(() => setCopiedCouponCode(null), 2000);
+  };
 
   return (
     <>
-      {/* Phone, Tablet & PC Minimal Subscription & Real-Time Tracking Strip */}
-      {(showSubscription || showTracking) && (
-        <section className={`border-t border-b py-3 sm:py-3.5 transition-colors ${
-          isDark ? 'bg-[#0B0F17] border-[#1E2838]' : 'bg-white border-gray-100'
-        }`}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className={`grid ${showSubscription && showTracking ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'} gap-2.5 sm:gap-3.5`}>
-              
-              {/* 1. VIP Book Club & Offers Subscription Card */}
+      {/* 4 Compact Quick Action Cards in 1 Single Horizontal Row Below Video Section */}
+      {visibleOptionCount > 0 && (
+        <section
+          data-testid="footer-four-options-strip"
+          className={`border-t border-b py-2.5 sm:py-3.5 transition-colors ${
+            isDark ? 'bg-[#0B0F17] border-[#1E2838]' : 'bg-white border-gray-100'
+          }`}
+        >
+          <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8">
+            <div className={`grid ${gridColsClass} gap-1.5 sm:gap-3 items-stretch`}>
+              {/* 1. VIP Readers Club */}
               {showSubscription && (
-                <div className={`border rounded-xl p-2.5 sm:p-3 transition-all flex flex-col justify-between gap-2 group ${
-                  isDark
-                    ? 'bg-[#121722] border-[#222D3E] shadow-sm'
-                    : 'bg-white border-gray-200/90 hover:border-gray-300 shadow-2xs hover:shadow-xs'
-                }`}>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-6 h-6 sm:w-6.5 sm:h-6.5 rounded-lg bg-red-50 dark:bg-red-950/40 text-[#D71920] border border-red-100 dark:border-red-900/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                        <Gift size={13} />
-                      </div>
-                      <h3 className={`font-bold text-[11.5px] sm:text-[13px] tracking-tight truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {(settings.subscriptionTitle || 'Join MR. BOOKS Readers Club').replace(/BOOKSReaders/g, 'BOOKS Readers')}
+                <button
+                  type="button"
+                  data-testid="strip-option-vip"
+                  onClick={() => setActiveStripModal('vip')}
+                  className={`h-full border rounded-xl p-2 sm:p-3 transition-all flex flex-col sm:flex-row items-center sm:items-center justify-between gap-1.5 sm:gap-2.5 group cursor-pointer active:scale-[0.98] text-center sm:text-left min-w-0 ${
+                    isDark
+                      ? 'bg-[#121722] border-[#222D3E] hover:border-[#D71920]/60'
+                      : 'bg-white border-gray-200/90 hover:border-[#D71920]/50 shadow-2xs hover:shadow-xs'
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2.5 min-w-0">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-red-50 dark:bg-red-950/40 text-[#D71920] border border-red-100 dark:border-red-900/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <Gift size={14} />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className={`font-black text-[10px] sm:text-xs tracking-tight leading-tight whitespace-nowrap truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        <span className="sm:hidden">VIP Club</span>
+                        <span className="hidden sm:inline">{(settings.subscriptionTitle || 'VIP Readers Club').replace(/Join MR\. BOOKS Readers Club/i, 'VIP Club').replace(/BOOKSReaders/g, 'BOOKS Readers')}</span>
                       </h3>
+                      <p className={`hidden sm:block text-[10px] truncate mt-0.5 ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>
+                        Exclusive book alerts & gifts
+                      </p>
                     </div>
-
-                    <span className="inline-flex items-center gap-1 text-[9.5px] sm:text-[10.5px] font-bold text-[#D71920] bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900/40 px-2 py-0.5 rounded-full shrink-0">
-                      <Sparkles size={10} /> {settings.subscriptionDiscountBadge || '10% OFF'}
-                    </span>
                   </div>
-
-                  {/* Sleek Integrated Compact Subscription Form */}
-                  <form onSubmit={handleSubscribe} className="space-y-1">
-                    <div className={`flex items-center border rounded-lg p-0.5 sm:p-1 transition-all ${
-                      isDark
-                        ? 'bg-[#161C28] border-[#2B374C] focus-within:border-[#D71920]'
-                        : 'bg-gray-50/70 hover:bg-gray-50 focus-within:bg-white border-gray-200 focus-within:border-[#D71920]'
-                    }`}>
-                      <div className="pl-2 pr-1 text-gray-400 pointer-events-none flex items-center shrink-0">
-                        <Mail size={13} />
-                      </div>
-                      <input
-                        type="text"
-                        value={subInput}
-                        onChange={e => { setSubInput(e.target.value); setSubMessage(null); }}
-                        placeholder="Email or Mobile (017...)"
-                        disabled={subLoading}
-                        className={`w-full bg-transparent px-1.5 py-1 text-xs focus:outline-none ${
-                          isDark ? 'text-white placeholder:text-neutral-500' : 'text-gray-900 placeholder:text-gray-400'
-                        }`}
-                      />
-                      <button
-                        type="submit"
-                        disabled={subLoading || !subInput.trim()}
-                        className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-[#D71920] hover:bg-[#b8141a] disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium rounded-md text-[11px] sm:text-xs flex items-center gap-1 transition-all shadow-2xs shrink-0 cursor-pointer active:scale-95"
-                      >
-                        {subLoading ? (
-                          <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <>
-                            <span>Subscribe</span>
-                            <ArrowRight size={11} />
-                          </>
-                        )}
-                      </button>
-                    </div>
-
-                    {subMessage && (
-                      <div className={`p-1.5 rounded-lg text-[11px] flex items-center gap-1.5 animate-in fade-in slide-in-from-top-1 duration-150 ${
-                        subMessage.success 
-                          ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' 
-                          : 'bg-red-50 border border-red-200 text-red-700'
-                      }`}>
-                        {subMessage.success ? <CheckCircle2 size={12} className="shrink-0" /> : <AlertCircle size={12} className="shrink-0" />}
-                        <span className="leading-snug truncate">{subMessage.text}</span>
-                      </div>
-                    )}
-                  </form>
-                </div>
+                  <span className="inline-flex items-center gap-0.5 text-[8.5px] sm:text-[10px] font-extrabold text-[#D71920] bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900/40 px-1.5 sm:px-2 py-0.5 rounded-full shrink-0 whitespace-nowrap">
+                    <span className="sm:hidden">10% OFF</span>
+                    <span className="hidden sm:inline">{settings.subscriptionDiscountBadge || '10% OFF'}</span>
+                  </span>
+                </button>
               )}
 
-              {/* 2. Real-Time Order Tracking Card */}
+              {/* 2. Real-Time Order Tracking */}
               {showTracking && (
-                <div className={`border rounded-xl p-2.5 sm:p-3 transition-all flex flex-col justify-between gap-2 group ${
-                  isDark
-                    ? 'bg-[#121722] border-[#222D3E] shadow-sm'
-                    : 'bg-white border-gray-200/90 hover:border-gray-300 shadow-2xs hover:shadow-xs'
-                }`}>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-6 h-6 sm:w-6.5 sm:h-6.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                        <Truck size={13} />
-                      </div>
-                      <h3 className={`font-bold text-xs sm:text-[13px] tracking-tight truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {settings.trackingTitle || 'Real-Time Order Tracking'}
+                <button
+                  type="button"
+                  data-testid="strip-option-track"
+                  onClick={() => setActiveStripModal('track')}
+                  className={`h-full border rounded-xl p-2 sm:p-3 transition-all flex flex-col sm:flex-row items-center sm:items-center justify-between gap-1.5 sm:gap-2.5 group cursor-pointer active:scale-[0.98] text-center sm:text-left min-w-0 ${
+                    isDark
+                      ? 'bg-[#121722] border-[#222D3E] hover:border-emerald-500/50'
+                      : 'bg-white border-gray-200/90 hover:border-emerald-400 shadow-2xs hover:shadow-xs'
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2.5 min-w-0">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <Truck size={14} />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className={`font-black text-[10px] sm:text-xs tracking-tight leading-tight whitespace-nowrap truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        Track Order
                       </h3>
+                      <p className={`hidden sm:block text-[10px] truncate mt-0.5 ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>
+                        Live parcel delivery status
+                      </p>
                     </div>
-
-                    <span className="inline-flex items-center gap-1 text-[10px] sm:text-[10.5px] font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/40 px-2 py-0.5 rounded-full shrink-0">
-                      <span className="relative flex h-1.5 w-1.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-                      </span>
-                      Live Status
-                    </span>
                   </div>
-
-                  {/* Sleek Integrated Compact Tracking Form */}
-                  <form onSubmit={handleTrackSubmit} className="space-y-1">
-                    <div className={`flex items-center border rounded-lg p-0.5 sm:p-1 transition-all ${
-                      isDark
-                        ? 'bg-[#161C28] border-[#2B374C] focus-within:border-[#D71920]'
-                        : 'bg-gray-50/70 hover:bg-gray-50 focus-within:bg-white border-gray-200 focus-within:border-gray-800'
-                    }`}>
-                      <div className="pl-2 pr-1 text-gray-400 pointer-events-none flex items-center shrink-0">
-                        <Package size={13} />
-                      </div>
-                      <input
-                        type="text"
-                        value={trackInput}
-                        onChange={e => { setTrackInput(e.target.value); setTrackError(null); }}
-                        placeholder="Order ID (#ORD-...) or Mobile"
-                        disabled={trackLoading}
-                        className={`w-full bg-transparent px-1.5 py-1 text-xs focus:outline-none ${
-                          isDark ? 'text-white placeholder:text-neutral-500' : 'text-gray-900 placeholder:text-gray-400'
-                        }`}
-                      />
-                      <button
-                        type="submit"
-                        disabled={trackLoading || !trackInput.trim()}
-                        className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-[#D71920] hover:bg-[#b8141a] disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium rounded-md text-[11px] sm:text-xs flex items-center gap-1 transition-all shadow-2xs shrink-0 cursor-pointer active:scale-95"
-                      >
-                        {trackLoading ? (
-                          <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <>
-                            <span>Track</span>
-                            <ArrowRight size={11} />
-                          </>
-                        )}
-                      </button>
-                    </div>
-
-                    {trackError && (
-                      <div className="p-1.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-[11px] flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
-                        <div className="flex items-center gap-1 min-w-0">
-                          <AlertCircle size={12} className="shrink-0 text-red-600" />
-                          <span className="leading-snug truncate">{trackError}</span>
-                        </div>
-                        <a
-                          href={`tel:${settings.phone.replace(/[^0-9+]/g, '')}`}
-                          className="inline-flex items-center gap-1 text-[10px] font-bold text-red-700 hover:text-red-800 bg-red-100/60 px-2 py-0.5 rounded shrink-0 self-start sm:self-auto"
-                        >
-                          <Phone size={10} /> Helpline
-                        </a>
-                      </div>
-                    )}
-                  </form>
-                </div>
+                  <span className="inline-flex items-center gap-1 text-[8.5px] sm:text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/40 px-1.5 sm:px-2 py-0.5 rounded-full shrink-0 whitespace-nowrap">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Live</span>
+                  </span>
+                </button>
               )}
 
+              {/* 3. Multi-Type Coupons Option */}
+              {showCoupons && (
+                <button
+                  type="button"
+                  data-testid="strip-option-coupons"
+                  onClick={() => setActiveStripModal('coupons')}
+                  className={`h-full border rounded-xl p-2 sm:p-3 transition-all flex flex-col sm:flex-row items-center sm:items-center justify-between gap-1.5 sm:gap-2.5 group cursor-pointer active:scale-[0.98] text-center sm:text-left min-w-0 ${
+                    isDark
+                      ? 'bg-[#121722] border-[#222D3E] hover:border-amber-500/50'
+                      : 'bg-white border-gray-200/90 hover:border-amber-400 shadow-2xs hover:shadow-xs'
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2.5 min-w-0">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200/70 dark:border-amber-900/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <TicketPercent size={14} />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className={`font-black text-[10px] sm:text-xs tracking-tight leading-tight whitespace-nowrap truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        <span className="sm:hidden">Coupons</span>
+                        <span className="hidden sm:inline">{settings.couponsTitle || 'Coupons'}</span>
+                      </h3>
+                      <p className={`hidden sm:block text-[10px] truncate mt-0.5 ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>
+                        {activeCouponsList.length} active discount offers
+                      </p>
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center gap-0.5 text-[8.5px] sm:text-[10px] font-extrabold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 px-1.5 sm:px-2 py-0.5 rounded-full shrink-0 whitespace-nowrap">
+                    {settings.couponsBadge || `${activeCouponsList.length} Offers`}
+                  </span>
+                </button>
+              )}
+
+              {/* 4. Order Cancel & Exchange Policy */}
+              {showPolicy && (
+                <button
+                  type="button"
+                  data-testid="strip-option-policy"
+                  onClick={() => setActiveStripModal('policy')}
+                  className={`h-full border rounded-xl p-2 sm:p-3 transition-all flex flex-col sm:flex-row items-center sm:items-center justify-between gap-1.5 sm:gap-2.5 group cursor-pointer active:scale-[0.98] text-center sm:text-left min-w-0 ${
+                    isDark
+                      ? 'bg-[#121722] border-[#222D3E] hover:border-blue-500/50'
+                      : 'bg-white border-gray-200/90 hover:border-blue-400 shadow-2xs hover:shadow-xs'
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2.5 min-w-0">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200/70 dark:border-blue-900/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <RefreshCw size={14} />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className={`font-black text-[10px] sm:text-xs tracking-tight leading-tight whitespace-nowrap truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        <span className="sm:hidden">Policy</span>
+                        <span className="hidden sm:inline">{settings.policyTitle || 'Cancel & Exchange'}</span>
+                      </h3>
+                      <p className={`hidden sm:block text-[10px] truncate mt-0.5 ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>
+                        7-day easy replacement policy
+                      </p>
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center gap-0.5 text-[8.5px] sm:text-[10px] font-bold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-200/70 px-1.5 sm:px-2 py-0.5 rounded-full shrink-0 whitespace-nowrap">
+                    <span className="sm:hidden">7-Day</span>
+                    <span className="hidden sm:inline">{settings.policyBadge || 'Policy'}</span>
+                  </span>
+                </button>
+              )}
             </div>
           </div>
         </section>
@@ -411,22 +444,15 @@ export function Footer() {
                     {settings.footerQuickLinksTitle || 'QUICK LINKS'}
                   </h4>
                   <ul className={`space-y-1.5 text-xs mt-2.5 ${footerMutedText}`}>
-                    {((settings.footerQuickLinks && settings.footerQuickLinks.length > 0)
-                      ? settings.footerQuickLinks.filter(l => l.isActive !== false)
-                      : [
-                          { id: 'ql-1', label: 'Home', page: 'home', isActive: true },
-                          { id: 'ql-2', label: 'Books Catalog', page: 'books', isActive: true },
-                          { id: 'ql-3', label: 'Stationery', page: 'stationery', isActive: true },
-                          { id: 'ql-4', label: 'Authors', page: 'authors', isActive: true },
-                          { id: 'ql-5', label: 'Track Orders', page: 'track-order', isActive: true },
-                        ]
-                    ).map(link => (
+                    {resolvedQuickLinks.map(link => (
                       <li key={link.id}>
                         <button
                           onClick={() => {
                             if (link.page.startsWith('http')) {
-                              window.open(link.page, '_blank', 'noopener,noreferrer');
+                              window.location.assign(link.page);
                             } else {
+                              setSearchQuery('');
+                              setSelectedCategoryFilter('all');
                               setActivePage(link.page);
                             }
                           }}
@@ -591,6 +617,282 @@ export function Footer() {
           </div>
 
       </div>
+
+      {/* 4-Option Interactive Modal Dialogs (VIP Club, Order Tracking, Coupons, Cancel & Exchange Policy) */}
+      {activeStripModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setActiveStripModal(null)}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            className={`w-full max-w-md rounded-3xl border shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 ${
+              isDark ? 'bg-[#121722] border-[#222D3E] text-white' : 'bg-white border-neutral-200 text-neutral-900'
+            }`}
+          >
+            {/* VIP Club Modal */}
+            {activeStripModal === 'vip' && (
+              <div className="p-5 sm:p-6 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-red-50 text-[#D71920] border border-red-200 flex items-center justify-center">
+                      <Gift size={18} />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-base">
+                        {(settings.subscriptionTitle || 'Join MR. BOOKS Readers Club').replace(/BOOKSReaders/g, 'BOOKS Readers')}
+                      </h3>
+                      <p className="text-[11px] text-neutral-500">Get {settings.subscriptionDiscountBadge || '10% OFF'} & exclusive book drop updates</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveStripModal(null)}
+                    aria-label="Close modal"
+                    className="p-1.5 rounded-full hover:bg-neutral-100 text-neutral-500 cursor-pointer"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSubscribe} className="space-y-3">
+                  <div className="flex items-center border border-neutral-300 rounded-xl p-1 bg-neutral-50 focus-within:bg-white focus-within:border-[#D71920]">
+                    <div className="pl-2.5 pr-1.5 text-neutral-400">
+                      <Mail size={15} />
+                    </div>
+                    <input
+                      type="text"
+                      value={subInput}
+                      onChange={e => { setSubInput(e.target.value); setSubMessage(null); }}
+                      placeholder="Email or Mobile (017...)"
+                      disabled={subLoading}
+                      className="w-full bg-transparent px-1.5 py-2 text-xs text-neutral-900 focus:outline-none"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={subLoading || !subInput.trim()}
+                    className="w-full py-2.5 bg-[#D71920] hover:bg-[#b8141a] disabled:opacity-40 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    {subLoading ? 'Subscribing...' : <><span>Subscribe Now</span><ArrowRight size={14} /></>}
+                  </button>
+                  {subMessage && (
+                    <div className={`p-2.5 rounded-xl text-xs flex items-center gap-2 ${
+                      subMessage.success ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' : 'bg-red-50 border border-red-200 text-red-700'
+                    }`}>
+                      {subMessage.success ? <CheckCircle2 size={14} className="shrink-0" /> : <AlertCircle size={14} className="shrink-0" />}
+                      <span>{subMessage.text}</span>
+                    </div>
+                  )}
+                </form>
+              </div>
+            )}
+
+            {/* Track Order Modal */}
+            {activeStripModal === 'track' && (
+              <div className="p-5 sm:p-6 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center">
+                      <Truck size={18} />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-base">{settings.trackingTitle || 'Real-Time Order Tracking'}</h3>
+                      <p className="text-[11px] text-neutral-500">Order ID (#ORD-...) অথবা মোবাইল নম্বর দিয়ে অর্ডার খুঁজুন</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveStripModal(null)}
+                    aria-label="Close modal"
+                    className="p-1.5 rounded-full hover:bg-neutral-100 text-neutral-500 cursor-pointer"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <form onSubmit={handleTrackSubmit} className="space-y-3">
+                  <div className="flex items-center border border-neutral-300 rounded-xl p-1 bg-neutral-50 focus-within:bg-white focus-within:border-[#D71920]">
+                    <div className="pl-2.5 pr-1.5 text-neutral-400">
+                      <Package size={15} />
+                    </div>
+                    <input
+                      type="text"
+                      value={trackInput}
+                      onChange={e => { setTrackInput(e.target.value); setTrackError(null); }}
+                      placeholder="Order ID (#ORD-...) or Mobile (017...)"
+                      disabled={trackLoading}
+                      className="w-full bg-transparent px-1.5 py-2 text-xs text-neutral-900 focus:outline-none"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={trackLoading || !trackInput.trim()}
+                    className="w-full py-2.5 bg-[#D71920] hover:bg-[#b8141a] disabled:opacity-40 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    {trackLoading ? 'Searching Order...' : <><span>Track Order Status</span><Search size={14} /></>}
+                  </button>
+                  {trackError && (
+                    <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs space-y-2">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                        <span>{trackError}</span>
+                      </div>
+                    </div>
+                  )}
+                </form>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveStripModal(null);
+                    setActivePage('track-order');
+                  }}
+                  className="w-full py-2 text-xs font-bold text-[#D71920] hover:underline cursor-pointer"
+                >
+                  Open Full Order Tracking Page →
+                </button>
+              </div>
+            )}
+
+            {/* Multi-Type Coupons Modal */}
+            {activeStripModal === 'coupons' && (
+              <div className="p-5 sm:p-6 space-y-4 max-h-[82vh] overflow-y-auto">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center">
+                      <TicketPercent size={18} />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-base">Available Coupons & Offers</h3>
+                      <p className="text-[11px] text-neutral-500">যেকোনো কুপন কপি বা সরাসরি অ্যাপ্লাই করুন</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveStripModal(null)}
+                    aria-label="Close modal"
+                    className="p-1.5 rounded-full hover:bg-neutral-100 text-neutral-500 cursor-pointer"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div className="space-y-2.5">
+                  {activeCouponsList.map(coupon => {
+                    const isApplied = appliedCouponCode.toUpperCase() === coupon.code.toUpperCase();
+                    return (
+                      <div
+                        key={coupon.id}
+                        data-testid={`coupon-offer-${coupon.code}`}
+                        className="p-3.5 rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/60 via-white to-rose-50/40 space-y-2"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-black text-xs px-2.5 py-1 rounded-lg bg-neutral-900 text-white tracking-wider">
+                              {coupon.code}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 text-[10px] font-black">
+                              {coupon.badgeText ||
+                                (coupon.discountType === 'percentage'
+                                  ? `${coupon.discountValue}% OFF`
+                                  : coupon.discountType === 'free_delivery'
+                                  ? 'FREE DELIVERY'
+                                  : `৳${coupon.discountValue} OFF`)}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyCoupon(coupon.code)}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-neutral-200 bg-white hover:border-[#D71920] text-[11px] font-bold text-neutral-700 cursor-pointer"
+                          >
+                            {copiedCouponCode === coupon.code ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                            <span>{copiedCouponCode === coupon.code ? 'Copied' : 'Copy'}</span>
+                          </button>
+                        </div>
+
+                        <div>
+                          <h4 className="font-bold text-xs text-neutral-900">{coupon.title}</h4>
+                          <p className="text-[11px] text-neutral-600 mt-0.5 leading-snug">{coupon.description}</p>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2 pt-1">
+                          <span className="text-[10px] font-semibold text-neutral-500">
+                            {coupon.minOrderAmount ? `Min order: ৳${coupon.minOrderAmount}` : 'No minimum order'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAppliedCouponCode(coupon.code);
+                              setActiveStripModal(null);
+                              setActivePage('checkout');
+                            }}
+                            className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                              isApplied
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-[#D71920] hover:bg-[#b8141a] text-white'
+                            }`}
+                          >
+                            {isApplied ? '✓ Selected for Checkout' : 'Apply & Checkout →'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Cancel & Exchange Policy Modal */}
+            {activeStripModal === 'policy' && (
+              <div className="p-5 sm:p-6 space-y-4 max-h-[82vh] overflow-y-auto">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center">
+                      <RefreshCw size={18} />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-base">{settings.policyTitle || 'Order Cancel & Exchange Policy'}</h3>
+                      <p className="text-[11px] text-neutral-500">সহজ অর্ডার বাতিল, এক্সচেঞ্জ এবং রিফান্ড নীতিমালা</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveStripModal(null)}
+                    aria-label="Close modal"
+                    className="p-1.5 rounded-full hover:bg-neutral-100 text-neutral-500 cursor-pointer"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-blue-50/60 border border-blue-200/80 text-xs text-neutral-800 whitespace-pre-line leading-relaxed">
+                  {settings.cancelExchangePolicyText || DEFAULT_CANCEL_EXCHANGE_POLICY}
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveStripModal(null);
+                      setIsLiveChatOpen(true);
+                    }}
+                    className="flex-1 py-2.5 bg-[#D71920] hover:bg-[#b8141a] text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <MessageCircle size={14} />
+                    <span>Request Cancel / Exchange in Live Chat</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-center gap-1.5 text-[11px] text-neutral-500">
+                  <ShieldCheck size={13} className="text-emerald-600" />
+                  <span>100% Buyer Protection Guarantee</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Real-Time Order Tracking Modal */}
       {activeTrackingOrder && (

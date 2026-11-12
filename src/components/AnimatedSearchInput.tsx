@@ -1,5 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Search, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useStore } from '../context/StoreContext';
+import {
+  Search,
+  Sparkles,
+  X,
+  SlidersHorizontal,
+} from 'lucide-react';
 
 interface AnimatedSearchInputProps {
   value: string;
@@ -10,15 +16,14 @@ interface AnimatedSearchInputProps {
   className?: string;
   inputClassName?: string;
   showSubmitButton?: boolean;
+  spotlightTrigger?: boolean;
 }
 
-const ROTATING_SEARCH_SUGGESTIONS = [
-  'Search by Book Title (e.g. Paradoxical Sajid, Himu...)',
-  'Search by Author / Writer (e.g. Humayun Ahmed, Arif Azad...)',
-  'Search by Topic or Category (e.g. Islamic Books, Novels...)',
-  'বইয়ের নাম দিয়ে খুঁজুন (যেমন: প্যারাডক্সিক্যাল সাজিদ, দেবদাস)',
-  'লেখকের নাম দিয়ে খুঁজুন (যেমন: হুমায়ূন আহমেদ, আরিফ আজাদ)',
-  'বিষয় বা বিষয়বস্তু দিয়ে খুঁজুন (যেমন: ইসলামি বই, উপন্যাস)'
+const ROTATING_ICONIC_HINTS = [
+  'Search Books, Authors, Publishers...',
+  'বই, লেখক বা প্রকাশনী খুঁজুন মুহূর্তেই...',
+  'Stationery, Diaries, Fountain Pens...',
+  'Type to discover 100% original titles',
 ];
 
 export function AnimatedSearchInput({
@@ -28,24 +33,24 @@ export function AnimatedSearchInput({
   onSubmit,
   className = '',
   inputClassName = '',
-  showSubmitButton = true
+  showSubmitButton = true,
+  spotlightTrigger = false,
 }: AnimatedSearchInputProps) {
-  const [currentTextIdx, setCurrentTextIdx] = useState(0);
-  const [isAnimatingOut, setIsAnimatingOut] = useState(false);
+  const { setIsSearchSpotlightOpen } = useStore();
+  const [hintIdx, setHintIdx] = useState(0);
+  const [isFading, setIsFading] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Cycle rotating placeholder text every 2.8 seconds with vertical slide animation
   useEffect(() => {
     if (value || isFocused) return;
-
     const interval = setInterval(() => {
-      setIsAnimatingOut(true);
+      setIsFading(true);
       setTimeout(() => {
-        setCurrentTextIdx((prev) => (prev + 1) % ROTATING_SEARCH_SUGGESTIONS.length);
-        setIsAnimatingOut(false);
-      }, 350); // duration of slide transition
-    }, 2800);
-
+        setHintIdx((prev) => (prev + 1) % ROTATING_ICONIC_HINTS.length);
+        setIsFading(false);
+      }, 260);
+    }, 3000);
     return () => clearInterval(interval);
   }, [value, isFocused]);
 
@@ -54,58 +59,111 @@ export function AnimatedSearchInput({
     if (onSubmit) onSubmit(e);
   };
 
-  const showOverlay = !value && !isFocused;
-
-  return (
-    <form onSubmit={handleSubmit} className={`relative w-full ${className}`}>
-      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 z-10 shrink-0" size={16} />
-      
-      <div className="relative w-full flex items-center">
-        <input 
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onFocus={() => {
-            setIsFocused(true);
-            if (onFocus) onFocus();
+  // Spotlight Launcher Mode for Navbar (Totally Iconic Capsule Look)
+  if (spotlightTrigger) {
+    return (
+      <div
+        data-testid="iconic-search-bar"
+        className={`relative w-full ${className}`}
+      >
+        <div
+          onClick={() => setIsSearchSpotlightOpen(true)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setIsSearchSpotlightOpen(true);
+            }
           }}
-          onBlur={() => setIsFocused(false)}
-          className={`w-full pl-9 ${showSubmitButton ? 'pr-20' : 'pr-8'} py-2 bg-neutral-50 dark:bg-[#161C28] border border-neutral-200 dark:border-[#2B374C] rounded-full text-xs font-medium text-[#171717] dark:text-white focus:outline-none focus:bg-white dark:focus:bg-[#1A2234] focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/15 transition-all ${inputClassName}`}
-        />
+          className="group w-full flex items-center gap-2.5 pl-1.5 pr-2 py-1 rounded-2xl bg-neutral-100/80 dark:bg-[#151C2A] hover:bg-white dark:hover:bg-[#1A2334] border border-neutral-200/90 dark:border-[#2B374C] hover:border-[#D71920]/60 shadow-2xs hover:shadow-md transition-all cursor-pointer"
+        >
+          {/* Iconic Red Pulse Lens Badge */}
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#D71920] to-[#B01218] text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+            <Search size={15} strokeWidth={2.5} />
+          </div>
 
-        {/* Vertical Sliding Placeholder Text Overlay */}
-        {showOverlay && (
-          <div className="absolute left-9 right-20 top-1/2 -translate-y-1/2 overflow-hidden h-5 pointer-events-none flex items-center select-none z-0">
-            <span 
-              className={`text-xs text-neutral-400 dark:text-neutral-300 font-normal truncate block transition-all duration-300 ease-in-out transform ${
-                isAnimatingOut 
-                  ? '-translate-y-full opacity-0' 
-                  : 'translate-y-0 opacity-100'
-              }`}
+          <div className="flex-1 min-w-0 overflow-hidden h-5 flex items-center">
+            <span
+              className={`text-xs font-semibold truncate block transition-all duration-200 ${
+                value
+                  ? 'text-neutral-900 dark:text-white'
+                  : 'text-neutral-500 dark:text-slate-300'
+              } ${isFading && !value ? 'opacity-0 translate-y-1' : 'opacity-100 translate-y-0'}`}
             >
-              {ROTATING_SEARCH_SUGGESTIONS[currentTextIdx]}
+              {value || ROTATING_ICONIC_HINTS[hintIdx]}
             </span>
           </div>
-        )}
 
-        {/* Clear Button if value present */}
-        {value && (
-          <button 
-            type="button"
-            onClick={() => onChange('')}
-            className="absolute right-16 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-[#D71920] p-1 cursor-pointer z-10"
-          >
-            <X size={14} />
-          </button>
-        )}
+          {/* Interactive Iconic Pill */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="hidden lg:inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white dark:bg-slate-800 border border-neutral-200 dark:border-slate-700 text-[10px] font-black text-neutral-500 dark:text-slate-300 shadow-2xs">
+              <Sparkles size={10} className="text-[#D71920]" />
+              <span>⌘K</span>
+            </span>
+            <span className="px-2.5 py-1 rounded-xl bg-neutral-900 dark:bg-[#D71920] text-white text-[10px] font-extrabold tracking-wide flex items-center gap-1">
+              <SlidersHorizontal size={10} />
+              <span>Find</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-        {/* Submit button */}
-        {showSubmitButton && (
-          <button 
+  // Inline Filter Mode (used inside BooksPage & StationeryPage)
+  return (
+    <form onSubmit={handleSubmit} className={`relative w-full ${className}`}>
+      <div className="relative flex items-center rounded-2xl bg-white dark:bg-[#161C28] border border-neutral-200 dark:border-[#2B374C] focus-within:border-[#D71920] focus-within:ring-2 focus-within:ring-[#D71920]/15 shadow-2xs transition-all overflow-hidden">
+        <div className="pl-2 pr-1.5 py-1 flex items-center">
+          <div className="w-7 h-7 rounded-xl bg-[#FFF1F2] dark:bg-[#D71920]/20 text-[#D71920] flex items-center justify-center shrink-0">
+            <Search size={14} strokeWidth={2.5} />
+          </div>
+        </div>
+
+        <div className="relative flex-1 min-w-0 flex items-center">
+          <input
+            ref={inputRef}
+            type="text"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onFocus={() => {
+              setIsFocused(true);
+              onFocus?.();
+            }}
+            onBlur={() => setIsFocused(false)}
+            placeholder={ROTATING_ICONIC_HINTS[hintIdx]}
+            className={`w-full py-2 pr-8 bg-transparent text-xs font-semibold text-[#171717] dark:text-white placeholder:text-neutral-400 focus:outline-none ${inputClassName}`}
+          />
+
+          {value && (
+            <button
+              type="button"
+              onClick={() => onChange('')}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-[#D71920] p-1 cursor-pointer"
+              aria-label="Clear filter"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
+
+        {showSubmitButton ? (
+          <button
             type="submit"
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 px-3.5 py-1 bg-[#D71920] hover:bg-[#C5161C] text-white text-[11px] font-bold rounded-full transition-all cursor-pointer active:scale-95 shadow-2xs z-10"
+            className="mr-1.5 px-3 py-1.5 bg-[#D71920] hover:bg-[#B9151B] text-white text-[11px] font-bold rounded-xl transition-all cursor-pointer shrink-0"
           >
             Search
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsSearchSpotlightOpen(true)}
+            title="Open Full Iconic Search"
+            className="mr-1.5 px-2 py-1 rounded-lg bg-neutral-100 dark:bg-slate-800 hover:bg-[#FFF1F2] text-neutral-600 dark:text-slate-300 hover:text-[#D71920] text-[10px] font-black cursor-pointer shrink-0 flex items-center gap-1 transition-colors"
+          >
+            <Sparkles size={10} className="text-[#D71920]" />
+            <span className="hidden sm:inline">Spotlight</span>
           </button>
         )}
       </div>

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   countBooksForPublisher,
   buildEnrichedPublishersList,
+  resolveProductPublisherInfo,
   resolveProductDeliveryTiming,
   parseCustomBookDetails,
   serializeCustomBookDetails,
@@ -139,6 +140,14 @@ test('countBooksForPublisher and buildEnrichedPublishersList dynamically count b
   assert.ok(mowla);
   assert.equal(mowla.liveBooksCount, 1);
   assert.equal(mowla.displayBooksCount, 1);
+
+  const resolvedPub = resolveProductPublisherInfo(products[0], stored, products);
+  assert.equal(resolvedPub.name, 'Guardian Publications');
+  assert.equal(resolvedPub.banglaName, 'গার্ডিয়ান পাবলিকেশন্স');
+  assert.equal(resolvedPub.displayBooksCount, 2);
+
+  const fallbackPub = resolveProductPublisherInfo({ title: 'Himu', author: 'Humayun Ahmed' }, [], products);
+  assert.equal(fallbackPub.name, 'Anyaprokash');
 });
 
 test('parseCustomBookDetails and serializeCustomBookDetails round-trip properly', () => {

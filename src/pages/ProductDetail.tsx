@@ -37,7 +37,16 @@ import {
   Building2,
   Flame
 } from 'lucide-react';
-import { resolveProductDeliveryTiming } from '../utils/publisherAndDeliveryHelpers';
+import {
+  resolveProductDeliveryTiming,
+  buildEnrichedPublishersList,
+  resolveProductPublisherInfo,
+  EnrichedPublisher,
+} from '../utils/publisherAndDeliveryHelpers';
+import {
+  resolveVariantFormatDescription,
+  resolveProductDetailsPresentation,
+} from '../utils/storeEnhancementsHelpers';
 import { trackFacebookConversionEvent, buildProductCustomData } from '../utils/facebookCapiHelpers';
 import { ProductDetailSkeleton } from '../components/SkeletonScreens';
 import { shouldShowSkeletonScreen, resolveFirestoreFetchStrategy } from '../utils/instantStoreCache';
@@ -70,7 +79,7 @@ function MessengerIcon({ className = "w-4 h-4 shrink-0" }: { className?: string 
 }
 
 export function ProductDetail() {
-  const { products, authors, isLoading, selectedProductId, setActivePage, addToCart, wishlist, toggleWishlist, setSelectedCategoryFilter, setSearchQuery, settings, reviews, visitorId, addProductReview, reactToReview } = useStore();
+  const { products, authors, publishers, isLoading, selectedProductId, setActivePage, addToCart, wishlist, toggleWishlist, setSelectedCategoryFilter, setSearchQuery, settings, reviews, visitorId, addProductReview, reactToReview } = useStore();
   
   const [directFetchedProduct, setDirectFetchedProduct] = useState<Product | null>(null);
   const inMemoryProduct = products.find(p => p.id === selectedProductId || p.slug === selectedProductId);
@@ -97,10 +106,16 @@ export function ProductDetail() {
   const product = inMemoryProduct || directFetchedProduct || products[0];
   const [selectedAuthorId, setSelectedAuthorId] = useState<string>('current');
   const [authorAvatarError, setAuthorAvatarError] = useState<Record<string, boolean>>({});
+  const [selectedPublisherId, setSelectedPublisherId] = useState<string>('current');
+  const [publisherLogoError, setPublisherLogoError] = useState<Record<string, boolean>>({});
   const [selectedVariantId, setSelectedVariantId] = useState<string>(product?.variants?.[0]?.id || '');
 
   useEffect(() => {
     setSelectedAuthorId('current');
+    setSelectedPublisherId('current');
+    setSelectedVariantId(product?.variants?.[0]?.id || '');
+    setActiveImageIndex(0);
+    setQuantity(1);
     setActiveReviewIndex(0);
     if (product) {
       void trackFacebookConversionEvent({
@@ -267,6 +282,9 @@ export function ProductDetail() {
 
   const activeVariant = product.variants.find(v => v.id === selectedVariantId) || product.variants[0];
   const isWishlisted = wishlist.includes(product.id);
+  const currentProductPublisher = resolveProductPublisherInfo(product, publishers, products);
+  const presentation = resolveProductDetailsPresentation(product);
+  const activeVariantDescription = resolveVariantFormatDescription(product, activeVariant);
 
   // Related products in same category
   const relatedProducts = products
@@ -391,7 +409,7 @@ export function ProductDetail() {
               {product.isOriginalBadge && (
                 <div className="absolute top-3.5 left-3.5 bg-white/95 backdrop-blur-xs text-[#171717] text-[11px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs border border-neutral-200">
                   <ShieldCheck size={14} className="text-[#D71920]" />
-                  <span>100% Original Edition</span>
+                  <span>{presentation.isStationery ? '100% Authentic Stationery' : '100% Original Edition'}</span>
                 </div>
               )}
             </div>
@@ -436,48 +454,55 @@ export function ProductDetail() {
                     {product.title}
                   </h1>
 
-                  <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <div
+                    data-testid="product-detail-writer-publisher-bar"
+                    className="text-xs sm:text-sm text-neutral-600 leading-relaxed flex flex-wrap items-center gap-x-2.5 gap-y-1.5 pt-0.5"
+                  >
                     {product.type === 'book' ? (
                       <>
-                        <span>
-                          By{' '}
+                        {/* Writer / লেখক Badge */}
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-neutral-100/90 border border-neutral-200/90">
+                          <UserCheck size={13} className="text-[#D71920] shrink-0" />
+                          <span className="text-neutral-500 font-semibold text-xs">লেখক / Writer:</span>
                           <button
                             type="button"
+                            data-testid="product-detail-writer-link"
                             onClick={() => {
                               if (product.author) {
                                 setSearchQuery(product.author);
                                 setActivePage('books');
                               }
                             }}
-                            className="text-neutral-900 font-bold hover:text-[#D71920] underline decoration-dotted cursor-pointer"
+                            className="text-neutral-900 font-extrabold hover:text-[#D71920] underline decoration-dotted cursor-pointer text-xs sm:text-sm"
                           >
                             {product.author || 'Renowned Author'}
                           </button>
                         </span>
-                        {product.publisher && (
-                          <>
-                            <span className="text-neutral-300">•</span>
-                            <span className="inline-flex items-center gap-1">
-                              <Building2 size={13} className="text-[#D71920]" />
-                              <span>প্রকাশনী:</span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSearchQuery(product.publisher || '');
-                                  setActivePage('books');
-                                }}
-                                className="text-[#D71920] font-bold hover:underline cursor-pointer"
-                              >
-                                {product.publisher}
-                              </button>
-                            </span>
-                          </>
-                        )}
+
+                        {/* Publisher / প্রকাশনী Badge alongside Writer */}
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#FFF1F2] border border-[#D71920]/25">
+                          <Building2 size={13} className="text-[#D71920] shrink-0" />
+                          <span className="text-neutral-600 font-semibold text-xs">পাবলিশার্স / প্রকাশনী:</span>
+                          <button
+                            type="button"
+                            data-testid="product-detail-publisher-link"
+                            onClick={() => {
+                              setSearchQuery(currentProductPublisher.name);
+                              setActivePage('books');
+                            }}
+                            className="text-[#D71920] font-extrabold hover:underline cursor-pointer text-xs sm:text-sm"
+                          >
+                            {currentProductPublisher.banglaName &&
+                            currentProductPublisher.banglaName !== currentProductPublisher.name
+                              ? `${currentProductPublisher.name} (${currentProductPublisher.banglaName})`
+                              : currentProductPublisher.name}
+                          </button>
+                        </span>
                       </>
                     ) : (
                       <>Brand: <strong className="text-neutral-900 font-bold">{product.brand || 'Stationery'}</strong></>
                     )}
-                  </p>
+                  </div>
 
                   {/* 5-Star Rating */}
                   <div className="flex items-center gap-2 pt-0.5">
@@ -514,7 +539,7 @@ export function ProductDetail() {
                 </div>
               </div>
 
-              {/* Category Chips, Book/Stationery Type & Original Badge (Below Rating & Above Price Card) */}
+              {/* Category Chips, Publisher Chip, Book/Stationery Type & Original Badge (Below Rating & Above Price Card) */}
               <div className="flex flex-wrap items-center gap-2 pt-1">
                 <button 
                   onClick={() => { setSelectedCategoryFilter(product.category); setActivePage(product.type === 'book' ? 'books' : 'stationery'); }}
@@ -523,6 +548,19 @@ export function ProductDetail() {
                   <BookOpen size={13} />
                   <span>Category: {product.category}</span>
                 </button>
+
+                {product.type === 'book' && (
+                  <button
+                    type="button"
+                    onClick={() => setActivePage('publishers')}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold text-xs hover:bg-emerald-600 hover:text-white transition-all cursor-pointer shadow-2xs"
+                  >
+                    <Building2 size={13} />
+                    <span>
+                      প্রকাশনী: {currentProductPublisher.banglaName || currentProductPublisher.name}
+                    </span>
+                  </button>
+                )}
 
                 {product.subcategory && (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-neutral-100 text-neutral-700 font-bold text-xs border border-neutral-200">
@@ -607,23 +645,32 @@ export function ProductDetail() {
             {product.variants.length > 1 && (
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500 mb-2">
-                  Select Edition / Format:
+                  {presentation.isStationery ? 'Select Option / Pack:' : 'Select Edition / Format:'}
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                  {product.variants.map(v => (
-                    <button 
-                      key={v.id}
-                      onClick={() => setSelectedVariantId(v.id)}
-                      className={`p-3 rounded-xl text-left border transition-all cursor-pointer ${
-                        selectedVariantId === v.id || (!selectedVariantId && v.id === product.variants[0].id)
-                          ? 'border-[#D71920] bg-[#FFF1F2] text-[#D71920] font-bold shadow-2xs'
-                          : 'border-neutral-200 bg-white text-neutral-800 hover:border-[#D71920]'
-                      }`}
-                    >
-                      <div className="text-xs font-bold">{v.name}</div>
-                      <div className="text-sm font-black mt-0.5 tabular-nums">৳{v.price}</div>
-                    </button>
-                  ))}
+                  {product.variants.map(v => {
+                    const isSelectedVariant = activeVariant?.id === v.id;
+                    return (
+                      <button 
+                        key={v.id}
+                        type="button"
+                        aria-pressed={isSelectedVariant}
+                        data-testid={`variant-option-${v.id}`}
+                        onClick={() => {
+                          setSelectedVariantId(v.id);
+                          setActiveAccordion('description');
+                        }}
+                        className={`p-3 rounded-xl text-left border transition-all cursor-pointer ${
+                          isSelectedVariant
+                            ? 'border-[#D71920] bg-[#FFF1F2] text-[#D71920] font-bold shadow-2xs ring-1 ring-[#D71920]/30'
+                            : 'border-neutral-200 bg-white text-neutral-800 hover:border-[#D71920]'
+                        }`}
+                      >
+                        <div className="text-xs font-bold">{v.name}</div>
+                        <div className="text-sm font-black mt-0.5 tabular-nums">৳{v.price}</div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -742,7 +789,7 @@ export function ProductDetail() {
                         </h3>
                       </div>
                       <p className="text-[11px] sm:text-xs text-neutral-500 mt-0.5 truncate pl-6">
-                        Overview, summary & book details
+                        {presentation.descriptionSubtitle}
                       </p>
                     </div>
                     <div className={`p-1.5 rounded-full transition-all duration-200 shrink-0 ${
@@ -762,13 +809,42 @@ export function ProductDetail() {
                           <ShieldCheck size={11} /> 100% Genuine
                         </span>
                       </div>
+
+                      {/* Format-Synced Dynamic Edition Description */}
+                      <div
+                        data-testid="selected-format-description"
+                        className="p-3 rounded-xl bg-[#FFF1F2]/70 border border-[#D71920]/20 space-y-1.5"
+                      >
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <span className="font-black text-xs text-[#D71920]">
+                            {activeVariantDescription.headline}
+                          </span>
+                          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-white text-neutral-800 border border-neutral-200">
+                            {activeVariantDescription.formatLabel} • ৳{activeVariant.price}
+                          </span>
+                        </div>
+                        <p className="text-[11.5px] text-neutral-700 leading-relaxed">
+                          {activeVariantDescription.detailsText}
+                        </p>
+                        <div className="flex flex-wrap gap-1.5 pt-0.5">
+                          {activeVariantDescription.highlights.map((hl, i) => (
+                            <span
+                              key={i}
+                              className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-white border border-neutral-200/80 text-neutral-700"
+                            >
+                              ✓ {hl}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
                       <p className="text-xs text-neutral-700 leading-relaxed whitespace-pre-line">
                         {product.description}
                       </p>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-neutral-100 text-[11px]">
                         <div className="p-2.5 bg-neutral-50 rounded-xl flex items-center gap-2 text-neutral-700 font-medium">
                           <ShieldCheck size={14} className="text-emerald-600 shrink-0" />
-                          <span>100% Original Copy</span>
+                          <span>{presentation.authenticityBadge}</span>
                         </div>
                         <div className="p-2.5 bg-neutral-50 rounded-xl flex items-center gap-2 text-neutral-700 font-medium">
                           <Truck size={14} className="text-[#D71920]" />
@@ -783,7 +859,7 @@ export function ProductDetail() {
                   )}
                 </div>
 
-                {/* Accordion 2: Book Details */}
+                {/* Accordion 2: Book Details / Product Specifications */}
                 {(() => {
                   const deliveryTiming = resolveProductDeliveryTiming(product);
                   return (
@@ -801,16 +877,14 @@ export function ProductDetail() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <BookOpen size={16} className={activeAccordion === 'specifications' ? 'text-[#D71920]' : 'text-neutral-500'} />
                             <h3 className={`text-sm sm:text-[15px] font-bold ${activeAccordion === 'specifications' ? 'text-[#D71920]' : 'text-neutral-900 group-hover:text-neutral-950'}`}>
-                              Book Details
+                              {presentation.detailsHeading}
                             </h3>
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FFF1F2] text-[#D71920] text-[10px] font-extrabold border border-[#D71920]/20">
                               <Clock size={10} /> {deliveryTiming.estimateBadge}
                             </span>
                           </div>
                           <p className="text-[11px] sm:text-xs text-neutral-500 mt-0.5 truncate pl-6">
-                            {product.type === 'book'
-                              ? 'Author, publisher, edition, pages, language, ISBN & delivery timing'
-                              : 'Brand, material, dimensions, model, SKU & delivery timing'}
+                            {presentation.detailsSubtitle}
                           </p>
                         </div>
                         <div className={`p-1.5 rounded-full transition-all duration-200 shrink-0 ${
@@ -852,19 +926,20 @@ export function ProductDetail() {
 
                                 <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
                                   <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                                    <Layers size={13} className="text-[#D71920]" /> Publisher
+                                    <Building2 size={13} className="text-[#D71920]" /> Publisher (প্রকাশনী)
                                   </span>
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      if (product.publisher) {
-                                        setSearchQuery(product.publisher);
-                                        setActivePage('books');
-                                      }
+                                      setSearchQuery(currentProductPublisher.name);
+                                      setActivePage('books');
                                     }}
                                     className="font-bold text-neutral-900 hover:text-[#D71920] text-right cursor-pointer"
                                   >
-                                    {product.publisher || 'MR. BOOKS Publications'}
+                                    {currentProductPublisher.banglaName &&
+                                    currentProductPublisher.banglaName !== currentProductPublisher.name
+                                      ? `${currentProductPublisher.name} (${currentProductPublisher.banglaName})`
+                                      : currentProductPublisher.name}
                                   </button>
                                 </div>
 
@@ -988,7 +1063,7 @@ export function ProductDetail() {
                                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                                   </div>
                                   <p className="text-[10px] text-neutral-500 font-medium">
-                                    এই বইটির জন্য নির্ধারিত ডেলিভারি সময়সূচী
+                                    {presentation.deliveryScheduleSubtitle}
                                   </p>
                                 </div>
                               </div>
@@ -1054,13 +1129,13 @@ export function ProductDetail() {
                             ) : (
                               <div className="space-y-2">
                                 <div className="p-2.5 rounded-xl bg-white border border-neutral-200 text-xs grid grid-cols-2 sm:grid-cols-4 gap-2 shadow-2xs">
-                                  <span className="font-bold text-neutral-800">Inside Dhaka: <strong className="text-[#D71920]">৳{product.insideDhakaFee || product.homeDeliveryFee || 60}</strong></span>
-                                  <span className="font-bold text-neutral-800">Outside Dhaka: <strong className="text-[#D71920]">৳{product.outsideDhakaFee || 120}</strong></span>
-                                  <span className="font-bold text-neutral-800">Sub Area: <strong className="text-[#D71920]">৳{product.subAreaFee || 90}</strong></span>
-                                  <span className="font-bold text-neutral-800">Sundarban: <strong className="text-[#D71920]">৳{product.sundarbanDeliveryFee || 120}</strong></span>
+                                  <span className="font-bold text-neutral-800">Inside Dhaka: <strong className="text-[#D71920]">৳{product.insideDhakaFee || product.homeDeliveryFee || settings.insideDhakaCharge || 60}</strong></span>
+                                  <span className="font-bold text-neutral-800">Outside Dhaka: <strong className="text-[#D71920]">৳{product.outsideDhakaFee || settings.outsideDhakaCharge || 120}</strong></span>
+                                  <span className="font-bold text-neutral-800">Sub Area: <strong className="text-[#D71920]">৳{product.subAreaFee || settings.subAreaCharge || 90}</strong></span>
+                                  <span className="font-bold text-neutral-800">Sundarban: <strong className="text-[#D71920]">৳{product.sundarbanDeliveryFee || settings.sundarbanDeliveryCharge || 120}</strong></span>
                                 </div>
                                 <div className="p-2 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 font-semibold flex items-center gap-1.5">
-                                  <span>ℹ️ Weight Note: Weight-based extra charge: ৳20 added per extra kg/item when weight increases.</span>
+                                  <span>ℹ️ Weight Note: Weight-based extra charge: ৳{settings.extraWeightChargePerKg ?? 20} added per extra kg/item when weight increases.</span>
                                 </div>
                               </div>
                             )}
@@ -1384,9 +1459,9 @@ export function ProductDetail() {
           </div>
         </div>
 
-        {/* লেখক পরিচিতি ও লেখকের অন্যান্য বই (Author Spotlight & Other Books by Author Section) */}
-        {(() => {
-          const bookAuthorName = (product.author || product.brand || 'হুমায়ূন আহমেদ').trim();
+        {/* লেখক পরিচিতি ও লেখকের অন্যান্য বই (Book Products Only) */}
+        {product.type === 'book' && (() => {
+          const bookAuthorName = (product.author || 'রেনাউন্ড লেখক').trim();
           const matchedStoreAuthor = authors.find(
             a => a.name.toLowerCase() === bookAuthorName.toLowerCase() ||
                  bookAuthorName.toLowerCase().includes(a.name.toLowerCase()) ||
@@ -1622,6 +1697,10 @@ export function ProductDetail() {
                             <p className="text-[11px] text-neutral-500 truncate">
                               লেখক: {bookItem.author || activeAuthor.name}
                             </p>
+                            <p className="text-[10.5px] text-emerald-700 font-semibold truncate flex items-center gap-1">
+                              <Building2 size={10} className="shrink-0" />
+                              <span>প্রকাশনী: {bookItem.publisher || currentProductPublisher.name}</span>
+                            </p>
                             <div className="flex items-center justify-between pt-1">
                               <div className="flex items-baseline gap-1.5">
                                 <span className="font-black text-sm text-[#D71920]">৳{bookItem.price}</span>
@@ -1654,6 +1733,330 @@ export function ProductDetail() {
           );
         })()}
 
+        {/* পাবলিশার্স / প্রকাশনী পরিচিতি ও প্রকাশনীর অন্যান্য বই (Book Products Only) */}
+        {product.type === 'book' && (() => {
+          const enrichedPublishers = buildEnrichedPublishersList(publishers, products);
+          const allSelectablePublishers: EnrichedPublisher[] = [
+            currentProductPublisher,
+            ...enrichedPublishers.filter(
+              p =>
+                p.id !== currentProductPublisher.id &&
+                p.name.trim().toLowerCase() !== currentProductPublisher.name.trim().toLowerCase()
+            ),
+          ];
+
+          const activePublisher =
+            selectedPublisherId === 'current'
+              ? currentProductPublisher
+              : allSelectablePublishers.find(p => p.id === selectedPublisherId) ||
+                currentProductPublisher;
+
+          const activePubNameLower = (activePublisher.name || '').trim().toLowerCase();
+          const activePubBanglaLower = (activePublisher.banglaName || '').trim().toLowerCase();
+
+          const exactPublisherBooks = products.filter(p => {
+            if (p.type !== 'book') return false;
+            const prodPub = (p.publisher || '').trim().toLowerCase();
+            if (!prodPub) return false;
+            return (
+              (activePubNameLower &&
+                (prodPub === activePubNameLower ||
+                  prodPub.includes(activePubNameLower) ||
+                  activePubNameLower.includes(prodPub))) ||
+              (activePubBanglaLower &&
+                (prodPub === activePubBanglaLower ||
+                  prodPub.includes(activePubBanglaLower) ||
+                  activePubBanglaLower.includes(prodPub)))
+            );
+          });
+
+          const otherBooksByPublisher = exactPublisherBooks.filter(p => p.id !== product.id);
+          const displayPublisherBooks =
+            otherBooksByPublisher.length >= 2
+              ? otherBooksByPublisher.slice(0, 4)
+              : [
+                  ...exactPublisherBooks,
+                  ...products.filter(
+                    p =>
+                      p.type === 'book' &&
+                      !exactPublisherBooks.some(eb => eb.id === p.id)
+                  ),
+                ].slice(0, 4);
+
+          const hasPublisherLogo =
+            !!activePublisher.logoUrl && !publisherLogoError[activePublisher.id];
+
+          return (
+            <div
+              data-testid="product-detail-publisher-spotlight"
+              className="mt-8 pt-6 border-t border-neutral-200/80"
+            >
+              {/* Section Header & View All Publishers Button */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center shrink-0 shadow-2xs">
+                    <Building2 size={17} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg sm:text-xl font-black text-neutral-900 tracking-tight">
+                      পাবলিশার্স / প্রকাশনী পরিচিতি ও প্রকাশনীর অন্যান্য বই
+                    </h3>
+                    <p className="text-xs text-neutral-500">
+                      About the Publisher (প্রকাশনী) & Other Original Books Published by Them
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setActivePage('publishers')}
+                  className="self-start sm:self-auto text-xs font-bold text-emerald-800 hover:text-emerald-950 flex items-center gap-1 group cursor-pointer bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200"
+                >
+                  <span>সকল প্রকাশনী দেখুন ({allSelectablePublishers.length})</span>
+                  <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
+                </button>
+              </div>
+
+              {/* Interactive Publisher Selector Pills */}
+              {allSelectablePublishers.length > 1 && (
+                <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 scrollbar-none">
+                  {allSelectablePublishers.map((pub, idx) => {
+                    const isSelected =
+                      (selectedPublisherId === 'current' && idx === 0) ||
+                      selectedPublisherId === pub.id;
+                    return (
+                      <button
+                        key={pub.id}
+                        type="button"
+                        onClick={() => setSelectedPublisherId(idx === 0 ? 'current' : pub.id)}
+                        className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 border ${
+                          isSelected
+                            ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
+                            : 'bg-white text-neutral-700 border-neutral-200 hover:border-emerald-400'
+                        }`}
+                      >
+                        <Building2 size={12} className={isSelected ? 'text-white' : 'text-emerald-600'} />
+                        <span>
+                          {pub.banglaName && pub.banglaName !== pub.name
+                            ? `${pub.name} (${pub.banglaName})`
+                            : pub.name}
+                        </span>
+                        {idx === 0 && (
+                          <span
+                            className={`text-[9px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                              isSelected ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-700'
+                            }`}
+                          >
+                            এই বইয়ের প্রকাশনী
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Main Publisher Profile + Publisher's Other Books Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+                {/* Left Column (5 cols): Publisher Profile Card */}
+                <div className="lg:col-span-5 rounded-3xl border border-emerald-200/90 bg-gradient-to-br from-emerald-50/50 via-white to-[#FFFDF9] p-5 sm:p-6 shadow-xs flex flex-col justify-between relative overflow-hidden">
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-4">
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl p-[2.5px] bg-gradient-to-tr from-emerald-600 via-teal-500 to-amber-300 shadow-md shrink-0">
+                        <div className="w-full h-full rounded-2xl overflow-hidden bg-white flex items-center justify-center">
+                          {hasPublisherLogo ? (
+                            <img
+                              src={activePublisher.logoUrl}
+                              alt={activePublisher.name}
+                              className="w-full h-full object-cover"
+                              onError={() =>
+                                setPublisherLogoError(prev => ({
+                                  ...prev,
+                                  [activePublisher.id]: true,
+                                }))
+                              }
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-emerald-700 text-white font-black flex items-center justify-center text-2xl">
+                              <Building2 size={28} />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="min-w-0 flex-1 space-y-1.5">
+                        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
+                          <CheckCircle2 size={11} /> Verified Publisher (অনুমোদিত প্রকাশনী)
+                        </div>
+                        <h4 className="text-lg sm:text-xl font-black text-neutral-900 leading-snug">
+                          {activePublisher.name}
+                        </h4>
+                        {activePublisher.banglaName &&
+                          activePublisher.banglaName !== activePublisher.name && (
+                            <p className="text-xs font-extrabold text-emerald-800">
+                              {activePublisher.banglaName}
+                            </p>
+                          )}
+                        <div className="flex items-center gap-2 flex-wrap text-xs font-bold text-neutral-600 pt-0.5">
+                          <span className="inline-flex items-center gap-1 text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-lg border border-emerald-200">
+                            <BookOpen size={12} /> {activePublisher.displayBooksCount || 1}+ প্রকাশিত বই
+                          </span>
+                          {activePublisher.establishedYear && (
+                            <span className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
+                              <span>স্থাপিত: {activePublisher.establishedYear}</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-neutral-100">
+                      <span className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-700 block mb-1.5">
+                        প্রকাশনী পরিচিতি (About Publication)
+                      </span>
+                      <p className="text-xs sm:text-[13px] text-neutral-700 leading-relaxed">
+                        {activePublisher.description ||
+                          `${activePublisher.name} বাংলাদেশের একটি স্বনামধন্য ও বিশ্বস্ত প্রকাশনা প্রতিষ্ঠান। তাদের প্রকাশিত প্রতিটি বই ১০০% অরিজিনাল মুদ্রিত সংস্করণ।`}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 mt-4 border-t border-neutral-200/70 flex flex-wrap items-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCategoryFilter('all');
+                        setSearchQuery(activePublisher.name);
+                        setActivePage('books');
+                      }}
+                      className="flex-1 py-2.5 px-4 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                    >
+                      <Building2 size={14} />
+                      <span>এই প্রকাশনীর সব বই দেখুন</span>
+                      <ArrowRight size={13} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Right Column (7 cols): Other Books by This Publisher */}
+                <div className="lg:col-span-7 rounded-3xl border border-neutral-200/90 bg-white p-4 sm:p-5 shadow-xs flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-neutral-100">
+                      <div>
+                        <h4 className="text-sm sm:text-base font-black text-neutral-900 flex items-center gap-1.5">
+                          <Building2 size={15} className="text-emerald-700" />
+                          <span>
+                            {activePublisher.banglaName || activePublisher.name}-এর প্রকাশিত জনপ্রিয় বইসমূহ
+                          </span>
+                        </h4>
+                        <p className="text-[11px] text-neutral-500">
+                          এই প্রকাশনীর পাঠকপ্রিয় ও বেস্টসেলার বইগুলোর তালিকা
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedCategoryFilter('all');
+                          setSearchQuery(activePublisher.name);
+                          setActivePage('books');
+                        }}
+                        className="text-xs font-bold text-emerald-700 hover:underline flex items-center gap-1 shrink-0 cursor-pointer"
+                      >
+                        <span>সব দেখুন</span>
+                        <ArrowRight size={12} />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {displayPublisherBooks.map(bookItem => (
+                        <div
+                          key={bookItem.id}
+                          onClick={() => {
+                            setActivePage('product-detail', bookItem.id);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                          className="p-3 rounded-2xl border border-neutral-200/90 hover:border-emerald-600 bg-neutral-50/60 hover:bg-white transition-all flex items-center gap-3 cursor-pointer group shadow-2xs"
+                        >
+                          <div className="w-15 h-20 rounded-xl bg-white border border-neutral-200/80 p-1 flex items-center justify-center shrink-0 overflow-hidden">
+                            <img
+                              src={bookItem.images[0]}
+                              alt={bookItem.title}
+                              className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-200"
+                            />
+                          </div>
+
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <span className="inline-block text-[9.5px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200/70 px-2 py-0.5 rounded-md">
+                              {bookItem.publisher || activePublisher.name}
+                            </span>
+                            <h5 className="font-bold text-xs sm:text-sm text-neutral-900 group-hover:text-emerald-700 transition-colors truncate">
+                              {bookItem.title}
+                            </h5>
+                            <p className="text-[11px] text-neutral-500 truncate">
+                              লেখক: {bookItem.author || 'Renowned Author'}
+                            </p>
+                            <div className="flex items-center justify-between pt-1">
+                              <div className="flex items-baseline gap-1.5">
+                                <span className="font-black text-sm text-[#D71920]">৳{bookItem.price}</span>
+                                {bookItem.previousPrice && bookItem.previousPrice > bookItem.price && (
+                                  <span className="text-[10px] text-neutral-400 line-through">
+                                    ৳{bookItem.previousPrice}
+                                  </span>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  addToCart(bookItem, bookItem.variants[0]?.id || 'v1', 1);
+                                  setActivePage('checkout');
+                                }}
+                                className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-[10px] font-bold flex items-center gap-1 shadow-2xs cursor-pointer active:scale-95"
+                              >
+                                <ShoppingBag size={10} /> Buy
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Stationery Quality & Brand Spotlight (Stationery Products Only) */}
+        {product.type === 'stationery' && (
+          <div
+            data-testid="stationery-quality-spotlight"
+            className="mt-10 pt-6 border-t border-neutral-200/80"
+          >
+            <div className="rounded-3xl border border-neutral-200/90 bg-gradient-to-br from-[#F8FAFC] via-white to-[#FFF1F2]/30 p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1.5">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
+                  <ShieldCheck size={12} /> 100% Authentic Stationery Guarantee
+                </div>
+                <h3 className="text-lg font-black text-neutral-900">
+                  {product.brand ? `${product.brand} — Quality Stationery Supplies` : 'Premium Quality Stationery & Office Supplies'}
+                </h3>
+                <p className="text-xs text-neutral-600 max-w-2xl leading-relaxed">
+                  MR. BOOKS সরাসরি অনুমোদিত পরিবেশক ও অফিসিয়াল ব্র্যান্ড থেকে অরিজিনাল স্টেশনারি পণ্য সংগ্রহ করে। নিখুঁত প্যাকেজিং ও দ্রুত হোম ডেলিভারি নিশ্চিত।
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActivePage('stationery')}
+                className="px-4 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 shrink-0 cursor-pointer self-start sm:self-auto"
+              >
+                <span>Browse All Stationery</span>
+                <ArrowRight size={13} />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Related Products Grid */}
         {relatedProducts.length > 0 && (
           <div className="mt-10 pt-6 border-t border-neutral-200/80">
@@ -1677,9 +2080,9 @@ export function ProductDetail() {
         )}
       </div>
 
-      {/* Bottom Featured Authors Slider & Book Reels & Video Reviews Section */}
+      {/* Bottom Featured Authors Slider (Books Only) & Video Reels Section */}
       <div className="mt-8 pt-4 border-t border-neutral-200/80">
-        <FeaturedAuthorsSection />
+        {product.type === 'book' && <FeaturedAuthorsSection />}
         <ReelsSection />
       </div>
     </div>

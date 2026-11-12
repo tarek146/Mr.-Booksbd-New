@@ -166,5 +166,20 @@ service cloud.firestore {
     match /audit_logs/{logId} {
       allow read, write: if isAdmin();
     }
+
+    // Customer-to-Admin Live Chat threads
+    match /live_chats/{chatId} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if request.resource.data.id == chatId
+        && request.resource.data.visitorId is string
+        && request.resource.data.customerName is string
+        && request.resource.data.messages is list;
+      allow update: if isAdmin() || (
+        request.resource.data.visitorId == resource.data.visitorId
+        && request.resource.data.messages is list
+      );
+      allow delete: if isAdmin();
+    }
   }
 }

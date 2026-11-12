@@ -14,7 +14,9 @@ import {
   Subscriber,
   Reel,
   AdminStaffMember,
-  HomeConfig
+  HomeConfig,
+  Coupon,
+  LiveChatSession
 } from '../types';
 import {
   DEFAULT_HOME_CONFIG,
@@ -22,6 +24,13 @@ import {
   buildSettingsMirrorFromHomeConfig,
   buildHomeConfigMirrorFromSettings,
 } from '../utils/homeConfigHelpers';
+import {
+  DEFAULT_COUPONS,
+  DEFAULT_CANCEL_EXCHANGE_POLICY,
+  DEFAULT_FOOTER_QUICK_LINKS,
+  resolveActiveCoupons,
+  calculateCheckoutPricing,
+} from '../utils/storeEnhancementsHelpers';
 import { DEFAULT_PUBLISHERS_LIST } from '../utils/publisherAndDeliveryHelpers';
 import {
   initFacebookBrowserPixel,
@@ -210,6 +219,26 @@ interface StoreContextType {
   addStaffMember: (staffData: Omit<AdminStaffMember, 'id' | 'createdAt' | 'updatedAt'>) => Promise<string>;
   updateStaffMember: (id: string, data: Partial<AdminStaffMember>) => Promise<void>;
   deleteStaffMember: (id: string) => Promise<void>;
+
+  coupons: Coupon[];
+  appliedCouponCode: string;
+  setAppliedCouponCode: (code: string) => void;
+  addCoupon: (coupon: Omit<Coupon, 'id' | 'createdAt'>) => Promise<void>;
+  updateCoupon: (id: string, data: Partial<Coupon>) => Promise<void>;
+  deleteCoupon: (id: string) => Promise<void>;
+
+  customerChatSession: LiveChatSession | null;
+  liveChatSessions: LiveChatSession[];
+  isLiveChatOpen: boolean;
+  setIsLiveChatOpen: (open: boolean) => void;
+  sendCustomerChatMessage: (payload: { customerName: string; customerPhone?: string; topic?: string; text: string }) => Promise<void>;
+  replyLiveChatAsAdmin: (chatId: string, text: string) => Promise<void>;
+  updateLiveChatStatus: (chatId: string, status: 'open' | 'resolved') => Promise<void>;
+  markLiveChatReadByAdmin: (chatId: string) => Promise<void>;
+  deleteLiveChatSession: (chatId: string) => Promise<void>;
+
+  isSearchSpotlightOpen: boolean;
+  setIsSearchSpotlightOpen: (open: boolean) => void;
 }
 
 function getPageFromLocation(): { page: string; productId: string | null } {
@@ -323,6 +352,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     readCachedSlice('reels', [])
   );
   const [staffMembers, setStaffMembers] = useState<AdminStaffMember[]>([]);
+  const [coupons, setCoupons] = useState<Coupon[]>(() =>
+    resolveActiveCoupons(readCachedSlice<Coupon[]>('coupons', DEFAULT_COUPONS))
+  );
+  const [appliedCouponCode, setAppliedCouponCode] = useState<string>('');
+  const [customerChatSession, setCustomerChatSession] = useState<LiveChatSession | null>(null);
+  const [liveChatSessions, setLiveChatSessions] = useState<LiveChatSession[]>([]);
+  const [isLiveChatOpen, setIsLiveChatOpen] = useState<boolean>(false);
+  const [isSearchSpotlightOpen, setIsSearchSpotlightOpen] = useState<boolean>(false);
 
   const [guestVisitorId] = useState<string>(() => {
     if (typeof window !== 'undefined') {
@@ -465,6 +502,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     email: 'support@mrbooksbd.com',
     address: 'Nilkhet Book Market, Dhaka - 1205, Bangladesh',
     insideDhakaCharge: 60,
+    subAreaCharge: 90,
     outsideDhakaCharge: 120,
     freeShippingThreshold: 2000,
     logoUrl: '',
@@ -511,13 +549,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     footerPaymentTitle: 'Payment Options',
     footerPaymentBannerUrl: '',
     footerQuickLinksTitle: 'QUICK LINKS',
-    footerQuickLinks: [
-      { id: 'ql-1', label: 'Home', page: 'home', isActive: true },
-      { id: 'ql-2', label: 'Books Catalog', page: 'books', isActive: true },
-      { id: 'ql-3', label: 'Stationery', page: 'stationery', isActive: true },
-      { id: 'ql-4', label: 'Authors', page: 'authors', isActive: true },
-      { id: 'ql-5', label: 'Track Orders', page: 'track-order', isActive: true },
-    ],
+    footerQuickLinks: DEFAULT_FOOTER_QUICK_LINKS,
     footerCategoriesTitle: 'CATEGORIES',
     footerCategoryLinks: [
       { id: 'cl-1', label: 'Fiction & Literature', category: 'Fiction & Literature', page: 'books', isActive: true },
@@ -542,14 +574,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       { id: 's4', name: 'TikTok', url: 'https://tiktok.com', icon: 'tiktok', isActive: true },
       { id: 's5', name: 'WhatsApp', url: 'https://wa.me/8801712345678', icon: 'message-circle', isActive: true }
     ],
-    // Footer Subscription & Tracking Defaults
+    // Footer 4-Option Utility Strip Defaults
     showFooterSubscription: true,
     subscriptionTitle: 'Join MR. BOOKS Readers Club',
     subscriptionSubtitle: 'Subscribe to get 10% OFF discount coupon & new releases alert directly to your phone/email.',
-    subscriptionDiscountBadge: 'Get 10% OFF Coupon',
+    subscriptionDiscountBadge: '10% OFF',
     showFooterTracking: true,
     trackingTitle: 'Real-Time Order Tracking',
     trackingSubtitle: 'Enter your Order ID (ORD-...) or phone number to track your book package.',
+    showFooterCoupons: true,
+    couponsTitle: 'Coupons & Offers',
+    couponsBadge: '3 Active',
+    showFooterPolicy: true,
+    policyTitle: 'Cancel & Exchange',
+    policyBadge: '7-Day Easy',
+    cancelExchangePolicyText: DEFAULT_CANCEL_EXCHANGE_POLICY,
+    enableLiveChat: true,
+    liveChatTitle: 'MR. BOOKS Live Support',
+    liveChatWelcomeMessage: 'আসসালামু আলাইকুম! MR. BOOKS-এ স্বাগতম। বইয়ের অর্ডার, ডেলিভারি বা কুপন সম্পর্কে যেকোনো প্রশ্ন করতে পারেন।',
     // Direct Contact Buttons (Product Detail & Support)
     whatsappNumber: '+880 1712-345678',
     callNumber: '+880 1712-345678',
@@ -1237,6 +1279,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
+    const unsubCoupons = onSnapshot(
+      buildIndexedQuery(collection(db, 'coupons'), enableIndexing, queryLimit),
+      { includeMetadataChanges: true },
+      (snapshot) => {
+        if (!snapshot.empty) {
+          const loaded = resolveActiveCoupons(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Coupon)));
+          setCoupons(loaded);
+          writeCachedSlice('coupons', loaded);
+        } else if (!snapshot.metadata.fromCache) {
+          setCoupons(DEFAULT_COUPONS);
+        }
+      },
+      (err) => {
+        console.warn('Coupons realtime listener notice:', err.message);
+      }
+    );
+
     return () => {
       unsubProducts();
       unsubCategories();
@@ -1249,6 +1308,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubHomeConfig();
       unsubReviews();
       unsubReels();
+      unsubCoupons();
     };
   }, [settings.firestoreFetchStrategy, settings.enableIndexedQuerySnapshots, settings.firestoreQueryLimit]);
 
@@ -1322,13 +1382,44 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setStaffMembers([]);
     }
 
+    let unsubLiveChats: (() => void) | null = null;
+    if (isAdmin) {
+      unsubLiveChats = onSnapshot(
+        collection(db, 'live_chats'),
+        (snapshot) => {
+          const list = snapshot.docs
+            .map(d => ({ ...d.data(), id: d.id } as LiveChatSession))
+            .sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
+          setLiveChatSessions(list);
+        },
+        (err) => {
+          console.warn('Admin live chats listener notice:', err.message);
+        }
+      );
+    } else {
+      const chatDocId = `chat-${visitorId}`;
+      unsubLiveChats = onSnapshot(
+        doc(db, 'live_chats', chatDocId),
+        (snap) => {
+          if (snap.exists()) {
+            setCustomerChatSession({ ...(snap.data() as LiveChatSession), id: snap.id });
+          }
+        },
+        (err) => {
+          console.warn('Customer live chat listener notice:', err.message);
+        }
+      );
+      setLiveChatSessions([]);
+    }
+
     return () => {
       if (unsubOrders) unsubOrders();
       if (unsubSubs) unsubSubs();
       if (unsubSubscribers) unsubSubscribers();
       if (unsubStaff) unsubStaff();
+      if (unsubLiveChats) unsubLiveChats();
     };
-  }, [currentUser, isAdmin]);
+  }, [currentUser, isAdmin, visitorId]);
 
 
   const addToCart = (product: Product, variantId: string, quantity: number) => {
@@ -1485,27 +1576,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       });
     }
 
-    // 2. Calculate verified subtotal
-    const verifiedSubtotal = verifiedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-
-    // 3. Calculate verified delivery fee from trusted configuration
-    const isDhaka = orderData.district.trim().toLowerCase() === 'dhaka';
-    const standardDeliveryFee = isDhaka 
-      ? (settings.insideDhakaCharge ?? 60) 
-      : (settings.outsideDhakaCharge ?? 120);
-    const freeShippingThreshold = settings.freeShippingThreshold ?? 2000;
-    const verifiedDeliveryFee = verifiedSubtotal >= freeShippingThreshold ? 0 : standardDeliveryFee;
-
-    // 4. Calculate verified coupon discount (ignoring any arbitrary client discount)
-    let verifiedDiscount = 0;
-    if (orderData.discount > 0) {
-      const calculatedDiscount = Math.round(verifiedSubtotal * 0.1);
-      // Strict discount cap to prevent negative totals or excessive discounts
-      verifiedDiscount = Math.min(300, Math.min(calculatedDiscount, verifiedSubtotal));
-    }
-
-    // 5. Calculate verified final total
-    const verifiedTotal = Math.max(0, verifiedSubtotal - verifiedDiscount + verifiedDeliveryFee);
+    // 2. Calculate verified subtotal, delivery fee, & coupon discount using unified checkout pricing helper
+    const deliveryMode =
+      (orderData.notes || '').toLowerCase().includes('sundarban') ? 'sundarban' : 'standard';
+    const pricing = calculateCheckoutPricing({
+      cart: verifiedItems,
+      products,
+      district: orderData.district,
+      deliveryType: deliveryMode,
+      settings,
+      couponCode: orderData.couponCode,
+      coupons,
+    });
+    const verifiedSubtotal = pricing.subtotal;
+    const verifiedDeliveryFee = pricing.deliveryCharge;
+    const verifiedDiscount = pricing.discount;
+    const verifiedTotal = pricing.total;
 
     // 6. Generate order ID and format secure record
     const orderId = 'MRB-' + Date.now().toString().slice(-6) + Math.floor(100 + Math.random() * 900);
@@ -1528,6 +1614,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       subtotal: verifiedSubtotal,
       deliveryCharge: verifiedDeliveryFee,
       discount: verifiedDiscount,
+      ...(pricing.appliedCoupon?.valid ? { couponCode: pricing.appliedCoupon.code } : {}),
       total: verifiedTotal,
       paymentMethodId: orderData.paymentMethodId,
       paymentMethodName: orderData.paymentMethodName,
@@ -2236,6 +2323,152 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setStaffMembers(prev => prev.filter(s => s.id !== id));
   };
 
+  const addCoupon = async (couponData: Omit<Coupon, 'id' | 'createdAt'>) => {
+    const id = 'cpn-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
+    const newCoupon: Coupon = {
+      ...couponData,
+      id,
+      code: couponData.code.trim().toUpperCase(),
+      createdAt: Date.now(),
+    };
+    try {
+      await setDoc(doc(db, 'coupons', id), cleanForFirestore(newCoupon));
+      await logAdminAction('coupon_created', id, `Created coupon ${newCoupon.code}`);
+    } catch (err) {
+      console.error('Error adding coupon:', err);
+      throw err;
+    }
+    setCoupons(prev => resolveActiveCoupons([newCoupon, ...prev.filter(c => c.id !== id)]));
+  };
+
+  const updateCoupon = async (id: string, data: Partial<Coupon>) => {
+    const payload = {
+      ...data,
+      ...(data.code ? { code: data.code.trim().toUpperCase() } : {}),
+    };
+    try {
+      await setDoc(doc(db, 'coupons', id), cleanForFirestore(payload), { merge: true });
+      await logAdminAction('coupon_updated', id, `Updated coupon ${id}`);
+    } catch (err) {
+      console.error('Error updating coupon:', err);
+      throw err;
+    }
+    setCoupons(prev => resolveActiveCoupons(prev.map(c => (c.id === id ? { ...c, ...payload } : c))));
+  };
+
+  const deleteCoupon = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'coupons', id));
+      await logAdminAction('coupon_deleted', id, `Deleted coupon ${id}`);
+    } catch (err) {
+      console.error('Error deleting coupon:', err);
+      throw err;
+    }
+    setCoupons(prev => prev.filter(c => c.id !== id));
+  };
+
+  const sendCustomerChatMessage = async ({
+    customerName,
+    customerPhone,
+    topic,
+    text,
+  }: {
+    customerName: string;
+    customerPhone?: string;
+    topic?: string;
+    text: string;
+  }) => {
+    const cleanText = text.trim();
+    if (!cleanText) return;
+    const chatId = `chat-${visitorId}`;
+    const now = Date.now();
+    const newMsg = {
+      id: 'msg-' + now + '-' + Math.random().toString(36).slice(2, 6),
+      sender: 'customer' as const,
+      senderName: customerName.trim() || 'Guest Reader',
+      text: cleanText,
+      createdAt: now,
+    };
+
+    const existing = customerChatSession;
+    const welcomeSeed =
+      !existing || existing.messages.length === 0
+        ? [
+            {
+              id: 'msg-welcome-' + now,
+              sender: 'system' as const,
+              senderName: 'MR. BOOKS Support',
+              text:
+                settings.liveChatWelcomeMessage ||
+                'আসসালামু আলাইকুম! MR. BOOKS-এ স্বাগতম। বইয়ের অর্ডার, ডেলিভারি বা কুপন সম্পর্কে যেকোনো প্রশ্ন করতে পারেন।',
+              createdAt: now - 10,
+            },
+          ]
+        : [];
+
+    const nextSession: LiveChatSession = {
+      id: chatId,
+      visitorId,
+      customerName: customerName.trim() || existing?.customerName || 'Guest Reader',
+      customerPhone: (customerPhone || existing?.customerPhone || '').trim(),
+      topic: topic || existing?.topic || 'General Inquiry',
+      status: 'open',
+      unreadByAdmin: (existing?.unreadByAdmin || 0) + 1,
+      unreadByCustomer: 0,
+      lastMessageText: cleanText,
+      lastMessageAt: now,
+      createdAt: existing?.createdAt || now,
+      messages: [...(existing?.messages || []), ...welcomeSeed, newMsg].slice(-60),
+    };
+
+    setCustomerChatSession(nextSession);
+    try {
+      await setDoc(doc(db, 'live_chats', chatId), cleanForFirestore(nextSession), { merge: true });
+    } catch (err) {
+      console.warn('Live chat sync notice:', err);
+    }
+  };
+
+  const replyLiveChatAsAdmin = async (chatId: string, text: string) => {
+    const cleanText = text.trim();
+    if (!cleanText) return;
+    const target = liveChatSessions.find(s => s.id === chatId);
+    if (!target) return;
+    const now = Date.now();
+    const replyMsg = {
+      id: 'msg-' + now + '-' + Math.random().toString(36).slice(2, 6),
+      sender: 'admin' as const,
+      senderName: settings.adminProfile?.name || 'MR. BOOKS Support',
+      text: cleanText,
+      createdAt: now,
+    };
+    const updated: Partial<LiveChatSession> = {
+      status: 'open',
+      unreadByAdmin: 0,
+      unreadByCustomer: (target.unreadByCustomer || 0) + 1,
+      lastMessageText: cleanText,
+      lastMessageAt: now,
+      messages: [...(target.messages || []), replyMsg].slice(-60),
+    };
+    setLiveChatSessions(prev => prev.map(s => (s.id === chatId ? { ...s, ...updated } : s)));
+    await setDoc(doc(db, 'live_chats', chatId), cleanForFirestore(updated), { merge: true });
+  };
+
+  const updateLiveChatStatus = async (chatId: string, status: 'open' | 'resolved') => {
+    setLiveChatSessions(prev => prev.map(s => (s.id === chatId ? { ...s, status } : s)));
+    await setDoc(doc(db, 'live_chats', chatId), { status }, { merge: true });
+  };
+
+  const markLiveChatReadByAdmin = async (chatId: string) => {
+    setLiveChatSessions(prev => prev.map(s => (s.id === chatId ? { ...s, unreadByAdmin: 0 } : s)));
+    await setDoc(doc(db, 'live_chats', chatId), { unreadByAdmin: 0 }, { merge: true });
+  };
+
+  const deleteLiveChatSession = async (chatId: string) => {
+    setLiveChatSessions(prev => prev.filter(s => s.id !== chatId));
+    await deleteDoc(doc(db, 'live_chats', chatId));
+  };
+
   return (
     <StoreContext.Provider value={{
       products,
@@ -2314,7 +2547,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       staffMembers,
       addStaffMember,
       updateStaffMember,
-      deleteStaffMember
+      deleteStaffMember,
+      coupons,
+      appliedCouponCode,
+      setAppliedCouponCode,
+      addCoupon,
+      updateCoupon,
+      deleteCoupon,
+      customerChatSession,
+      liveChatSessions,
+      isLiveChatOpen,
+      setIsLiveChatOpen,
+      sendCustomerChatMessage,
+      replyLiveChatAsAdmin,
+      updateLiveChatStatus,
+      markLiveChatReadByAdmin,
+      deleteLiveChatSession,
+      isSearchSpotlightOpen,
+      setIsSearchSpotlightOpen
     }}>
       {children}
     </StoreContext.Provider>
