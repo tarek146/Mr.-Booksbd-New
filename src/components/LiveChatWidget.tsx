@@ -126,11 +126,17 @@ export function LiveChatWidget() {
     }
   }, [isLiveChatOpen, customerChatSession?.messages?.length, customerChatSession?.unreadByCustomer]);
 
-  // Unlock Web Audio on first click anywhere so incoming Admin replies chime reliably
+  // Unlock Web Audio across touch, pointer, and keyboard gestures so incoming Admin replies always play chime
   useEffect(() => {
     const unlock = () => unlockChatAudioContext();
-    window.addEventListener('pointerdown', unlock, { once: true });
-    return () => window.removeEventListener('pointerdown', unlock);
+    window.addEventListener('pointerdown', unlock, { passive: true });
+    window.addEventListener('touchstart', unlock, { passive: true });
+    window.addEventListener('keydown', unlock, { passive: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('touchstart', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
   }, []);
 
   if (settings.enableLiveChat === false) {
@@ -229,7 +235,9 @@ export function LiveChatWidget() {
             <MessageCircle size={19} className="group-hover:scale-110 transition-transform" />
             <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#D71920] animate-pulse" />
           </span>
-          <span className="text-xs font-black tracking-tight">Live Chat</span>
+          <span className="text-xs font-black tracking-tight">
+            {unreadCount > 0 ? 'নতুন রিপ্লাই!' : 'Live Chat'}
+          </span>
           {unreadCount > 0 && (
             <span
               data-testid="live-chat-unread-badge"

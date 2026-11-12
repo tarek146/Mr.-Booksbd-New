@@ -81,7 +81,7 @@ import { AdminConversionApiManager } from '../components/admin/AdminConversionAp
 import { AdminCouponsManager } from '../components/admin/AdminCouponsManager';
 import { AdminLiveChatManager } from '../components/admin/AdminLiveChatManager';
 import { DEFAULT_CANCEL_EXCHANGE_POLICY } from '../utils/storeEnhancementsHelpers';
-import { detectAdminNewCustomerActivity, playAdminIncomingRingtone, unlockChatAudioContext } from '../utils/chatSoundAndValidation';
+import { detectAdminNewCustomerActivity, playAdminIncomingRingtone, unlockChatAudioContext, DEFAULT_LIVE_CHAT_QUICK_REPLIES } from '../utils/chatSoundAndValidation';
 import { resolveDashboardHeaderCapiStatus } from '../utils/facebookCapiHelpers';
 import { renderGreenReviewIcon } from '../components/ProductCard';
 import { compressImageFile, isValidImageUrl, sanitizeImageUrl } from '../utils/imageCompressor';
@@ -178,8 +178,10 @@ export function AdminDashboard() {
     updateCoupon,
     deleteCoupon,
     liveChatSessions,
+    liveChatsHydrated,
     replyLiveChatAsAdmin,
     updateLiveChatStatus,
+    updateLiveChatMeta,
     markLiveChatReadByAdmin,
     deleteLiveChatSession
   } = useStore();
@@ -202,30 +204,38 @@ export function AdminDashboard() {
 
   useEffect(() => {
     const unlock = () => unlockChatAudioContext();
-    window.addEventListener('pointerdown', unlock, { once: true });
-    return () => window.removeEventListener('pointerdown', unlock);
+    window.addEventListener('pointerdown', unlock, { passive: true });
+    window.addEventListener('touchstart', unlock, { passive: true });
+    window.addEventListener('keydown', unlock, { passive: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('touchstart', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
   }, []);
 
   useEffect(() => {
+    if (!liveChatsHydrated) return;
+
     if (prevLiveChatsRef.current === null) {
-      if (liveChatSessions.length > 0) {
-        prevLiveChatsRef.current = liveChatSessions;
-      }
+      prevLiveChatsRef.current = liveChatSessions;
       return;
     }
 
     const activity = detectAdminNewCustomerActivity(prevLiveChatsRef.current, liveChatSessions);
     prevLiveChatsRef.current = liveChatSessions;
 
-    if (activity.hasNewCustomerMessage && settings.enableLiveChatSound !== false && !isLiveChatSoundMuted) {
-      playAdminIncomingRingtone();
+    if (activity.hasNewCustomerMessage) {
+      if (settings.enableLiveChatSound !== false && !isLiveChatSoundMuted) {
+        playAdminIncomingRingtone();
+      }
       setToast({
         show: true,
         type: 'success',
         message: `💬 নতুন লাইভ চ্যাট মেসেজ (${activity.latestSession?.customerName || 'Customer'}): ${(activity.latestText || '').slice(0, 60)}`,
       });
     }
-  }, [liveChatSessions, settings.enableLiveChatSound, isLiveChatSoundMuted]);
+  }, [liveChatSessions, liveChatsHydrated, settings.enableLiveChatSound, isLiveChatSoundMuted]);
 
   const toggleAdminChatSoundMute = () => {
     setIsLiveChatSoundMuted(prev => {
@@ -11147,6 +11157,29 @@ export function AdminDashboard() {
                           />
                         </div>
                       </div>
+                      <div>
+                        <label className="block font-bold text-neutral-600 mb-1 text-[10px] uppercase">
+                          Quick Canned Replies (এক লাইনে একটি করে দ্রুত উত্তর লিখুন)
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={(settingsForm.liveChatQuickReplies && settingsForm.liveChatQuickReplies.length > 0
+                            ? settingsForm.liveChatQuickReplies
+                            : DEFAULT_LIVE_CHAT_QUICK_REPLIES
+                          ).join('\n')}
+                          onChange={e =>
+                            setSettingsForm(prev => ({
+                              ...prev,
+                              liveChatQuickReplies: e.target.value
+                                .split('\n')
+                                .map(line => line.trim())
+                                .filter(Boolean),
+                            }))
+                          }
+                          placeholder="প্রতি লাইনে একটি দ্রুত উত্তর লিখুন..."
+                          className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-300 bg-white text-[11px] font-medium focus:outline-none focus:border-[#D71920]"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -11813,8 +11846,11 @@ export function AdminDashboard() {
         {activeTab === 'live-chat' && (
           <AdminLiveChatManager
             sessions={liveChatSessions}
+            orders={orders}
+            quickReplies={settings.liveChatQuickReplies}
             onReply={replyLiveChatAsAdmin}
             onUpdateStatus={updateLiveChatStatus}
+            onUpdateMeta={updateLiveChatMeta}
             onMarkRead={markLiveChatReadByAdmin}
             onDeleteSession={deleteLiveChatSession}
             soundEnabled={settings.enableLiveChatSound !== false}

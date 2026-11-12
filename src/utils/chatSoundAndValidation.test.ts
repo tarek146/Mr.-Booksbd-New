@@ -5,8 +5,12 @@ import {
   mergeLiveChatMessages,
   detectNewIncomingMessages,
   detectAdminNewCustomerActivity,
+  normalizePhoneLast10,
+  matchCustomerOrders,
+  getLatestChatMessageText,
+  filterAndOrganizeChatSessions,
 } from './chatSoundAndValidation';
-import { LiveChatMessage, LiveChatSession } from '../types';
+import { LiveChatMessage, LiveChatSession, Order } from '../types';
 
 test('validatePreChatForm requires Name, Phone, Email, and Message Note', () => {
   const invalid = validatePreChatForm({
@@ -83,10 +87,8 @@ test('detectAdminNewCustomerActivity triggers ringtone only on new incoming cust
     messages: [{ id: 'm1', sender: 'customer', senderName: 'Fazla', text: 'Hi', createdAt: 1000 }],
   };
 
-  // Same snapshot -> no alert
   assert.equal(detectAdminNewCustomerActivity([baseSession], [baseSession]).hasNewCustomerMessage, false);
 
-  // Admin replies -> no customer ringtone trigger
   const afterAdminReply: LiveChatSession = {
     ...baseSession,
     messages: [
@@ -96,7 +98,6 @@ test('detectAdminNewCustomerActivity triggers ringtone only on new incoming cust
   };
   assert.equal(detectAdminNewCustomerActivity([baseSession], [afterAdminReply]).hasNewCustomerMessage, false);
 
-  // New customer message -> triggers alert
   const afterCustomerFollowup: LiveChatSession = {
     ...afterAdminReply,
     unreadByAdmin: 1,
@@ -109,11 +110,108 @@ test('detectAdminNewCustomerActivity triggers ringtone only on new incoming cust
   assert.equal(res.hasNewCustomerMessage, true);
   assert.equal(res.latestText, 'Where is my parcel?');
 
-  // Brand new unread chat session -> triggers alert
+  // Empty initial snapshot -> first unread customer chat MUST trigger ringtone
   const brandNew: LiveChatSession = {
     ...baseSession,
     id: 'chat-2',
     unreadByAdmin: 1,
   };
-  assert.equal(detectAdminNewCustomerActivity([baseSession], [brandNew, baseSession]).hasNewCustomerMessage, true);
+  assert.equal(detectAdminNewCustomerActivity([], [brandNew]).hasNewCustomerMessage, true);
 });
+
+test('matchCustomerOrders separates returning buyers from new visitors across BD phone formats', () => {
+  assert.equal(normalizePhoneLast10('+880 1609-237584'), '1609237584');
+  assert.equal(normalizePhoneLast10('01609237584'), '1609237584');
+
+  const orders = [
+    {
+      id: 'MRB-101',
+      customerName: 'Fazla Rabby',
+      phone: '+8801609237584',
+      total: 520,
+      createdAt: 1000,
+    },
+    {
+      id: 'MRB-102',
+      customerName: 'Fazla Rabby',
+      phone: '01609237584',
+      total: 780,
+      createdAt: 3000,
+    },
+  ] as unknown as Order[];
+
+  const match = matchCustomerOrders(orders, '01609237584');
+  assert.equal(match.isReturningBuyer, true);
+  assert.equal(match.orderCount, 2);
+  assert.equal(match.totalSpent, 1300);
+  assert.equal(match.latestOrder?.id, 'MRB-102');
+
+  const noMatch = matchCustomerOrders(orders, '01999999999');
+  assert.equal(noMatch.isReturningBuyer, false);
+  assert.equal(noMatch.orderCount, 0);
+});
+
+test('filterAndOrganizeChatSessions separates customers by status, segment, buyer type, search, and uses actual latest message', () => {
+  const orders = [
+    { id: 'ORD-1', phone: '01711111111', total: 400, createdAt: 1000 },
+    { id: 'ORD-2', phone: '01711111111', total: 600, createdAt: 2000 },
+  ] as unknown as Order[];
+
+  const sessions: LiveChatSession[] = [
+    {
+      id: 'chat-a',
+      visitorId: 'va',
+      customerName: 'Fazla Rabby',
+      customerPhone: '01609237584',
+      customerSegment: 'order_issue',
+      status: 'open',
+      unreadByAdmin: 0,
+      unreadByCustomer: 0,
+      lastMessageText: 'stale-snippet',
+      lastMessageAt: 5000,
+      createdAt: 1000,
+      messages: [
+        { id: '1', sender: 'customer', senderName: 'Fazla Rabby', text: 'jana nai', createdAt: 4000 },
+      ],
+    },
+    {
+      id: 'chat-b',
+      visitorId: 'vb',
+      customerName: 'VIP Buyer',
+      customerPhone: '01711111111',
+      customerEmail: 'vip@books.bd',
+      status: 'resolved',
+      unreadByAdmin: 1,
+      unreadByCustomer: 0,
+      lastMessageText: 'Thanks',
+      lastMessageAt: 3000,
+      createdAt: 1000,
+      messages: [
+        { id: '2', sender: 'customer', senderName: 'VIP Buyer', text: 'New order query', createdAt: 3000 },
+      ],
+    },
+  ];
+
+  assert.equal(getLatestChatMessageText(sessions[0]), 'jana nai');
+
+  const all = filterAndOrganizeChatSessions(sessions, orders, {});
+  assert.equal(all.length, 2);
+  // Unread chat-b floats to top
+  assert.equal(all[0].session.id, 'chat-b');
+  // Auto-promoted to vip segment because orderCount >= 2 when customerSegment omitted
+  assert.equal(all[0].segment, 'vip');
+  assert.equal(all[0].orderMatch.orderCount, 2);
+
+  const returningOnly = filterAndOrganizeChatSessions(sessions, orders, { buyerFilter: 'returning' });
+  assert.equal(returningOnly.length, 1);
+  assert.equal(returningOnly[0].session.id, 'chat-b');
+
+  const orderIssues = filterAndOrganizeChatSessions(sessions, orders, { segmentFilter: 'order_issue' });
+  assert.equal(orderIssues.length, 1);
+  assert.equal(orderIssues[0].session.id, 'chat-a');
+
+  const searched = filterAndOrganizeChatSessions(sessions, orders, { searchQuery: '016092' });
+  assert.equal(searched.length, 1);
+  assert.equal(searched[0].session.id, 'chat-a');
+});
+

@@ -397,6 +397,7 @@ export interface StoreSettings {
   enableLiveChatSound?: boolean;
   liveChatTitle?: string;
   liveChatWelcomeMessage?: string;
+  liveChatQuickReplies?: string[];
   // Quick Contact Buttons (Product Detail & Support)
   whatsappNumber?: string;
   callNumber?: string;
@@ -539,6 +540,8 @@ export interface LiveChatMessage {
   createdAt: number;
 }
 
+export type CustomerChatSegment = 'general' | 'vip' | 'order_issue' | 'payment_return' | 'follow_up';
+
 export interface LiveChatSession {
   id: string;
   visitorId: string;
@@ -546,6 +549,8 @@ export interface LiveChatSession {
   customerPhone?: string;
   customerEmail?: string;
   topic?: string;
+  customerSegment?: CustomerChatSegment;
+  adminNote?: string;
   status: 'open' | 'resolved';
   unreadByAdmin: number;
   unreadByCustomer: number;

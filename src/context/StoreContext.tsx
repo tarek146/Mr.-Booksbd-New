@@ -16,7 +16,8 @@ import {
   AdminStaffMember,
   HomeConfig,
   Coupon,
-  LiveChatSession
+  LiveChatSession,
+  CustomerChatSegment
 } from '../types';
 import {
   DEFAULT_HOME_CONFIG,
@@ -231,6 +232,7 @@ interface StoreContextType {
 
   customerChatSession: LiveChatSession | null;
   liveChatSessions: LiveChatSession[];
+  liveChatsHydrated: boolean;
   isLiveChatOpen: boolean;
   setIsLiveChatOpen: (open: boolean) => void;
   sendCustomerChatMessage: (payload: { customerName: string; customerPhone?: string; customerEmail?: string; topic?: string; text: string }) => Promise<void>;
@@ -238,6 +240,7 @@ interface StoreContextType {
   startNewCustomerChat: () => void;
   replyLiveChatAsAdmin: (chatId: string, text: string) => Promise<void>;
   updateLiveChatStatus: (chatId: string, status: 'open' | 'resolved') => Promise<void>;
+  updateLiveChatMeta: (chatId: string, data: { customerSegment?: CustomerChatSegment; adminNote?: string }) => Promise<void>;
   markLiveChatReadByAdmin: (chatId: string) => Promise<void>;
   deleteLiveChatSession: (chatId: string) => Promise<void>;
 
@@ -362,6 +365,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [appliedCouponCode, setAppliedCouponCode] = useState<string>('');
   const [customerChatSession, setCustomerChatSession] = useState<LiveChatSession | null>(null);
   const [liveChatSessions, setLiveChatSessions] = useState<LiveChatSession[]>([]);
+  const [liveChatsHydrated, setLiveChatsHydrated] = useState<boolean>(false);
   const [isLiveChatOpen, setIsLiveChatOpen] = useState<boolean>(false);
   const [isSearchSpotlightOpen, setIsSearchSpotlightOpen] = useState<boolean>(false);
 
@@ -1402,6 +1406,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
 
     let unsubLiveChats: (() => void) | null = null;
+    let adminChatChannel: BroadcastChannel | null = null;
     if (isAdmin) {
       unsubLiveChats = onSnapshot(
         collection(db, 'live_chats'),
@@ -1410,13 +1415,45 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             .map(d => ({ ...d.data(), id: d.id } as LiveChatSession))
             .sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
           setLiveChatSessions(list);
+          setLiveChatsHydrated(true);
         },
         (err) => {
           console.warn('Admin live chats listener notice:', err.message);
+          setLiveChatsHydrated(true);
         }
       );
+
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        try {
+          adminChatChannel = new BroadcastChannel('mrbooks_live_chat');
+          adminChatChannel.onmessage = (event) => {
+            const payload = event.data as { type?: string; session?: LiveChatSession } | null;
+            if (payload?.type === 'session_updated' && payload.session) {
+              const incoming = payload.session;
+              setLiveChatSessions(prev => {
+                const exists = prev.some(s => s.id === incoming.id);
+                const nextList = exists
+                  ? prev.map(s =>
+                      s.id === incoming.id
+                        ? {
+                            ...s,
+                            ...incoming,
+                            messages: mergeLiveChatMessages(s.messages || [], incoming.messages || []),
+                          }
+                        : s
+                    )
+                  : [incoming, ...prev];
+                return nextList.sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
+              });
+            }
+          };
+        } catch {
+          // ignore BroadcastChannel failures
+        }
+      }
     } else {
       setLiveChatSessions([]);
+      setLiveChatsHydrated(false);
     }
 
     return () => {
@@ -1425,6 +1462,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (unsubSubscribers) unsubSubscribers();
       if (unsubStaff) unsubStaff();
       if (unsubLiveChats) unsubLiveChats();
+      if (adminChatChannel) adminChatChannel.close();
     };
   }, [currentUser, isAdmin, visitorId]);
 
@@ -2506,6 +2544,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       : [];
 
     const mergedMessages = mergeLiveChatMessages(baseMessages, [...welcomeSeed, newMsg]);
+    const latestChronological = mergedMessages[mergedMessages.length - 1];
 
     const nextSession: LiveChatSession = {
       id: chatId,
@@ -2514,11 +2553,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       customerPhone: (customerPhone || existing?.customerPhone || '').trim(),
       customerEmail: (customerEmail || existing?.customerEmail || '').trim(),
       topic: topic || existing?.topic || 'General Inquiry',
+      ...(existing?.customerSegment ? { customerSegment: existing.customerSegment } : {}),
+      ...(existing?.adminNote ? { adminNote: existing.adminNote } : {}),
       status: 'open',
       unreadByAdmin: (existing?.unreadByAdmin || 0) + 1,
       unreadByCustomer: 0,
-      lastMessageText: cleanText,
-      lastMessageAt: now,
+      lastMessageText: latestChronological?.text || cleanText,
+      lastMessageAt: Math.max(now, latestChronological?.createdAt || now),
       createdAt: existing?.createdAt || now,
       messages: mergedMessages,
     };
@@ -2606,14 +2647,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       [...(remoteTarget?.messages || []), replyMsg]
     );
 
+    const latestChronological = mergedMessages[mergedMessages.length - 1];
+
     const nextFullSession: LiveChatSession = {
       ...target,
       visitorId: target.visitorId || chatId.replace(/^chat-/, ''),
       status: 'open',
       unreadByAdmin: 0,
       unreadByCustomer: (target.unreadByCustomer || 0) + 1,
-      lastMessageText: cleanText,
-      lastMessageAt: now,
+      lastMessageText: latestChronological?.text || cleanText,
+      lastMessageAt: Math.max(now, latestChronological?.createdAt || now),
       messages: mergedMessages,
     };
 
@@ -2634,6 +2677,28 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     await setDoc(
       doc(db, 'live_chats', chatId),
       cleanForFirestore({ status, ...(target?.visitorId ? { visitorId: target.visitorId } : {}) }),
+      { merge: true }
+    );
+  };
+
+  const updateLiveChatMeta = async (
+    chatId: string,
+    data: { customerSegment?: CustomerChatSegment; adminNote?: string }
+  ) => {
+    const target = liveChatSessions.find(s => s.id === chatId);
+    const updatedFields: Partial<LiveChatSession> = {
+      ...(data.customerSegment !== undefined ? { customerSegment: data.customerSegment } : {}),
+      ...(data.adminNote !== undefined ? { adminNote: data.adminNote } : {}),
+    };
+    setLiveChatSessions(prev =>
+      prev.map(s => (s.id === chatId ? { ...s, ...updatedFields } : s))
+    );
+    await setDoc(
+      doc(db, 'live_chats', chatId),
+      cleanForFirestore({
+        ...updatedFields,
+        ...(target?.visitorId ? { visitorId: target.visitorId } : {}),
+      }),
       { merge: true }
     );
   };
@@ -2744,6 +2809,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       deleteCoupon,
       customerChatSession,
       liveChatSessions,
+      liveChatsHydrated,
       isLiveChatOpen,
       setIsLiveChatOpen,
       sendCustomerChatMessage,
@@ -2751,6 +2817,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       startNewCustomerChat,
       replyLiveChatAsAdmin,
       updateLiveChatStatus,
+      updateLiveChatMeta,
       markLiveChatReadByAdmin,
       deleteLiveChatSession,
       isSearchSpotlightOpen,
