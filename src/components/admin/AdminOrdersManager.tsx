@@ -52,6 +52,7 @@ import {
 import {
   buildOrderSummaryCsv,
   buildSalesReportCsv,
+  buildProductSalesReportCsv,
   triggerCsvDownload,
 } from '../../utils/bookkeepingCsvHelpers';
 
@@ -240,9 +241,12 @@ export function AdminOrdersManager({
     setToast({ show: true, type: 'success', message: `${label} copied to clipboard.` });
   };
 
+  const [showExportMenu, setShowExportMenu] = useState(false);
+
   const handleExportCsv = () => {
     const res = buildOrderSummaryCsv(filteredOrders, paymentSubmissions);
     triggerCsvDownload(res.csv, res.filename);
+    setShowExportMenu(false);
     setToast({
       show: true,
       type: 'success',
@@ -253,10 +257,22 @@ export function AdminOrdersManager({
   const handleExportSalesReportCsv = () => {
     const res = buildSalesReportCsv(filteredOrders);
     triggerCsvDownload(res.csv, res.filename);
+    setShowExportMenu(false);
     setToast({
       show: true,
       type: 'success',
       message: `Sales Report CSV downloaded (${res.dayCount} days · ৳${res.netRevenue.toLocaleString()}).`,
+    });
+  };
+
+  const handleExportProductSalesCsv = () => {
+    const res = buildProductSalesReportCsv(filteredOrders, products);
+    triggerCsvDownload(res.csv, res.filename);
+    setShowExportMenu(false);
+    setToast({
+      show: true,
+      type: 'success',
+      message: `Product Sales CSV downloaded (${res.productCount} products · ${res.totalUnitsSold} units sold).`,
     });
   };
 
@@ -390,25 +406,68 @@ export function AdminOrdersManager({
               <span>+ Create Order</span>
             </button>
 
-            <button
-              type="button"
-              data-testid="orders-export-csv-btn"
-              onClick={handleExportCsv}
-              className="px-3.5 py-2.5 bg-white hover:bg-neutral-50 text-neutral-800 border border-neutral-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
-            >
-              <Download size={13} className="text-neutral-600" />
-              <span>Export CSV</span>
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                data-testid="orders-export-csv-btn"
+                onClick={() => setShowExportMenu(prev => !prev)}
+                className="px-3.5 py-2.5 bg-white hover:bg-neutral-50 text-neutral-800 border border-neutral-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+              >
+                <Download size={13} className="text-neutral-600" />
+                <span>Export CSV</span>
+                <ChevronDown size={13} className="text-neutral-400" />
+              </button>
 
-            <button
-              type="button"
-              data-testid="orders-sales-report-csv-btn"
-              onClick={handleExportSalesReportCsv}
-              className="px-3.5 py-2.5 bg-white hover:bg-neutral-50 text-neutral-800 border border-neutral-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
-            >
-              <Download size={13} className="text-[#D71920]" />
-              <span>Sales Report CSV</span>
-            </button>
+              {showExportMenu && (
+                <>
+                  <div
+                    className="fixed inset-0 z-30"
+                    onClick={() => setShowExportMenu(false)}
+                  />
+                  <div
+                    data-testid="orders-export-csv-dropdown"
+                    className="absolute right-0 mt-1.5 w-60 bg-white border border-neutral-200 rounded-xl shadow-lg p-1.5 z-40 space-y-0.5"
+                  >
+                    <button
+                      type="button"
+                      data-testid="orders-export-order-summary-item"
+                      onClick={handleExportCsv}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-neutral-50 transition-colors flex items-start gap-2.5 cursor-pointer"
+                    >
+                      <FileText size={14} className="text-neutral-700 mt-0.5 shrink-0" />
+                      <div>
+                        <div className="text-xs font-bold text-neutral-900">Order Summary CSV</div>
+                        <div className="text-[11px] text-neutral-500">Orders, items, payment & courier</div>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="orders-sales-report-csv-btn"
+                      onClick={handleExportSalesReportCsv}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-neutral-50 transition-colors flex items-start gap-2.5 cursor-pointer"
+                    >
+                      <Receipt size={14} className="text-[#D71920] mt-0.5 shrink-0" />
+                      <div>
+                        <div className="text-xs font-bold text-neutral-900">Sales Report CSV</div>
+                        <div className="text-[11px] text-neutral-500">Daily revenue & COD/MFS ledger</div>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="orders-product-sales-csv-btn"
+                      onClick={handleExportProductSalesCsv}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-neutral-50 transition-colors flex items-start gap-2.5 cursor-pointer"
+                    >
+                      <Package size={14} className="text-emerald-600 mt-0.5 shrink-0" />
+                      <div>
+                        <div className="text-xs font-bold text-neutral-900">Product Sales CSV</div>
+                        <div className="text-[11px] text-neutral-500">Item-wise units sold & revenue</div>
+                      </div>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
 
             <button
               type="button"
