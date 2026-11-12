@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -71,7 +71,7 @@ import {
   MessageCircle
 } from 'lucide-react';
 import { BulkProductImportModal } from '../components/BulkProductImportModal';
-import { Product, Author, Publisher, Banner, BookPreviewPage, Order, PaymentMethodConfig, PaymentSubOptionConfig, AdminStaffMember, AdminStaffRole, AdminProfile, Review } from '../types';
+import { Product, Author, Publisher, Banner, BookPreviewPage, Order, PaymentMethodConfig, PaymentSubOptionConfig, AdminStaffMember, AdminStaffRole, AdminProfile, Review, LiveChatSession } from '../types';
 import { DEFAULT_PUBLISHERS_LIST, countBooksForPublisher, parseCustomBookDetails, serializeCustomBookDetails } from '../utils/publisherAndDeliveryHelpers';
 import { DEFAULT_PAYMENT_METHODS } from '../firebase';
 import { AdminAnalytics } from '../components/admin/AdminAnalytics';
@@ -81,6 +81,7 @@ import { AdminConversionApiManager } from '../components/admin/AdminConversionAp
 import { AdminCouponsManager } from '../components/admin/AdminCouponsManager';
 import { AdminLiveChatManager } from '../components/admin/AdminLiveChatManager';
 import { DEFAULT_CANCEL_EXCHANGE_POLICY } from '../utils/storeEnhancementsHelpers';
+import { detectAdminNewCustomerActivity, playAdminIncomingRingtone, unlockChatAudioContext } from '../utils/chatSoundAndValidation';
 import { resolveDashboardHeaderCapiStatus } from '../utils/facebookCapiHelpers';
 import { renderGreenReviewIcon } from '../components/ProductCard';
 import { compressImageFile, isValidImageUrl, sanitizeImageUrl } from '../utils/imageCompressor';
@@ -185,6 +186,58 @@ export function AdminDashboard() {
 
   const [activeTab, setActiveTab] = useState<'overview' | 'verifications' | 'payment-methods' | 'orders' | 'products' | 'categories' | 'banners' | 'authors' | 'publishers' | 'subscribers' | 'settings' | 'special-offer' | 'reels' | 'reviews' | 'staff' | 'profile' | 'capi' | 'coupons' | 'live-chat'>('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Admin Live Chat Sound / Ringtone Alert State
+  const [isLiveChatSoundMuted, setIsLiveChatSoundMuted] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        return window.localStorage.getItem('mrb_chat_sound_muted_admin') === '1';
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  });
+  const prevLiveChatsRef = useRef<LiveChatSession[] | null>(null);
+
+  useEffect(() => {
+    const unlock = () => unlockChatAudioContext();
+    window.addEventListener('pointerdown', unlock, { once: true });
+    return () => window.removeEventListener('pointerdown', unlock);
+  }, []);
+
+  useEffect(() => {
+    if (prevLiveChatsRef.current === null) {
+      if (liveChatSessions.length > 0) {
+        prevLiveChatsRef.current = liveChatSessions;
+      }
+      return;
+    }
+
+    const activity = detectAdminNewCustomerActivity(prevLiveChatsRef.current, liveChatSessions);
+    prevLiveChatsRef.current = liveChatSessions;
+
+    if (activity.hasNewCustomerMessage && settings.enableLiveChatSound !== false && !isLiveChatSoundMuted) {
+      playAdminIncomingRingtone();
+      setToast({
+        show: true,
+        type: 'success',
+        message: `💬 নতুন লাইভ চ্যাট মেসেজ (${activity.latestSession?.customerName || 'Customer'}): ${(activity.latestText || '').slice(0, 60)}`,
+      });
+    }
+  }, [liveChatSessions, settings.enableLiveChatSound, isLiveChatSoundMuted]);
+
+  const toggleAdminChatSoundMute = () => {
+    setIsLiveChatSoundMuted(prev => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem('mrb_chat_sound_muted_admin', next ? '1' : '0');
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
 
   // Staff & Team Access Management state
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
@@ -11052,15 +11105,26 @@ export function AdminDashboard() {
                           <MessageCircle size={14} className="text-[#D71920]" />
                           <span className="font-black text-neutral-800">Customer Live Chat Widget</span>
                         </div>
-                        <label className="flex items-center gap-1.5 font-bold text-neutral-800 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={settingsForm.enableLiveChat !== false}
-                            onChange={e => setSettingsForm(prev => ({ ...prev, enableLiveChat: e.target.checked }))}
-                            className="w-3.5 h-3.5 accent-[#D71920]"
-                          />
-                          <span>Enabled</span>
-                        </label>
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <label className="flex items-center gap-1.5 font-bold text-neutral-800 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settingsForm.enableLiveChatSound !== false}
+                              onChange={e => setSettingsForm(prev => ({ ...prev, enableLiveChatSound: e.target.checked }))}
+                              className="w-3.5 h-3.5 accent-[#D71920]"
+                            />
+                            <span>Ringtone Sound</span>
+                          </label>
+                          <label className="flex items-center gap-1.5 font-bold text-neutral-800 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settingsForm.enableLiveChat !== false}
+                              onChange={e => setSettingsForm(prev => ({ ...prev, enableLiveChat: e.target.checked }))}
+                              className="w-3.5 h-3.5 accent-[#D71920]"
+                            />
+                            <span>Enabled</span>
+                          </label>
+                        </div>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
@@ -11753,6 +11817,9 @@ export function AdminDashboard() {
             onUpdateStatus={updateLiveChatStatus}
             onMarkRead={markLiveChatReadByAdmin}
             onDeleteSession={deleteLiveChatSession}
+            soundEnabled={settings.enableLiveChatSound !== false}
+            isSoundMuted={isLiveChatSoundMuted}
+            onToggleSoundMute={toggleAdminChatSoundMute}
             setToast={(t) => setToast({ show: t.show, type: t.type, message: t.message })}
           />
         )}

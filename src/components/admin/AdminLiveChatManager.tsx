@@ -7,9 +7,18 @@ import {
   Trash2,
   User,
   Phone,
+  Mail,
   Clock,
   Tag,
+  Volume2,
+  VolumeX,
+  BellRing,
 } from 'lucide-react';
+import {
+  playOutgoingChatChime,
+  playAdminIncomingRingtone,
+  unlockChatAudioContext,
+} from '../../utils/chatSoundAndValidation';
 
 interface AdminLiveChatManagerProps {
   sessions: LiveChatSession[];
@@ -17,6 +26,9 @@ interface AdminLiveChatManagerProps {
   onUpdateStatus: (chatId: string, status: 'open' | 'resolved') => Promise<void>;
   onMarkRead: (chatId: string) => Promise<void>;
   onDeleteSession: (chatId: string) => Promise<void>;
+  soundEnabled: boolean;
+  isSoundMuted: boolean;
+  onToggleSoundMute: () => void;
   setToast: (t: { show: boolean; type: 'success' | 'error'; message: string }) => void;
 }
 
@@ -26,6 +38,9 @@ export function AdminLiveChatManager({
   onUpdateStatus,
   onMarkRead,
   onDeleteSession,
+  soundEnabled,
+  isSoundMuted,
+  onToggleSoundMute,
   setToast,
 }: AdminLiveChatManagerProps) {
   const [selectedId, setSelectedId] = useState<string>(sessions[0]?.id || '');
@@ -55,13 +70,19 @@ export function AdminLiveChatManager({
 
   const handleSendReply = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeSession || !replyText.trim()) return;
+    unlockChatAudioContext();
+    const text = replyText.trim();
+    if (!activeSession || !text) return;
+    setReplyText('');
     setSending(true);
     try {
-      await onReply(activeSession.id, replyText.trim());
-      setReplyText('');
+      if (soundEnabled && !isSoundMuted) {
+        playOutgoingChatChime();
+      }
+      await onReply(activeSession.id, text);
     } catch {
-      setToast({ show: true, type: 'error', message: 'রিপ্লাই পাঠাতে সমস্যা হয়েছে।' });
+      setReplyText(text);
+      setToast({ show: true, type: 'error', message: 'রিপ্লাই পাঠাতে সমস্যা হয়েছে। Firebase Rules বা সংযোগ পরীক্ষা করুন।' });
     } finally {
       setSending(false);
     }
@@ -86,9 +107,42 @@ export function AdminLiveChatManager({
               )}
             </h2>
             <p className="text-xs text-neutral-500">
-              স্টোরফ্রন্ট থেকে কাস্টমারদের পাঠানো লাইভ মেসেজ দেখুন ও রিয়েল-টাইম উত্তর দিন।
+              কাস্টমারের নাম, ফোন নম্বর, ইমেইলসহ রিয়েল-টাইম মেসেজ দেখুন, রিংটোন অ্যালার্ট পান ও সরাসরি উত্তর দিন।
             </p>
           </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+          <button
+            type="button"
+            onClick={() => {
+              unlockChatAudioContext();
+              onToggleSoundMute();
+            }}
+            data-testid="admin-chat-sound-toggle"
+            className={`px-3 py-2 rounded-xl text-xs font-bold border flex items-center gap-1.5 cursor-pointer transition-colors ${
+              soundEnabled && !isSoundMuted
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                : 'bg-neutral-100 text-neutral-600 border-neutral-200 hover:bg-neutral-200'
+            }`}
+          >
+            {soundEnabled && !isSoundMuted ? <Volume2 size={14} /> : <VolumeX size={14} />}
+            <span>{soundEnabled && !isSoundMuted ? 'Ringtone On' : 'Muted'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              unlockChatAudioContext();
+              playAdminIncomingRingtone();
+            }}
+            data-testid="admin-test-ringtone-btn"
+            className="px-3 py-2 rounded-xl text-xs font-bold border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-700 flex items-center gap-1.5 cursor-pointer"
+            title="টেস্ট রিংটোন বাজিয়ে শুনুন"
+          >
+            <BellRing size={13} className="text-[#D71920]" />
+            <span>Test Ringtone</span>
+          </button>
         </div>
       </div>
 
@@ -97,7 +151,7 @@ export function AdminLiveChatManager({
           <MessageCircle size={38} className="mx-auto text-neutral-300" />
           <h3 className="font-bold text-base text-neutral-800">এখনো কোনো লাইভ চ্যাট মেসেজ আসেনি</h3>
           <p className="text-xs text-neutral-500">
-            কাস্টমার ওয়েবসাইটের ডান-নিচের &quot;Live Chat&quot; বাটনে ক্লিক করে মেসেজ পাঠালে এখানে রিয়েল-টাইম দেখা যাবে।
+            কাস্টমার ওয়েবসাইটের ডান-নিচের &quot;Live Chat&quot; বাটনে ক্লিক করে নাম, ফোন, ইমেইল ও মেসেজ পাঠালে এখানে রিয়েল-টাইম রিংটোনসহ দেখা যাবে।
           </p>
         </div>
       ) : (
@@ -142,7 +196,13 @@ export function AdminLiveChatManager({
                         </span>
                       </div>
                     </div>
-                    {session.topic && (
+                    {(session.customerPhone || session.customerEmail) && (
+                      <div className="text-[10px] text-neutral-500 flex items-center gap-2 truncate">
+                        {session.customerPhone && <span>{session.customerPhone}</span>}
+                        {session.customerEmail && <span className="truncate">• {session.customerEmail}</span>}
+                      </div>
+                    )}
+                    {session.topic && !session.customerPhone && !session.customerEmail && (
                       <div className="text-[10px] font-semibold text-neutral-500 flex items-center gap-1 truncate">
                         <Tag size={10} /> {session.topic}
                       </div>
@@ -165,12 +225,20 @@ export function AdminLiveChatManager({
               <>
                 <div className="p-4 border-b border-neutral-100 bg-neutral-50/70 flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <h3 className="font-black text-sm text-neutral-900 flex items-center gap-2">
+                    <h3 className="font-black text-sm text-neutral-900 flex items-center gap-2 flex-wrap">
                       <span>{activeSession.customerName}</span>
                       {activeSession.customerPhone && (
                         <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-neutral-600 bg-white px-2 py-0.5 rounded-lg border border-neutral-200">
                           <Phone size={11} className="text-[#D71920]" /> {activeSession.customerPhone}
                         </span>
+                      )}
+                      {activeSession.customerEmail && (
+                        <a
+                          href={`mailto:${activeSession.customerEmail}`}
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-neutral-600 bg-white px-2 py-0.5 rounded-lg border border-neutral-200 hover:border-[#D71920]"
+                        >
+                          <Mail size={11} className="text-[#D71920]" /> {activeSession.customerEmail}
+                        </a>
                       )}
                     </h3>
                     <div className="flex items-center gap-3 text-[11px] text-neutral-500 mt-0.5">
@@ -242,11 +310,13 @@ export function AdminLiveChatManager({
                     value={replyText}
                     onChange={e => setReplyText(e.target.value)}
                     placeholder="Write a helpful reply to the customer..."
+                    data-testid="admin-chat-reply-input"
                     className="flex-1 px-3.5 py-2.5 rounded-xl border border-neutral-300 text-xs bg-neutral-50 focus:bg-white focus:outline-none focus:border-[#D71920]"
                   />
                   <button
                     type="submit"
                     disabled={sending || !replyText.trim()}
+                    data-testid="admin-chat-reply-submit"
                     className="px-4 py-2.5 bg-[#D71920] hover:bg-[#b8141a] disabled:opacity-40 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                   >
                     <Send size={14} /> <span>Send Reply</span>

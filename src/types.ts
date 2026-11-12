@@ -394,6 +394,7 @@ export interface StoreSettings {
   cancelExchangePolicyText?: string;
   // Live Chat Widget Settings
   enableLiveChat?: boolean;
+  enableLiveChatSound?: boolean;
   liveChatTitle?: string;
   liveChatWelcomeMessage?: string;
   // Quick Contact Buttons (Product Detail & Support)
@@ -543,6 +544,7 @@ export interface LiveChatSession {
   visitorId: string;
   customerName: string;
   customerPhone?: string;
+  customerEmail?: string;
   topic?: string;
   status: 'open' | 'resolved';
   unreadByAdmin: number;

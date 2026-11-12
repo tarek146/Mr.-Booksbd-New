@@ -54,6 +54,7 @@ import {
 import { 
   collection, 
   doc, 
+  getDoc,
   setDoc, 
   deleteDoc, 
   onSnapshot,
@@ -76,6 +77,7 @@ import {
 import { applyReviewReaction, ReactionType } from '../utils/reviewHelpers';
 import { dedupeById } from '../utils/videoReelHelpers';
 import { getInitialTheme, persistThemeChoice, applyThemeToDom, toggleTheme as toggleThemeHelper } from '../utils/themeHelpers';
+import { mergeLiveChatMessages } from '../utils/chatSoundAndValidation';
 
 function sanitizeStoreSettings<T extends Partial<StoreSettings>>(st: T): T {
   const copy: Partial<StoreSettings> = { ...st };
@@ -231,7 +233,9 @@ interface StoreContextType {
   liveChatSessions: LiveChatSession[];
   isLiveChatOpen: boolean;
   setIsLiveChatOpen: (open: boolean) => void;
-  sendCustomerChatMessage: (payload: { customerName: string; customerPhone?: string; topic?: string; text: string }) => Promise<void>;
+  sendCustomerChatMessage: (payload: { customerName: string; customerPhone?: string; customerEmail?: string; topic?: string; text: string }) => Promise<void>;
+  markLiveChatReadByCustomer: () => Promise<void>;
+  startNewCustomerChat: () => void;
   replyLiveChatAsAdmin: (chatId: string, text: string) => Promise<void>;
   updateLiveChatStatus: (chatId: string, status: 'open' | 'resolved') => Promise<void>;
   markLiveChatReadByAdmin: (chatId: string) => Promise<void>;
@@ -377,6 +381,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   });
 
   const visitorId = currentUser?.uid || guestVisitorId;
+
+  const [activeLiveChatId, setActiveLiveChatId] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = window.localStorage.getItem('mrb_active_live_chat_id');
+        if (saved && saved.trim()) return saved;
+        const defaultChatId = `chat-${guestVisitorId}`;
+        window.localStorage.setItem('mrb_active_live_chat_id', defaultChatId);
+        return defaultChatId;
+      } catch {
+        return `chat-${guestVisitorId}`;
+      }
+    }
+    return `chat-${guestVisitorId}`;
+  });
 
   const addProductReview = async (reviewData: Omit<Review, 'id' | 'createdAt'>) => {
     const id = 'rev-' + Date.now();
@@ -1397,18 +1416,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }
       );
     } else {
-      const chatDocId = `chat-${visitorId}`;
-      unsubLiveChats = onSnapshot(
-        doc(db, 'live_chats', chatDocId),
-        (snap) => {
-          if (snap.exists()) {
-            setCustomerChatSession({ ...(snap.data() as LiveChatSession), id: snap.id });
-          }
-        },
-        (err) => {
-          console.warn('Customer live chat listener notice:', err.message);
-        }
-      );
       setLiveChatSessions([]);
     }
 
@@ -1420,6 +1427,67 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (unsubLiveChats) unsubLiveChats();
     };
   }, [currentUser, isAdmin, visitorId]);
+
+  // 3. Dedicated Customer Live Chat Listener (always active regardless of Admin/Auth state so customer always receives replies in real time)
+  useEffect(() => {
+    if (!activeLiveChatId) return;
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem('mrb_active_live_chat_id', activeLiveChatId);
+      } catch {
+        // ignore storage quota
+      }
+    }
+
+    const unsubCustomerChat = onSnapshot(
+      doc(db, 'live_chats', activeLiveChatId),
+      (snap) => {
+        if (snap.exists()) {
+          const incoming = { ...(snap.data() as LiveChatSession), id: snap.id };
+          setCustomerChatSession(prev => {
+            if (!prev || prev.id !== incoming.id) return incoming;
+            return {
+              ...prev,
+              ...incoming,
+              messages: mergeLiveChatMessages(prev.messages || [], incoming.messages || []),
+            };
+          });
+        }
+      },
+      (err) => {
+        console.warn('Customer live chat listener notice:', err.message);
+      }
+    );
+
+    // Also sync across same-browser tabs via BroadcastChannel for instant sub-10ms cross-tab updates
+    let channel: BroadcastChannel | null = null;
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      try {
+        channel = new BroadcastChannel('mrbooks_live_chat');
+        channel.onmessage = (event) => {
+          const payload = event.data as { type?: string; session?: LiveChatSession } | null;
+          if (payload?.type === 'session_updated' && payload.session && payload.session.id === activeLiveChatId) {
+            const incoming = payload.session;
+            setCustomerChatSession(prev => {
+              if (!prev || prev.id !== incoming.id) return incoming;
+              return {
+                ...prev,
+                ...incoming,
+                messages: mergeLiveChatMessages(prev.messages || [], incoming.messages || []),
+              };
+            });
+          }
+        };
+      } catch {
+        // ignore
+      }
+    }
+
+    return () => {
+      unsubCustomerChat();
+      if (channel) channel.close();
+    };
+  }, [activeLiveChatId]);
 
 
   const addToCart = (product: Product, variantId: string, quantity: number) => {
@@ -2367,20 +2435,35 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setCoupons(prev => prev.filter(c => c.id !== id));
   };
 
+  const broadcastChatUpdate = (session: LiveChatSession) => {
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      try {
+        const ch = new BroadcastChannel('mrbooks_live_chat');
+        ch.postMessage({ type: 'session_updated', session });
+        ch.close();
+      } catch {
+        // ignore
+      }
+    }
+  };
+
   const sendCustomerChatMessage = async ({
     customerName,
     customerPhone,
+    customerEmail,
     topic,
     text,
   }: {
     customerName: string;
     customerPhone?: string;
+    customerEmail?: string;
     topic?: string;
     text: string;
   }) => {
     const cleanText = text.trim();
     if (!cleanText) return;
-    const chatId = `chat-${visitorId}`;
+    const chatId = activeLiveChatId || `chat-${guestVisitorId}`;
+    const chatVisitorId = chatId.replace(/^chat-/, '') || guestVisitorId;
     const now = Date.now();
     const newMsg = {
       id: 'msg-' + now + '-' + Math.random().toString(36).slice(2, 6),
@@ -2390,27 +2473,46 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       createdAt: now,
     };
 
-    const existing = customerChatSession;
-    const welcomeSeed =
-      !existing || existing.messages.length === 0
-        ? [
-            {
-              id: 'msg-welcome-' + now,
-              sender: 'system' as const,
-              senderName: 'MR. BOOKS Support',
-              text:
-                settings.liveChatWelcomeMessage ||
-                'আসসালামু আলাইকুম! MR. BOOKS-এ স্বাগতম। বইয়ের অর্ডার, ডেলিভারি বা কুপন সম্পর্কে যেকোনো প্রশ্ন করতে পারেন।',
-              createdAt: now - 10,
-            },
-          ]
-        : [];
+    // Fetch latest doc from Firestore first so concurrent Admin replies are never overwritten
+    let remoteExisting: LiveChatSession | null = null;
+    try {
+      const snap = await getDoc(doc(db, 'live_chats', chatId));
+      if (snap.exists()) {
+        remoteExisting = { ...(snap.data() as LiveChatSession), id: snap.id };
+      }
+    } catch {
+      // Fall back cleanly to in-memory state if offline
+    }
+
+    const existing = remoteExisting || customerChatSession;
+    const baseMessages = mergeLiveChatMessages(
+      customerChatSession?.messages || [],
+      remoteExisting?.messages || []
+    );
+
+    const hasSystemWelcome = baseMessages.some(m => m.sender === 'system');
+    const welcomeSeed = !hasSystemWelcome
+      ? [
+          {
+            id: 'msg-welcome-' + now,
+            sender: 'system' as const,
+            senderName: 'MR. BOOKS Support',
+            text:
+              settings.liveChatWelcomeMessage ||
+              'আসসালামু আলাইকুম! MR. BOOKS-এ স্বাগতম। বইয়ের অর্ডার, ডেলিভারি বা কুপন সম্পর্কে যেকোনো প্রশ্ন করতে পারেন।',
+            createdAt: now - 10,
+          },
+        ]
+      : [];
+
+    const mergedMessages = mergeLiveChatMessages(baseMessages, [...welcomeSeed, newMsg]);
 
     const nextSession: LiveChatSession = {
       id: chatId,
-      visitorId,
+      visitorId: existing?.visitorId || chatVisitorId,
       customerName: customerName.trim() || existing?.customerName || 'Guest Reader',
       customerPhone: (customerPhone || existing?.customerPhone || '').trim(),
+      customerEmail: (customerEmail || existing?.customerEmail || '').trim(),
       topic: topic || existing?.topic || 'General Inquiry',
       status: 'open',
       unreadByAdmin: (existing?.unreadByAdmin || 0) + 1,
@@ -2418,10 +2520,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       lastMessageText: cleanText,
       lastMessageAt: now,
       createdAt: existing?.createdAt || now,
-      messages: [...(existing?.messages || []), ...welcomeSeed, newMsg].slice(-60),
+      messages: mergedMessages,
     };
 
     setCustomerChatSession(nextSession);
+    broadcastChatUpdate(nextSession);
+    if (isAdmin) {
+      setLiveChatSessions(prev => {
+        const exists = prev.some(s => s.id === chatId);
+        const nextList = exists
+          ? prev.map(s => (s.id === chatId ? nextSession : s))
+          : [nextSession, ...prev];
+        return nextList.sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
+      });
+    }
+
     try {
       await setDoc(doc(db, 'live_chats', chatId), cleanForFirestore(nextSession), { merge: true });
     } catch (err) {
@@ -2429,11 +2542,56 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const markLiveChatReadByCustomer = async () => {
+    if (!customerChatSession || !customerChatSession.unreadByCustomer) return;
+    const chatId = customerChatSession.id;
+    const updated: LiveChatSession = {
+      ...customerChatSession,
+      unreadByCustomer: 0,
+    };
+    setCustomerChatSession(updated);
+    try {
+      await setDoc(
+        doc(db, 'live_chats', chatId),
+        { unreadByCustomer: 0, visitorId: customerChatSession.visitorId },
+        { merge: true }
+      );
+    } catch {
+      // ignore read status error
+    }
+  };
+
+  const startNewCustomerChat = () => {
+    const newId = `chat-${guestVisitorId}-${Date.now().toString(36)}`;
+    setCustomerChatSession(null);
+    setActiveLiveChatId(newId);
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem('mrb_active_live_chat_id', newId);
+      } catch {
+        // ignore
+      }
+    }
+  };
+
   const replyLiveChatAsAdmin = async (chatId: string, text: string) => {
     const cleanText = text.trim();
     if (!cleanText) return;
-    const target = liveChatSessions.find(s => s.id === chatId);
+
+    // Fetch latest remote doc so customer's concurrent messages are preserved safely
+    let remoteTarget: LiveChatSession | null = null;
+    try {
+      const snap = await getDoc(doc(db, 'live_chats', chatId));
+      if (snap.exists()) {
+        remoteTarget = { ...(snap.data() as LiveChatSession), id: snap.id };
+      }
+    } catch {
+      // fallback to local list
+    }
+
+    const target = remoteTarget || liveChatSessions.find(s => s.id === chatId);
     if (!target) return;
+
     const now = Date.now();
     const replyMsg = {
       id: 'msg-' + now + '-' + Math.random().toString(36).slice(2, 6),
@@ -2442,26 +2600,56 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       text: cleanText,
       createdAt: now,
     };
-    const updated: Partial<LiveChatSession> = {
+
+    const mergedMessages = mergeLiveChatMessages(
+      liveChatSessions.find(s => s.id === chatId)?.messages || [],
+      [...(remoteTarget?.messages || []), replyMsg]
+    );
+
+    const nextFullSession: LiveChatSession = {
+      ...target,
+      visitorId: target.visitorId || chatId.replace(/^chat-/, ''),
       status: 'open',
       unreadByAdmin: 0,
       unreadByCustomer: (target.unreadByCustomer || 0) + 1,
       lastMessageText: cleanText,
       lastMessageAt: now,
-      messages: [...(target.messages || []), replyMsg].slice(-60),
+      messages: mergedMessages,
     };
-    setLiveChatSessions(prev => prev.map(s => (s.id === chatId ? { ...s, ...updated } : s)));
-    await setDoc(doc(db, 'live_chats', chatId), cleanForFirestore(updated), { merge: true });
+
+    setLiveChatSessions(prev =>
+      prev.map(s => (s.id === chatId ? nextFullSession : s))
+    );
+    if (chatId === activeLiveChatId) {
+      setCustomerChatSession(nextFullSession);
+    }
+    broadcastChatUpdate(nextFullSession);
+
+    await setDoc(doc(db, 'live_chats', chatId), cleanForFirestore(nextFullSession), { merge: true });
   };
 
   const updateLiveChatStatus = async (chatId: string, status: 'open' | 'resolved') => {
+    const target = liveChatSessions.find(s => s.id === chatId);
     setLiveChatSessions(prev => prev.map(s => (s.id === chatId ? { ...s, status } : s)));
-    await setDoc(doc(db, 'live_chats', chatId), { status }, { merge: true });
+    await setDoc(
+      doc(db, 'live_chats', chatId),
+      cleanForFirestore({ status, ...(target?.visitorId ? { visitorId: target.visitorId } : {}) }),
+      { merge: true }
+    );
   };
 
   const markLiveChatReadByAdmin = async (chatId: string) => {
+    const target = liveChatSessions.find(s => s.id === chatId);
     setLiveChatSessions(prev => prev.map(s => (s.id === chatId ? { ...s, unreadByAdmin: 0 } : s)));
-    await setDoc(doc(db, 'live_chats', chatId), { unreadByAdmin: 0 }, { merge: true });
+    try {
+      await setDoc(
+        doc(db, 'live_chats', chatId),
+        cleanForFirestore({ unreadByAdmin: 0, ...(target?.visitorId ? { visitorId: target.visitorId } : {}) }),
+        { merge: true }
+      );
+    } catch {
+      // ignore
+    }
   };
 
   const deleteLiveChatSession = async (chatId: string) => {
@@ -2559,6 +2747,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       isLiveChatOpen,
       setIsLiveChatOpen,
       sendCustomerChatMessage,
+      markLiveChatReadByCustomer,
+      startNewCustomerChat,
       replyLiveChatAsAdmin,
       updateLiveChatStatus,
       markLiveChatReadByAdmin,
