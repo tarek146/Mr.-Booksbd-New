@@ -121,6 +121,8 @@ export interface Order {
   trackingCode?: string;
   trackingUrl?: string;
   trackingNotes?: string;
+  isTrashed?: boolean;
+  trashedAt?: number;
 }
 
 export interface Subscriber {
@@ -559,5 +561,12 @@ export interface LiveChatSession {
   createdAt: number;
   messages: LiveChatMessage[];
 }
+
+export interface SiteSettings {
+  reviewDisplay: boolean;
+  authorInfo: boolean;
+  updatedAt?: number;
+}
+
 
 

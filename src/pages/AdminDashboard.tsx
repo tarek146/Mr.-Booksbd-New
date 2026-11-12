@@ -80,6 +80,9 @@ import { AdminProfileManagement } from '../components/admin/AdminProfileManageme
 import { AdminConversionApiManager } from '../components/admin/AdminConversionApiManager';
 import { AdminCouponsManager } from '../components/admin/AdminCouponsManager';
 import { AdminLiveChatManager } from '../components/admin/AdminLiveChatManager';
+import { AdminOrdersManager } from '../components/admin/AdminOrdersManager';
+import { AdminPaymentTransactionsManager } from '../components/admin/AdminPaymentTransactionsManager';
+import { AdminTabErrorBoundary } from '../components/admin/AdminTabErrorBoundary';
 import { DEFAULT_CANCEL_EXCHANGE_POLICY } from '../utils/storeEnhancementsHelpers';
 import { detectAdminNewCustomerActivity, playAdminIncomingRingtone, unlockChatAudioContext, DEFAULT_LIVE_CHAT_QUICK_REPLIES } from '../utils/chatSoundAndValidation';
 import { resolveDashboardHeaderCapiStatus } from '../utils/facebookCapiHelpers';
@@ -127,10 +130,15 @@ export function AdminDashboard() {
     authors,
     publishers,
     settings, 
+    siteSettings,
     homeConfig,
     reviewPaymentSubmission, 
+    createManualPaymentRecord,
+    createAdminOrder,
     updateOrderStatus, 
     updateOrderPaymentStatus,
+    softDeleteOrder,
+    restoreOrder,
     addPaymentMethod, 
     updatePaymentMethod, 
     deletePaymentMethod,
@@ -151,6 +159,7 @@ export function AdminDashboard() {
     updateCategory,
     deleteCategory,
     updateSettings,
+    updateSiteSettings,
     updateHomeConfig,
     setActivePage,
     subscribers,
@@ -186,8 +195,127 @@ export function AdminDashboard() {
     deleteLiveChatSession
   } = useStore();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'verifications' | 'payment-methods' | 'orders' | 'products' | 'categories' | 'banners' | 'authors' | 'publishers' | 'subscribers' | 'settings' | 'special-offer' | 'reels' | 'reviews' | 'staff' | 'profile' | 'capi' | 'coupons' | 'live-chat'>('overview');
+  type AdminTabId =
+    | 'overview'
+    | 'verifications'
+    | 'payment-methods'
+    | 'orders'
+    | 'products'
+    | 'categories'
+    | 'banners'
+    | 'authors'
+    | 'publishers'
+    | 'subscribers'
+    | 'settings'
+    | 'special-offer'
+    | 'reels'
+    | 'reviews'
+    | 'staff'
+    | 'profile'
+    | 'capi'
+    | 'coupons'
+    | 'live-chat';
+
+  const VALID_ADMIN_TABS: readonly AdminTabId[] = [
+    'overview',
+    'verifications',
+    'payment-methods',
+    'orders',
+    'products',
+    'categories',
+    'banners',
+    'authors',
+    'publishers',
+    'subscribers',
+    'settings',
+    'special-offer',
+    'reels',
+    'reviews',
+    'staff',
+    'profile',
+    'capi',
+    'coupons',
+    'live-chat',
+  ];
+
+  const getTabFromLocation = (): AdminTabId => {
+    if (typeof window === 'undefined') return 'overview';
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab') as AdminTabId | null;
+      if (tabParam && (VALID_ADMIN_TABS as readonly string[]).includes(tabParam)) {
+        return tabParam;
+      }
+      const stateTab = window.history.state?.tab as AdminTabId | undefined;
+      if (stateTab && (VALID_ADMIN_TABS as readonly string[]).includes(stateTab)) {
+        return stateTab;
+      }
+    } catch {
+      // ignore URL parse error
+    }
+    return 'overview';
+  };
+
+  const [activeTab, setActiveTab] = useState<AdminTabId>(() => getTabFromLocation());
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const selectAdminTab = (tab: AdminTabId | string) => {
+    const safeTab = (VALID_ADMIN_TABS as readonly string[]).includes(tab)
+      ? (tab as AdminTabId)
+      : 'overview';
+    setActiveTab(safeTab);
+    if (typeof window !== 'undefined') {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        params.set('tab', safeTab);
+        const searchStr = params.toString();
+        const nextUrl = `/admin${searchStr ? `?${searchStr}` : ''}`;
+        const currentUrl = `${window.location.pathname}${window.location.search}`;
+        if (currentUrl !== nextUrl) {
+          window.history.pushState({ page: 'admin', tab: safeTab }, '', nextUrl);
+        }
+      } catch {
+        // ignore history error
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    // Stamp initial history entry with current admin tab so Back navigates cleanly within tabs
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (!params.get('tab')) {
+        params.set('tab', activeTab);
+        const searchStr = params.toString();
+        window.history.replaceState(
+          { ...(window.history.state || {}), page: 'admin', tab: activeTab },
+          '',
+          `/admin${searchStr ? `?${searchStr}` : ''}`
+        );
+      }
+    } catch {
+      // ignore
+    }
+
+    const handleAdminPopState = (ev: PopStateEvent) => {
+      if (typeof window === 'undefined') return;
+      if (!window.location.pathname.startsWith('/admin')) return;
+      const params = new URLSearchParams(window.location.search);
+      const urlTab = params.get('tab') as AdminTabId | null;
+      const stateTab = (ev.state as { tab?: string } | null)?.tab as AdminTabId | undefined;
+      const resolved =
+        urlTab && (VALID_ADMIN_TABS as readonly string[]).includes(urlTab)
+          ? urlTab
+          : stateTab && (VALID_ADMIN_TABS as readonly string[]).includes(stateTab)
+          ? stateTab
+          : 'overview';
+      setActiveTab(resolved);
+    };
+
+    window.addEventListener('popstate', handleAdminPopState);
+    return () => window.removeEventListener('popstate', handleAdminPopState);
+  }, []);
 
   // Admin Live Chat Sound / Ringtone Alert State
   const [isLiveChatSoundMuted, setIsLiveChatSoundMuted] = useState<boolean>(() => {
@@ -525,35 +653,10 @@ export function AdminDashboard() {
   const [publisherSearchQuery, setPublisherSearchQuery] = useState('');
   const [categorySearchQuery, setCategorySearchQuery] = useState('');
   const [categoryFilterTab, setCategoryFilterTab] = useState<'all' | 'main' | 'sub' | 'child'>('all');
-  const [orderSearchQuery, setOrderSearchQuery] = useState('');
-  const [orderStatusFilter, setOrderStatusFilter] = useState<string>('all');
-  const [paymentSearchQuery, setPaymentSearchQuery] = useState('');
-  const [paymentMfsFilter, setPaymentMfsFilter] = useState<string>('all');
-  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('all');
-
-  // Reject reason modal
-  const [rejectingSubId, setRejectingSubId] = useState<string | null>(null);
-  const [rejectReason, setRejectReason] = useState('');
 
   // Stats
-  const totalRevenue = orders.filter(o => o.paymentStatus === 'approved').reduce((sum, o) => sum + o.total, 0);
+  const totalRevenue = orders.filter(o => o.paymentStatus === 'approved' && !o.isTrashed).reduce((sum, o) => sum + o.total, 0);
   const pendingVerificationsCount = paymentSubmissions.filter(s => s.status === 'pending_verification').length;
-
-  const paymentMetrics = useMemo(() => {
-    const approved = paymentSubmissions.filter(s => s.status === 'approved');
-    const pending = paymentSubmissions.filter(s => s.status === 'pending_verification');
-    const totalCollected = approved.reduce((sum, s) => sum + s.claimedAmount, 0);
-    const bkashTotal = approved.filter(s => s.providerName.toLowerCase().includes('bkash')).reduce((sum, s) => sum + s.claimedAmount, 0);
-    const nagadTotal = approved.filter(s => s.providerName.toLowerCase().includes('nagad')).reduce((sum, s) => sum + s.claimedAmount, 0);
-
-    return {
-      totalCollected,
-      completedCount: approved.length,
-      pendingCount: pending.length,
-      bkashTotal,
-      nagadTotal
-    };
-  }, [paymentSubmissions]);
 
   // Real-time Save Toast Notification
   const [toast, setToast] = useState<{ show: boolean; type: 'success' | 'error'; message: string } | null>(null);
@@ -1854,7 +1957,7 @@ export function AdminDashboard() {
             <div className="mt-6 pt-5 border-t border-slate-800 flex items-center justify-center text-xs">
               <button
                 type="button"
-                onClick={() => setActivePage('home')}
+                onClick={() => setActivePage('home', undefined, { exitAdmin: true })}
                 className="text-slate-400 hover:text-white font-medium cursor-pointer transition-colors"
               >
                 ← Back to Book Store
@@ -1897,7 +2000,7 @@ export function AdminDashboard() {
                 Sign Out & Login as Administrator
               </button>
               <button
-                onClick={() => setActivePage('home')}
+                onClick={() => setActivePage('home', undefined, { exitAdmin: true })}
                 className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold rounded-xl text-xs cursor-pointer border border-slate-800 transition-colors"
               >
                 Return to Public Store
@@ -2033,7 +2136,7 @@ export function AdminDashboard() {
                       <button
                         key={item.id}
                         onClick={() => {
-                          setActiveTab(item.id as any);
+                          selectAdminTab(item.id);
                           setShowAddProdModal(false);
                           setSidebarOpen(false);
                         }}
@@ -2074,7 +2177,7 @@ export function AdminDashboard() {
       <div className="p-3 border-t border-slate-800/80 bg-[#070A11] space-y-2">
         <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
           <div 
-            onClick={() => setActiveTab('profile')}
+            onClick={() => selectAdminTab('profile')}
             title="Click to view and edit Admin Profile"
             className="flex items-center gap-2.5 min-w-0 cursor-pointer group flex-1"
           >
@@ -2116,7 +2219,7 @@ export function AdminDashboard() {
         </div>
 
         <button
-          onClick={() => setActivePage('home')}
+          onClick={() => setActivePage('home', undefined, { exitAdmin: true })}
           className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-slate-800/80 hover:bg-slate-700/80 text-slate-200 hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
         >
           <Eye size={14} className="text-slate-400" />
@@ -2203,7 +2306,7 @@ export function AdminDashboard() {
                 <button
                   type="button"
                   data-testid="dashboard-header-capi-status"
-                  onClick={() => setActiveTab('capi')}
+                  onClick={() => selectAdminTab('capi')}
                   title={`${capiHeaderStatus.subtitle} — Click to open Pixel & Conversion API Validator`}
                   className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs font-extrabold flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-all border ${
                     capiHeaderStatus.isConnected
@@ -2237,7 +2340,7 @@ export function AdminDashboard() {
 
             {/* Storefront button */}
             <button
-              onClick={() => setActivePage('home')}
+              onClick={() => setActivePage('home', undefined, { exitAdmin: true })}
               title="View Public Store"
               className="px-3 sm:px-3.5 py-1.5 sm:py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
             >
@@ -2247,7 +2350,7 @@ export function AdminDashboard() {
 
             {/* Admin Profile button */}
             <button
-              onClick={() => setActiveTab('profile')}
+              onClick={() => selectAdminTab('profile')}
               title="Admin Profile & Account Settings"
               className={`px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer transition-colors ${
                 activeTab === 'profile'
@@ -2285,373 +2388,35 @@ export function AdminDashboard() {
 
         {/* TAB 1: OVERVIEW & COMPREHENSIVE BUSINESS ANALYTICS */}
         {activeTab === 'overview' && (
-          <AdminAnalytics 
-            orders={orders} 
-            products={products} 
-            paymentSubmissions={paymentSubmissions} 
-            onSelectTab={(tab) => setActiveTab(tab as any)} 
-          />
+          <AdminTabErrorBoundary
+            tabName="Dashboard Analytics"
+            onResetTab={() => selectAdminTab('orders')}
+          >
+            <AdminAnalytics 
+              orders={orders} 
+              products={products} 
+              paymentSubmissions={paymentSubmissions} 
+              onSelectTab={(tab) => selectAdminTab(tab)} 
+            />
+          </AdminTabErrorBoundary>
         )}
 
-        {/* TAB 2: MANUAL PAYMENT VERIFICATIONS & TRANSACTIONS */}
-        {activeTab === 'verifications' && (() => {
-          const filteredSubmissions = paymentSubmissions.filter(sub => {
-            if (paymentMfsFilter !== 'all') {
-              const p = (sub.providerName || '').toLowerCase();
-              if (!p.includes(paymentMfsFilter.toLowerCase())) return false;
-            }
-            if (paymentStatusFilter === 'pending' && sub.status !== 'pending_verification') return false;
-            if (paymentStatusFilter === 'paid' && sub.status !== 'approved') return false;
-            if (paymentStatusFilter === 'failed' && sub.status !== 'rejected') return false;
-            if (paymentSearchQuery.trim()) {
-              const q = paymentSearchQuery.toLowerCase();
-              const match =
-                sub.orderId.toLowerCase().includes(q) ||
-                sub.customerName.toLowerCase().includes(q) ||
-                sub.customerPhone.toLowerCase().includes(q) ||
-                sub.transactionReference.toLowerCase().includes(q) ||
-                (sub.senderIdentifier || '').toLowerCase().includes(q);
-              if (!match) return false;
-            }
-            return true;
-          });
-
-          return (
-            <div className="space-y-4 sm:space-y-5">
-              {/* Minimal Responsive Header + KPI Strip */}
-              <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-6 shadow-2xs space-y-4 sm:space-y-5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#FFF1F2] text-[#D71920] flex items-center justify-center border border-[#D71920]/15 shrink-0">
-                      <CreditCard size={20} />
-                    </div>
-                    <div>
-                      <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
-                        Payment Transactions
-                      </h2>
-                      <p className="text-xs text-slate-500">
-                        Verify customer TrxID submissions & mobile banking payments
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 self-start sm:self-auto">
-                    <button
-                      type="button"
-                      onClick={() => window.location.reload()}
-                      className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200/80 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
-                    >
-                      <RefreshCw size={13} />
-                      <span>Refresh</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Compact 2x2 (Phone) / 4-Col (Laptop & PC) Summary Metrics */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
-                  <div className="p-3.5 sm:p-4 rounded-xl bg-slate-50/80 border border-slate-200/80 flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <span className="text-[10px] sm:text-[11px] font-bold uppercase text-slate-500 tracking-wider block truncate">
-                        Total Collected
-                      </span>
-                      <div className="text-lg sm:text-xl font-black text-slate-900 mt-0.5">
-                        ৳{paymentMetrics.totalCollected}
-                      </div>
-                      <span className="text-[11px] font-semibold text-emerald-600 block mt-0.5">
-                        {paymentMetrics.completedCount} Verified
-                      </span>
-                    </div>
-                    <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200/70 flex items-center justify-center shrink-0">
-                      <DollarSign size={17} />
-                    </div>
-                  </div>
-
-                  <div className="p-3.5 sm:p-4 rounded-xl bg-slate-50/80 border border-slate-200/80 flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <span className="text-[10px] sm:text-[11px] font-bold uppercase text-slate-500 tracking-wider block truncate">
-                        Today Collected
-                      </span>
-                      <div className="text-lg sm:text-xl font-black text-[#D71920] mt-0.5">
-                        ৳{paymentMetrics.totalCollected}
-                      </div>
-                      <span className="text-[11px] font-medium text-slate-500 block mt-0.5">
-                        Daily Total
-                      </span>
-                    </div>
-                    <div className="w-9 h-9 rounded-xl bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/20 flex items-center justify-center shrink-0">
-                      <TrendingUp size={17} />
-                    </div>
-                  </div>
-
-                  <div className="p-3.5 sm:p-4 rounded-xl bg-slate-50/80 border border-slate-200/80 flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <span className="text-[10px] sm:text-[11px] font-bold uppercase text-slate-500 tracking-wider block truncate">
-                        Pending Review
-                      </span>
-                      <div className="text-lg sm:text-xl font-black text-amber-600 mt-0.5">
-                        {paymentMetrics.pendingCount}
-                      </div>
-                      <span className="text-[11px] font-semibold text-amber-600 block mt-0.5">
-                        Awaiting Action
-                      </span>
-                    </div>
-                    <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 border border-amber-200/70 flex items-center justify-center shrink-0">
-                      <Clock size={17} />
-                    </div>
-                  </div>
-
-                  <div className="p-3.5 sm:p-4 rounded-xl bg-slate-50/80 border border-slate-200/80 flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <span className="text-[10px] sm:text-[11px] font-bold uppercase text-slate-500 tracking-wider block truncate">
-                        MFS Breakdown
-                      </span>
-                      <div className="text-lg sm:text-xl font-black text-slate-900 mt-0.5">
-                        ৳{paymentMetrics.bkashTotal + paymentMetrics.nagadTotal}
-                      </div>
-                      <span className="text-[10px] sm:text-[11px] font-medium text-slate-500 block mt-0.5 truncate">
-                        bKash ৳{paymentMetrics.bkashTotal} · Nagad ৳{paymentMetrics.nagadTotal}
-                      </span>
-                    </div>
-                    <div className="w-9 h-9 rounded-xl bg-pink-50 text-pink-600 border border-pink-200/70 flex items-center justify-center shrink-0">
-                      <CreditCard size={17} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Streamlined Filter Bar + Submissions List */}
-              <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-6 shadow-2xs space-y-4">
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3.5 border-b border-slate-100">
-                  {/* Search Input */}
-                  <div className="relative flex-1">
-                    <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                    <input
-                      type="text"
-                      placeholder="Search by TrxID, sender mobile, customer or Order ID..."
-                      value={paymentSearchQuery}
-                      onChange={e => setPaymentSearchQuery(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 bg-slate-50/70 focus:bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:border-[#D71920] transition-colors"
-                    />
-                  </div>
-
-                  {/* Unified MFS Selector + Status Pills */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <select
-                      value={paymentMfsFilter}
-                      onChange={e => setPaymentMfsFilter(e.target.value)}
-                      className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 focus:outline-none focus:border-[#D71920] cursor-pointer"
-                    >
-                      <option value="all">All Gateways</option>
-                      <option value="bkash">bKash</option>
-                      <option value="nagad">Nagad</option>
-                      <option value="rocket">Rocket</option>
-                      <option value="upay">Upay</option>
-                      <option value="bank">Bank / Card</option>
-                    </select>
-
-                    <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-                      {[
-                        { id: 'all', label: `All (${paymentSubmissions.length})` },
-                        { id: 'pending', label: `Pending (${paymentMetrics.pendingCount})` },
-                        { id: 'paid', label: `Approved (${paymentMetrics.completedCount})` },
-                        { id: 'failed', label: 'Rejected' },
-                      ].map(tab => (
-                        <button
-                          key={tab.id}
-                          type="button"
-                          onClick={() => setPaymentStatusFilter(tab.id)}
-                          className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-all cursor-pointer ${
-                            paymentStatusFilter === tab.id
-                              ? 'bg-white text-slate-900 shadow-2xs'
-                              : 'text-slate-600 hover:text-slate-900'
-                          }`}
-                        >
-                          {tab.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Submissions Table (Laptop/PC) & Cards (Phone) */}
-                {filteredSubmissions.length > 0 ? (
-                  <>
-                    {/* Desktop / Laptop Table */}
-                    <div className="hidden md:block overflow-x-auto">
-                      <table className="w-full text-left border-collapse text-xs">
-                        <thead>
-                          <tr className="border-b border-slate-200 text-slate-500 text-[11px] uppercase font-bold tracking-wider">
-                            <th className="py-3 px-3">Order ID</th>
-                            <th className="py-3 px-3">Customer</th>
-                            <th className="py-3 px-3">Gateway</th>
-                            <th className="py-3 px-3">TrxID & Sender</th>
-                            <th className="py-3 px-3">Amount</th>
-                            <th className="py-3 px-3">Status</th>
-                            <th className="py-3 px-3 text-right">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {filteredSubmissions.map(sub => (
-                            <tr key={sub.id} className="hover:bg-slate-50/80 transition-colors">
-                              <td className="py-3 px-3 font-mono font-bold text-[#D71920]">#{sub.orderId}</td>
-                              <td className="py-3 px-3">
-                                <div className="font-bold text-slate-900">{sub.customerName}</div>
-                                <div className="text-[11px] text-slate-500">{sub.customerPhone}</div>
-                              </td>
-                              <td className="py-3 px-3">
-                                <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 font-bold text-[11px]">
-                                  {sub.providerName}
-                                </span>
-                              </td>
-                              <td className="py-3 px-3">
-                                <div className="font-mono font-bold text-slate-900">{sub.transactionReference}</div>
-                                <div className="text-[11px] text-slate-500">Sender: {sub.senderIdentifier || 'N/A'}</div>
-                              </td>
-                              <td className="py-3 px-3 font-black text-slate-900 text-sm">৳{sub.claimedAmount}</td>
-                              <td className="py-3 px-3">
-                                <span
-                                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                                    sub.status === 'approved'
-                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                      : sub.status === 'rejected'
-                                        ? 'bg-red-50 text-red-700 border border-red-200'
-                                        : 'bg-amber-50 text-amber-700 border border-amber-200'
-                                  }`}
-                                >
-                                  {sub.status === 'pending_verification' ? 'Pending' : sub.status}
-                                </span>
-                              </td>
-                              <td className="py-3 px-3 text-right">
-                                {sub.status === 'pending_verification' ? (
-                                  <div className="flex items-center justify-end gap-1.5">
-                                    <button
-                                      type="button"
-                                      onClick={() => reviewPaymentSubmission(sub.id, 'approved')}
-                                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs inline-flex items-center gap-1 cursor-pointer transition-colors"
-                                    >
-                                      <CheckCircle2 size={13} /> Approve
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setRejectingSubId(sub.id)}
-                                      className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-[#D71920] font-bold rounded-lg text-xs inline-flex items-center gap-1 cursor-pointer transition-colors"
-                                    >
-                                      <XCircle size={13} /> Reject
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <span className="text-[11px] font-medium text-slate-400">Verified</span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* Mobile Phone Card View */}
-                    <div className="md:hidden space-y-2.5">
-                      {filteredSubmissions.map(sub => (
-                        <div key={sub.id} className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2.5 text-xs">
-                          <div className="flex items-center justify-between">
-                            <span className="font-mono font-black text-[#D71920]">#{sub.orderId}</span>
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                sub.status === 'approved'
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                  : sub.status === 'rejected'
-                                    ? 'bg-red-50 text-red-700 border border-red-200'
-                                    : 'bg-amber-50 text-amber-700 border border-amber-200'
-                              }`}
-                            >
-                              {sub.status === 'pending_verification' ? 'Pending' : sub.status}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="font-bold text-slate-900">{sub.customerName}</div>
-                              <div className="text-[11px] text-slate-500">{sub.customerPhone}</div>
-                            </div>
-                            <div className="text-right">
-                              <div className="font-black text-sm text-slate-900">৳{sub.claimedAmount}</div>
-                              <div className="text-[11px] font-semibold text-slate-600">{sub.providerName}</div>
-                            </div>
-                          </div>
-                          <div className="p-2 rounded-lg bg-white border border-slate-200/80 flex items-center justify-between text-[11px]">
-                            <span className="text-slate-500">TrxID: <strong className="font-mono text-slate-900">{sub.transactionReference}</strong></span>
-                            <span className="text-slate-500">From: <strong className="font-mono text-slate-800">{sub.senderIdentifier || 'N/A'}</strong></span>
-                          </div>
-                          {sub.status === 'pending_verification' && (
-                            <div className="grid grid-cols-2 gap-2 pt-1">
-                              <button
-                                type="button"
-                                onClick={() => reviewPaymentSubmission(sub.id, 'approved')}
-                                className="py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1 cursor-pointer"
-                              >
-                                <CheckCircle2 size={13} /> Approve
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setRejectingSubId(sub.id)}
-                                className="py-2 bg-red-50 hover:bg-red-100 text-[#D71920] font-bold rounded-lg text-xs flex items-center justify-center gap-1 cursor-pointer"
-                              >
-                                <XCircle size={13} /> Reject
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center py-10">
-                    <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-2">
-                      <CreditCard size={18} />
-                    </div>
-                    <p className="text-xs font-semibold text-slate-500">
-                      No payment submissions pending verification.
-                    </p>
-                  </div>
-                )}
-
-                {rejectingSubId && (
-                  <div className="p-4 bg-red-50/70 rounded-xl border border-red-200 space-y-3 mt-3">
-                    <h4 className="font-bold text-xs text-[#D71920]">
-                      Reason for Payment Rejection
-                    </h4>
-                    <input
-                      type="text"
-                      placeholder="e.g. Transaction ID was not found in statement"
-                      value={rejectReason}
-                      onChange={e => setRejectReason(e.target.value)}
-                      className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:border-[#D71920]"
-                    />
-                    <div className="flex justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setRejectingSubId(null)}
-                        className="px-3.5 py-1.5 bg-white text-xs font-bold rounded-lg border border-slate-200 cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          reviewPaymentSubmission(rejectingSubId, 'rejected', rejectReason);
-                          setRejectingSubId(null);
-                          setRejectReason('');
-                        }}
-                        className="px-4 py-1.5 bg-[#D71920] text-white text-xs font-bold rounded-lg cursor-pointer"
-                      >
-                        Confirm Rejection
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })()}
+        {/* TAB 2: PAYMENT TRANSACTIONS & VERIFICATIONS DASHBOARD */}
+        {activeTab === 'verifications' && (
+          <AdminTabErrorBoundary
+            tabName="Payment Transactions"
+            onResetTab={() => selectAdminTab('overview')}
+          >
+            <AdminPaymentTransactionsManager
+              paymentSubmissions={paymentSubmissions}
+              orders={orders}
+              onReviewSubmission={reviewPaymentSubmission}
+              onCreateManualPayment={createManualPaymentRecord}
+              onRefresh={refreshStoreCacheFirst}
+              setToast={setToast}
+            />
+          </AdminTabErrorBoundary>
+        )}
 
         {/* TAB 3: PAYMENT METHODS CONFIGURATION */}
         {activeTab === 'payment-methods' && (
@@ -4850,278 +4615,34 @@ export function AdminDashboard() {
 
         {/* TAB 4: ORDERS FULFILLMENT */}
         {activeTab === 'orders' && (
-          <div className="bg-white border border-neutral-200/80 rounded-2xl p-4 sm:p-6 shadow-xs space-y-5">
-            
-            {/* Minimal Order Header & Filter Bar */}
-            <div className="space-y-3">
-              {/* Row 1: Title, Search & Primary Actions */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                <div className="relative flex-1">
-                  <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
-                  <input 
-                    type="text"
-                    placeholder="Search orders by ID, customer name, phone, or address..."
-                    value={orderSearchQuery}
-                    onChange={e => setOrderSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50/70 focus:bg-white text-xs font-semibold text-neutral-900 focus:outline-none focus:border-[#D71920] transition-colors"
-                  />
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  <button 
-                    onClick={() => alert('Create Order modal triggered.')}
-                    className="flex-1 sm:flex-initial px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer transition-all"
-                  >
-                    <Plus size={14} /> <span>Create Order</span>
-                  </button>
-
-                  <button 
-                    onClick={() => window.location.reload()}
-                    className="px-3.5 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
-                  >
-                    <RefreshCw size={13} /> <span>Sync</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Row 2: Clean Scrollable Status Tabs (Works smoothly on Mobile, Laptop & PC) */}
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 border-b border-neutral-100">
-                {[
-                  { id: 'all', label: 'All Orders', count: orders.length },
-                  { id: 'pending', label: 'Pending', count: orders.filter(o => o.orderStatus === 'pending').length },
-                  { id: 'confirmed', label: 'Confirmed', count: orders.filter(o => o.orderStatus === 'confirmed').length },
-                  { id: 'processing', label: 'Processing', count: orders.filter(o => o.orderStatus === 'processing').length },
-                  { id: 'shipped', label: 'Shipped', count: orders.filter(o => o.orderStatus === 'shipped').length },
-                  { id: 'delivered', label: 'Delivered', count: orders.filter(o => o.orderStatus === 'delivered').length },
-                  { id: 'cancelled', label: 'Cancelled', count: orders.filter(o => o.orderStatus === 'cancelled').length }
-                ].map(tab => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setOrderStatusFilter(tab.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
-                      orderStatusFilter === tab.id
-                        ? 'bg-neutral-900 text-white shadow-2xs'
-                        : 'bg-neutral-50 text-neutral-600 hover:bg-neutral-100 border border-neutral-200/70'
-                    }`}
-                  >
-                    <span>{tab.label}</span>
-                    <span className={`px-1.5 py-0.2 rounded text-[10px] ${
-                      orderStatusFilter === tab.id ? 'bg-white/20 text-white' : 'bg-neutral-200/70 text-neutral-700'
-                    }`}>
-                      {tab.count}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Order Cards List */}
-            <div className="space-y-3">
-              {orders
-                .filter(o => {
-                  if (orderStatusFilter !== 'all' && o.orderStatus !== orderStatusFilter) return false;
-                  if (orderSearchQuery) {
-                    const q = orderSearchQuery.toLowerCase();
-                    return o.id.toLowerCase().includes(q) || o.customerName.toLowerCase().includes(q) || o.phone.includes(q) || (o.optionalPhone && o.optionalPhone.includes(q)) || o.address.toLowerCase().includes(q);
-                  }
-                  return true;
-                })
-                .map(o => (
-                  <div key={o.id} className="bg-white border border-neutral-200 hover:border-neutral-300 rounded-2xl p-4 sm:p-5 shadow-2xs space-y-4 transition-all">
-                    
-                    {/* Order Card Header */}
-                    <div className="flex flex-wrap items-center justify-between gap-2.5 pb-3 border-b border-neutral-100">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-black text-xs sm:text-sm text-[#D71920] font-mono bg-[#FFF1F2] px-2.5 py-1 rounded-lg border border-[#D71920]/20">
-                          #{o.id}
-                        </span>
-                        <span className="text-xs font-medium text-neutral-500 flex items-center gap-1">
-                          <Calendar size={12} /> {new Date(o.createdAt).toLocaleString()}
-                        </span>
-                        <span className="px-2 py-0.5 rounded-md bg-neutral-100 text-neutral-700 font-bold text-[10px]">
-                          {o.district.toLowerCase().includes('dhaka') ? 'Inside Dhaka' : 'Outside Dhaka'}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <select 
-                          value={o.orderStatus}
-                          onChange={(e) => updateOrderStatus(o.id, e.target.value as any)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer focus:outline-none ${
-                            o.orderStatus === 'pending' ? 'bg-amber-50 text-amber-800 border border-amber-200' :
-                            o.orderStatus === 'delivered' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
-                            o.orderStatus === 'cancelled' ? 'bg-red-50 text-red-700 border border-red-200' :
-                            'bg-blue-50 text-blue-800 border border-blue-200'
-                          }`}
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="confirmed">Confirmed</option>
-                          <option value="processing">Processing</option>
-                          <option value="shipped">Shipped</option>
-                          <option value="delivered">Delivered</option>
-                          <option value="cancelled">Cancelled</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Order Card Body - Responsive 1 col on mobile, 12 cols on desktop */}
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-                      
-                      {/* Customer Info (4 cols) */}
-                      <div className="lg:col-span-4 space-y-1.5">
-                        <div className="font-extrabold text-sm text-neutral-900">
-                          {o.customerName}
-                        </div>
-                        <div className="text-xs font-bold text-neutral-700 flex items-center gap-1.5 flex-wrap">
-                          <span>{o.phone}</span>
-                          {o.optionalPhone && (
-                            <span className="px-2 py-0.5 rounded bg-neutral-100 text-neutral-600 text-[11px] font-medium">
-                              Alt: {o.optionalPhone}
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-xs text-neutral-500 leading-relaxed">
-                          {o.address}, {o.city}, {o.district}
-                        </div>
-                        {o.notes && (
-                          <div className="p-2 rounded-lg bg-amber-50/70 border border-amber-200/80 text-[11px] text-amber-900 font-medium mt-1">
-                            Note: {o.notes}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Items Ordered (4 cols) */}
-                      <div className="lg:col-span-4 space-y-1.5 bg-neutral-50 p-3 rounded-xl border border-neutral-200/70">
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
-                          Ordered Items ({o.items.length})
-                        </div>
-                        <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                          {o.items.map((item, i) => (
-                            <div key={i} className="flex items-center gap-2.5 bg-white p-2 rounded-lg border border-neutral-200/60">
-                              <img src={item.image || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=100'} alt="" className="w-8 h-10 object-cover rounded border border-neutral-100 shrink-0" />
-                              <div className="flex-1 min-w-0 text-xs">
-                                <div className="font-bold text-neutral-900 truncate">{item.title}</div>
-                                <div className="text-[11px] text-neutral-500">Qty: {item.quantity} × ৳{item.price}</div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Totals, Payment & Actions (4 cols) */}
-                      <div className="lg:col-span-4 flex flex-col justify-between space-y-3">
-                        <div className="flex items-center justify-between bg-neutral-50 p-3 rounded-xl border border-neutral-200/70">
-                          <div>
-                            <span className="text-[10px] font-bold uppercase text-neutral-400 block">Total Payable</span>
-                            <div className="text-base font-black text-neutral-900">৳{o.total}</div>
-                            <div className="text-[10px] text-neutral-500">Delivery: ৳{o.deliveryCharge}</div>
-                          </div>
-                          <div className="text-right space-y-1.5">
-                            <span className="px-2 py-0.5 rounded bg-white text-neutral-700 text-[10px] font-bold border border-neutral-200 uppercase inline-block">
-                              {o.paymentMethodName || 'Cash on Delivery'}
-                            </span>
-                            <div>
-                              <select
-                                value={o.paymentStatus}
-                                onChange={(e) => updateOrderPaymentStatus(o.id, e.target.value as any)}
-                                className={`px-2 py-1 rounded text-[10px] font-bold uppercase cursor-pointer border ${
-                                  o.paymentStatus === 'approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                                  o.paymentStatus === 'pending_verification' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                  o.paymentStatus === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' :
-                                  'bg-white text-neutral-600 border-neutral-200'
-                                }`}
-                              >
-                                <option value="unpaid">Unpaid</option>
-                                <option value="pending_verification">Pending Verify</option>
-                                <option value="approved">Paid</option>
-                                <option value="rejected">Rejected</option>
-                              </select>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Courier & Actions */}
-                        <div className="space-y-2">
-                          {(o.courierName || o.trackingCode) && (
-                            <div className="bg-amber-50/70 border border-amber-200/80 rounded-lg px-2.5 py-1.5 text-xs flex items-center justify-between">
-                              <span className="font-bold text-amber-900 truncate text-[11px]">
-                                🚚 {o.courierName || 'Courier'}: {o.trackingCode || 'Assigned'}
-                              </span>
-                            </div>
-                          )}
-
-                          <div className="flex items-center justify-between gap-2">
-                            <button
-                              onClick={() => {
-                                setTrackingModalOrder(o);
-                                setCourierNameInput(o.courierName || 'Steadfast');
-                                setTrackingCodeInput(o.trackingCode || '');
-                                setTrackingUrlInput(o.trackingUrl || '');
-                                setTrackingNotesInput(o.trackingNotes || '');
-                                setTrackingStatusInput(o.orderStatus);
-                              }}
-                              className="flex-1 py-2 px-3 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
-                            >
-                              <Truck size={13} />
-                              <span>{o.courierName || o.trackingCode ? 'Edit Tracking' : 'Assign Courier'}</span>
-                            </button>
-
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <button
-                                onClick={() => alert(`Order ID: ${o.id}\nCustomer: ${o.customerName}\nPhone: ${o.phone}${o.optionalPhone ? `\nOptional Phone: ${o.optionalPhone}` : ''}\nAddress: ${o.address}, ${o.city}\nTotal: ৳${o.total}\nPayment: ${o.paymentMethodName || 'COD'} (${o.paymentStatus})`)}
-                                className="p-2 rounded-xl border border-neutral-200 hover:bg-neutral-100 text-neutral-600 cursor-pointer text-xs"
-                                title="View Details"
-                              >
-                                <Eye size={14} />
-                              </button>
-                              <button
-                                onClick={() => window.print()}
-                                className="p-2 rounded-xl border border-neutral-200 hover:bg-neutral-100 text-neutral-600 cursor-pointer text-xs"
-                                title="Print Invoice"
-                              >
-                                🖨️
-                              </button>
-                              <button 
-                                onClick={async () => {
-                                  if (window.confirm(`Are you sure you want to delete order #${o.id}?`)) {
-                                    try {
-                                      await deleteOrder(o.id);
-                                      setToast({ show: true, type: 'success', message: `Order #${o.id} deleted.` });
-                                    } catch (err: any) {
-                                      setToast({ show: true, type: 'error', message: `Failed to delete order: ${err.message}` });
-                                    }
-                                  }
-                                }} 
-                                className="p-2 rounded-xl border border-red-100 bg-red-50/60 hover:bg-red-100 text-red-600 cursor-pointer transition-colors" 
-                                title="Delete Order"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                    </div>
-
-                  </div>
-                ))}
-
-              {orders.filter(o => {
-                if (orderStatusFilter !== 'all' && o.orderStatus !== orderStatusFilter) return false;
-                if (orderSearchQuery) {
-                  const q = orderSearchQuery.toLowerCase();
-                  return o.id.toLowerCase().includes(q) || o.customerName.toLowerCase().includes(q) || o.phone.includes(q) || (o.optionalPhone && o.optionalPhone.includes(q)) || o.address.toLowerCase().includes(q);
-                }
-                return true;
-              }).length === 0 && (
-                <div className="text-center py-12 bg-neutral-50/70 rounded-2xl border border-dashed border-neutral-200">
-                  <Package size={28} className="mx-auto text-neutral-300 mb-2" />
-                  <p className="text-xs font-bold text-neutral-600">No matching orders found</p>
-                  <p className="text-[11px] text-neutral-400 mt-0.5">New customer orders will appear here automatically</p>
-                </div>
-              )}
-            </div>
+          <div className="space-y-5">
+            <AdminTabErrorBoundary
+              tabName="Customer Orders"
+              onResetTab={() => selectAdminTab('overview')}
+            >
+              <AdminOrdersManager
+                orders={orders}
+                products={products}
+                paymentMethods={paymentMethods}
+                paymentSubmissions={paymentSubmissions}
+                onUpdateOrderStatus={updateOrderStatus}
+                onUpdateOrderPaymentStatus={updateOrderPaymentStatus}
+                onOpenTrackingModal={(order, preselectCourier) => {
+                  setTrackingModalOrder(order);
+                  setCourierNameInput(preselectCourier || order.courierName || 'Steadfast');
+                  setTrackingCodeInput(order.trackingCode || '');
+                  setTrackingUrlInput(order.trackingUrl || '');
+                  setTrackingNotesInput(order.trackingNotes || '');
+                  setTrackingStatusInput(order.orderStatus === 'pending' ? 'shipped' : order.orderStatus);
+                }}
+                onCreateManualOrder={createAdminOrder}
+                onSoftDeleteOrder={softDeleteOrder}
+                onRestoreOrder={restoreOrder}
+                onPermanentDeleteOrder={deleteOrder}
+                onSyncOrders={refreshStoreCacheFirst}
+                setToast={setToast}
+              />
+            </AdminTabErrorBoundary>
 
             {/* Courier & Order Tracking Modal */}
             {trackingModalOrder && (
@@ -5179,8 +4700,9 @@ export function AdminDashboard() {
                           orderStatus: trackingStatusInput
                         });
                         setTrackingModalOrder(null);
+                        setToast({ show: true, type: 'success', message: `Tracking updated for order #${trackingModalOrder.id}` });
                       } catch (err: any) {
-                        alert('Failed to update tracking: ' + err.message);
+                        setToast({ show: true, type: 'error', message: 'Failed to update tracking: ' + err.message });
                       } finally {
                         setTrackingSaving(false);
                       }
@@ -5945,7 +5467,7 @@ export function AdminDashboard() {
                           </div>
                           <button
                             type="button"
-                            onClick={() => setActiveTab('publishers')}
+                            onClick={() => selectAdminTab('publishers')}
                             className="text-[11px] font-bold text-[#D71920] hover:underline cursor-pointer"
                           >
                             + Manage Publishers
@@ -9465,7 +8987,7 @@ export function AdminDashboard() {
             </div>
 
             {/* ===================================================================== */}
-            {/* HOME PAGE SETTINGS SECTION (`homeConfig` Document in Firebase)        */}
+            {/* HOME PAGE & STOREFRONT VISIBILITY SETTINGS (`siteSettings` + `homeConfig`) */}
             {/* ===================================================================== */}
             <div
               data-testid="admin-home-page-settings-section"
@@ -9479,36 +9001,113 @@ export function AdminDashboard() {
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-sm sm:text-base font-black text-[#171717]">
-                        Home Page Settings
+                        Home Page & Global Visibility Settings
                       </h3>
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        Firebase: homeConfig
+                        Firebase: settings/siteSettings & homeConfig
                       </span>
                     </div>
                     <p className="text-xs text-[#5F6368] mt-0.5">
-                      Toggle individual Home Page components ON or OFF in real time. Changes immediately update the <code className="font-mono font-bold text-[#171717]">homeConfig</code> document in Firebase and conditionally render sections on the customer Home page.
+                      Toggle <code className="font-mono font-bold text-[#171717]">Review Display</code> &amp; <code className="font-mono font-bold text-[#171717]">Author Info</code> globally in real time via <code className="font-mono font-bold text-[#171717]">siteSettings</code> (synced across Home, Product Cards &amp; Product Detail pages).
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 shrink-0 flex-wrap">
                   <span
                     className={`px-2.5 py-1 rounded-xl text-[11px] font-extrabold border ${
-                      homeConfig.showReviews !== false
+                      siteSettings.reviewDisplay !== false && homeConfig.showReviews !== false
                         ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                         : 'bg-neutral-100 text-neutral-600 border-neutral-200'
                     }`}
                   >
-                    Reviews: {homeConfig.showReviews !== false ? 'ON' : 'OFF'}
+                    Review Display: {siteSettings.reviewDisplay !== false && homeConfig.showReviews !== false ? 'ON' : 'OFF'}
                   </span>
                   <span
                     className={`px-2.5 py-1 rounded-xl text-[11px] font-extrabold border ${
-                      homeConfig.showAuthors !== false
+                      siteSettings.authorInfo !== false && homeConfig.showAuthors !== false
                         ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                         : 'bg-neutral-100 text-neutral-600 border-neutral-200'
                     }`}
                   >
-                    Authors: {homeConfig.showAuthors !== false ? 'ON' : 'OFF'}
+                    Author Info: {siteSettings.authorInfo !== false && homeConfig.showAuthors !== false ? 'ON' : 'OFF'}
                   </span>
+                </div>
+              </div>
+
+              {/* Global siteSettings Quick Toggle Bar */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-3.5 rounded-xl border border-neutral-200 bg-neutral-50/70 flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-black text-[#171717] flex items-center gap-1.5">
+                      <span>Review Display (Global)</span>
+                      <span className="text-[10px] font-mono text-neutral-500">siteSettings.reviewDisplay</span>
+                    </div>
+                    <p className="text-[11px] text-[#5F6368] mt-0.5">
+                      Shows/hides ratings, Home reviews &amp; Product Detail reviews
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={siteSettings.reviewDisplay !== false}
+                    aria-label="Toggle global Review Display"
+                    data-testid="site-settings-review-display-toggle"
+                    onClick={async () => {
+                      const nextVal = !(siteSettings.reviewDisplay !== false);
+                      await updateSiteSettings({ reviewDisplay: nextVal });
+                      setToast({
+                        show: true,
+                        type: 'success',
+                        message: `Global 'Review Display' saved as ${nextVal ? 'ON' : 'OFF'} in settings/siteSettings!`,
+                      });
+                    }}
+                    className={`relative inline-flex h-7 w-13 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      siteSettings.reviewDisplay !== false ? 'bg-emerald-600' : 'bg-neutral-300'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                        siteSettings.reviewDisplay !== false ? 'translate-x-6' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <div className="p-3.5 rounded-xl border border-neutral-200 bg-neutral-50/70 flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-black text-[#171717] flex items-center gap-1.5">
+                      <span>Author Info (Global)</span>
+                      <span className="text-[10px] font-mono text-neutral-500">siteSettings.authorInfo</span>
+                    </div>
+                    <p className="text-[11px] text-[#5F6368] mt-0.5">
+                      Shows/hides writer names on cards, Product Detail &amp; Home Authors section
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={siteSettings.authorInfo !== false}
+                    aria-label="Toggle global Author Info"
+                    data-testid="site-settings-author-info-toggle"
+                    onClick={async () => {
+                      const nextVal = !(siteSettings.authorInfo !== false);
+                      await updateSiteSettings({ authorInfo: nextVal });
+                      setToast({
+                        show: true,
+                        type: 'success',
+                        message: `Global 'Author Info' saved as ${nextVal ? 'ON' : 'OFF'} in settings/siteSettings!`,
+                      });
+                    }}
+                    className={`relative inline-flex h-7 w-13 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      siteSettings.authorInfo !== false ? 'bg-emerald-600' : 'bg-neutral-300'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                        siteSettings.authorInfo !== false ? 'translate-x-6' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
                 </div>
               </div>
 
@@ -9552,7 +9151,7 @@ export function AdminDashboard() {
                           </span>
                         </div>
                         <p className="text-[11px] text-[#5F6368] mt-0.5">
-                          Controls Customer Reviews & Green Rating section on the Home page (<code className="font-mono">homeConfig.showReviews</code>).
+                          Controls Customer Reviews & Green Rating section (<code className="font-mono">homeConfig.showReviews</code>).
                         </p>
                       </div>
                     </div>
@@ -9577,7 +9176,7 @@ export function AdminDashboard() {
                         setToast({
                           show: true,
                           type: 'success',
-                          message: `Home Page 'Reviews' component turned ${nextShow ? 'ON' : 'OFF'} in Firebase homeConfig!`,
+                          message: `Home Page 'Reviews' & 'Review Display' turned ${nextShow ? 'ON' : 'OFF'} in Firebase!`,
                         });
                       }}
                       className={`relative inline-flex h-7 w-13 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
@@ -9702,7 +9301,7 @@ export function AdminDashboard() {
                           </span>
                         </div>
                         <p className="text-[11px] text-[#5F6368] mt-0.5">
-                          Controls Featured Authors / Writers section on the Home page (<code className="font-mono">homeConfig.showAuthors</code>).
+                          Controls Featured Authors / Writers section (<code className="font-mono">homeConfig.showAuthors</code>).
                         </p>
                       </div>
                     </div>
@@ -9727,7 +9326,7 @@ export function AdminDashboard() {
                         setToast({
                           show: true,
                           type: 'success',
-                          message: `Home Page 'Authors' component turned ${nextShow ? 'ON' : 'OFF'} in Firebase homeConfig!`,
+                          message: `Home Page 'Authors' & 'Author Info' turned ${nextShow ? 'ON' : 'OFF'} in Firebase!`,
                         });
                       }}
                       className={`relative inline-flex h-7 w-13 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
@@ -11247,7 +10846,7 @@ export function AdminDashboard() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => setActiveTab('payment-methods')}
+                      onClick={() => selectAdminTab('payment-methods')}
                       className="px-3.5 py-1.5 bg-[#D71920] hover:bg-[#B9151B] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 self-start sm:self-auto cursor-pointer shadow-2xs shrink-0"
                     >
                       <CreditCard size={13} />
@@ -11703,7 +11302,7 @@ export function AdminDashboard() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => setActiveTab('capi')}
+                        onClick={() => selectAdminTab('capi')}
                         className="px-3 py-1.5 rounded-xl bg-[#1877F2] hover:bg-[#166FE5] text-white text-[11px] font-extrabold cursor-pointer flex items-center gap-1.5 shrink-0"
                       >
                         <Server size={12} />
@@ -11789,75 +11388,100 @@ export function AdminDashboard() {
 
         {/* TAB: FACEBOOK PIXEL & CONVERSIONS API (CAPI) MANAGER */}
         {activeTab === 'capi' && (
-          <AdminConversionApiManager
-            settings={settings}
-            onUpdateSettings={updateSettings}
-            onShowToast={(message, type) =>
-              setToast({ show: true, type: type || 'success', message })
-            }
-          />
+          <AdminTabErrorBoundary
+            tabName="Conversion API & Pixel"
+            onResetTab={() => selectAdminTab('overview')}
+          >
+            <AdminConversionApiManager
+              settings={settings}
+              onUpdateSettings={updateSettings}
+              onShowToast={(message, type) =>
+                setToast({ show: true, type: type || 'success', message })
+              }
+            />
+          </AdminTabErrorBoundary>
         )}
 
         {/* TAB 14: STAFF & ROLES ACCESS CONTROL (Manager, Employee, Custom Permissions) */}
         {activeTab === 'staff' && (
-          <AdminStaffManagement
-            staffMembers={staffMembers}
-            onAddStaff={addStaffMember}
-            onUpdateStaff={updateStaffMember}
-            onDeleteStaff={deleteStaffMember}
-            currentStaffRole={staffRole}
-            currentUserEmail={currentUser?.email || null}
-            setToast={(t) => setToast({ show: t.show, type: t.type, message: t.message })}
-          />
+          <AdminTabErrorBoundary
+            tabName="Staff & Roles Access"
+            onResetTab={() => selectAdminTab('overview')}
+          >
+            <AdminStaffManagement
+              staffMembers={staffMembers}
+              onAddStaff={addStaffMember}
+              onUpdateStaff={updateStaffMember}
+              onDeleteStaff={deleteStaffMember}
+              currentStaffRole={staffRole}
+              currentUserEmail={currentUser?.email || null}
+              setToast={(t) => setToast({ show: t.show, type: t.type, message: t.message })}
+            />
+          </AdminTabErrorBoundary>
         )}
 
         {/* TAB 15: DEDICATED ADMIN PROFILE & CREDENTIALS MANAGEMENT */}
         {activeTab === 'profile' && (
-          <AdminProfileManagement
-            settings={settings}
-            updateSettings={updateSettings}
-            currentStaff={currentStaff}
-            staffRole={staffRole}
-            currentUser={currentUser}
-            onUpdateStaff={updateStaffMember}
-            onLogout={async () => {
-              await logout();
-              setActivePage('admin');
-            }}
-            totalOrdersCount={orders.length}
-            totalProductsCount={products.length}
-            totalStaffCount={staffMembers.length}
-            setToast={(t) => setToast({ show: t.show, type: t.type, message: t.message })}
-          />
+          <AdminTabErrorBoundary
+            tabName="Admin Profile"
+            onResetTab={() => selectAdminTab('overview')}
+          >
+            <AdminProfileManagement
+              settings={settings}
+              updateSettings={updateSettings}
+              currentStaff={currentStaff}
+              staffRole={staffRole}
+              currentUser={currentUser}
+              onUpdateStaff={updateStaffMember}
+              onLogout={async () => {
+                await logout();
+                setActivePage('admin');
+              }}
+              totalOrdersCount={orders.length}
+              totalProductsCount={products.length}
+              totalStaffCount={staffMembers.length}
+              setToast={(t) => setToast({ show: t.show, type: t.type, message: t.message })}
+            />
+          </AdminTabErrorBoundary>
         )}
 
         {/* TAB 16: COUPONS & PROMO OFFERS MANAGER */}
         {activeTab === 'coupons' && (
-          <AdminCouponsManager
-            coupons={coupons}
-            onAddCoupon={addCoupon}
-            onUpdateCoupon={updateCoupon}
-            onDeleteCoupon={deleteCoupon}
-            setToast={(t) => setToast({ show: t.show, type: t.type, message: t.message })}
-          />
+          <AdminTabErrorBoundary
+            tabName="Coupons & Promo Codes"
+            onResetTab={() => selectAdminTab('overview')}
+          >
+            <AdminCouponsManager
+              coupons={coupons}
+              onAddCoupon={addCoupon}
+              onUpdateCoupon={updateCoupon}
+              onDeleteCoupon={deleteCoupon}
+              setToast={(t) => setToast({ show: t.show, type: t.type, message: t.message })}
+            />
+          </AdminTabErrorBoundary>
         )}
 
         {/* TAB 17: LIVE CHAT INBOX & SUPPORT MANAGER */}
         {activeTab === 'live-chat' && (
-          <AdminLiveChatManager
-            sessions={liveChatSessions}
-            orders={orders}
-            quickReplies={settings.liveChatQuickReplies}
-            onReply={replyLiveChatAsAdmin}
-            onUpdateStatus={updateLiveChatStatus}
-            onUpdateMeta={updateLiveChatMeta}
-            onMarkRead={markLiveChatReadByAdmin}
-            onDeleteSession={deleteLiveChatSession}
-            soundEnabled={settings.enableLiveChatSound !== false}
-            isSoundMuted={isLiveChatSoundMuted}
-            onToggleSoundMute={toggleAdminChatSoundMute}
-            setToast={(t) => setToast({ show: t.show, type: t.type, message: t.message })}
-          />
+          <AdminTabErrorBoundary
+            tabName="Customer Live Chat Inbox"
+            onResetTab={() => selectAdminTab('overview')}
+          >
+            <AdminLiveChatManager
+              sessions={liveChatSessions}
+              orders={orders}
+              quickReplies={settings.liveChatQuickReplies}
+              onReply={replyLiveChatAsAdmin}
+              onUpdateStatus={updateLiveChatStatus}
+              onUpdateMeta={updateLiveChatMeta}
+              onMarkRead={markLiveChatReadByAdmin}
+              onDeleteSession={deleteLiveChatSession}
+              soundEnabled={settings.enableLiveChatSound !== false}
+              isSoundMuted={isLiveChatSoundMuted}
+              onToggleSoundMute={toggleAdminChatSoundMute}
+              setToast={(t) => setToast({ show: t.show, type: t.type, message: t.message })}
+            />
+          </AdminTabErrorBoundary>
         )}
         </main>
       </div>

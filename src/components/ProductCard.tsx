@@ -43,7 +43,7 @@ export function renderGreenReviewIcon(
 }
 
 export function ProductCard({ product }: ProductCardProps) {
-  const { setActivePage, addToCart, wishlist, toggleWishlist, settings } = useStore();
+  const { setActivePage, addToCart, wishlist, toggleWishlist, settings, siteSettings } = useStore();
   const isWishlisted = wishlist.includes(product.id);
 
   const [currentImgIdx, setCurrentImgIdx] = useState(0);
@@ -182,6 +182,7 @@ export function ProductCard({ product }: ProductCardProps) {
             </span>
 
             {(() => {
+              if (siteSettings.reviewDisplay === false) return null;
               const cardMode =
                 settings.showHomeReviewsSection === false && !settings.productCardReviewSlotMode
                   ? 'off'
@@ -249,6 +250,7 @@ export function ProductCard({ product }: ProductCardProps) {
 
           {/* Configurable Writer / Author Slot (Show Writer, Replace with another feature, or Turn Off) */}
           {(() => {
+            if (siteSettings.authorInfo === false) return null;
             const writerSlotMode = settings.productCardWriterSlotMode || 'writer_name';
             if (writerSlotMode === 'off') return null;
 

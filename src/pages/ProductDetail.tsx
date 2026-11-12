@@ -79,7 +79,7 @@ function MessengerIcon({ className = "w-4 h-4 shrink-0" }: { className?: string 
 }
 
 export function ProductDetail() {
-  const { products, authors, publishers, isLoading, selectedProductId, setActivePage, addToCart, wishlist, toggleWishlist, setSelectedCategoryFilter, setSearchQuery, settings, reviews, visitorId, addProductReview, reactToReview } = useStore();
+  const { products, authors, publishers, isLoading, selectedProductId, setActivePage, addToCart, wishlist, toggleWishlist, setSelectedCategoryFilter, setSearchQuery, settings, siteSettings, reviews, visitorId, addProductReview, reactToReview } = useStore();
   
   const [directFetchedProduct, setDirectFetchedProduct] = useState<Product | null>(null);
   const inMemoryProduct = products.find(p => p.id === selectedProductId || p.slug === selectedProductId);
@@ -461,23 +461,25 @@ export function ProductDetail() {
                     {product.type === 'book' ? (
                       <>
                         {/* Writer / লেখক Badge */}
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-neutral-100/90 border border-neutral-200/90">
-                          <UserCheck size={13} className="text-[#D71920] shrink-0" />
-                          <span className="text-neutral-500 font-semibold text-xs">লেখক / Writer:</span>
-                          <button
-                            type="button"
-                            data-testid="product-detail-writer-link"
-                            onClick={() => {
-                              if (product.author) {
-                                setSearchQuery(product.author);
-                                setActivePage('books');
-                              }
-                            }}
-                            className="text-neutral-900 font-extrabold hover:text-[#D71920] underline decoration-dotted cursor-pointer text-xs sm:text-sm"
-                          >
-                            {product.author || 'Renowned Author'}
-                          </button>
-                        </span>
+                        {siteSettings.authorInfo !== false && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-neutral-100/90 border border-neutral-200/90">
+                            <UserCheck size={13} className="text-[#D71920] shrink-0" />
+                            <span className="text-neutral-500 font-semibold text-xs">লেখক / Writer:</span>
+                            <button
+                              type="button"
+                              data-testid="product-detail-writer-link"
+                              onClick={() => {
+                                if (product.author) {
+                                  setSearchQuery(product.author);
+                                  setActivePage('books');
+                                }
+                              }}
+                              className="text-neutral-900 font-extrabold hover:text-[#D71920] underline decoration-dotted cursor-pointer text-xs sm:text-sm"
+                            >
+                              {product.author || 'Renowned Author'}
+                            </button>
+                          </span>
+                        )}
 
                         {/* Publisher / প্রকাশনী Badge alongside Writer */}
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#FFF1F2] border border-[#D71920]/25">
@@ -505,15 +507,17 @@ export function ProductDetail() {
                   </div>
 
                   {/* 5-Star Rating */}
-                  <div className="flex items-center gap-2 pt-0.5">
-                    <div className="flex items-center text-amber-500">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} size={15} fill="currentColor" />
-                      ))}
+                  {siteSettings.reviewDisplay !== false && (
+                    <div data-testid="product-detail-rating-summary" className="flex items-center gap-2 pt-0.5">
+                      <div className="flex items-center text-amber-500">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} size={15} fill="currentColor" />
+                        ))}
+                      </div>
+                      <span className="text-sm font-bold text-neutral-900 tabular-nums">{avgRating}</span>
+                      <span className="text-xs text-neutral-400 tabular-nums">({displayReviews.length} verified reviews)</span>
                     </div>
-                    <span className="text-sm font-bold text-neutral-900 tabular-nums">{avgRating}</span>
-                    <span className="text-xs text-neutral-400 tabular-nums">({displayReviews.length} verified reviews)</span>
-                  </div>
+                  )}
                 </div>
 
                 {/* Wishlist & Copy Link Buttons */}
@@ -1147,7 +1151,8 @@ export function ProductDetail() {
                 })()}
 
                 {/* Accordion 3: Customer Reviews */}
-                <div className={`rounded-2xl border transition-all duration-200 overflow-hidden bg-white ${
+                {siteSettings.reviewDisplay !== false && (
+                <div data-testid="product-detail-reviews-accordion" className={`rounded-2xl border transition-all duration-200 overflow-hidden bg-white ${
                   activeAccordion === 'reviews' 
                     ? 'border-[#D71920]/40 ring-1 ring-[#D71920]/15 shadow-xs' 
                     : 'border-neutral-200 hover:border-neutral-300 shadow-2xs'
@@ -1453,6 +1458,7 @@ export function ProductDetail() {
                     </div>
                   )}
                 </div>
+                )}
 
               </div>
             </div>
@@ -1460,7 +1466,7 @@ export function ProductDetail() {
         </div>
 
         {/* লেখক পরিচিতি ও লেখকের অন্যান্য বই (Book Products Only) */}
-        {product.type === 'book' && (() => {
+        {siteSettings.authorInfo !== false && product.type === 'book' && (() => {
           const bookAuthorName = (product.author || 'রেনাউন্ড লেখক').trim();
           const matchedStoreAuthor = authors.find(
             a => a.name.toLowerCase() === bookAuthorName.toLowerCase() ||
@@ -2082,7 +2088,7 @@ export function ProductDetail() {
 
       {/* Bottom Featured Authors Slider (Books Only) & Video Reels Section */}
       <div className="mt-8 pt-4 border-t border-neutral-200/80">
-        {product.type === 'book' && <FeaturedAuthorsSection />}
+        {siteSettings.authorInfo !== false && product.type === 'book' && <FeaturedAuthorsSection />}
         <ReelsSection />
       </div>
     </div>

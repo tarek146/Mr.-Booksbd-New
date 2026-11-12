@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 
 export function Home() {
-  const { products, categories, publishers, reviews, isLoading, settings, homeConfig, setActivePage, setSelectedCategoryFilter } = useStore();
+  const { products, categories, publishers, reviews, isLoading, settings, homeConfig, siteSettings, setActivePage, setSelectedCategoryFilter } = useStore();
   
   const categoryScrollRef = useRef<HTMLDivElement>(null);
   const newArrivalsScrollRef = useRef<HTMLDivElement>(null);
@@ -368,9 +368,9 @@ export function Home() {
         </div>
       </section>
 
-      {/* 5. Verified Customer Reviews & Testimonials (Controlled by Firebase homeConfig.showReviews) */}
+      {/* 5. Verified Customer Reviews & Testimonials (Controlled by Firebase siteSettings.reviewDisplay & homeConfig.showReviews) */}
       {(() => {
-        if (homeConfig.showReviews === false) {
+        if (siteSettings.reviewDisplay === false || homeConfig.showReviews === false) {
           return null;
         }
         const slotMode = resolveHomeReviewsSlotMode(homeConfig, settings);
@@ -602,9 +602,9 @@ export function Home() {
         );
       })()}
 
-      {/* 6. Writer / Featured Authors Section (Controlled by Firebase homeConfig.showAuthors) */}
+      {/* 6. Writer / Featured Authors Section (Controlled by Firebase siteSettings.authorInfo & homeConfig.showAuthors) */}
       {(() => {
-        if (homeConfig.showAuthors === false) {
+        if (siteSettings.authorInfo === false || homeConfig.showAuthors === false) {
           return null;
         }
         const writerSlotMode = resolveHomeAuthorsSlotMode(homeConfig, settings);

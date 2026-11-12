@@ -32,6 +32,7 @@ import {
   InboxStatusFilter,
   InboxBuyerFilter,
 } from '../../utils/chatSoundAndValidation';
+import { normalizeLiveChatSession, toNumericTimestamp } from '../../utils/adminOrderAndPaymentHelpers';
 
 interface AdminLiveChatManagerProps {
   sessions: LiveChatSession[];
@@ -59,10 +60,30 @@ const SEGMENT_KEYS: CustomerChatSegment[] = [
   'general',
 ];
 
-function getInitials(name: string): string {
-  const parts = (name || 'Customer').trim().split(/\s+/);
+function getInitials(name?: string): string {
+  const safe = typeof name === 'string' && name.trim() ? name.trim() : 'Customer';
+  const parts = safe.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'CU';
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return ((parts[0]?.[0] || '') + (parts[parts.length - 1]?.[0] || '')).toUpperCase() || 'CU';
+}
+
+function safeFormatTime(ts: unknown): string {
+  const ms = toNumericTimestamp(ts, Date.now());
+  try {
+    return new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '';
+  }
+}
+
+function safeFormatDateTime(ts: unknown): string {
+  const ms = toNumericTimestamp(ts, Date.now());
+  try {
+    return new Date(ms).toLocaleString();
+  } catch {
+    return '';
+  }
 }
 
 export function AdminLiveChatManager({
@@ -79,7 +100,15 @@ export function AdminLiveChatManager({
   onToggleSoundMute,
   setToast,
 }: AdminLiveChatManagerProps) {
-  const [selectedId, setSelectedId] = useState<string>(sessions[0]?.id || '');
+  const safeSessions = useMemo(
+    () =>
+      (Array.isArray(sessions) ? sessions : []).map(s =>
+        normalizeLiveChatSession(s, s?.id || '')
+      ),
+    [sessions]
+  );
+
+  const [selectedId, setSelectedId] = useState<string>(safeSessions[0]?.id || '');
   const [mobileShowThread, setMobileShowThread] = useState<boolean>(false);
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
@@ -106,35 +135,35 @@ export function AdminLiveChatManager({
 
   // Pre-compute overall stats and organized filtered list
   const allOrganized = useMemo(
-    () => filterAndOrganizeChatSessions(sessions, orders, {}),
-    [sessions, orders]
+    () => filterAndOrganizeChatSessions(safeSessions, orders, {}),
+    [safeSessions, orders]
   );
 
   const filteredOrganized = useMemo(
     () =>
-      filterAndOrganizeChatSessions(sessions, orders, {
+      filterAndOrganizeChatSessions(safeSessions, orders, {
         statusFilter,
         segmentFilter,
         buyerFilter,
         searchQuery,
       }),
-    [sessions, orders, statusFilter, segmentFilter, buyerFilter, searchQuery]
+    [safeSessions, orders, statusFilter, segmentFilter, buyerFilter, searchQuery]
   );
 
   const statusCounts = useMemo(() => {
-    const unread = sessions.filter(s => (s.unreadByAdmin || 0) > 0).length;
-    const open = sessions.filter(s => s.status === 'open').length;
-    const resolved = sessions.filter(s => s.status === 'resolved').length;
+    const unread = safeSessions.filter(s => (s.unreadByAdmin || 0) > 0).length;
+    const open = safeSessions.filter(s => s.status === 'open').length;
+    const resolved = safeSessions.filter(s => s.status === 'resolved').length;
     const returning = allOrganized.filter(item => item.orderMatch.isReturningBuyer).length;
     return {
-      total: sessions.length,
+      total: safeSessions.length,
       unread,
       open,
       resolved,
       returning,
-      newVisitors: Math.max(0, sessions.length - returning),
+      newVisitors: Math.max(0, safeSessions.length - returning),
     };
-  }, [sessions, allOrganized]);
+  }, [safeSessions, allOrganized]);
 
   const segmentCounts = useMemo(() => {
     const counts: Record<CustomerChatSegment, number> = {
@@ -276,7 +305,7 @@ export function AdminLiveChatManager({
     }
   };
 
-  const unreadTotal = sessions.reduce((sum, s) => sum + (s.unreadByAdmin || 0), 0);
+  const unreadTotal = safeSessions.reduce((sum, s) => sum + (s.unreadByAdmin || 0), 0);
 
   return (
     <div className="space-y-4">
@@ -414,7 +443,7 @@ export function AdminLiveChatManager({
         </div>
       </div>
 
-      {sessions.length === 0 ? (
+      {safeSessions.length === 0 ? (
         <div className="bg-white rounded-3xl border border-neutral-200 p-12 text-center space-y-2.5">
           <div className="w-14 h-14 mx-auto rounded-2xl bg-neutral-50 border border-neutral-200 flex items-center justify-center text-neutral-400">
             <MessageCircle size={28} />
@@ -474,7 +503,7 @@ export function AdminLiveChatManager({
                       : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-100'
                   }`}
                 >
-                  সব ({sessions.length})
+                  সব ({safeSessions.length})
                 </button>
                 {SEGMENT_KEYS.map(seg => {
                   const meta = CUSTOMER_SEGMENT_META[seg];
@@ -574,10 +603,7 @@ export function AdminLiveChatManager({
                               </span>
                             )}
                             <span className="text-[9.5px] font-medium text-neutral-400">
-                              {new Date(session.lastMessageAt).toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
+                              {safeFormatTime(session.lastMessageAt)}
                             </span>
                           </div>
                         </div>
@@ -712,7 +738,7 @@ export function AdminLiveChatManager({
                           )}
 
                           <span className="text-[10.5px] text-neutral-500 flex items-center gap-1">
-                            <Clock size={10} /> {new Date(activeSession.lastMessageAt).toLocaleString()}
+                            <Clock size={10} /> {safeFormatDateTime(activeSession.lastMessageAt)}
                           </span>
                         </div>
                       </div>
@@ -860,7 +886,7 @@ export function AdminLiveChatManager({
                   data-testid="admin-chat-transcript"
                   className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#F8FAFC]"
                 >
-                  {activeSession.messages.map(msg => {
+                  {(Array.isArray(activeSession.messages) ? activeSession.messages : []).map(msg => {
                     const isAdmin = msg.sender === 'admin';
                     const isSystem = msg.sender === 'system';
 
@@ -897,10 +923,7 @@ export function AdminLiveChatManager({
                           <p className="whitespace-pre-line">{msg.text}</p>
                         </div>
                         <span className="text-[9.5px] text-neutral-400 mt-0.5 px-1">
-                          {new Date(msg.createdAt).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
+                          {safeFormatTime(msg.createdAt)}
                         </span>
                       </div>
                     );

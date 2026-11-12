@@ -43,15 +43,51 @@ export function LiveChatWidget() {
     startNewCustomerChat,
   } = useStore();
 
-  const [customerName, setCustomerName] = useState<string>(
-    customerChatSession?.customerName || ''
-  );
-  const [customerPhone, setCustomerPhone] = useState<string>(
-    customerChatSession?.customerPhone || ''
-  );
-  const [customerEmail, setCustomerEmail] = useState<string>(
-    customerChatSession?.customerEmail || ''
-  );
+  const [customerName, setCustomerName] = useState<string>(() => {
+    if (customerChatSession?.customerName) return customerChatSession.customerName;
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = window.localStorage.getItem('mrb_livechat_profile');
+        if (raw) {
+          const parsed = JSON.parse(raw) as { customerName?: string };
+          if (parsed.customerName) return parsed.customerName;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return '';
+  });
+  const [customerPhone, setCustomerPhone] = useState<string>(() => {
+    if (customerChatSession?.customerPhone) return customerChatSession.customerPhone;
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = window.localStorage.getItem('mrb_livechat_profile');
+        if (raw) {
+          const parsed = JSON.parse(raw) as { customerPhone?: string };
+          if (parsed.customerPhone) return parsed.customerPhone;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return '';
+  });
+  const [customerEmail, setCustomerEmail] = useState<string>(() => {
+    if (customerChatSession?.customerEmail) return customerChatSession.customerEmail;
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = window.localStorage.getItem('mrb_livechat_profile');
+        if (raw) {
+          const parsed = JSON.parse(raw) as { customerEmail?: string };
+          if (parsed.customerEmail) return parsed.customerEmail;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return '';
+  });
   const [firstMessageNote, setFirstMessageNote] = useState<string>('');
   const [formErrors, setFormErrors] = useState<{
     name?: string;
@@ -179,6 +215,20 @@ export function LiveChatWidget() {
     setFormErrors({});
     setSending(true);
     try {
+      if (typeof window !== 'undefined') {
+        try {
+          window.localStorage.setItem(
+            'mrb_livechat_profile',
+            JSON.stringify({
+              customerName: check.cleaned.customerName,
+              customerPhone: check.cleaned.customerPhone,
+              customerEmail: check.cleaned.customerEmail,
+            })
+          );
+        } catch {
+          // ignore
+        }
+      }
       if (soundEnabled) playOutgoingChatChime();
       await sendCustomerChatMessage({
         customerName: check.cleaned.customerName,

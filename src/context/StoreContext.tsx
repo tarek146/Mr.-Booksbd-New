@@ -17,8 +17,14 @@ import {
   HomeConfig,
   Coupon,
   LiveChatSession,
-  CustomerChatSegment
+  CustomerChatSegment,
+  SiteSettings
 } from '../types';
+import {
+  DEFAULT_SITE_SETTINGS,
+  resolveSiteSettings,
+  normalizeLiveChatSession,
+} from '../utils/adminOrderAndPaymentHelpers';
 import {
   DEFAULT_HOME_CONFIG,
   resolveHomeConfig,
@@ -138,6 +144,7 @@ interface StoreContextType {
   wishlist: string[];
   settings: StoreSettings;
   homeConfig: HomeConfig;
+  siteSettings: SiteSettings;
   activePage: string;
   selectedProductId: string | null;
   selectedCategoryFilter: string;
@@ -154,7 +161,7 @@ interface StoreContextType {
   refreshStoreCacheFirst: (forceNetwork?: boolean) => Promise<void>;
   clearLocalStoreCache: () => void;
   
-  setActivePage: (page: string, productId?: string) => void;
+  setActivePage: (page: string, productId?: string, options?: { exitAdmin?: boolean }) => void;
   setSelectedCategoryFilter: (cat: string) => void;
   setSearchQuery: (query: string) => void;
   setDarkMode: (dark: boolean) => void;
@@ -194,13 +201,41 @@ interface StoreContextType {
   updateCategory: (id: string, data: Partial<Category>) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
 
-   updateOrderStatus: (orderId: string, orderStatus: Order['orderStatus']) => Promise<void>;
+  updateOrderStatus: (orderId: string, orderStatus: Order['orderStatus']) => Promise<void>;
   updateOrderPaymentStatus: (orderId: string, paymentStatus: Order['paymentStatus']) => Promise<void>;
   updateOrderTracking: (orderId: string, data: { orderStatus?: Order['orderStatus']; courierName?: string; trackingCode?: string; trackingUrl?: string; trackingNotes?: string }) => Promise<void>;
+  createAdminOrder: (payload: {
+    customerName: string;
+    phone: string;
+    optionalPhone?: string;
+    email?: string;
+    district: string;
+    city: string;
+    address: string;
+    notes?: string;
+    productId: string;
+    quantity: number;
+    deliveryCharge: number;
+    paymentMethodId: string;
+    paymentMethodName: string;
+  }) => Promise<string>;
+  softDeleteOrder: (orderId: string) => Promise<void>;
+  restoreOrder: (orderId: string) => Promise<void>;
   deleteOrder: (orderId: string) => Promise<void>;
   reviewPaymentSubmission: (subId: string, status: 'approved' | 'rejected', reason?: string) => Promise<void>;
+  createManualPaymentRecord: (payload: {
+    orderId: string;
+    customerName: string;
+    customerPhone: string;
+    providerName: string;
+    transactionReference: string;
+    senderIdentifier: string;
+    claimedAmount: number;
+    status: 'pending_verification' | 'approved';
+  }) => Promise<void>;
   updateSettings: (newSettings: Partial<StoreSettings>) => Promise<void>;
   updateHomeConfig: (newConfig: Partial<HomeConfig>) => Promise<void>;
+  updateSiteSettings: (newSiteSettings: Partial<SiteSettings>) => Promise<void>;
   reviews: Review[];
   visitorId: string;
   addProductReview: (review: Omit<Review, 'id' | 'createdAt'>) => Promise<void>;
@@ -669,6 +704,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     )
   );
 
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>(() =>
+    resolveSiteSettings(
+      readCachedSlice<SiteSettings>('siteSettings', DEFAULT_SITE_SETTINGS),
+      readCachedSlice<HomeConfig>('homeConfig', DEFAULT_HOME_CONFIG)
+    )
+  );
+
   // Real-time SEO, OpenGraph, and Favicon head synchronization
   useEffect(() => {
     if (settings.metaTitle) {
@@ -750,13 +792,27 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
   }, [activePage, selectedProductId]);
 
-  const setActivePage = (page: string, productId?: string) => {
+  const allowAdminExitRef = React.useRef<boolean>(false);
+  const activePageRef = React.useRef<string>(activePage);
+  useEffect(() => {
+    activePageRef.current = activePage;
+  }, [activePage]);
+
+  const setActivePage = (page: string, productId?: string, options?: { exitAdmin?: boolean }) => {
+    if (options?.exitAdmin) {
+      allowAdminExitRef.current = true;
+    } else if (page === 'admin') {
+      allowAdminExitRef.current = false;
+    }
+
     setActivePageState(page);
     if (productId) setSelectedProductId(productId);
 
     if (typeof window !== 'undefined') {
+      const currentParams = new URLSearchParams(window.location.search);
+      const devSuffix = currentParams.get('dev') === '1' ? '?dev=1' : '';
       let targetPath = '/';
-      if (page === 'admin') targetPath = '/admin';
+      if (page === 'admin') targetPath = `/admin${devSuffix}`;
       else if (page === 'books' || page === 'shop') targetPath = '/books';
       else if (page === 'stationery') targetPath = '/stationery';
       else if (page === 'cart') targetPath = '/cart';
@@ -767,7 +823,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       else if (page === 'publishers') targetPath = '/publishers';
       else if (page === 'product-detail' && productId) targetPath = `/product/${encodeURIComponent(productId)}`;
 
-      if (window.location.pathname !== targetPath) {
+      const currentFull = `${window.location.pathname}${window.location.search}`;
+      if (currentFull !== targetPath) {
         try {
           window.history.pushState({ page, productId }, '', targetPath);
         } catch {
@@ -782,6 +839,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const handlePopState = () => {
       const loc = getPageFromLocation();
+      if (activePageRef.current === 'admin' && loc.page !== 'admin' && !allowAdminExitRef.current) {
+        const currentParams = new URLSearchParams(window.location.search);
+        const devSuffix = currentParams.get('dev') === '1' ? '?dev=1' : '';
+        try {
+          window.history.pushState({ page: 'admin', tab: 'overview' }, '', `/admin${devSuffix}`);
+        } catch {
+          // ignore
+        }
+        setActivePageState('admin');
+        return;
+      }
+      allowAdminExitRef.current = false;
       setActivePageState(loc.page);
       if (loc.productId) setSelectedProductId(loc.productId);
     };
@@ -836,6 +905,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const [
         settingsRes,
         homeConfigRes,
+        siteSettingsRes,
         productsRes,
         categoriesRes,
         authorsRes,
@@ -845,6 +915,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       ] = await Promise.all([
         getDocCacheFirst<StoreSettings>(doc(db, 'settings', 'general'), strategy),
         getDocCacheFirst<HomeConfig>(doc(db, 'settings', 'homeConfig'), strategy),
+        getDocCacheFirst<SiteSettings>(doc(db, 'settings', 'siteSettings'), strategy),
         getQueryDocsCacheFirst<Product>(
           buildIndexedQuery(collection(db, 'products'), enableIndexing, queryLimit),
           strategy
@@ -902,6 +973,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           writeCachedSlice('homeConfig', merged);
           return merged;
         });
+      }
+
+      if (siteSettingsRes.data) {
+        recordSource(siteSettingsRes.source);
+        const resolvedSite = resolveSiteSettings(siteSettingsRes.data, homeConfigRes.data);
+        setSiteSettings(resolvedSite);
+        writeCachedSlice('siteSettings', resolvedSite);
       }
 
       if (productsRes.items.length > 0) {
@@ -1254,6 +1332,29 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
+    const unsubSiteSettings = onSnapshot(
+      doc(db, 'settings', 'siteSettings'),
+      { includeMetadataChanges: true },
+      (snap) => {
+        const fromCache = snap.metadata.fromCache;
+        if (!shouldApplyRealtimeSnapshot(!snap.exists(), fromCache, Boolean(serverConfirmed.siteSettings))) {
+          return;
+        }
+        if (!fromCache) {
+          serverConfirmed.siteSettings = true;
+        }
+        if (snap.exists()) {
+          const rawSite = snap.data() as Partial<SiteSettings>;
+          const resolved = resolveSiteSettings(rawSite);
+          setSiteSettings(resolved);
+          writeCachedSlice('siteSettings', resolved);
+        }
+      },
+      (err) => {
+        console.warn('siteSettings realtime listener notice:', err.message);
+      }
+    );
+
     const unsubReviews = onSnapshot(
       reviewsQuery,
       { includeMetadataChanges: true },
@@ -1329,6 +1430,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubPayments();
       unsubSettings();
       unsubHomeConfig();
+      unsubSiteSettings();
       unsubReviews();
       unsubReels();
       unsubCoupons();
@@ -1412,7 +1514,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         collection(db, 'live_chats'),
         (snapshot) => {
           const list = snapshot.docs
-            .map(d => ({ ...d.data(), id: d.id } as LiveChatSession))
+            .map(d => normalizeLiveChatSession(d.data(), d.id))
             .sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
           setLiveChatSessions(list);
           setLiveChatsHydrated(true);
@@ -1429,7 +1531,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           adminChatChannel.onmessage = (event) => {
             const payload = event.data as { type?: string; session?: LiveChatSession } | null;
             if (payload?.type === 'session_updated' && payload.session) {
-              const incoming = payload.session;
+              const incoming = normalizeLiveChatSession(payload.session, payload.session.id);
               setLiveChatSessions(prev => {
                 const exists = prev.some(s => s.id === incoming.id);
                 const nextList = exists
@@ -1481,7 +1583,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       doc(db, 'live_chats', activeLiveChatId),
       (snap) => {
         if (snap.exists()) {
-          const incoming = { ...(snap.data() as LiveChatSession), id: snap.id };
+          const incoming = normalizeLiveChatSession(snap.data(), snap.id);
           setCustomerChatSession(prev => {
             if (!prev || prev.id !== incoming.id) return incoming;
             return {
@@ -1505,7 +1607,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         channel.onmessage = (event) => {
           const payload = event.data as { type?: string; session?: LiveChatSession } | null;
           if (payload?.type === 'session_updated' && payload.session && payload.session.id === activeLiveChatId) {
-            const incoming = payload.session;
+            const incoming = normalizeLiveChatSession(payload.session, payload.session.id);
             setCustomerChatSession(prev => {
               if (!prev || prev.id !== incoming.id) return incoming;
               return {
@@ -2122,6 +2224,119 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...data, updatedAt: Date.now() } : o));
   };
 
+  const createAdminOrder = async (payload: {
+    customerName: string;
+    phone: string;
+    optionalPhone?: string;
+    email?: string;
+    district: string;
+    city: string;
+    address: string;
+    notes?: string;
+    productId: string;
+    quantity: number;
+    deliveryCharge: number;
+    paymentMethodId: string;
+    paymentMethodName: string;
+  }): Promise<string> => {
+    const product = products.find(p => p.id === payload.productId) || products[0];
+    if (!product) throw new Error('No product available to create order.');
+    const qty = Math.max(1, Math.floor(Number(payload.quantity) || 1));
+    const variant = product.variants?.[0];
+    const unitPrice = variant?.price ?? product.price;
+    const subtotal = unitPrice * qty;
+    const deliveryCharge = Math.max(0, Number(payload.deliveryCharge) || 0);
+    const total = subtotal + deliveryCharge;
+    const orderId = 'MRB-' + Date.now().toString().slice(-6) + Math.floor(10 + Math.random() * 89);
+
+    const newOrder: Order = {
+      id: orderId,
+      userId: currentUser?.uid || 'admin-manual',
+      customerName: payload.customerName.trim(),
+      phone: payload.phone.trim(),
+      ...(payload.optionalPhone?.trim() ? { optionalPhone: payload.optionalPhone.trim() } : {}),
+      email: payload.email?.trim() || '',
+      district: payload.district.trim() || 'Dhaka',
+      city: payload.city.trim() || 'Dhaka',
+      address: payload.address.trim(),
+      notes: payload.notes?.trim() || '',
+      items: [
+        {
+          productId: product.id,
+          variantId: variant?.id || 'v1',
+          title: product.title,
+          variantName: variant?.name || product.edition || 'Standard',
+          price: unitPrice,
+          image: product.images?.[0] || '',
+          quantity: qty,
+          stock: variant?.stock ?? product.stock,
+          type: product.type,
+        },
+      ],
+      subtotal,
+      deliveryCharge,
+      discount: 0,
+      total,
+      paymentMethodId: payload.paymentMethodId || 'cod',
+      paymentMethodName: payload.paymentMethodName || 'Cash on Delivery',
+      paymentStatus: 'unpaid',
+      orderStatus: 'pending',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    await setDoc(doc(db, 'orders', orderId), cleanForFirestore(newOrder));
+    await logAdminAction('order_created_manual', orderId, `Manual order for ${newOrder.customerName} (৳${total})`);
+    setOrders(prev => [newOrder, ...prev.filter(o => o.id !== orderId)]);
+    return orderId;
+  };
+
+  const softDeleteOrder = async (orderId: string) => {
+    const payload = { isTrashed: true, trashedAt: Date.now(), updatedAt: Date.now() };
+    await setDoc(doc(db, 'orders', orderId), cleanForFirestore(payload), { merge: true });
+    await logAdminAction('order_trashed', orderId, `Moved order #${orderId} to Trash Bin`);
+    setOrders(prev => prev.map(o => (o.id === orderId ? { ...o, ...payload } : o)));
+  };
+
+  const restoreOrder = async (orderId: string) => {
+    const payload = { isTrashed: false, updatedAt: Date.now() };
+    await setDoc(doc(db, 'orders', orderId), cleanForFirestore(payload), { merge: true });
+    await logAdminAction('order_restored', orderId, `Restored order #${orderId} from Trash Bin`);
+    setOrders(prev => prev.map(o => (o.id === orderId ? { ...o, isTrashed: false, updatedAt: payload.updatedAt } : o)));
+  };
+
+  const createManualPaymentRecord = async (payload: {
+    orderId: string;
+    customerName: string;
+    customerPhone: string;
+    providerName: string;
+    transactionReference: string;
+    senderIdentifier: string;
+    claimedAmount: number;
+    status: 'pending_verification' | 'approved';
+  }) => {
+    const subId = 'SUB-' + Math.floor(100000 + Math.random() * 900000);
+    const now = Date.now();
+    const newSub: PaymentSubmission = {
+      id: subId,
+      orderId: payload.orderId,
+      userId: currentUser?.uid || 'admin-manual',
+      customerName: payload.customerName,
+      customerPhone: payload.customerPhone,
+      providerId: payload.providerName.toLowerCase().replace(/\s+/g, '_'),
+      providerName: payload.providerName,
+      transactionReference: payload.transactionReference,
+      senderIdentifier: payload.senderIdentifier,
+      claimedAmount: payload.claimedAmount,
+      status: payload.status,
+      submittedAt: now,
+      ...(payload.status === 'approved' ? { reviewedAt: now, reviewedBy: currentUser?.email || 'admin' } : {}),
+    };
+    await setDoc(doc(db, 'payment_submissions', subId), cleanForFirestore(newSub));
+    setPaymentSubmissions(prev => [newSub, ...prev.filter(s => s.id !== subId)]);
+    await logAdminAction('payment_recorded_manual', subId, `Recorded ${payload.providerName} ৳${payload.claimedAmount} (${payload.transactionReference})`);
+  };
+
   const deleteOrder = async (orderId: string) => {
     try {
       await deleteDoc(doc(db, 'orders', orderId));
@@ -2306,6 +2521,53 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateSiteSettings = async (newSiteSettings: Partial<SiteSettings>) => {
+    const nextSite: SiteSettings = {
+      ...siteSettings,
+      ...newSiteSettings,
+      updatedAt: Date.now(),
+    };
+    setSiteSettings(nextSite);
+    writeCachedSlice('siteSettings', nextSite);
+
+    // Synchronize with homeConfig & general settings so all UI sections update together seamlessly
+    const homePatch: Partial<HomeConfig> = {};
+    if (newSiteSettings.reviewDisplay !== undefined) {
+      homePatch.showReviews = newSiteSettings.reviewDisplay;
+      homePatch.reviewsSlotReplacement = newSiteSettings.reviewDisplay ? 'reviews' : 'off';
+    }
+    if (newSiteSettings.authorInfo !== undefined) {
+      homePatch.showAuthors = newSiteSettings.authorInfo;
+      homePatch.authorsSlotReplacement = newSiteSettings.authorInfo ? 'writers' : 'off';
+    }
+    if (Object.keys(homePatch).length > 0) {
+      setHomeConfig(prev => {
+        const merged = resolveHomeConfig({ ...prev, ...homePatch });
+        writeCachedSlice('homeConfig', merged);
+        return merged;
+      });
+    }
+
+    try {
+      await setDoc(doc(db, 'settings', 'siteSettings'), cleanForFirestore(nextSite), { merge: true });
+      if (Object.keys(homePatch).length > 0) {
+        await setDoc(
+          doc(db, 'settings', 'homeConfig'),
+          cleanForFirestore({ ...homePatch, updatedAt: Date.now() }),
+          { merge: true }
+        );
+      }
+      await logAdminAction(
+        'site_settings_updated',
+        'siteSettings',
+        `Updated siteSettings: reviewDisplay=${nextSite.reviewDisplay}, authorInfo=${nextSite.authorInfo}`
+      );
+    } catch (err) {
+      console.error('Firestore update siteSettings error:', err);
+      throw err;
+    }
+  };
+
   const updateHomeConfig = async (newConfig: Partial<HomeConfig>) => {
     const payload: Partial<HomeConfig> = {
       ...newConfig,
@@ -2326,11 +2588,34 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         return next;
       });
     }
+    if (newConfig.showReviews !== undefined || newConfig.showAuthors !== undefined) {
+      setSiteSettings(prev => {
+        const nextSite: SiteSettings = {
+          ...prev,
+          ...(newConfig.showReviews !== undefined ? { reviewDisplay: newConfig.showReviews } : {}),
+          ...(newConfig.showAuthors !== undefined ? { authorInfo: newConfig.showAuthors } : {}),
+          updatedAt: Date.now(),
+        };
+        writeCachedSlice('siteSettings', nextSite);
+        return nextSite;
+      });
+    }
 
     try {
       await setDoc(doc(db, 'settings', 'homeConfig'), cleanForFirestore(payload), { merge: true });
       if (Object.keys(settingsMirror).length > 0) {
         await setDoc(doc(db, 'settings', 'general'), cleanForFirestore(settingsMirror), { merge: true });
+      }
+      if (newConfig.showReviews !== undefined || newConfig.showAuthors !== undefined) {
+        await setDoc(
+          doc(db, 'settings', 'siteSettings'),
+          cleanForFirestore({
+            ...(newConfig.showReviews !== undefined ? { reviewDisplay: newConfig.showReviews } : {}),
+            ...(newConfig.showAuthors !== undefined ? { authorInfo: newConfig.showAuthors } : {}),
+            updatedAt: Date.now(),
+          }),
+          { merge: true }
+        );
       }
       await logAdminAction(
         'home_config_updated',
@@ -2736,6 +3021,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       wishlist,
       settings,
       homeConfig,
+      siteSettings,
       activePage,
       selectedProductId,
       selectedCategoryFilter,
@@ -2779,10 +3065,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       updateOrderStatus,
       updateOrderPaymentStatus,
       updateOrderTracking,
+      createAdminOrder,
+      softDeleteOrder,
+      restoreOrder,
       deleteOrder,
       reviewPaymentSubmission,
+      createManualPaymentRecord,
       updateSettings,
       updateHomeConfig,
+      updateSiteSettings,
       reviews,
       visitorId,
       addProductReview,
