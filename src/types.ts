@@ -434,6 +434,16 @@ export interface StoreSettings {
 
   // Dedicated Store Owner / Admin Profile Settings
   adminProfile?: AdminProfile;
+
+  // Dynamic Admin Sidebar Section & Item Serial Ordering (persisted in Firebase settings/general & settings/adminSidebarConfig)
+  adminSidebarConfig?: {
+    sections: {
+      id: string;
+      title: string;
+      itemIds: string[];
+    }[];
+    updatedAt?: number;
+  };
 }
 
 export interface AdminProfile {

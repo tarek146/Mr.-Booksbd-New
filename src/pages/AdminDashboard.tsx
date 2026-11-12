@@ -108,6 +108,16 @@ import {
   searchProductsForReel,
   captureVideoFrame
 } from '../utils/videoReelHelpers';
+import {
+  DEFAULT_ADMIN_SIDEBAR_CONFIG,
+  normalizeAdminSidebarConfig,
+  moveSidebarSection,
+  moveSidebarItem,
+  reorderSidebarItemByDrop,
+  formatSerialIndex,
+  isCustomSidebarConfig,
+  AdminSidebarConfig,
+} from '../utils/adminSidebarOrderHelpers';
 
 export function AdminDashboard() {
   const { 
@@ -258,6 +268,8 @@ export function AdminDashboard() {
 
   const [activeTab, setActiveTab] = useState<AdminTabId>(() => getTabFromLocation());
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarReorderMode, setSidebarReorderMode] = useState(false);
+  const [draggedSidebarItemId, setDraggedSidebarItemId] = useState<string | null>(null);
 
   const selectAdminTab = (tab: AdminTabId | string) => {
     const safeTab = (VALID_ADMIN_TABS as readonly string[]).includes(tab)
@@ -2023,152 +2035,422 @@ export function AdminDashboard() {
   }
 
   interface NavSection {
+    id: string;
     title: string;
     items: NavItem[];
   }
 
-  // Navigation Sections for the Left Sidebar Menu
-  const navSections: NavSection[] = [
-    {
-      title: 'ANALYTICS & CORE',
-      items: [
-        { id: 'overview', label: 'Dashboard Analytics', icon: TrendingUp, badge: 'Live', badgeColor: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' },
-      ]
+  // Registry of all Sidebar Menu Items with live counts & badges
+  const navItemsCatalog: Record<string, NavItem> = {
+    overview: {
+      id: 'overview',
+      label: 'Dashboard Analytics',
+      icon: TrendingUp,
+      badge: 'Live',
+      badgeColor: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
     },
-    {
-      title: 'COMMERCE & ORDERS',
-      items: [
-        { id: 'orders', label: 'Customer Orders', icon: Package, count: orders.length },
-        { id: 'special-offer', label: 'Special Offer Deals', icon: Flame },
-        { 
-          id: 'verifications', 
-          label: 'Payment Verifications', 
-          icon: CreditCard, 
-          count: pendingVerificationsCount,
-          badgeColor: pendingVerificationsCount > 0 ? 'bg-amber-500 text-black font-black animate-pulse' : undefined 
-        },
-        { id: 'payment-methods', label: 'Payment Methods', icon: CreditCard, count: paymentMethods.length },
-      ]
+    orders: {
+      id: 'orders',
+      label: 'Customer Orders',
+      icon: Package,
+      count: orders.length,
     },
-    {
-      title: 'CATALOG & STOREFRONT',
-      items: [
-        { id: 'products', label: 'Books & Inventory', icon: BookOpen, count: products.length },
-        { id: 'categories', label: 'Categories', icon: Layers, count: categories.length },
-        { id: 'banners', label: 'Hero Banners', icon: ImageIcon, count: banners.length },
-        { id: 'authors', label: 'Writers & Authors', icon: Users, count: authors.length },
-        { id: 'publishers', label: 'Publishers / প্রকাশনী', icon: Building2, count: publishers.length },
-        { id: 'reels', label: 'Book Video Reels', icon: Film, count: reels.length },
-        { id: 'reviews', label: 'Reviews & Reactions', icon: Star, count: reviews.length },
-      ]
+    verifications: {
+      id: 'verifications',
+      label: 'Payment Verifications',
+      icon: CreditCard,
+      count: pendingVerificationsCount,
+      badgeColor: pendingVerificationsCount > 0 ? 'bg-amber-500 text-black font-bold' : undefined,
     },
-    {
-      title: 'MARKETING & AUDIENCE',
-      items: [
-        { id: 'coupons', label: 'Coupons & Promo Codes', icon: TicketPercent, count: coupons.length || 3 },
-        {
-          id: 'live-chat',
-          label: 'Live Chat Inbox',
-          icon: MessageCircle,
-          count: liveChatSessions.reduce((sum, s) => sum + (s.unreadByAdmin || 0), 0) || liveChatSessions.length,
-          badgeColor: liveChatSessions.some(s => (s.unreadByAdmin || 0) > 0) ? 'bg-[#D71920] text-white font-black animate-pulse' : undefined,
-        },
-        { id: 'capi', label: 'Conversion API & Pixel', icon: Server, badge: '9.8/10', badgeColor: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' },
-        { id: 'subscribers', label: 'VIP Subscribers', icon: Mail, count: subscribers.length },
-      ]
+    'payment-methods': {
+      id: 'payment-methods',
+      label: 'Payment Methods',
+      icon: CreditCard,
+      count: paymentMethods.length,
     },
-    {
-      title: 'SYSTEM & SETTINGS',
-      items: [
-        { id: 'settings', label: 'Store Settings', icon: Settings },
-        { id: 'staff', label: 'Staff & Roles Access', icon: Key, count: staffMembers.length, badge: 'Roles' },
-        { id: 'profile', label: 'Admin Profile', icon: UserCheck, badge: 'Account' },
-      ]
-    }
-  ];
+    products: {
+      id: 'products',
+      label: 'Books & Inventory',
+      icon: BookOpen,
+      count: products.length,
+    },
+    categories: {
+      id: 'categories',
+      label: 'Categories',
+      icon: Layers,
+      count: categories.length,
+    },
+    authors: {
+      id: 'authors',
+      label: 'Writers & Authors',
+      icon: Users,
+      count: authors.length,
+    },
+    publishers: {
+      id: 'publishers',
+      label: 'Publishers / প্রকাশনী',
+      icon: Building2,
+      count: publishers.length,
+    },
+    banners: {
+      id: 'banners',
+      label: 'Hero Banners',
+      icon: ImageIcon,
+      count: banners.length,
+    },
+    'special-offer': {
+      id: 'special-offer',
+      label: 'Special Offer Deals',
+      icon: Flame,
+      count: (settings.specialOffer?.items || []).length || 4,
+    },
+    coupons: {
+      id: 'coupons',
+      label: 'Coupons & Promo Codes',
+      icon: TicketPercent,
+      count: coupons.length || 3,
+    },
+    reels: {
+      id: 'reels',
+      label: 'Book Video Reels',
+      icon: Film,
+      count: reels.length,
+    },
+    reviews: {
+      id: 'reviews',
+      label: 'Reviews & Reactions',
+      icon: Star,
+      count: reviews.length,
+    },
+    'live-chat': {
+      id: 'live-chat',
+      label: 'Live Chat Inbox',
+      icon: MessageCircle,
+      count: liveChatSessions.reduce((sum, s) => sum + (s.unreadByAdmin || 0), 0) || liveChatSessions.length,
+      badgeColor: liveChatSessions.some(s => (s.unreadByAdmin || 0) > 0) ? 'bg-[#D71920] text-white font-bold' : undefined,
+    },
+    subscribers: {
+      id: 'subscribers',
+      label: 'VIP Subscribers',
+      icon: Mail,
+      count: subscribers.length,
+    },
+    capi: {
+      id: 'capi',
+      label: 'Conversion API & Pixel',
+      icon: Server,
+      badge: '9.8/10',
+      badgeColor: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
+    },
+    settings: {
+      id: 'settings',
+      label: 'Store Settings',
+      icon: Settings,
+    },
+    staff: {
+      id: 'staff',
+      label: 'Staff & Roles Access',
+      icon: Key,
+      count: staffMembers.length,
+    },
+    profile: {
+      id: 'profile',
+      label: 'Admin Profile',
+      icon: UserCheck,
+    },
+  };
 
-  const renderSidebarNav = () => (
-    <div className="flex flex-col h-full justify-between">
-      <div className="flex flex-col min-h-0 flex-1">
-        {/* Clean Brand Header */}
-        <div className="px-4 py-4 border-b border-slate-800 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-[#D71920] flex items-center justify-center text-white shrink-0">
-              <BookOpen size={17} />
+  // Resolve active serial sidebar configuration from Firebase settings
+  const resolvedSidebarConfig = normalizeAdminSidebarConfig(settings.adminSidebarConfig as AdminSidebarConfig | undefined);
+  const isSidebarCustomized = isCustomSidebarConfig(resolvedSidebarConfig);
+
+  const navSections: NavSection[] = resolvedSidebarConfig.sections.map(sec => ({
+    id: sec.id,
+    title: sec.title,
+    items: sec.itemIds.map(id => navItemsCatalog[id]).filter(Boolean),
+  }));
+
+  const persistSidebarOrder = (nextConfig: AdminSidebarConfig, message: string) => {
+    updateSettings({ adminSidebarConfig: nextConfig }).catch(() => {
+      // Local state & cache already updated optimistically in StoreContext
+    });
+    setToast({
+      show: true,
+      type: 'success',
+      message,
+    });
+  };
+
+  const handleMoveSidebarSection = (sectionId: string, direction: 'up' | 'down') => {
+    const nextConfig = moveSidebarSection(resolvedSidebarConfig, sectionId, direction);
+    persistSidebarOrder(nextConfig, 'সাইডবার সেকশনের সিরিয়াল পরিবর্তন করে সেভ করা হয়েছে!');
+  };
+
+  const handleMoveSidebarItem = (itemId: string, direction: 'up' | 'down') => {
+    const nextConfig = moveSidebarItem(resolvedSidebarConfig, itemId, direction);
+    persistSidebarOrder(nextConfig, 'মেনু আইটেমের সিরিয়াল উপরে-নিচে সরিয়ে সেভ করা হয়েছে!');
+  };
+
+  const handleResetSidebarOrder = () => {
+    const defaultCfg = normalizeAdminSidebarConfig(DEFAULT_ADMIN_SIDEBAR_CONFIG);
+    persistSidebarOrder(defaultCfg, 'সাইডবার মেনু ডিফল্ট সিরিয়ালে রিসেট করা হয়েছে!');
+  };
+
+  const renderSidebarNav = () => {
+    const visibleSections = navSections
+      .map(sec => ({
+        ...sec,
+        visibleItems: sec.items.filter(item => canAccessTab(item.id)),
+      }))
+      .filter(sec => sec.visibleItems.length > 0);
+
+    const totalVisibleCount = visibleSections.reduce((sum, s) => sum + s.visibleItems.length, 0);
+    let serialCounter = 0;
+
+    return (
+      <div className="flex flex-col h-full justify-between">
+        <div className="flex flex-col min-h-0 flex-1">
+          {/* Clean Brand Header */}
+          <div className="px-4 py-3.5 border-b border-slate-800 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-[#D71920] flex items-center justify-center text-white shrink-0">
+                <BookOpen size={17} />
+              </div>
+              <div className="min-w-0">
+                <div className="font-bold text-sm tracking-tight text-white truncate">
+                  MR. BOOKS
+                </div>
+                <div className="text-[11px] text-slate-400 truncate">
+                  Store Admin Console
+                </div>
+              </div>
             </div>
-            <div className="min-w-0">
-              <div className="font-bold text-sm tracking-tight text-white truncate">
-                MR. BOOKS
-              </div>
-              <div className="text-[11px] text-slate-400 truncate">
-                Store Admin Console
-              </div>
+            {/* Mobile Close Button */}
+            <button 
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 cursor-pointer"
+              aria-label="Close Sidebar"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* Serial Organization & Reorder Controls Bar */}
+          <div className="px-3 py-2 border-b border-slate-800/80 bg-slate-900/70 flex items-center justify-between gap-1.5 shrink-0">
+            <div className="text-[11px] font-medium text-slate-400 truncate">
+              সিরিয়াল মেনু <span className="text-slate-600">·</span>{' '}
+              <span className="font-mono tabular-nums text-slate-300">{formatSerialIndex(totalVisibleCount)}</span>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              {isSidebarCustomized && (
+                <button
+                  type="button"
+                  onClick={handleResetSidebarOrder}
+                  data-testid="sidebar-reset-order-btn"
+                  title="ডিফল্ট সিরিয়ালে রিসেট করুন"
+                  className="px-2 py-1 rounded text-[10px] font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer whitespace-nowrap"
+                >
+                  রিসেট
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setSidebarReorderMode(prev => !prev)}
+                data-testid="sidebar-reorder-toggle-btn"
+                title="যেকোনো সেকশন বা অপশন ক্লিক করে উপরে-নিচে মুভ করুন"
+                className={`px-2 py-1 rounded text-[10px] font-semibold transition-colors cursor-pointer flex items-center gap-1 whitespace-nowrap ${
+                  sidebarReorderMode
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
+                }`}
+              >
+                <ArrowUp size={10} />
+                <ArrowDown size={10} className="-ml-1" />
+                <span>{sidebarReorderMode ? 'সেভ সম্পন্ন' : 'সিরিয়াল সাজান'}</span>
+              </button>
             </div>
           </div>
-          {/* Mobile Close Button */}
-          <button 
-            onClick={() => setSidebarOpen(false)}
-            className="lg:hidden p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 cursor-pointer"
-            aria-label="Close Sidebar"
-          >
-            <X size={18} />
-          </button>
-        </div>
 
-        {/* Navigation Sections Menu */}
-        <div className="py-3 px-2.5 space-y-5 overflow-y-auto flex-1">
-          {navSections.map((sec, sIdx) => {
-            const visibleItems = sec.items.filter(item => canAccessTab(item.id));
-            if (visibleItems.length === 0) return null;
-            return (
-              <div key={sIdx}>
-                <div className="text-[10px] uppercase font-semibold tracking-wider text-slate-500 px-2.5 mb-1.5">
-                  {sec.title}
-                </div>
-                <div className="space-y-0.5">
-                  {visibleItems.map(item => {
-                    const Icon = item.icon;
-                    const isActive = activeTab === item.id;
-                    return (
+          {/* Navigation Sections Menu */}
+          <div className="py-2.5 px-2 space-y-3.5 overflow-y-auto flex-1" data-testid="admin-sidebar-sections">
+            {visibleSections.map((sec, sIdx) => {
+              const sectionSerial = formatSerialIndex(sIdx + 1);
+              const isFirstSection = sIdx === 0;
+              const isLastSection = sIdx === visibleSections.length - 1;
+
+              return (
+                <div key={sec.id} data-testid={`sidebar-section-${sec.id}`}>
+                  {/* Section Header with Serial Number & Up/Down Section Controls */}
+                  <div className="flex items-center justify-between gap-1 px-1.5 mb-1 group/sec">
+                    <div className="text-[10px] uppercase font-semibold tracking-wider text-slate-400 truncate flex items-center gap-1">
+                      <span className="font-mono tabular-nums text-slate-500">{sectionSerial}.</span>
+                      <span className="truncate">{sec.title}</span>
+                    </div>
+                    <div className="flex items-center gap-0.5 shrink-0">
                       <button
-                        key={item.id}
-                        onClick={() => {
-                          selectAdminTab(item.id);
-                          setShowAddProdModal(false);
-                          setSidebarOpen(false);
-                        }}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors cursor-pointer group ${
-                          isActive
-                            ? 'bg-[#D71920] text-white font-semibold'
-                            : 'text-slate-300 hover:text-white hover:bg-slate-800/70 font-medium'
+                        type="button"
+                        disabled={isFirstSection}
+                        onClick={() => handleMoveSidebarSection(sec.id, 'up')}
+                        data-testid={`move-section-up-${sec.id}`}
+                        aria-label={`Move section ${sec.title} up`}
+                        title="এই সেকশনটি উপরে নিন (Move Section Up)"
+                        className={`p-0.5 rounded transition-colors cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed ${
+                          sidebarReorderMode
+                            ? 'bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white'
+                            : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800/80'
                         }`}
                       >
-                        <div className="flex items-center gap-2.5 truncate">
-                          <Icon size={15} className={`shrink-0 transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`} />
-                          <span className="truncate">{item.label}</span>
-                        </div>
-                        {item.badge ? (
-                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded tabular-nums ${item.badgeColor || 'bg-slate-800 text-slate-300'}`}>
-                            {item.badge}
-                          </span>
-                        ) : item.count !== undefined ? (
-                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded tabular-nums ${
-                            isActive 
-                              ? 'bg-black/25 text-white' 
-                              : (item as any).badgeColor || 'bg-slate-800 text-slate-400 group-hover:text-slate-200'
-                          }`}>
-                            {item.count}
-                          </span>
-                        ) : null}
+                        <ArrowUp size={11} />
                       </button>
-                    );
-                  })}
+                      <button
+                        type="button"
+                        disabled={isLastSection}
+                        onClick={() => handleMoveSidebarSection(sec.id, 'down')}
+                        data-testid={`move-section-down-${sec.id}`}
+                        aria-label={`Move section ${sec.title} down`}
+                        title="এই সেকশনটি নিচে নিন (Move Section Down)"
+                        className={`p-0.5 rounded transition-colors cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed ${
+                          sidebarReorderMode
+                            ? 'bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white'
+                            : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800/80'
+                        }`}
+                      >
+                        <ArrowDown size={11} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Section Items with Serial Index & Click-to-Move Up/Down Controls */}
+                  <div className="space-y-0.5">
+                    {sec.visibleItems.map((item) => {
+                      serialCounter += 1;
+                      const currentItemSerial = serialCounter;
+                      const serialLabel = formatSerialIndex(currentItemSerial);
+                      const Icon = item.icon;
+                      const isActive = activeTab === item.id;
+                      const isVeryFirstItem = currentItemSerial === 1;
+                      const isVeryLastItem = currentItemSerial === totalVisibleCount;
+
+                      return (
+                        <div
+                          key={item.id}
+                          data-testid={`sidebar-item-row-${item.id}`}
+                          draggable
+                          onDragStart={() => setDraggedSidebarItemId(item.id)}
+                          onDragOver={e => e.preventDefault()}
+                          onDrop={() => {
+                            if (draggedSidebarItemId && draggedSidebarItemId !== item.id) {
+                              const nextCfg = reorderSidebarItemByDrop(
+                                resolvedSidebarConfig,
+                                draggedSidebarItemId,
+                                item.id
+                              );
+                              persistSidebarOrder(nextCfg, 'মেনু সিরিয়াল আপডেট ও সেভ হয়েছে!');
+                            }
+                            setDraggedSidebarItemId(null);
+                          }}
+                          className={`w-full flex items-center gap-0.5 rounded-lg transition-colors group ${
+                            isActive
+                              ? 'bg-[#D71920] text-white'
+                              : 'text-slate-300 hover:text-white hover:bg-slate-800/70'
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              selectAdminTab(item.id);
+                              setShowAddProdModal(false);
+                              setSidebarOpen(false);
+                            }}
+                            className={`flex-1 flex items-center justify-between pl-2 pr-1 py-1.5 text-xs cursor-pointer min-w-0 ${
+                              isActive ? 'font-semibold text-white' : 'font-medium text-slate-300 group-hover:text-white'
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0 truncate">
+                              <span
+                                className={`font-mono tabular-nums text-[10px] shrink-0 ${
+                                  isActive ? 'text-white/85 font-semibold' : 'text-slate-500 group-hover:text-slate-400'
+                                }`}
+                              >
+                                {serialLabel}
+                              </span>
+                              <Icon
+                                size={14}
+                                className={`shrink-0 transition-colors ${
+                                  isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'
+                                }`}
+                              />
+                              <span className="truncate">{item.label}</span>
+                            </div>
+                            {item.badge ? (
+                              <span
+                                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded tabular-nums shrink-0 ml-1 ${
+                                  isActive
+                                    ? 'bg-black/25 text-white'
+                                    : item.badgeColor || 'bg-slate-800 text-slate-300'
+                                }`}
+                              >
+                                {item.badge}
+                              </span>
+                            ) : item.count !== undefined ? (
+                              <span
+                                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded tabular-nums shrink-0 ml-1 ${
+                                  isActive
+                                    ? 'bg-black/25 text-white'
+                                    : item.badgeColor || 'bg-slate-800 text-slate-400 group-hover:text-slate-200'
+                                }`}
+                              >
+                                {item.count}
+                              </span>
+                            ) : null}
+                          </button>
+
+                          {/* Up / Down Click Controls for every Menu Item */}
+                          <div className="flex items-center pr-1 shrink-0">
+                            <button
+                              type="button"
+                              disabled={isVeryFirstItem}
+                              onClick={() => handleMoveSidebarItem(item.id, 'up')}
+                              data-testid={`move-item-up-${item.id}`}
+                              aria-label={`Move ${item.label} up`}
+                              title={`${item.label} উপরে নিন (Move Up)`}
+                              className={`p-0.5 rounded transition-colors cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed ${
+                                isActive
+                                  ? 'text-white/85 hover:text-white hover:bg-black/20'
+                                  : sidebarReorderMode
+                                  ? 'bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white'
+                                  : 'text-slate-500 hover:text-white hover:bg-slate-700/80'
+                              }`}
+                            >
+                              <ArrowUp size={11} />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isVeryLastItem}
+                              onClick={() => handleMoveSidebarItem(item.id, 'down')}
+                              data-testid={`move-item-down-${item.id}`}
+                              aria-label={`Move ${item.label} down`}
+                              title={`${item.label} নিচে নিন (Move Down)`}
+                              className={`p-0.5 rounded transition-colors cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed ${
+                                isActive
+                                  ? 'text-white/85 hover:text-white hover:bg-black/20'
+                                  : sidebarReorderMode
+                                  ? 'bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white'
+                                  : 'text-slate-500 hover:text-white hover:bg-slate-700/80'
+                              }`}
+                            >
+                              <ArrowDown size={11} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
 
       {/* Sidebar Footer User Card */}
       <div className="p-3 border-t border-slate-800 bg-[#0B1120] space-y-2 shrink-0">
@@ -2225,7 +2507,8 @@ export function AdminDashboard() {
         </button>
       </div>
     </div>
-  );
+    );
+  };
 
   // 4. Authenticated Administrator Control Console
   return (
@@ -2259,14 +2542,14 @@ export function AdminDashboard() {
             onClick={() => setSidebarOpen(false)}
             className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity" 
           />
-          <aside className="relative w-64 max-w-[85vw] bg-[#0F172A] text-slate-300 h-full shadow-2xl flex flex-col z-10 border-r border-slate-800">
+          <aside className="relative w-72 max-w-[88vw] bg-[#0F172A] text-slate-300 h-full shadow-2xl flex flex-col z-10 border-r border-slate-800">
             {renderSidebarNav()}
           </aside>
         </div>
       )}
 
       {/* Desktop Pinned Left Sidebar */}
-      <aside className="hidden lg:flex w-60 xl:w-64 bg-[#0F172A] text-slate-300 flex-col shrink-0 min-h-screen sticky top-0 h-screen border-r border-slate-800 select-none z-30">
+      <aside className="hidden lg:flex w-68 xl:w-72 bg-[#0F172A] text-slate-300 flex-col shrink-0 min-h-screen sticky top-0 h-screen border-r border-slate-800 select-none z-30">
         {renderSidebarNav()}
       </aside>
 

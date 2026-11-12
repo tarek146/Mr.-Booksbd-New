@@ -2492,21 +2492,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const updateSettings = async (newSettings: Partial<StoreSettings>) => {
     const sanitized = sanitizeStoreSettings(newSettings);
     const homeConfigMirror = buildHomeConfigMirrorFromSettings(sanitized);
-    try {
-      const cleaned = cleanForFirestore(sanitized);
-      await setDoc(doc(db, 'settings', 'general'), cleaned, { merge: true });
-      if (homeConfigMirror) {
-        await setDoc(
-          doc(db, 'settings', 'homeConfig'),
-          cleanForFirestore({ ...homeConfigMirror, updatedAt: Date.now() }),
-          { merge: true }
-        );
-      }
-      await logAdminAction('settings_updated', 'general', `Updated settings fields: ${Object.keys(sanitized).join(', ')}`);
-    } catch (err) {
-      console.error('Firestore update settings error:', err);
-      throw err;
-    }
+
+    // Optimistic state & local cache update for zero-latency UI response
     setSettings(prev => {
       const next = { ...prev, ...sanitized };
       writeCachedSlice('settings', next);
@@ -2518,6 +2505,29 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         writeCachedSlice('homeConfig', next);
         return next;
       });
+    }
+
+    try {
+      const cleaned = cleanForFirestore(sanitized);
+      await setDoc(doc(db, 'settings', 'general'), cleaned, { merge: true });
+      if (homeConfigMirror) {
+        await setDoc(
+          doc(db, 'settings', 'homeConfig'),
+          cleanForFirestore({ ...homeConfigMirror, updatedAt: Date.now() }),
+          { merge: true }
+        );
+      }
+      if (sanitized.adminSidebarConfig) {
+        await setDoc(
+          doc(db, 'settings', 'adminSidebarConfig'),
+          cleanForFirestore({ ...sanitized.adminSidebarConfig, updatedAt: Date.now() }),
+          { merge: true }
+        );
+      }
+      await logAdminAction('settings_updated', 'general', `Updated settings fields: ${Object.keys(sanitized).join(', ')}`);
+    } catch (err) {
+      console.error('Firestore update settings error:', err);
+      throw err;
     }
   };
 
