@@ -356,274 +356,236 @@ export function AdminConversionApiManager({
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  return (
-    <div className="space-y-6">
-      {/* HEADER CARD & SCORE DASHBOARD */}
-      <div className="bg-white border border-neutral-200/90 rounded-2xl p-5 sm:p-6 shadow-xs space-y-5">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-neutral-100">
-          <div className="flex items-start gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20 flex items-center justify-center shrink-0">
-              <Server size={22} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-base sm:text-lg font-black text-neutral-900">
-                  Facebook Pixel & Conversions API (CAPI) Manager
-                </h2>
-                <span
-                  className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold border ${
-                    metrics.isDualChannelActive
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      : metrics.isPixelConfigured
-                        ? 'bg-blue-50 text-blue-700 border-blue-200'
-                        : 'bg-amber-50 text-amber-700 border-amber-200'
-                  }`}
-                >
-                  {metrics.isDualChannelActive
-                    ? 'Pixel + CAPI Dual-Channel Active'
-                    : metrics.isPixelConfigured
-                      ? 'Browser Pixel Active (Add CAPI Token for Server Sync)'
-                      : 'Ready to Connect'}
-                </span>
-              </div>
-              <p className="text-xs text-neutral-500 mt-0.5">
-                Server-grade SHA-256 customer matching, deterministic <code className="font-mono">event_id</code> deduplication, and full-funnel tracking across Single Product Page, Checkout Page, and Purchase.
-              </p>
-            </div>
-          </div>
+  const isValidatorConnected = lastValidationResult?.isConnected ?? headerConnectionState.isConnected;
+  const currentHttpCode =
+    lastValidationResult?.responseCode ??
+    headerConnectionState.responseCode ??
+    (headerConnectionState.isConnected ? 200 : 400);
+  const isHttpOk = currentHttpCode >= 200 && currentHttpCode < 300;
 
-          <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={() => setCapiEnabled(!capiEnabled)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-extrabold border transition-all cursor-pointer flex items-center gap-2 ${
-                capiEnabled
-                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                  : 'bg-neutral-100 text-neutral-600 border-neutral-200'
+  return (
+    <div className="space-y-5">
+      {/* Clean Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+              Facebook Pixel &amp; Conversions API
+            </h2>
+            <span
+              className={`text-xs font-medium ${
+                metrics.isDualChannelActive
+                  ? 'text-emerald-700'
+                  : metrics.isPixelConfigured
+                    ? 'text-blue-700'
+                    : 'text-amber-700'
               }`}
             >
-              <CheckCircle2 size={14} />
-              <span>{capiEnabled ? 'Tracking Enabled' : 'Tracking Paused'}</span>
-            </button>
+              {metrics.isDualChannelActive
+                ? '· Dual-Channel Active'
+                : metrics.isPixelConfigured
+                  ? '· Browser Pixel Only'
+                  : '· Setup Required'}
+            </span>
           </div>
+          <p className="text-xs sm:text-[13px] text-slate-500">
+            SHA-256 customer matching, deterministic <code className="font-mono text-slate-700">event_id</code> deduplication, and server event sync
+          </p>
         </div>
 
-        {/* SCORE METRICS BAR (ALL > 9.0 / 10) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-          <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50/90 to-white border border-emerald-200/80 space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-800">
-                Event Match Quality
-              </span>
-              <ShieldCheck size={15} className="text-emerald-600" />
-            </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black text-emerald-700">{metrics.overallEmqScore}</span>
-              <span className="text-xs font-bold text-emerald-600">/ 10</span>
-            </div>
-            <p className="text-[11px] text-emerald-700 font-semibold">
-              SHA-256 + _fbp + _fbc + IP + UA
-            </p>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-50/90 to-white border border-blue-200/80 space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-extrabold uppercase tracking-wider text-blue-800">
-                Data Transfer Ratio
-              </span>
-              <TrendingUp size={15} className="text-blue-600" />
-            </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black text-blue-700">{metrics.dataTransferRatio}</span>
-              <span className="text-xs font-bold text-blue-600">/ 10</span>
-            </div>
-            <p className="text-[11px] text-blue-700 font-semibold">
-              100% Event ID Deduplicated
-            </p>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-neutral-200/90 space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-extrabold uppercase tracking-wider text-neutral-600">
-                Single Product Page
-              </span>
-              <Sparkles size={14} className="text-[#D71920]" />
-            </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black text-neutral-900">{metrics.singleProductPageScore}</span>
-              <span className="text-xs font-bold text-neutral-500">/ 10</span>
-            </div>
-            <p className="text-[11px] text-neutral-500 font-semibold">
-              ViewContent & AddToCart
-            </p>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-neutral-200/90 space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-extrabold uppercase tracking-wider text-neutral-600">
-                Checkout Page
-              </span>
-              <Sparkles size={14} className="text-[#D71920]" />
-            </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black text-neutral-900">{metrics.checkoutPageScore}</span>
-              <span className="text-xs font-bold text-neutral-500">/ 10</span>
-            </div>
-            <p className="text-[11px] text-neutral-500 font-semibold">
-              InitiateCheckout & PaymentInfo
-            </p>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-neutral-200/90 space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-extrabold uppercase tracking-wider text-neutral-600">
-                Purchase Event
-              </span>
-              <CheckCircle2 size={14} className="text-emerald-600" />
-            </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black text-neutral-900">{metrics.purchasePageScore}</span>
-              <span className="text-xs font-bold text-neutral-500">/ 10</span>
-            </div>
-            <p className="text-[11px] text-neutral-500 font-semibold">
-              Full Customer + Order Match
-            </p>
-          </div>
-        </div>
-
-        {/* CONNECTION VALIDATOR & DATA EVENT RESPONSE CODE INSPECTOR */}
-        <div
-          data-testid="capi-connection-validator-module"
-          className={`p-4 sm:p-5 rounded-2xl border space-y-3.5 transition-all ${
-            (lastValidationResult?.isConnected ?? headerConnectionState.isConnected)
-              ? 'bg-emerald-50/60 border-emerald-200'
-              : 'bg-red-50/50 border-red-200'
+        <button
+          type="button"
+          onClick={() => setCapiEnabled(!capiEnabled)}
+          className={`px-3.5 py-2 rounded-lg text-xs font-semibold border transition-colors cursor-pointer inline-flex items-center gap-2 shrink-0 self-start sm:self-auto ${
+            capiEnabled
+              ? 'bg-emerald-600 text-white border-emerald-600'
+              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
           }`}
         >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <div
-                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
-                  (lastValidationResult?.isConnected ?? headerConnectionState.isConnected)
-                    ? 'bg-emerald-600 text-white border-emerald-600'
-                    : 'bg-red-600 text-white border-red-600'
+          <CheckCircle2 size={14} />
+          <span>{capiEnabled ? 'Tracking Enabled' : 'Tracking Paused'}</span>
+        </button>
+      </div>
+
+      {/* 5 Clean KPI Score Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-1.5">
+          <div className="flex items-center justify-between text-slate-500">
+            <span className="text-xs font-medium">Event Match Quality</span>
+            <ShieldCheck size={15} className="text-emerald-600 shrink-0" />
+          </div>
+          <div className="flex items-baseline gap-1 tabular-nums">
+            <span className="text-2xl font-bold text-slate-900">{metrics.overallEmqScore}</span>
+            <span className="text-xs font-medium text-slate-400">/ 10</span>
+          </div>
+          <p className="text-[11px] text-slate-500 truncate">SHA-256 + _fbp + _fbc + IP</p>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-1.5">
+          <div className="flex items-center justify-between text-slate-500">
+            <span className="text-xs font-medium">Data Transfer Ratio</span>
+            <TrendingUp size={15} className="text-blue-600 shrink-0" />
+          </div>
+          <div className="flex items-baseline gap-1 tabular-nums">
+            <span className="text-2xl font-bold text-slate-900">{metrics.dataTransferRatio}</span>
+            <span className="text-xs font-medium text-slate-400">/ 10</span>
+          </div>
+          <p className="text-[11px] text-slate-500 truncate">Event ID deduplicated</p>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-1.5">
+          <div className="flex items-center justify-between text-slate-500">
+            <span className="text-xs font-medium">Product Page</span>
+            <Activity size={15} className="text-slate-400 shrink-0" />
+          </div>
+          <div className="flex items-baseline gap-1 tabular-nums">
+            <span className="text-2xl font-bold text-slate-900">{metrics.singleProductPageScore}</span>
+            <span className="text-xs font-medium text-slate-400">/ 10</span>
+          </div>
+          <p className="text-[11px] text-slate-500 truncate">ViewContent &amp; AddToCart</p>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-1.5">
+          <div className="flex items-center justify-between text-slate-500">
+            <span className="text-xs font-medium">Checkout Page</span>
+            <Activity size={15} className="text-slate-400 shrink-0" />
+          </div>
+          <div className="flex items-baseline gap-1 tabular-nums">
+            <span className="text-2xl font-bold text-slate-900">{metrics.checkoutPageScore}</span>
+            <span className="text-xs font-medium text-slate-400">/ 10</span>
+          </div>
+          <p className="text-[11px] text-slate-500 truncate">InitiateCheckout &amp; Payment</p>
+        </div>
+
+        <div className="col-span-2 sm:col-span-1 bg-white border border-slate-200 rounded-xl p-4 space-y-1.5">
+          <div className="flex items-center justify-between text-slate-500">
+            <span className="text-xs font-medium">Purchase Event</span>
+            <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
+          </div>
+          <div className="flex items-baseline gap-1 tabular-nums">
+            <span className="text-2xl font-bold text-slate-900">{metrics.purchasePageScore}</span>
+            <span className="text-xs font-medium text-slate-400">/ 10</span>
+          </div>
+          <p className="text-[11px] text-slate-500 truncate">Customer &amp; order match</p>
+        </div>
+      </div>
+
+      {/* Connection Validator Bar */}
+      <div
+        data-testid="capi-connection-validator-module"
+        className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+      >
+        <div className="flex items-start gap-3.5 min-w-0">
+          <div
+            className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border ${
+              isValidatorConnected
+                ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                : 'bg-red-50 text-red-600 border-red-200'
+            }`}
+          >
+            {isValidatorConnected ? <CheckCircle2 size={18} /> : <XCircle size={18} />}
+          </div>
+          <div className="min-w-0 space-y-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-sm font-semibold text-slate-900">
+                Connection Validator
+              </h3>
+              <span
+                data-testid="capi-validator-status-badge"
+                className={`px-2 py-0.5 rounded-md text-[11px] font-semibold border inline-flex items-center gap-1 ${
+                  isValidatorConnected
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-red-50 text-red-700 border-red-200'
                 }`}
               >
-                {(lastValidationResult?.isConnected ?? headerConnectionState.isConnected) ? (
-                  <CheckCircle2 size={20} />
-                ) : (
-                  <XCircle size={20} />
-                )}
-              </div>
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-xs sm:text-sm font-black uppercase tracking-wide text-neutral-900">
-                    Pixel & Conversions API Connection Validator
-                  </h3>
-                  <span
-                    data-testid="capi-validator-status-badge"
-                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-black border inline-flex items-center gap-1 ${
-                      (lastValidationResult?.isConnected ?? headerConnectionState.isConnected)
-                        ? 'bg-emerald-600 text-white border-emerald-700'
-                        : 'bg-red-600 text-white border-red-700'
-                    }`}
-                  >
-                    <Activity size={11} />
-                    <span>
-                      {(lastValidationResult?.isConnected ?? headerConnectionState.isConnected)
-                        ? 'Connected'
-                        : 'Disconnected'}
-                    </span>
-                  </span>
-
-                  <span
-                    data-testid="capi-validator-http-code"
-                    className={`px-2.5 py-0.5 rounded-lg text-[11px] font-mono font-extrabold border ${
-                      (lastValidationResult?.responseCode ?? headerConnectionState.responseCode) >= 200 &&
-                      (lastValidationResult?.responseCode ?? headerConnectionState.responseCode) < 300
-                        ? 'bg-white text-emerald-800 border-emerald-300'
-                        : 'bg-white text-red-700 border-red-300'
-                    }`}
-                  >
-                    HTTP Response Code:{' '}
-                    {lastValidationResult?.responseCode ??
-                      headerConnectionState.responseCode ??
-                      (headerConnectionState.isConnected ? 200 : 400)}{' '}
-                    {(lastValidationResult?.responseCode ?? headerConnectionState.responseCode) >= 200 &&
-                    (lastValidationResult?.responseCode ?? headerConnectionState.responseCode) < 300
-                      ? 'OK'
-                      : 'ERR'}
-                  </span>
-                </div>
-                <p className="text-xs font-semibold text-neutral-700 mt-1">
-                  {lastValidationResult?.message ||
-                    settings.facebookLastValidationMessage ||
-                    headerConnectionState.subtitle}
-                </p>
-                <div className="flex flex-wrap items-center gap-3 text-[11px] text-neutral-500 mt-1">
-                  <span>
-                    Channel Mode:{' '}
-                    <strong className="text-neutral-800">
-                      {lastValidationResult?.channelMode === 'dual-capi-pixel' || metrics.isDualChannelActive
-                        ? 'Server CAPI + Browser Pixel'
-                        : metrics.isPixelConfigured
-                          ? 'Browser Pixel (fbq)'
-                          : 'Unconfigured'}
-                    </strong>
-                  </span>
-                  {(lastValidationResult?.fbtraceId || settings.facebookLastTraceId) && (
-                    <span>
-                      Meta Trace ID:{' '}
-                      <code className="font-mono font-bold text-neutral-800">
-                        {lastValidationResult?.fbtraceId || settings.facebookLastTraceId}
-                      </code>
-                    </span>
-                  )}
-                  {(lastValidationResult?.checkedAt || settings.facebookLastCheckedAt) && (
-                    <span>
-                      Last Verified:{' '}
-                      <strong className="text-neutral-700">
-                        {new Date(
-                          lastValidationResult?.checkedAt || settings.facebookLastCheckedAt || Date.now()
-                        ).toLocaleTimeString()}
-                      </strong>
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              data-testid="validate-capi-connection-btn"
-              disabled={validatingConnection}
-              onClick={handleValidateConnection}
-              className="px-4 py-2.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 disabled:opacity-50 text-white text-xs font-extrabold flex items-center justify-center gap-2 cursor-pointer shrink-0 shadow-xs transition-all"
-            >
-              <RefreshCw size={13} className={validatingConnection ? 'animate-spin' : ''} />
-              <span>
-                {validatingConnection
-                  ? 'Checking Event Response Code...'
-                  : 'Validate Connection & Response Code'}
+                <Activity size={11} />
+                <span>{isValidatorConnected ? 'Connected' : 'Disconnected'}</span>
               </span>
-            </button>
+              <span
+                data-testid="capi-validator-http-code"
+                className={`px-2 py-0.5 rounded-md text-[11px] font-mono font-medium border tabular-nums ${
+                  isHttpOk
+                    ? 'bg-slate-50 text-slate-700 border-slate-200'
+                    : 'bg-red-50 text-red-700 border-red-200'
+                }`}
+              >
+                HTTP {currentHttpCode} {isHttpOk ? 'OK' : 'ERR'}
+              </span>
+            </div>
+            <p className="text-xs text-slate-600">
+              {lastValidationResult?.message ||
+                settings.facebookLastValidationMessage ||
+                headerConnectionState.subtitle}
+            </p>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+              <span>
+                Mode:{' '}
+                <strong className="font-medium text-slate-800">
+                  {lastValidationResult?.channelMode === 'dual-capi-pixel' || metrics.isDualChannelActive
+                    ? 'Server CAPI + Browser Pixel'
+                    : metrics.isPixelConfigured
+                      ? 'Browser Pixel (fbq)'
+                      : 'Unconfigured'}
+                </strong>
+              </span>
+              {(lastValidationResult?.fbtraceId || settings.facebookLastTraceId) && (
+                <span>
+                  Trace ID:{' '}
+                  <code className="font-mono text-slate-700">
+                    {lastValidationResult?.fbtraceId || settings.facebookLastTraceId}
+                  </code>
+                </span>
+              )}
+              {(lastValidationResult?.checkedAt || settings.facebookLastCheckedAt) && (
+                <span className="tabular-nums">
+                  Checked:{' '}
+                  <strong className="font-medium text-slate-700">
+                    {new Date(
+                      lastValidationResult?.checkedAt || settings.facebookLastCheckedAt || Date.now()
+                    ).toLocaleTimeString()}
+                  </strong>
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* CREDENTIALS & CONFIGURATION FORM */}
-        <form onSubmit={handleSaveConfig} className="space-y-5 pt-2">
+        <button
+          type="button"
+          data-testid="validate-capi-connection-btn"
+          disabled={validatingConnection}
+          onClick={handleValidateConnection}
+          className="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-semibold inline-flex items-center justify-center gap-2 cursor-pointer shrink-0 transition-colors whitespace-nowrap"
+        >
+          <RefreshCw size={13} className={validatingConnection ? 'animate-spin' : ''} />
+          <span>
+            {validatingConnection ? 'Validating...' : 'Validate Connection'}
+          </span>
+        </button>
+      </div>
+
+      {/* Main Configuration Form Card */}
+      <form onSubmit={handleSaveConfig} className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-200">
+        {/* Credentials Section */}
+        <div className="p-4 sm:p-6 space-y-4">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900">Dataset &amp; Token Credentials</h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Connect your Meta Pixel Dataset ID and Conversions API access token.
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Pixel ID */}
-            <div className="p-4 rounded-2xl bg-[#F7F7F8] border border-neutral-200/90 space-y-2">
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-extrabold uppercase text-neutral-700">
+                <label className="text-xs font-medium text-slate-700">
                   Facebook Pixel ID (Dataset ID) *
                 </label>
                 {pixelId && (
                   <button
                     type="button"
                     onClick={() => handleCopy('pixel', pixelId)}
-                    className="text-[11px] font-bold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer"
+                    className="text-[11px] font-medium text-slate-600 hover:text-slate-900 inline-flex items-center gap-1 cursor-pointer"
                   >
                     <Copy size={11} />
                     <span>{copiedField === 'pixel' ? 'Copied' : 'Copy'}</span>
@@ -635,24 +597,23 @@ export function AdminConversionApiManager({
                 placeholder="e.g. 123456789012345"
                 value={pixelId}
                 onChange={e => setPixelId(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-300 bg-white text-xs font-mono font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                className="w-full px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-xs font-mono text-slate-900 focus:outline-none focus:border-[#D71920]"
               />
-              <p className="text-[11px] text-neutral-500">
-                Find this in Meta Events Manager → Data Sources → Settings → Dataset ID.
+              <p className="text-[11px] text-slate-500">
+                Meta Events Manager → Data Sources → Settings → Dataset ID
               </p>
             </div>
 
-            {/* CAPI Access Token */}
-            <div className="p-4 rounded-2xl bg-[#F7F7F8] border border-neutral-200/90 space-y-2">
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-extrabold uppercase text-neutral-700">
+                <label className="text-xs font-medium text-slate-700">
                   Conversions API (CAPI) Access Token *
                 </label>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <button
                     type="button"
                     onClick={() => setShowToken(!showToken)}
-                    className="text-[11px] font-bold text-neutral-600 hover:text-neutral-900 flex items-center gap-1 cursor-pointer"
+                    className="text-[11px] font-medium text-slate-600 hover:text-slate-900 inline-flex items-center gap-1 cursor-pointer"
                   >
                     {showToken ? <EyeOff size={12} /> : <Eye size={12} />}
                     <span>{showToken ? 'Hide' : 'Show'}</span>
@@ -661,7 +622,7 @@ export function AdminConversionApiManager({
                     <button
                       type="button"
                       onClick={() => handleCopy('token', capiToken)}
-                      className="text-[11px] font-bold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer"
+                      className="text-[11px] font-medium text-slate-600 hover:text-slate-900 inline-flex items-center gap-1 cursor-pointer"
                     >
                       <Copy size={11} />
                       <span>{copiedField === 'token' ? 'Copied' : 'Copy'}</span>
@@ -674,22 +635,19 @@ export function AdminConversionApiManager({
                 placeholder="Paste Meta CAPI Access Token (EAAB...)"
                 value={capiToken}
                 onChange={e => setCapiToken(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-300 bg-white text-xs font-mono font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                className="w-full px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-xs font-mono text-slate-900 focus:outline-none focus:border-[#D71920]"
               />
-              <p className="text-[11px] text-neutral-500">
-                Generate in Meta Events Manager → Settings → Conversions API → Generate access token.
+              <p className="text-[11px] text-slate-500">
+                Meta Events Manager → Settings → Conversions API → Generate token
               </p>
             </div>
           </div>
 
-          {/* Test Event Code, API Version, Domain Verification */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="p-3.5 rounded-2xl bg-[#F7F7F8] border border-neutral-200/90 space-y-1.5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-[11px] font-extrabold uppercase text-neutral-700">
-                  Test Event Code (Optional)
-                </label>
-                <label className="inline-flex items-center gap-1 text-[11px] font-bold text-[#D71920] cursor-pointer">
+                <label className="text-xs font-medium text-slate-700">Test Event Code</label>
+                <label className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-700 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={testModeEnabled}
@@ -707,201 +665,150 @@ export function AdminConversionApiManager({
                   setTestEventCode(e.target.value);
                   if (e.target.value.trim()) setTestModeEnabled(true);
                 }}
-                className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-mono font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-mono text-slate-900 focus:outline-none focus:border-[#D71920]"
               />
-              <p className="text-[10px] text-neutral-500">
-                Used to verify real-time events in Meta Test Events tab.
-              </p>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-[#F7F7F8] border border-neutral-200/90 space-y-1.5">
-              <label className="block text-[11px] font-extrabold uppercase text-neutral-700">
-                Meta Graph API Version
-              </label>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-slate-700">Graph API Version</label>
               <select
                 value={capiVersion}
                 onChange={e => setCapiVersion(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
               >
                 <option value="v21.0">v21.0 (Latest)</option>
                 <option value="v20.0">v20.0</option>
                 <option value="v19.0">v19.0 (Recommended)</option>
                 <option value="v18.0">v18.0</option>
               </select>
-              <p className="text-[10px] text-neutral-500">
-                Target Graph API endpoint version for server CAPI calls.
-              </p>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-[#F7F7F8] border border-neutral-200/90 space-y-1.5">
-              <label className="block text-[11px] font-extrabold uppercase text-neutral-700">
-                Domain Verification Meta Tag
-              </label>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-slate-700">Domain Verification Tag</label>
               <input
                 type="text"
                 placeholder="e.g. abc123xyz456..."
                 value={domainVerification}
                 onChange={e => setDomainVerification(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-mono text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-mono text-slate-900 focus:outline-none focus:border-[#D71920]"
               />
-              <p className="text-[10px] text-neutral-500">
-                Injects <code className="font-mono">facebook-domain-verification</code> meta tag.
+            </div>
+          </div>
+        </div>
+
+        {/* Standard Events Section */}
+        <div className="p-4 sm:p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">Standard Events &amp; Deduplication</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Dispatches matching Browser Pixel (<code className="font-mono">fbq</code>) and Server CAPI events via shared <code className="font-mono">event_id</code>.
               </p>
             </div>
+            <label className="inline-flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={enableAdvancedMatching}
+                onChange={e => setEnableAdvancedMatching(e.target.checked)}
+                className="rounded accent-[#D71920]"
+              />
+              <span>SHA-256 Advanced Matching</span>
+            </label>
           </div>
 
-          {/* STANDARD EVENTS CONFIGURATION */}
-          <div className="p-4 rounded-2xl bg-[#F7F7F8] border border-neutral-200/90 space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <h4 className="text-xs font-black uppercase text-neutral-900">
-                  Full-Website Standard Events & Deduplication
-                </h4>
-                <p className="text-[11px] text-neutral-500">
-                  Every enabled event sends both Browser Pixel (<code className="font-mono">fbq</code>) and Server CAPI with matching <code className="font-mono">event_id</code>.
-                </p>
-              </div>
-              <label className="inline-flex items-center gap-2 text-xs font-bold text-neutral-800 cursor-pointer">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+            {[
+              { label: 'PageView (All Pages)', state: trackPageView, setter: setTrackPageView },
+              { label: 'ViewContent (Product)', state: trackViewContent, setter: setTrackViewContent },
+              { label: 'AddToCart (Cart & Buy)', state: trackAddToCart, setter: setTrackAddToCart },
+              { label: 'InitiateCheckout', state: trackInitiateCheckout, setter: setTrackInitiateCheckout },
+              { label: 'AddPaymentInfo', state: trackAddPaymentInfo, setter: setTrackAddPaymentInfo },
+              { label: 'Purchase (Completed)', state: trackPurchase, setter: setTrackPurchase },
+              { label: 'Search (Catalog)', state: trackSearch, setter: setTrackSearch },
+              { label: 'AddToWishlist', state: trackAddToWishlist, setter: setTrackAddToWishlist },
+            ].map((item, idx) => (
+              <label
+                key={idx}
+                className={`px-3 py-2.5 rounded-lg border text-xs font-medium flex items-center gap-2 cursor-pointer transition-colors ${
+                  item.state
+                    ? 'bg-slate-50 border-slate-300 text-slate-900'
+                    : 'bg-white border-slate-200 text-slate-500'
+                }`}
+              >
                 <input
                   type="checkbox"
-                  checked={enableAdvancedMatching}
-                  onChange={e => setEnableAdvancedMatching(e.target.checked)}
+                  checked={item.state}
+                  onChange={e => item.setter(e.target.checked)}
                   className="rounded accent-[#D71920]"
                 />
-                <span>Enable Automatic SHA-256 Advanced Matching</span>
+                <span className="truncate">{item.label}</span>
               </label>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-              {[
-                { label: 'PageView (All Pages)', state: trackPageView, setter: setTrackPageView },
-                { label: 'ViewContent (Product Page)', state: trackViewContent, setter: setTrackViewContent },
-                { label: 'AddToCart (Cart & Buy Now)', state: trackAddToCart, setter: setTrackAddToCart },
-                { label: 'InitiateCheckout (Checkout)', state: trackInitiateCheckout, setter: setTrackInitiateCheckout },
-                { label: 'AddPaymentInfo (Payment)', state: trackAddPaymentInfo, setter: setTrackAddPaymentInfo },
-                { label: 'Purchase (Order Complete)', state: trackPurchase, setter: setTrackPurchase },
-                { label: 'Search (Store Search)', state: trackSearch, setter: setTrackSearch },
-                { label: 'AddToWishlist (Wishlist)', state: trackAddToWishlist, setter: setTrackAddToWishlist },
-              ].map((item, idx) => (
-                <label
-                  key={idx}
-                  className={`p-2.5 rounded-xl border text-xs font-bold flex items-center gap-2 cursor-pointer transition-all ${
-                    item.state
-                      ? 'bg-white border-emerald-300 text-neutral-900 shadow-2xs'
-                      : 'bg-neutral-100 border-neutral-200 text-neutral-500'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={item.state}
-                    onChange={e => item.setter(e.target.checked)}
-                    className="rounded accent-emerald-600"
-                  />
-                  <span className="truncate">{item.label}</span>
-                </label>
-              ))}
-            </div>
+            ))}
           </div>
 
-          {/* ACTIVE CUSTOMER INFORMATION PARAMETERS (FOR > 9.0/10 EMQ) */}
-          <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-200/80 space-y-2.5">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <span className="text-xs font-black uppercase text-emerald-900">
-                Active Meta Customer Match Parameters (13/13 Parameters Ready)
-              </span>
-              <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-600 text-white">
-                Target EMQ: 9.4 – 9.9 / 10
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                { key: 'em', desc: 'Email (SHA-256)' },
-                { key: 'ph', desc: 'Phone 880 (SHA-256)' },
-                { key: 'fn', desc: 'First Name (SHA-256)' },
-                { key: 'ln', desc: 'Last Name (SHA-256)' },
-                { key: 'ct', desc: 'City (SHA-256)' },
-                { key: 'st', desc: 'District/State (SHA-256)' },
-                { key: 'zp', desc: 'Postal Code (SHA-256)' },
-                { key: 'country', desc: 'Country BD (SHA-256)' },
-                { key: 'external_id', desc: 'External ID (SHA-256)' },
-                { key: 'fbp', desc: '_fbp Browser ID' },
-                { key: 'fbc', desc: '_fbc Click ID' },
-                { key: 'client_ip_address', desc: 'Client IP' },
-                { key: 'client_user_agent', desc: 'User Agent' },
-                { key: 'event_id', desc: 'Deduplication ID' },
-              ].map(param => (
-                <span
-                  key={param.key}
-                  className="px-2.5 py-1 rounded-lg bg-white border border-emerald-200 text-[11px] font-bold text-emerald-900 flex items-center gap-1"
-                >
-                  <Check size={11} className="text-emerald-600" />
-                  <span>{param.desc}</span>
-                </span>
-              ))}
-            </div>
+          {/* Match Parameters Summary Line */}
+          <div className="pt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-600">
+            <span className="font-medium text-slate-800">Active Match Keys (14):</span>
+            <span className="text-slate-500 font-mono text-[11px]">
+              em · ph · fn · ln · ct · st · zp · country · external_id · _fbp · _fbc · client_ip · user_agent · event_id
+            </span>
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="p-4 sm:px-6 bg-slate-50/50 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-slate-500 mr-1">Test event:</span>
+            {(['ViewContent', 'InitiateCheckout', 'Purchase'] as FacebookStandardEventName[]).map(evName => (
+              <button
+                key={evName}
+                type="button"
+                disabled={testingEvent !== null}
+                onClick={() => handleSendTestEvent(evName)}
+                className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 disabled:opacity-50 text-slate-700 text-xs font-medium inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+              >
+                <Play size={11} className="text-slate-500" />
+                <span>{testingEvent === evName ? `Sending...` : evName}</span>
+              </button>
+            ))}
           </div>
 
-          {/* SAVE & LIVE TEST ACTIONS */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2 border-t border-neutral-100">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-extrabold text-neutral-700 mr-1">
-                Send Live Test Event:
-              </span>
-              {(['ViewContent', 'InitiateCheckout', 'Purchase'] as FacebookStandardEventName[]).map(
-                evName => (
-                  <button
-                    key={evName}
-                    type="button"
-                    disabled={testingEvent !== null}
-                    onClick={() => handleSendTestEvent(evName)}
-                    className="px-3 py-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 disabled:opacity-50 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all"
-                  >
-                    <Play size={11} />
-                    <span>
-                      {testingEvent === evName ? `Sending ${evName}...` : `Test ${evName}`}
-                    </span>
-                  </button>
-                )
-              )}
-            </div>
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-5 py-2.5 bg-[#D71920] hover:bg-[#B9151B] disabled:opacity-50 text-white font-semibold rounded-lg text-xs cursor-pointer inline-flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap"
+          >
+            {saving ? (
+              <>
+                <RefreshCw size={14} className="animate-spin" />
+                <span>Saving...</span>
+              </>
+            ) : (
+              <>
+                <Check size={14} />
+                <span>Save Pixel &amp; CAPI Settings</span>
+              </>
+            )}
+          </button>
+        </div>
+      </form>
 
-            <button
-              type="submit"
-              disabled={saving}
-              className="px-6 py-2.5 bg-[#D71920] hover:bg-[#B9151B] disabled:opacity-50 text-white font-extrabold rounded-xl text-xs shadow-sm cursor-pointer flex items-center justify-center gap-1.5"
-            >
-              {saving ? (
-                <>
-                  <RefreshCw size={14} className="animate-spin" />
-                  <span>Saving to Firebase...</span>
-                </>
-              ) : (
-                <>
-                  <Check size={14} />
-                  <span>Save Pixel & CAPI Settings</span>
-                </>
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {/* RECENT CAPI & PIXEL EVENT DIAGNOSTIC LOG */}
-      <div className="bg-white border border-neutral-200/90 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
-        <div className="flex items-center justify-between">
+      {/* Event Diagnostic Log */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="p-4 sm:px-6 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-black text-neutral-900">
-              Real-Time Conversion API & Pixel Event Feed ({eventLogs.length})
+            <h3 className="text-sm font-semibold text-slate-900 tabular-nums">
+              Conversion API &amp; Pixel Event Log ({eventLogs.length})
             </h3>
-            <p className="text-xs text-neutral-500">
-              Monitor live events fired from Single Product Page, Checkout Page, and Order Confirmation with HTTP response codes & deduplication status.
+            <p className="text-xs text-slate-500 mt-0.5">
+              Recent events dispatched across product views, checkouts, and completed orders
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={() => setEventLogs(getCapiEventLogs())}
-              className="px-3 py-1.5 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-bold flex items-center gap-1 cursor-pointer"
+              className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium inline-flex items-center gap-1.5 cursor-pointer"
             >
               <RefreshCw size={12} />
               <span>Refresh</span>
@@ -913,7 +820,7 @@ export function AdminConversionApiManager({
                   clearCapiEventLogs();
                   setEventLogs([]);
                 }}
-                className="px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                className="px-3 py-1.5 rounded-lg bg-white hover:bg-red-50 border border-slate-200 text-red-600 text-xs font-medium inline-flex items-center gap-1.5 cursor-pointer"
               >
                 <Trash2 size={12} />
                 <span>Clear</span>
@@ -923,94 +830,123 @@ export function AdminConversionApiManager({
         </div>
 
         {eventLogs.length === 0 ? (
-          <div className="p-8 rounded-2xl border border-dashed border-neutral-200 bg-neutral-50/60 text-center space-y-2">
-            <p className="text-xs font-bold text-neutral-700">
-              No conversion events logged in this session yet.
+          <div className="p-10 text-center space-y-1.5">
+            <p className="text-sm font-medium text-slate-800">
+              No conversion events logged in this session
             </p>
-            <p className="text-[11px] text-neutral-500">
-              Click "Validate Connection & Response Code" or any "Test ViewContent / Test InitiateCheckout / Test Purchase" button above to inspect data event response codes.
+            <p className="text-xs text-slate-500 max-w-md mx-auto">
+              Run Validate Connection or send a test event above to inspect live HTTP response codes and deduplication keys.
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-neutral-200 text-[11px] font-extrabold uppercase text-neutral-500">
-                  <th className="py-2.5 pr-3">Event</th>
-                  <th className="py-2.5 px-3">Event ID (Deduplication)</th>
-                  <th className="py-2.5 px-3">HTTP Code</th>
-                  <th className="py-2.5 px-3">Value</th>
-                  <th className="py-2.5 px-3">EMQ Score</th>
-                  <th className="py-2.5 px-3">Transfer Ratio</th>
-                  <th className="py-2.5 pl-3">Channel Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
-                {eventLogs.slice(0, 12).map(log => {
-                  const httpCode =
-                    log.httpResponseCode ??
-                    (log.capiResponseStatus === 'error' ? 400 : 200);
-                  const isCodeOk = httpCode >= 200 && httpCode < 300;
-                  return (
-                    <tr key={log.id} className="hover:bg-neutral-50/80">
-                      <td className="py-2.5 pr-3 font-extrabold text-neutral-900">
-                        {log.eventName}
-                        <span className="block text-[10px] font-normal text-neutral-400">
-                          {new Date(log.timestamp).toLocaleTimeString()}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-3 font-mono text-[11px] text-neutral-600">
-                        {log.eventId}
-                      </td>
-                      <td className="py-2.5 px-3">
-                        <span
-                          className={`px-2 py-0.5 rounded-lg font-mono font-extrabold text-[11px] border ${
-                            isCodeOk
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : 'bg-red-50 text-red-700 border-red-200'
-                          }`}
-                        >
-                          {httpCode} {isCodeOk ? 'OK' : 'ERR'}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-3 font-bold text-neutral-800">
-                        {log.value !== undefined ? `৳${log.value} ${log.currency}` : '—'}
-                      </td>
-                      <td className="py-2.5 px-3">
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-extrabold text-[11px] border border-emerald-200">
-                          {log.emqScore} / 10
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-3">
-                        <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-extrabold text-[11px] border border-blue-200">
-                          {log.dataTransferRatio} / 10
-                        </span>
-                      </td>
-                      <td className="py-2.5 pl-3">
-                        {log.capiResponseStatus === 'delivered' ? (
-                          <span className="text-emerald-700 font-bold text-[11px]">
-                            ✓ Pixel + CAPI Delivered {log.fbtraceId ? `(${log.fbtraceId.slice(0, 8)})` : ''}
+          <>
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/50 text-[11px] font-semibold uppercase text-slate-500">
+                    <th className="py-2.5 px-4">Event</th>
+                    <th className="py-2.5 px-4">Event ID</th>
+                    <th className="py-2.5 px-4">HTTP</th>
+                    <th className="py-2.5 px-4">Value</th>
+                    <th className="py-2.5 px-4">EMQ</th>
+                    <th className="py-2.5 px-4">Transfer</th>
+                    <th className="py-2.5 px-4">Channel Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {eventLogs.slice(0, 12).map(log => {
+                    const httpCode =
+                      log.httpResponseCode ??
+                      (log.capiResponseStatus === 'error' ? 400 : 200);
+                    const isCodeOk = httpCode >= 200 && httpCode < 300;
+                    return (
+                      <tr key={log.id} className="hover:bg-slate-50/70">
+                        <td className="py-2.5 px-4 font-semibold text-slate-900">
+                          {log.eventName}
+                          <span className="block text-[10px] font-normal text-slate-400 tabular-nums">
+                            {new Date(log.timestamp).toLocaleTimeString()}
                           </span>
-                        ) : log.capiResponseStatus === 'browser-only' ? (
-                          <span className="text-blue-700 font-bold text-[11px]">
-                            ✓ Browser Pixel Fired (Deduplicated)
+                        </td>
+                        <td className="py-2.5 px-4 font-mono text-[11px] text-slate-600">
+                          {log.eventId}
+                        </td>
+                        <td className="py-2.5 px-4 tabular-nums">
+                          <span
+                            className={`px-2 py-0.5 rounded font-mono font-medium text-[11px] border ${
+                              isCodeOk
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : 'bg-red-50 text-red-700 border-red-200'
+                            }`}
+                          >
+                            {httpCode} {isCodeOk ? 'OK' : 'ERR'}
                           </span>
-                        ) : log.capiResponseStatus === 'error' ? (
-                          <span className="text-amber-700 font-bold text-[11px]" title={log.errorMessage}>
-                            Pixel Fired • CAPI: {log.errorMessage?.slice(0, 38)}
-                          </span>
-                        ) : (
-                          <span className="text-neutral-600 font-bold text-[11px]">
-                            ✓ Payload Verified ({log.matchedParams.length} params)
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        </td>
+                        <td className="py-2.5 px-4 font-medium text-slate-800 tabular-nums">
+                          {log.value !== undefined ? `৳${log.value} ${log.currency}` : '—'}
+                        </td>
+                        <td className="py-2.5 px-4 font-mono tabular-nums text-emerald-700 font-medium">
+                          {log.emqScore}/10
+                        </td>
+                        <td className="py-2.5 px-4 font-mono tabular-nums text-blue-700 font-medium">
+                          {log.dataTransferRatio}/10
+                        </td>
+                        <td className="py-2.5 px-4">
+                          {log.capiResponseStatus === 'delivered' ? (
+                            <span className="text-emerald-700 font-medium text-[11px]">
+                              Delivered {log.fbtraceId ? `(${log.fbtraceId.slice(0, 8)})` : ''}
+                            </span>
+                          ) : log.capiResponseStatus === 'browser-only' ? (
+                            <span className="text-blue-700 font-medium text-[11px]">
+                              Browser Pixel Fired
+                            </span>
+                          ) : log.capiResponseStatus === 'error' ? (
+                            <span className="text-amber-700 font-medium text-[11px]" title={log.errorMessage}>
+                              CAPI Error: {log.errorMessage?.slice(0, 36)}
+                            </span>
+                          ) : (
+                            <span className="text-slate-600 font-medium text-[11px]">
+                              Verified ({log.matchedParams.length} params)
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Event Feed */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {eventLogs.slice(0, 12).map(log => {
+                const httpCode =
+                  log.httpResponseCode ??
+                  (log.capiResponseStatus === 'error' ? 400 : 200);
+                const isCodeOk = httpCode >= 200 && httpCode < 300;
+                return (
+                  <div key={log.id} className="p-4 space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-slate-900">{log.eventName}</span>
+                      <span
+                        className={`px-2 py-0.5 rounded font-mono text-[11px] font-medium border tabular-nums ${
+                          isCodeOk
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : 'bg-red-50 text-red-700 border-red-200'
+                        }`}
+                      >
+                        {httpCode} {isCodeOk ? 'OK' : 'ERR'}
+                      </span>
+                    </div>
+                    <div className="font-mono text-[11px] text-slate-500 truncate">{log.eventId}</div>
+                    <div className="flex items-center justify-between text-[11px] text-slate-600 tabular-nums">
+                      <span>EMQ {log.emqScore}/10 · Ratio {log.dataTransferRatio}/10</span>
+                      <span>{new Date(log.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
     </div>

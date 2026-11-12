@@ -424,6 +424,7 @@ export function AdminDashboard() {
   const [newSubInput, setNewSubInput] = useState('');
   const [newSubMsg, setNewSubMsg] = useState<{ text: string; success: boolean } | null>(null);
   const [copiedSubs, setCopiedSubs] = useState(false);
+  const [deletingSubId, setDeletingSubId] = useState<string | null>(null);
 
   // Courier & Order Tracking modal state
   const [trackingModalOrder, setTrackingModalOrder] = useState<Order | null>(null);
@@ -2088,23 +2089,19 @@ export function AdminDashboard() {
 
   const renderSidebarNav = () => (
     <div className="flex flex-col h-full justify-between">
-      <div>
-        {/* Brand Header */}
-        <div className="p-5 border-b border-slate-800/80 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D71920] to-[#B9151B] flex items-center justify-center text-white shadow-md shadow-[#D71920]/30 shrink-0">
-              <ShieldCheck size={22} />
+      <div className="flex flex-col min-h-0 flex-1">
+        {/* Clean Brand Header */}
+        <div className="px-4 py-4 border-b border-slate-800 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-[#D71920] flex items-center justify-center text-white shrink-0">
+              <BookOpen size={17} />
             </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-black text-base tracking-tight text-white">MR. BOOKS</span>
-                <span className="text-[9px] font-black bg-[#D71920] text-white px-1.5 py-0.5 rounded uppercase tracking-wider">
-                  ADMIN OS
-                </span>
+            <div className="min-w-0">
+              <div className="font-bold text-sm tracking-tight text-white truncate">
+                MR. BOOKS
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>Firestore Live Sync</span>
+              <div className="text-[11px] text-slate-400 truncate">
+                Store Admin Console
               </div>
             </div>
           </div>
@@ -2119,16 +2116,16 @@ export function AdminDashboard() {
         </div>
 
         {/* Navigation Sections Menu */}
-        <div className="py-4 px-3 space-y-6 overflow-y-auto max-h-[calc(100vh-190px)]">
+        <div className="py-3 px-2.5 space-y-5 overflow-y-auto flex-1">
           {navSections.map((sec, sIdx) => {
             const visibleItems = sec.items.filter(item => canAccessTab(item.id));
             if (visibleItems.length === 0) return null;
             return (
               <div key={sIdx}>
-                <div className="text-[10px] uppercase font-black tracking-widest text-slate-500 px-3 mb-1.5">
+                <div className="text-[10px] uppercase font-semibold tracking-wider text-slate-500 px-2.5 mb-1.5">
                   {sec.title}
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   {visibleItems.map(item => {
                     const Icon = item.icon;
                     const isActive = activeTab === item.id;
@@ -2140,24 +2137,24 @@ export function AdminDashboard() {
                           setShowAddProdModal(false);
                           setSidebarOpen(false);
                         }}
-                        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer group ${
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors cursor-pointer group ${
                           isActive
-                            ? 'bg-[#D71920] text-white shadow-md shadow-[#D71920]/30 font-bold'
-                            : 'text-slate-400 hover:text-white hover:bg-slate-800/80 font-semibold'
+                            ? 'bg-[#D71920] text-white font-semibold'
+                            : 'text-slate-300 hover:text-white hover:bg-slate-800/70 font-medium'
                         }`}
                       >
                         <div className="flex items-center gap-2.5 truncate">
-                          <Icon size={16} className={`shrink-0 transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`} />
+                          <Icon size={15} className={`shrink-0 transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`} />
                           <span className="truncate">{item.label}</span>
                         </div>
                         {item.badge ? (
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${item.badgeColor || 'bg-slate-800 text-slate-300'}`}>
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded tabular-nums ${item.badgeColor || 'bg-slate-800 text-slate-300'}`}>
                             {item.badge}
                           </span>
                         ) : item.count !== undefined ? (
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded tabular-nums ${
                             isActive 
-                              ? 'bg-black/30 text-white' 
+                              ? 'bg-black/25 text-white' 
                               : (item as any).badgeColor || 'bg-slate-800 text-slate-400 group-hover:text-slate-200'
                           }`}>
                             {item.count}
@@ -2174,14 +2171,14 @@ export function AdminDashboard() {
       </div>
 
       {/* Sidebar Footer User Card */}
-      <div className="p-3 border-t border-slate-800/80 bg-[#070A11] space-y-2">
-        <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
+      <div className="p-3 border-t border-slate-800 bg-[#0B1120] space-y-2 shrink-0">
+        <div className="p-2 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between">
           <div 
             onClick={() => selectAdminTab('profile')}
             title="Click to view and edit Admin Profile"
             className="flex items-center gap-2.5 min-w-0 cursor-pointer group flex-1"
           >
-            <div className={`w-8 h-8 rounded-lg font-black text-xs flex items-center justify-center shrink-0 overflow-hidden ${
+            <div className={`w-8 h-8 rounded-lg font-bold text-xs flex items-center justify-center shrink-0 overflow-hidden ${
               staffRole === 'manager' 
                 ? 'bg-purple-600 text-white' 
                 : staffRole === 'employee' 
@@ -2195,7 +2192,7 @@ export function AdminDashboard() {
               )}
             </div>
             <div className="min-w-0">
-              <div className="text-xs font-bold text-white truncate group-hover:text-[#D71920] transition-colors">
+              <div className="text-xs font-semibold text-white truncate group-hover:text-[#D71920] transition-colors">
                 {currentStaff ? currentStaff.name : (settings.adminProfile?.name || (currentUser?.email ? currentUser.email.split('@')[0] : 'Administrator'))}
               </div>
               <div className="text-[10px] text-slate-400 truncate flex items-center gap-1">
@@ -2214,43 +2211,43 @@ export function AdminDashboard() {
             title="Sign Out to Login Page"
             className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-950/30 rounded-lg cursor-pointer transition-colors shrink-0 ml-1"
           >
-            <LogOut size={15} />
+            <LogOut size={14} />
           </button>
         </div>
 
         <button
           onClick={() => setActivePage('home', undefined, { exitAdmin: true })}
-          className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-slate-800/80 hover:bg-slate-700/80 text-slate-200 hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+          className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
         >
-          <Eye size={14} className="text-slate-400" />
-          <span>View Public Storefront</span>
-          <ExternalLink size={12} className="text-slate-400" />
+          <Eye size={13} className="text-slate-400" />
+          <span>View Storefront</span>
+          <ExternalLink size={11} className="text-slate-400" />
         </button>
       </div>
     </div>
   );
 
-  // 4. Authenticated Administrator Control Console (100% Dedicated Standalone UI with Left Sidebar)
+  // 4. Authenticated Administrator Control Console
   return (
-    <div className="min-h-screen bg-[#F4F6F8] text-[#171717] flex font-sans antialiased selection:bg-[#D71920] selection:text-white">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex font-sans antialiased selection:bg-[#D71920] selection:text-white">
       {/* Real-time Save Floating Toast Notification */}
       {toast?.show && (
-        <div className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-xs font-bold transition-all border animate-in slide-in-from-top-2 duration-200 ${
+        <div className={`fixed top-4 right-4 z-50 px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2.5 text-xs font-semibold transition-all border ${
           toast.type === 'success' 
-            ? 'bg-slate-900 text-white border-emerald-500/50 shadow-emerald-950/20' 
-            : 'bg-red-950 text-white border-red-500/50 shadow-red-950/20'
+            ? 'bg-slate-900 text-white border-emerald-500/40' 
+            : 'bg-red-950 text-white border-red-500/40'
         }`}>
           {toast.type === 'success' ? (
-            <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+            <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
           ) : (
-            <AlertTriangle size={18} className="text-red-400 shrink-0" />
+            <AlertTriangle size={16} className="text-red-400 shrink-0" />
           )}
           <span>{toast.message}</span>
           <button 
             onClick={() => setToast(null)}
             className="ml-2 text-slate-400 hover:text-white cursor-pointer"
           >
-            ✕
+            <X size={14} />
           </button>
         </div>
       )}
@@ -2260,46 +2257,44 @@ export function AdminDashboard() {
         <div className="fixed inset-0 z-50 lg:hidden flex">
           <div 
             onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity" 
+            className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity" 
           />
-          <aside className="relative w-72 max-w-[85vw] bg-[#0A0E17] text-slate-300 h-full shadow-2xl flex flex-col z-10 animate-in slide-in-from-left duration-200 border-r border-slate-800">
+          <aside className="relative w-64 max-w-[85vw] bg-[#0F172A] text-slate-300 h-full shadow-2xl flex flex-col z-10 border-r border-slate-800">
             {renderSidebarNav()}
           </aside>
         </div>
       )}
 
       {/* Desktop Pinned Left Sidebar */}
-      <aside className="hidden lg:flex w-64 xl:w-72 bg-[#0A0E17] text-slate-300 flex-col shrink-0 min-h-screen sticky top-0 h-screen border-r border-slate-800/90 select-none z-30">
+      <aside className="hidden lg:flex w-60 xl:w-64 bg-[#0F172A] text-slate-300 flex-col shrink-0 min-h-screen sticky top-0 h-screen border-r border-slate-800 select-none z-30">
         {renderSidebarNav()}
       </aside>
 
       {/* Main Workspace Area */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen bg-[#F4F6F8] admin-workspace" data-admin-workspace="true">
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen bg-[#F8FAFC] admin-workspace" data-admin-workspace="true">
         
-        {/* Modern Top Header (Dark Frame matching Sidebar) */}
-        <header className="bg-[#0A0E17] border-b border-slate-800 sticky top-0 z-20 px-4 sm:px-6 lg:px-8 py-3.5 shadow-2xs flex items-center justify-between text-white">
-          <div className="flex items-center gap-3">
-            {/* Hamburger Button for Mobile */}
+        {/* Clean Light Top Header */}
+        <header className="bg-white border-b border-slate-200 sticky top-0 z-20 px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between text-slate-900">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer transition-colors"
+              className="lg:hidden p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 cursor-pointer transition-colors"
               aria-label="Open Sidebar Menu"
             >
-              <Menu size={20} />
+              <Menu size={19} />
             </button>
 
-            {/* Breadcrumb Title */}
-            <div className="flex items-center gap-2 text-xs">
-              <span className="font-bold text-slate-400 hidden sm:inline">Admin Console</span>
-              <span className="text-slate-600 hidden sm:inline">/</span>
-              <span className="font-black text-white text-sm sm:text-base capitalize">
+            <div className="flex items-center gap-2 text-xs min-w-0">
+              <span className="font-medium text-slate-400 hidden sm:inline">Admin</span>
+              <span className="text-slate-300 hidden sm:inline">/</span>
+              <span className="font-semibold text-slate-900 text-sm capitalize truncate">
                 {activeTab.replace('-', ' ')}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Facebook Pixel & CAPI Connection Status Indicator in Dashboard Header */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Facebook Pixel & CAPI Connection Status Indicator */}
             {(() => {
               const capiHeaderStatus = resolveDashboardHeaderCapiStatus(settings);
               return (
@@ -2308,28 +2303,26 @@ export function AdminDashboard() {
                   data-testid="dashboard-header-capi-status"
                   onClick={() => selectAdminTab('capi')}
                   title={`${capiHeaderStatus.subtitle} — Click to open Pixel & Conversion API Validator`}
-                  className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs font-extrabold flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-all border ${
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors border ${
                     capiHeaderStatus.isConnected
-                      ? 'bg-emerald-950/80 hover:bg-emerald-900/80 text-emerald-300 border-emerald-500/40'
-                      : 'bg-red-950/70 hover:bg-red-900/70 text-red-300 border-red-500/40'
+                      ? 'bg-emerald-50 hover:bg-emerald-100/80 text-emerald-700 border-emerald-200'
+                      : 'bg-red-50 hover:bg-red-100/80 text-red-700 border-red-200'
                   }`}
                 >
                   <span
-                    className={`w-2 h-2 rounded-full shrink-0 ${
-                      capiHeaderStatus.isConnected
-                        ? 'bg-emerald-400 animate-pulse'
-                        : 'bg-red-400'
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                      capiHeaderStatus.isConnected ? 'bg-emerald-600' : 'bg-red-600'
                     }`}
                   />
-                  <span className="hidden md:inline text-slate-300 font-bold">Pixel & CAPI:</span>
+                  <span className="hidden md:inline text-slate-500 font-medium">Pixel &amp; CAPI:</span>
                   <span data-testid="dashboard-header-capi-label">
                     {capiHeaderStatus.label}
                   </span>
                   <span
-                    className={`hidden sm:inline-block px-1.5 py-0.5 rounded text-[10px] font-mono font-black ${
+                    className={`hidden sm:inline-block px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold tabular-nums ${
                       capiHeaderStatus.isConnected
-                        ? 'bg-emerald-500/20 text-emerald-200'
-                        : 'bg-red-500/20 text-red-200'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-red-100 text-red-800'
                     }`}
                   >
                     HTTP {capiHeaderStatus.responseCode}
@@ -2338,44 +2331,41 @@ export function AdminDashboard() {
               );
             })()}
 
-            {/* Storefront button */}
             <button
               onClick={() => setActivePage('home', undefined, { exitAdmin: true })}
               title="View Public Store"
-              className="px-3 sm:px-3.5 py-1.5 sm:py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
             >
-              <Eye size={14} className="text-slate-400" />
+              <Eye size={14} className="text-slate-500" />
               <span className="hidden sm:inline">Storefront</span>
             </button>
 
-            {/* Admin Profile button */}
             <button
               onClick={() => selectAdminTab('profile')}
               title="Admin Profile & Account Settings"
-              className={`px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer transition-colors ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors border ${
                 activeTab === 'profile'
-                  ? 'bg-[#D71920] text-white shadow-xs'
-                  : 'bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white'
+                  ? 'bg-[#D71920] text-white border-[#D71920]'
+                  : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
               }`}
             >
-              <div className="w-5 h-5 rounded-full overflow-hidden bg-slate-700 flex items-center justify-center shrink-0">
+              <div className="w-4 h-4 rounded-full overflow-hidden bg-slate-200 flex items-center justify-center shrink-0">
                 {!currentStaff && settings.adminProfile?.avatarUrl ? (
                   <img src={settings.adminProfile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
-                  <User size={12} className="text-white" />
+                  <User size={11} className="text-slate-600" />
                 )}
               </div>
               <span className="hidden md:inline">Profile</span>
             </button>
 
-            {/* Sign Out button */}
             <button
               onClick={async () => {
                 await logout();
                 setActivePage('admin');
               }}
               title="Logout Administrator to Login Page"
-              className="px-3 sm:px-3.5 py-1.5 sm:py-2 bg-red-950/60 hover:bg-red-900/60 text-red-300 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+              className="px-2.5 sm:px-3 py-1.5 bg-white hover:bg-red-50 text-red-600 border border-slate-200 hover:border-red-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
             >
               <LogOut size={14} />
               <span className="hidden sm:inline">Sign Out</span>
@@ -2383,8 +2373,8 @@ export function AdminDashboard() {
           </div>
         </header>
 
-        {/* Main Content Area (Clean White Workspace) */}
-        <main className="admin-workspace flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6" data-admin-workspace="true">
+        {/* Main Content Area (Clean Executive Light Canvas) */}
+        <main className="admin-workspace flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-5" data-admin-workspace="true">
 
         {/* TAB 1: OVERVIEW & COMPREHENSIVE BUSINESS ANALYTICS */}
         {activeTab === 'overview' && (
@@ -2420,73 +2410,66 @@ export function AdminDashboard() {
 
         {/* TAB 3: PAYMENT METHODS CONFIGURATION */}
         {activeTab === 'payment-methods' && (
-          <div className="space-y-4 sm:space-y-5">
-            {/* Minimal Header + Quick Templates Toolbar */}
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-6 shadow-2xs space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/15 flex items-center justify-center shrink-0">
-                    <CreditCard size={20} />
-                  </div>
-                  <div>
-                    <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
-                      Payment Methods
-                    </h2>
-                    <p className="text-xs text-slate-500">
-                      Configure bKash, Nagad, Rocket, Upay, Bank Transfer & Cash on Delivery
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleResetPaymentMethodsToDefaults}
-                    className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200/80 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
-                  >
-                    <RefreshCw size={13} />
-                    <span>Reset Defaults</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openPmTemplateModal('custom')}
-                    data-testid="add-payment-method-btn"
-                    className="px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-all"
-                  >
-                    <Plus size={14} />
-                    <span>Add Method</span>
-                  </button>
-                </div>
+          <div className="space-y-5">
+            {/* Clean Page Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+              <div className="space-y-1">
+                <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+                  Payment Methods
+                </h2>
+                <p className="text-xs sm:text-[13px] text-slate-500">
+                  Configure bKash, Nagad, Rocket, Upay, Bank Transfer &amp; Cash on Delivery
+                </p>
               </div>
 
-              {/* Quick Templates Strip (Scrollable on Mobile, Wrap on Laptop/PC) */}
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-0.5">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1">
-                  Quick Add:
-                </span>
-                {[
-                  { key: 'bkash', label: 'bKash', dotColor: 'bg-[#E2136E]' },
-                  { key: 'nagad', label: 'Nagad', dotColor: 'bg-[#F7941D]' },
-                  { key: 'rocket', label: 'Rocket', dotColor: 'bg-[#8C3494]' },
-                  { key: 'upay', label: 'Upay', dotColor: 'bg-[#0054A6]' },
-                  { key: 'cod', label: 'Cash on Delivery', dotColor: 'bg-[#00A651]' },
-                  { key: 'bank', label: 'Bank Transfer', dotColor: 'bg-[#1E3A8A]' },
-                ].map(tpl => (
-                  <button
-                    key={tpl.key}
-                    type="button"
-                    onClick={() => openPmTemplateModal(tpl.key as any)}
-                    className="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-[#FFF1F2] text-slate-700 hover:text-[#D71920] border border-slate-200 hover:border-[#D71920]/30 text-xs font-bold flex items-center gap-1.5 shrink-0 cursor-pointer transition-colors"
-                  >
-                    <span className={`w-2 h-2 rounded-full ${tpl.dotColor}`}></span>
-                    <span>{tpl.label}</span>
-                  </button>
-                ))}
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleResetPaymentMethodsToDefaults}
+                  className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <RefreshCw size={13} className="text-slate-500" />
+                  <span>Reset Defaults</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openPmTemplateModal('custom')}
+                  data-testid="add-payment-method-btn"
+                  className="px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-semibold rounded-lg text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <Plus size={14} />
+                  <span>Add Method</span>
+                </button>
               </div>
             </div>
 
-            {/* Responsive Grid of Payment Method Cards (1 col on Mobile/Laptop, 2 cols on Wide PC) */}
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5" data-testid="admin-payment-methods-list">
+            {/* Quick Add Templates Bar */}
+            <div className="bg-white border border-slate-200 rounded-xl p-3 sm:px-4 flex items-center gap-2 overflow-x-auto no-scrollbar">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider shrink-0 mr-1">
+                Quick Add:
+              </span>
+              {[
+                { key: 'bkash', label: 'bKash', dotColor: 'bg-[#E2136E]' },
+                { key: 'nagad', label: 'Nagad', dotColor: 'bg-[#F7941D]' },
+                { key: 'rocket', label: 'Rocket', dotColor: 'bg-[#8C3494]' },
+                { key: 'upay', label: 'Upay', dotColor: 'bg-[#0054A6]' },
+                { key: 'cod', label: 'Cash on Delivery', dotColor: 'bg-[#00A651]' },
+                { key: 'bank', label: 'Bank Transfer', dotColor: 'bg-[#1E3A8A]' },
+              ].map(tpl => (
+                <button
+                  key={tpl.key}
+                  type="button"
+                  onClick={() => openPmTemplateModal(tpl.key as any)}
+                  className="px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold flex items-center gap-1.5 shrink-0 cursor-pointer transition-colors"
+                >
+                  <span className={`w-2 h-2 rounded-full ${tpl.dotColor}`} />
+                  <span>{tpl.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Responsive Grid of Payment Method Cards */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4" data-testid="admin-payment-methods-list">
               {sortPaymentMethods(paymentMethods).map((pm, idx, arr) => {
                 const meta = getPaymentMethodDisplayMeta(pm);
                 const subs = pm.type !== 'cod' ? getPaymentMethodSubOptions(pm) : null;
@@ -2495,10 +2478,10 @@ export function AdminDashboard() {
                   <div
                     key={pm.id}
                     data-testid={`admin-pm-row-${pm.type}`}
-                    className={`bg-white border rounded-2xl p-4 sm:p-5 transition-all flex flex-col justify-between gap-3.5 ${
+                    className={`bg-white border rounded-xl p-4 sm:p-5 transition-colors flex flex-col justify-between gap-3.5 ${
                       pm.isActive
-                        ? 'border-slate-200/90 hover:border-slate-300 shadow-2xs'
-                        : 'border-slate-200/60 bg-slate-50/50 opacity-75'
+                        ? 'border-slate-200 hover:border-slate-300'
+                        : 'border-slate-200/70 bg-slate-50/70 opacity-75'
                     }`}
                   >
                     {/* Top Row: Reorder + Icon + Title + Action Buttons */}
@@ -2510,7 +2493,7 @@ export function AdminDashboard() {
                             disabled={idx === 0}
                             onClick={() => handleMovePaymentMethod(idx, 'up')}
                             title="Move Up"
-                            className="p-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-500 disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+                            className="p-1 rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-500 disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
                           >
                             <ArrowUp size={11} />
                           </button>
@@ -2519,7 +2502,7 @@ export function AdminDashboard() {
                             disabled={idx === arr.length - 1}
                             onClick={() => handleMovePaymentMethod(idx, 'down')}
                             title="Move Down"
-                            className="p-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-500 disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+                            className="p-1 rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-500 disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
                           >
                             <ArrowDown size={11} />
                           </button>
@@ -2528,15 +2511,15 @@ export function AdminDashboard() {
                         <PaymentBrandIcon method={pm} size="md" />
 
                         <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="font-black text-sm sm:text-base text-slate-900 truncate">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <h3 className="font-bold text-sm text-slate-900 truncate">
                               {meta.displayTitle}
                             </h3>
-                            <span className="text-xs font-semibold text-slate-400">
+                            <span className="text-xs font-medium text-slate-400">
                               ({meta.englishName})
                             </span>
                             {meta.badgeText && (
-                              <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold">
+                              <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-semibold">
                                 {meta.badgeText}
                               </span>
                             )}
@@ -2547,7 +2530,6 @@ export function AdminDashboard() {
                         </div>
                       </div>
 
-                      {/* Right Actions: Active Toggle + Edit + Delete */}
                       <div className="flex items-center gap-1.5 shrink-0">
                         <button
                           type="button"
@@ -2559,13 +2541,13 @@ export function AdminDashboard() {
                               message: `${meta.displayTitle} ${!pm.isActive ? 'activated' : 'deactivated'}!`,
                             });
                           }}
-                          className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold flex items-center gap-1 border cursor-pointer transition-colors ${
+                          className={`px-2.5 py-1 rounded-md text-[11px] font-semibold flex items-center gap-1.5 border cursor-pointer transition-colors ${
                             pm.isActive
                               ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
                               : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200'
                           }`}
                         >
-                          <span className={`w-1.5 h-1.5 rounded-full ${pm.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                          <span className={`w-1.5 h-1.5 rounded-full ${pm.isActive ? 'bg-emerald-600' : 'bg-slate-400'}`} />
                           <span>{pm.isActive ? 'Active' : 'Off'}</span>
                         </button>
 
@@ -2574,7 +2556,7 @@ export function AdminDashboard() {
                           onClick={() => openEditPmModal(pm)}
                           data-testid={`edit-pm-${pm.type}`}
                           title="Edit Payment Method"
-                          className="p-2 rounded-xl bg-slate-100 hover:bg-slate-900 text-slate-700 hover:text-white cursor-pointer transition-colors"
+                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-900 text-slate-700 hover:text-white cursor-pointer transition-colors"
                         >
                           <Edit2 size={14} />
                         </button>
@@ -2590,23 +2572,23 @@ export function AdminDashboard() {
                             });
                           }}
                           title="Delete Payment Method"
-                          className="p-2 rounded-xl bg-red-50 hover:bg-red-100 text-[#D71920] cursor-pointer transition-colors"
+                          className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-[#D71920] cursor-pointer transition-colors"
                         >
                           <Trash2 size={14} />
                         </button>
                       </div>
                     </div>
 
-                    {/* Clean Minimal Numbers & Instructions Summary */}
+                    {/* Minimal Numbers & Instructions Summary */}
                     {subs ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-3 border-t border-slate-100 text-xs">
                         {subs.sendMoneyOption.enabled && (
-                          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/70 space-y-1">
+                          <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200/80 space-y-1">
                             <div className="flex items-center justify-between gap-2">
-                              <span className="text-[10px] font-black uppercase tracking-wider text-[#E2136E]">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-[#E2136E]">
                                 {subs.sendMoneyOption.label} ({subs.sendMoneyOption.accountType})
                               </span>
-                              <span className="font-mono font-bold text-slate-900">
+                              <span className="font-mono font-semibold text-slate-900 tabular-nums">
                                 {subs.sendMoneyOption.accountNumber || 'Not set'}
                               </span>
                             </div>
@@ -2616,12 +2598,12 @@ export function AdminDashboard() {
                           </div>
                         )}
                         {subs.paymentOption.enabled && (
-                          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/70 space-y-1">
+                          <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200/80 space-y-1">
                             <div className="flex items-center justify-between gap-2">
-                              <span className="text-[10px] font-black uppercase tracking-wider text-amber-700">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700">
                                 {subs.paymentOption.label} ({subs.paymentOption.accountType})
                               </span>
-                              <span className="font-mono font-bold text-slate-900">
+                              <span className="font-mono font-semibold text-slate-900 tabular-nums">
                                 {subs.paymentOption.accountNumber || 'Not set'}
                               </span>
                             </div>
@@ -2632,7 +2614,7 @@ export function AdminDashboard() {
                         )}
                       </div>
                     ) : (
-                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/70 text-[11px] text-slate-600 truncate">
+                      <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200/80 text-[11px] text-slate-600 truncate">
                         <strong className="text-slate-800">Instructions:</strong> {meta.instructionText}
                       </div>
                     )}
@@ -3340,19 +3322,16 @@ export function AdminDashboard() {
 
         {/* TAB: SPECIAL OFFER DEALS */}
         {activeTab === 'special-offer' && (
-          <div className="bg-white border border-neutral-200/80 rounded-2xl p-4 sm:p-6 shadow-xs space-y-5">
-            {/* Minimal Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-neutral-100">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#FFF1F2] text-[#D71920] flex items-center justify-center shrink-0">
-                  <Sparkles size={18} />
-                </div>
-                <div>
-                  <h2 className="text-base sm:text-lg font-extrabold text-neutral-900">Special Offer Deals</h2>
-                  <p className="text-xs text-neutral-500">
-                    Manage homepage special offer banner, discount rates, and stock progress
-                  </p>
-                </div>
+          <div className="space-y-5">
+            {/* Clean Page Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+              <div className="space-y-1">
+                <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+                  Special Offer Deals
+                </h2>
+                <p className="text-xs sm:text-[13px] text-slate-500">
+                  Manage homepage special offer banner, discount rates, and stock progress
+                </p>
               </div>
               <button 
                 type="button"
@@ -3367,196 +3346,192 @@ export function AdminDashboard() {
                     setSettingsSaving(false);
                   }
                 }}
-                className="w-full sm:w-auto px-4 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs shadow-xs cursor-pointer transition-all flex items-center justify-center gap-1.5"
+                className="w-full sm:w-auto px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-semibold rounded-lg text-xs cursor-pointer transition-colors flex items-center justify-center gap-1.5 shrink-0"
               >
                 <Check size={14} /> <span>{settingsSaving ? 'Saving...' : 'Save Changes'}</span>
               </button>
             </div>
 
-            <div className="space-y-5">
-              {/* Compact Enable & Heading Bar */}
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 rounded-xl bg-neutral-50/80 border border-neutral-200/80 items-center">
-                <label className="md:col-span-5 flex items-center justify-between p-3 rounded-xl bg-white border border-neutral-200 cursor-pointer">
-                  <div>
-                    <span className="font-bold text-xs text-neutral-900 block">Show Special Offer on Homepage</span>
-                    <span className="text-[11px] text-neutral-500">Toggle visibility on storefront</span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={settingsForm.specialOffer?.enabled !== false}
-                    onChange={e => {
-                      const val = e.target.checked;
-                      setSettingsForm(prev => ({
-                        ...prev,
-                        specialOffer: {
-                          ...(prev.specialOffer || { title: 'Special Offer', endTime: Date.now() + 48*3600*1000, items: [] }),
-                          enabled: val
-                        }
-                      }));
-                    }}
-                    className="w-4 h-4 accent-[#D71920] rounded cursor-pointer"
-                  />
-                </label>
-
-                <div className="md:col-span-7 flex flex-col sm:flex-row sm:items-center gap-2">
-                  <label className="font-bold text-neutral-600 text-xs shrink-0 sm:w-36">Section Heading:</label>
-                  <input
-                    type="text"
-                    value={settingsForm.specialOffer?.title || 'Special Offer'}
-                    onChange={e => {
-                      const val = e.target.value;
-                      setSettingsForm(prev => ({
-                        ...prev,
-                        specialOffer: {
-                          ...(prev.specialOffer || { enabled: true, endTime: Date.now() + 48*3600*1000, items: [] }),
-                          title: val
-                        }
-                      }));
-                    }}
-                    placeholder="e.g. Special Offer"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
-                  />
+            {/* Homepage Enable & Heading Config */}
+            <div className="bg-white border border-slate-200 rounded-xl p-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+              <label className="md:col-span-5 flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-200 cursor-pointer">
+                <div>
+                  <span className="font-semibold text-xs text-slate-900 block">Show Special Offer on Homepage</span>
+                  <span className="text-[11px] text-slate-500">Toggle visibility on storefront</span>
                 </div>
+                <input
+                  type="checkbox"
+                  checked={settingsForm.specialOffer?.enabled !== false}
+                  onChange={e => {
+                    const val = e.target.checked;
+                    setSettingsForm(prev => ({
+                      ...prev,
+                      specialOffer: {
+                        ...(prev.specialOffer || { title: 'Special Offer', endTime: Date.now() + 48*3600*1000, items: [] }),
+                        enabled: val
+                      }
+                    }));
+                  }}
+                  className="w-4 h-4 accent-[#D71920] rounded cursor-pointer"
+                />
+              </label>
+
+              <div className="md:col-span-7 flex flex-col sm:flex-row sm:items-center gap-2">
+                <label className="font-semibold text-slate-600 text-xs shrink-0 sm:w-32">Section Heading:</label>
+                <input
+                  type="text"
+                  value={settingsForm.specialOffer?.title || 'Special Offer'}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setSettingsForm(prev => ({
+                      ...prev,
+                      specialOffer: {
+                        ...(prev.specialOffer || { enabled: true, endTime: Date.now() + 48*3600*1000, items: [] }),
+                        title: val
+                      }
+                    }));
+                  }}
+                  placeholder="e.g. Special Offer"
+                  className="w-full px-3.5 py-2 rounded-lg border border-slate-300 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
+                />
+              </div>
+            </div>
+
+            {/* Offer Products Grid */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-xs text-slate-700 uppercase tracking-wider">
+                    Featured Deal Items
+                  </h3>
+                  <span className="px-2 py-0.5 rounded bg-slate-200/80 text-slate-700 font-semibold text-[11px] tabular-nums">
+                    {settingsForm.specialOffer?.items?.length || 0}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (products.length === 0) return;
+                    const firstProd = products[0];
+                    const currentItems = settingsForm.specialOffer?.items || [];
+                    setSettingsForm(prev => ({
+                      ...prev,
+                      specialOffer: {
+                        ...(prev.specialOffer || { enabled: true, title: 'Special Offer', endTime: Date.now() + 48*3600*1000 }),
+                        items: [...currentItems, { productId: firstProd.id, discountPercentage: 20, soldPercentage: 50, onlinePaymentOnly: false }]
+                      }
+                    }));
+                  }}
+                  className="px-3.5 py-2 bg-slate-900 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer hover:bg-slate-800 transition-colors"
+                >
+                  <Plus size={13} /> <span>Add Deal Product</span>
+                </button>
               </div>
 
-              {/* Offer Products Grid */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-extrabold text-xs text-neutral-800 uppercase tracking-wider">
-                      Featured Deal Items
-                    </h3>
-                    <span className="px-2 py-0.5 rounded-md bg-neutral-100 text-neutral-700 font-bold text-[11px]">
-                      {settingsForm.specialOffer?.items?.length || 0}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (products.length === 0) return;
-                      const firstProd = products[0];
-                      const currentItems = settingsForm.specialOffer?.items || [];
-                      setSettingsForm(prev => ({
-                        ...prev,
-                        specialOffer: {
-                          ...(prev.specialOffer || { enabled: true, title: 'Special Offer', endTime: Date.now() + 48*3600*1000 }),
-                          items: [...currentItems, { productId: firstProd.id, discountPercentage: 20, soldPercentage: 50, onlinePaymentOnly: false }]
-                        }
-                      }));
-                    }}
-                    className="px-3.5 py-2 bg-neutral-900 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer hover:bg-neutral-800 transition-colors"
-                  >
-                    <Plus size={13} /> <span>Add Deal Product</span>
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-                  {(settingsForm.specialOffer?.items || []).map((item, idx) => {
-                    const prod = products.find(p => p.id === item.productId);
-                    return (
-                      <div key={idx} className="p-3.5 rounded-xl border border-neutral-200 bg-white hover:border-neutral-300 transition-all flex flex-col gap-3 shadow-2xs">
-                        {/* Top row: Book thumbnail + selector + remove button */}
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={prod?.images[0] || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=100'}
-                            alt=""
-                            className="w-11 h-14 rounded-lg object-cover border border-neutral-200 shrink-0 bg-neutral-50"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <label className="block text-[10px] font-bold text-neutral-400 uppercase mb-1">Select Product</label>
-                            <select
-                              value={item.productId}
-                              onChange={e => {
-                                const newId = e.target.value;
-                                setSettingsForm(prev => {
-                                  const items = [...(prev.specialOffer?.items || [])];
-                                  items[idx] = { ...items[idx], productId: newId };
-                                  return { ...prev, specialOffer: { ...prev.specialOffer!, items } };
-                                });
-                              }}
-                              className="w-full px-3 py-2 rounded-lg border border-neutral-200 bg-neutral-50 text-xs font-bold text-neutral-900 focus:outline-none focus:bg-white focus:border-[#D71920]"
-                            >
-                              {products.map(p => (
-                                <option key={p.id} value={p.id}>{p.title} (৳{p.price})</option>
-                              ))}
-                            </select>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5">
+                {(settingsForm.specialOffer?.items || []).map((item, idx) => {
+                  const prod = products.find(p => p.id === item.productId);
+                  return (
+                    <div key={idx} className="p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors flex flex-col gap-3">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={prod?.images[0] || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=100'}
+                          alt=""
+                          className="w-11 h-14 rounded-lg object-cover border border-slate-200 shrink-0 bg-slate-50"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <label className="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Select Product</label>
+                          <select
+                            value={item.productId}
+                            onChange={e => {
+                              const newId = e.target.value;
                               setSettingsForm(prev => {
-                                const items = (prev.specialOffer?.items || []).filter((_, i) => i !== idx);
+                                const items = [...(prev.specialOffer?.items || [])];
+                                items[idx] = { ...items[idx], productId: newId };
                                 return { ...prev, specialOffer: { ...prev.specialOffer!, items } };
                               });
                             }}
-                            className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer transition-colors shrink-0 self-end mb-0.5"
-                            title="Remove Deal"
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-900 focus:outline-none focus:bg-white focus:border-[#D71920]"
                           >
-                            <Trash2 size={15} />
-                          </button>
+                            {products.map(p => (
+                              <option key={p.id} value={p.id}>{p.title} (৳{p.price})</option>
+                            ))}
+                          </select>
                         </div>
-
-                        {/* Bottom row: Discount %, Sold %, and Online Only toggle */}
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-2.5 border-t border-neutral-100 items-center">
-                          <div>
-                            <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Discount %</label>
-                            <input
-                              type="number"
-                              min="1"
-                              max="90"
-                              value={item.discountPercentage}
-                              onChange={e => {
-                                const val = Number(e.target.value) || 20;
-                                setSettingsForm(prev => {
-                                  const items = [...(prev.specialOffer?.items || [])];
-                                  items[idx] = { ...items[idx], discountPercentage: val };
-                                  return { ...prev, specialOffer: { ...prev.specialOffer!, items } };
-                                });
-                              }}
-                              className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-200 bg-neutral-50 focus:bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Sold Progress %</label>
-                            <input
-                              type="number"
-                              min="1"
-                              max="100"
-                              value={item.soldPercentage}
-                              onChange={e => {
-                                const val = Number(e.target.value) || 50;
-                                setSettingsForm(prev => {
-                                  const items = [...(prev.specialOffer?.items || [])];
-                                  items[idx] = { ...items[idx], soldPercentage: val };
-                                  return { ...prev, specialOffer: { ...prev.specialOffer!, items } };
-                                });
-                              }}
-                              className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-200 bg-neutral-50 focus:bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
-                            />
-                          </div>
-
-                          <label className="col-span-2 sm:col-span-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-neutral-50 border border-neutral-200/80 text-xs font-bold text-neutral-700 cursor-pointer sm:mt-4">
-                            <input
-                              type="checkbox"
-                              checked={!!item.onlinePaymentOnly}
-                              onChange={e => {
-                                const val = e.target.checked;
-                                setSettingsForm(prev => {
-                                  const items = [...(prev.specialOffer?.items || [])];
-                                  items[idx] = { ...items[idx], onlinePaymentOnly: val };
-                                  return { ...prev, specialOffer: { ...prev.specialOffer!, items } };
-                                });
-                              }}
-                              className="w-3.5 h-3.5 accent-[#D71920] rounded"
-                            />
-                            <span className="truncate">Online Pay Only</span>
-                          </label>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSettingsForm(prev => {
+                              const items = (prev.specialOffer?.items || []).filter((_, i) => i !== idx);
+                              return { ...prev, specialOffer: { ...prev.specialOffer!, items } };
+                            });
+                          }}
+                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer transition-colors shrink-0 self-end mb-0.5"
+                          title="Remove Deal"
+                        >
+                          <Trash2 size={15} />
+                        </button>
                       </div>
-                    );
-                  })}
-                </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-3 border-t border-slate-100 items-center">
+                        <div>
+                          <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Discount %</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="90"
+                            value={item.discountPercentage}
+                            onChange={e => {
+                              const val = Number(e.target.value) || 20;
+                              setSettingsForm(prev => {
+                                const items = [...(prev.specialOffer?.items || [])];
+                                items[idx] = { ...items[idx], discountPercentage: val };
+                                return { ...prev, specialOffer: { ...prev.specialOffer!, items } };
+                              });
+                            }}
+                            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white text-xs font-semibold text-slate-900 tabular-nums focus:outline-none focus:border-[#D71920]"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Sold Progress %</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="100"
+                            value={item.soldPercentage}
+                            onChange={e => {
+                              const val = Number(e.target.value) || 50;
+                              setSettingsForm(prev => {
+                                const items = [...(prev.specialOffer?.items || [])];
+                                items[idx] = { ...items[idx], soldPercentage: val };
+                                return { ...prev, specialOffer: { ...prev.specialOffer!, items } };
+                              });
+                            }}
+                            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white text-xs font-semibold text-slate-900 tabular-nums focus:outline-none focus:border-[#D71920]"
+                          />
+                        </div>
+
+                        <label className="col-span-2 sm:col-span-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 cursor-pointer sm:mt-4">
+                          <input
+                            type="checkbox"
+                            checked={!!item.onlinePaymentOnly}
+                            onChange={e => {
+                              const val = e.target.checked;
+                              setSettingsForm(prev => {
+                                const items = [...(prev.specialOffer?.items || [])];
+                                items[idx] = { ...items[idx], onlinePaymentOnly: val };
+                                return { ...prev, specialOffer: { ...prev.specialOffer!, items } };
+                              });
+                            }}
+                            className="w-3.5 h-3.5 accent-[#D71920] rounded"
+                          />
+                          <span className="truncate">Online Pay Only</span>
+                        </label>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -4045,15 +4020,15 @@ export function AdminDashboard() {
 
         {/* TAB: CUSTOMER REVIEWS & REACTIONS MANAGER */}
         {activeTab === 'reviews' && (
-          <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#EEEEEE]">
-              <div>
-                <h2 className="text-xl font-black text-[#171717] flex items-center gap-2">
-                  <Star size={20} className="text-amber-500 fill-amber-500" />
-                  <span>Customer Reviews & Real-Time Reactions Manager</span>
+          <div className="space-y-5">
+            {/* Clean Page Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+              <div className="space-y-1">
+                <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+                  Customer Reviews &amp; Reactions
                 </h2>
-                <p className="text-xs text-[#5F6368] mt-0.5">
-                  Manage verified product reviews and real-time customer reaction counts (Like, Love, Dislike) synced with Firebase.
+                <p className="text-xs sm:text-[13px] text-slate-500">
+                  Manage verified product reviews, homepage visibility slots, and reaction counts synced with Firebase
                 </p>
               </div>
               <button
@@ -4065,46 +4040,46 @@ export function AdminDashboard() {
                   setAdminRevComment('');
                   setShowAddAdminRevModal(true);
                 }}
-                className="px-4 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md cursor-pointer shrink-0"
+                className="px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-semibold rounded-lg text-xs flex items-center gap-1.5 cursor-pointer shrink-0 self-start sm:self-auto"
               >
                 <Plus size={14} /> Add Verified Review
               </button>
             </div>
 
-            {/* HOMEPAGE REVIEW VISIBILITY, REPLACEMENT FEATURE & GREEN ICON (💚) SYSTEM */}
+            {/* HOMEPAGE REVIEW VISIBILITY, REPLACEMENT FEATURE & GREEN ICON SYSTEM */}
             <div
               data-testid="admin-home-review-system-panel"
-              className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-emerald-50/70 via-white to-emerald-50/40 border border-emerald-200/90 space-y-4"
+              className="p-4 sm:p-5 rounded-xl bg-white border border-slate-200 space-y-4"
             >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-emerald-200/60">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                    {renderGreenReviewIcon(settings.homeReviewIconStyle, 18)}
+                  <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                    {renderGreenReviewIcon(settings.homeReviewIconStyle, 17)}
                   </div>
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-sm font-black text-neutral-900">
-                        Homepage Review System, Slot Replacement & Green Icon (💚) Customizer
+                      <h3 className="text-sm font-bold text-slate-900">
+                        Homepage Review Display &amp; Icon Controls
                       </h3>
                       <span
-                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                        className={`px-2 py-0.5 rounded-md text-[11px] font-semibold border ${
                           settings.showHomeReviewsSection !== false &&
                           settings.homeReviewsSlotReplacement !== 'off'
-                            ? 'bg-emerald-600 text-white border-emerald-700'
-                            : 'bg-neutral-200 text-neutral-700 border-neutral-300'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : 'bg-slate-100 text-slate-600 border-slate-200'
                         }`}
                       >
                         {settings.showHomeReviewsSection === false ||
                         settings.homeReviewsSlotReplacement === 'off'
-                          ? 'Homepage Review: OFF'
+                          ? 'Reviews: OFF'
                           : settings.homeReviewsSlotReplacement &&
                               settings.homeReviewsSlotReplacement !== 'reviews'
-                            ? `Replaced with: ${settings.homeReviewsSlotReplacement.replace('_', ' ')}`
-                            : 'Homepage Review: SHOW (Active)'}
+                            ? `Slot: ${settings.homeReviewsSlotReplacement.replace('_', ' ')}`
+                            : 'Reviews: Active'}
                       </span>
                     </div>
-                    <p className="text-xs text-neutral-600 mt-0.5">
-                      Turn Homepage Reviews ON or OFF anytime, replace that Homepage space with another high-converting store feature, or customize the Green Review Icon (💚) without using a star.
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Toggle Homepage Reviews ON/OFF, swap the homepage section slot, or pick a green review icon style.
                     </p>
                   </div>
                 </div>
@@ -4125,11 +4100,11 @@ export function AdminDashboard() {
                       });
                       setToast({ show: true, type: 'success', message: 'Homepage Reviews enabled in homeConfig!' });
                     }}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-extrabold border cursor-pointer transition-all flex items-center gap-1.5 ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer transition-colors flex items-center gap-1.5 ${
                       homeConfig.showReviews !== false &&
                       homeConfig.reviewsSlotReplacement !== 'off'
-                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                        : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
+                        ? 'bg-emerald-600 text-white border-emerald-600'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                     }`}
                   >
                     <Eye size={13} />
@@ -4145,11 +4120,11 @@ export function AdminDashboard() {
                       });
                       setToast({ show: true, type: 'success', message: 'Homepage Reviews turned OFF in homeConfig!' });
                     }}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-extrabold border cursor-pointer transition-all flex items-center gap-1.5 ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer transition-colors flex items-center gap-1.5 ${
                       homeConfig.showReviews === false ||
                       homeConfig.reviewsSlotReplacement === 'off'
-                        ? 'bg-red-600 text-white border-red-600 shadow-xs'
-                        : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
+                        ? 'bg-red-600 text-white border-red-600'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                     }`}
                   >
                     <EyeOff size={13} />
@@ -4159,10 +4134,10 @@ export function AdminDashboard() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                {/* 1. Homepage Section Slot Selector (Reviews vs Alternative Feature vs Off) */}
-                <div className="p-3.5 rounded-2xl bg-white border border-emerald-200/80 space-y-2">
-                  <label className="block text-[11px] font-black uppercase text-emerald-950">
-                    1. Homepage Review Section Slot (What to Show)
+                {/* 1. Homepage Section Slot Selector */}
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-700">
+                    1. Homepage Section Slot
                   </label>
                   <select
                     data-testid="home-reviews-slot-select"
@@ -4193,31 +4168,23 @@ export function AdminDashboard() {
                             : `Homepage slot updated to: ${val.replace('_', ' ')}`,
                       });
                     }}
-                    className="w-full px-3 py-2.5 rounded-xl border border-neutral-300 bg-[#F8FAFC] text-xs font-bold text-neutral-900 focus:outline-none focus:border-emerald-600"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:border-emerald-600"
                   >
-                    <option value="reviews">
-                      💚 Show Customer Reviews Carousel (Default)
-                    </option>
-                    <option value="trust_features">
-                      🛡️ Replace with: Store Trust & Fast Delivery Guarantees
-                    </option>
-                    <option value="publishers_spotlight">
-                      🏛️ Replace with: Official Publications & Partner Houses
-                    </option>
-                    <option value="reading_benefits">
-                      📖 Replace with: Look Inside Book Preview & Reader Perks Banner
-                    </option>
-                    <option value="off">🚫 Turn Off (Keep Homepage Slot Empty)</option>
+                    <option value="reviews">Show Customer Reviews Carousel (Default)</option>
+                    <option value="trust_features">Replace with: Store Trust &amp; Delivery Guarantees</option>
+                    <option value="publishers_spotlight">Replace with: Official Publications &amp; Partners</option>
+                    <option value="reading_benefits">Replace with: Book Preview &amp; Reader Perks</option>
+                    <option value="off">Turn Off (Keep Slot Hidden)</option>
                   </select>
-                  <p className="text-[11px] text-neutral-500">
-                    Choose whether to display Customer Reviews on the Homepage, replace that space with another store feature, or keep it turned off.
+                  <p className="text-[11px] text-slate-500">
+                    Display Customer Reviews, swap with another feature, or hide the section.
                   </p>
                 </div>
 
                 {/* 2. Product Card Small Review Badge Mode */}
-                <div className="p-3.5 rounded-2xl bg-white border border-emerald-200/80 space-y-2">
-                  <label className="block text-[11px] font-black uppercase text-emerald-950">
-                    2. Product Card Review Slot (On Book Cards)
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-700">
+                    2. Product Card Badge Slot
                   </label>
                   <select
                     data-testid="product-card-review-slot-select"
@@ -4232,40 +4199,32 @@ export function AdminDashboard() {
                       await updateSettings({ productCardReviewSlotMode: val });
                       setToast({ show: true, type: 'success', message: 'Product card review slot updated!' });
                     }}
-                    className="w-full px-3 py-2.5 rounded-xl border border-neutral-300 bg-[#F8FAFC] text-xs font-bold text-neutral-900 focus:outline-none focus:border-emerald-600"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:border-emerald-600"
                   >
-                    <option value="green_rating">
-                      💚 Green Review Score Badge (e.g. 💚 4.9 (12))
-                    </option>
-                    <option value="publisher_tag">
-                      🏛️ Replace with: Publisher Name Badge
-                    </option>
-                    <option value="verified_badge">
-                      🛡️ Replace with: "Verified Print" Green Badge
-                    </option>
-                    <option value="stock_status">
-                      ✅ Replace with: Live Stock Count Badge
-                    </option>
-                    <option value="off">🚫 Turn Off on Product Cards</option>
+                    <option value="green_rating">Green Review Score Badge (Default)</option>
+                    <option value="publisher_tag">Replace with: Publisher Name Badge</option>
+                    <option value="verified_badge">Replace with: Verified Print Badge</option>
+                    <option value="stock_status">Replace with: Live Stock Count Badge</option>
+                    <option value="off">Turn Off on Product Cards</option>
                   </select>
-                  <p className="text-[11px] text-neutral-500">
-                    Customize or replace the small rating badge shown on Homepage & Storefront book cards.
+                  <p className="text-[11px] text-slate-500">
+                    Control what appears in the rating badge slot on storefront book cards.
                   </p>
                 </div>
 
-                {/* 3. Green Review Icon Style Selector (Non-Star Curated Options) */}
-                <div className="p-3.5 rounded-2xl bg-white border border-emerald-200/80 space-y-2">
-                  <label className="block text-[11px] font-black uppercase text-emerald-950">
-                    3. Green Review Icon Style (💚 Instead of Star)
+                {/* 3. Green Review Icon Style Selector */}
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-700">
+                    3. Green Review Icon Style
                   </label>
                   <div className="grid grid-cols-2 gap-1.5">
                     {[
-                      { id: 'heart', label: '💚 Green Heart' },
-                      { id: 'verified_shield', label: '🛡️ Trust Shield' },
-                      { id: 'thumbs_up', label: '👍 Thumbs Up' },
-                      { id: 'check_badge', label: '✅ Check Badge' },
-                      { id: 'sparkles', label: '✨ Sparkles' },
-                      { id: 'book_love', label: '📖 Book Icon' },
+                      { id: 'heart', label: 'Green Heart' },
+                      { id: 'verified_shield', label: 'Trust Shield' },
+                      { id: 'thumbs_up', label: 'Thumbs Up' },
+                      { id: 'check_badge', label: 'Check Badge' },
+                      { id: 'sparkles', label: 'Sparkles' },
+                      { id: 'book_love', label: 'Book Icon' },
                     ].map(opt => {
                       const activeIcon = (settings.homeReviewIconStyle || 'heart') === opt.id;
                       return (
@@ -4283,51 +4242,47 @@ export function AdminDashboard() {
                               message: `Green review icon changed to ${opt.label}!`,
                             });
                           }}
-                          className={`px-2.5 py-2 rounded-xl border text-[11px] font-extrabold flex items-center gap-1.5 cursor-pointer transition-all ${
+                          className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
                             activeIcon
-                              ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs'
-                              : 'bg-[#F8FAFC] text-neutral-700 border-neutral-200 hover:border-emerald-300'
+                              ? 'bg-emerald-600 text-white border-emerald-600'
+                              : 'bg-white text-slate-700 border-slate-200 hover:border-emerald-300'
                           }`}
                         >
-                          <span
-                            className={`inline-flex ${
-                              activeIcon ? '[&_svg]:!text-white' : ''
-                            }`}
-                          >
+                          <span className={`inline-flex ${activeIcon ? '[&_svg]:!text-white' : ''}`}>
                             {renderGreenReviewIcon(opt.id, 13)}
                           </span>
-                          <span className="truncate">{opt.label.replace(/^[^\s]+\s/, '')}</span>
+                          <span className="truncate">{opt.label}</span>
                         </button>
                       );
                     })}
                   </div>
-                  <div className="flex items-center justify-between pt-1 text-[11px] text-emerald-800 font-bold">
-                    <span>Live Green Preview:</span>
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-600">
+                  <div className="flex items-center justify-between pt-1 text-[11px] text-emerald-700 font-semibold">
+                    <span>Preview:</span>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-600 tabular-nums">
                       {[...Array(5)].map((_, i) => (
                         <span key={i} className="inline-flex">
-                          {renderGreenReviewIcon(settings.homeReviewIconStyle, 13)}
+                          {renderGreenReviewIcon(settings.homeReviewIconStyle, 12)}
                         </span>
                       ))}
-                      <span className="ml-1 text-emerald-800 font-black">5.0</span>
+                      <span className="ml-1 text-emerald-800 font-bold">5.0</span>
                     </span>
                   </div>
                 </div>
               </div>
 
               {/* Quick Co-Control for Homepage Writer / Author On/Off & Slot Replacement */}
-              <div className="pt-3 border-t border-emerald-200/70 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+              <div className="pt-3.5 border-t border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/20 flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 flex items-center justify-center shrink-0">
                     <UserCheck size={15} />
                   </div>
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-black text-neutral-900">
-                        Homepage Writer / Author Slot Control (Both Review & Writer Systems)
+                      <span className="text-xs font-bold text-slate-900">
+                        Homepage Writer Slot Quick Control
                       </span>
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border ${
                           settings.showHomeWritersSection !== false &&
                           settings.homeWritersSlotReplacement !== 'off'
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -4336,15 +4291,15 @@ export function AdminDashboard() {
                       >
                         {settings.showHomeWritersSection === false ||
                         settings.homeWritersSlotReplacement === 'off'
-                          ? 'Writers on Home: OFF'
+                          ? 'Writers: OFF'
                           : settings.homeWritersSlotReplacement &&
                               settings.homeWritersSlotReplacement !== 'writers'
                             ? `Writers Slot: ${settings.homeWritersSlotReplacement.replace('_', ' ')}`
-                            : 'Writers on Home: ON'}
+                            : 'Writers: ON'}
                       </span>
                     </div>
-                    <p className="text-[11px] text-neutral-500">
-                      Control Homepage Writers section and Product Card Writer line right here or in the Writers tab.
+                    <p className="text-[11px] text-slate-500">
+                      Control Homepage Writers section and Product Card Writer line.
                     </p>
                   </div>
                 </div>
@@ -4379,14 +4334,14 @@ export function AdminDashboard() {
                             : `Homepage writer slot set to: ${val.replace('_', ' ')}`,
                       });
                     }}
-                    className="px-3 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                    className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:border-[#D71920]"
                   >
-                    <option value="writers">✍️ Home Writers: Show Featured Authors</option>
-                    <option value="publishers_spotlight">🏛️ Home Writers Slot → Official Publishers</option>
-                    <option value="bestsellers_showcase">🔥 Home Writers Slot → Bestselling Books</option>
-                    <option value="trust_features">🛡️ Home Writers Slot → Store Trust Guarantees</option>
-                    <option value="reading_benefits">📖 Home Writers Slot → Look Inside Perks</option>
-                    <option value="off">🚫 Home Writers: Turn OFF</option>
+                    <option value="writers">Home Writers: Featured Authors</option>
+                    <option value="publishers_spotlight">Home Writers Slot: Official Publishers</option>
+                    <option value="bestsellers_showcase">Home Writers Slot: Bestselling Books</option>
+                    <option value="trust_features">Home Writers Slot: Store Trust</option>
+                    <option value="reading_benefits">Home Writers Slot: Reader Perks</option>
+                    <option value="off">Home Writers: Turn OFF</option>
                   </select>
 
                   <select
@@ -4406,46 +4361,46 @@ export function AdminDashboard() {
                         message: 'Product card writer slot updated!',
                       });
                     }}
-                    className="px-3 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                    className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:border-[#D71920]"
                   >
-                    <option value="writer_name">✍️ Card Writer: Show Writer Name</option>
-                    <option value="publisher_name">🏛️ Card Writer → Publisher Name</option>
-                    <option value="category_name">📚 Card Writer → Category Name</option>
-                    <option value="edition_info">📖 Card Writer → Edition & Print Info</option>
-                    <option value="delivery_badge">🚚 Card Writer → Fast COD Tag</option>
-                    <option value="off">🚫 Card Writer: Turn OFF</option>
+                    <option value="writer_name">Card Writer: Writer Name</option>
+                    <option value="publisher_name">Card Writer: Publisher Name</option>
+                    <option value="category_name">Card Writer: Category Name</option>
+                    <option value="edition_info">Card Writer: Edition Info</option>
+                    <option value="delivery_badge">Card Writer: Fast COD Tag</option>
+                    <option value="off">Card Writer: Turn OFF</option>
                   </select>
                 </div>
               </div>
             </div>
 
             {/* Reaction Summary KPIs */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="p-4 rounded-2xl bg-[#F7F7F8] border border-neutral-200">
-                <div className="text-[10px] font-bold uppercase text-neutral-500">Total Synced Reviews</div>
-                <div className="text-xl font-black text-neutral-900 mt-1">{reviews.length}</div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+              <div className="p-4 rounded-xl bg-white border border-slate-200">
+                <div className="text-xs font-medium text-slate-500">Total Synced Reviews</div>
+                <div className="text-2xl font-bold text-slate-900 mt-1 tabular-nums">{reviews.length}</div>
               </div>
-              <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200">
-                <div className="text-[10px] font-bold uppercase text-blue-700 flex items-center gap-1">
-                  <ThumbsUp size={12} /> Total Likes
+              <div className="p-4 rounded-xl bg-white border border-slate-200">
+                <div className="text-xs font-medium text-slate-500 flex items-center gap-1.5">
+                  <ThumbsUp size={13} className="text-blue-600" /> Total Likes
                 </div>
-                <div className="text-xl font-black text-blue-700 mt-1">
+                <div className="text-2xl font-bold text-slate-900 mt-1 tabular-nums">
                   {reviews.reduce((sum, r) => sum + (r.likesCount || 0), 0)}
                 </div>
               </div>
-              <div className="p-4 rounded-2xl bg-[#FFF1F2] border border-[#D71920]/25">
-                <div className="text-[10px] font-bold uppercase text-[#D71920] flex items-center gap-1">
-                  <Heart size={12} /> Total Loves
+              <div className="p-4 rounded-xl bg-white border border-slate-200">
+                <div className="text-xs font-medium text-slate-500 flex items-center gap-1.5">
+                  <Heart size={13} className="text-[#D71920]" /> Total Loves
                 </div>
-                <div className="text-xl font-black text-[#D71920] mt-1">
+                <div className="text-2xl font-bold text-slate-900 mt-1 tabular-nums">
                   {reviews.reduce((sum, r) => sum + (r.lovesCount || 0), 0)}
                 </div>
               </div>
-              <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200">
-                <div className="text-[10px] font-bold uppercase text-amber-800 flex items-center gap-1">
-                  <ThumbsDown size={12} /> Total Dislikes
+              <div className="p-4 rounded-xl bg-white border border-slate-200">
+                <div className="text-xs font-medium text-slate-500 flex items-center gap-1.5">
+                  <ThumbsDown size={13} className="text-amber-600" /> Total Dislikes
                 </div>
-                <div className="text-xl font-black text-amber-800 mt-1">
+                <div className="text-2xl font-bold text-slate-900 mt-1 tabular-nums">
                   {reviews.reduce((sum, r) => sum + (r.dislikesCount || 0), 0)}
                 </div>
               </div>
@@ -4453,66 +4408,66 @@ export function AdminDashboard() {
 
             {/* Reviews List */}
             {reviews.length > 0 ? (
-              <div className="space-y-3">
+              <div className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100">
                 {reviews.map(rev => {
                   const prod = products.find(p => p.id === rev.productId);
                   return (
-                    <div key={rev.id} className="p-4 rounded-2xl border border-neutral-200 bg-[#F7F7F8] flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div className="space-y-1.5 flex-1">
+                    <div key={rev.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="space-y-1 flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-black text-xs text-neutral-900">{rev.userName}</span>
+                          <span className="font-semibold text-xs text-slate-900">{rev.userName}</span>
                           <span className="text-amber-500 font-bold text-xs">{'★'.repeat(rev.rating || 5)}</span>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-neutral-200 text-neutral-600">
-                            Book: {prod?.title || rev.productId}
+                          <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 truncate max-w-[260px]">
+                            {prod?.title || rev.productId}
                           </span>
                         </div>
-                        <p className="text-xs text-neutral-700 italic">"{rev.comment}"</p>
+                        <p className="text-xs text-slate-600">"{rev.comment}"</p>
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2 shrink-0">
-                        <div className="flex items-center gap-1 bg-white px-2.5 py-1.5 rounded-xl border border-blue-200 text-xs">
+                        <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-xs">
                           <ThumbsUp size={12} className="text-blue-600" />
-                          <span className="text-[10px] font-bold text-neutral-500">Like:</span>
+                          <span className="text-[11px] font-medium text-slate-500">Like</span>
                           <input
                             type="number"
                             min="0"
                             value={rev.likesCount ?? 0}
                             onChange={e => updateProductReview(rev.id, { likesCount: Math.max(0, Number(e.target.value) || 0) })}
-                            className="w-12 text-center font-black text-blue-600 bg-blue-50/50 rounded px-1 py-0.5"
+                            className="w-12 text-center font-semibold text-slate-900 bg-white border border-slate-200 rounded px-1 py-0.5 tabular-nums"
                           />
                         </div>
 
-                        <div className="flex items-center gap-1 bg-white px-2.5 py-1.5 rounded-xl border border-[#D71920]/30 text-xs">
+                        <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-xs">
                           <Heart size={12} className="text-[#D71920]" />
-                          <span className="text-[10px] font-bold text-neutral-500">Love:</span>
+                          <span className="text-[11px] font-medium text-slate-500">Love</span>
                           <input
                             type="number"
                             min="0"
                             value={rev.lovesCount ?? 0}
                             onChange={e => updateProductReview(rev.id, { lovesCount: Math.max(0, Number(e.target.value) || 0) })}
-                            className="w-12 text-center font-black text-[#D71920] bg-[#FFF1F2] rounded px-1 py-0.5"
+                            className="w-12 text-center font-semibold text-slate-900 bg-white border border-slate-200 rounded px-1 py-0.5 tabular-nums"
                           />
                         </div>
 
-                        <div className="flex items-center gap-1 bg-white px-2.5 py-1.5 rounded-xl border border-amber-200 text-xs">
-                          <ThumbsDown size={12} className="text-amber-700" />
-                          <span className="text-[10px] font-bold text-neutral-500">Dislike:</span>
+                        <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-xs">
+                          <ThumbsDown size={12} className="text-amber-600" />
+                          <span className="text-[11px] font-medium text-slate-500">Dislike</span>
                           <input
                             type="number"
                             min="0"
                             value={rev.dislikesCount ?? 0}
                             onChange={e => updateProductReview(rev.id, { dislikesCount: Math.max(0, Number(e.target.value) || 0) })}
-                            className="w-12 text-center font-black text-amber-800 bg-amber-50 rounded px-1 py-0.5"
+                            className="w-12 text-center font-semibold text-slate-900 bg-white border border-slate-200 rounded px-1 py-0.5 tabular-nums"
                           />
                         </div>
 
                         <button
                           type="button"
                           onClick={() => deleteProductReview(rev.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-xl border border-transparent hover:border-red-200 cursor-pointer"
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-200 cursor-pointer"
                           title="Delete Review"
                         >
-                          <Trash2 size={15} />
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </div>
@@ -4520,8 +4475,8 @@ export function AdminDashboard() {
                 })}
               </div>
             ) : (
-              <div className="p-8 text-center bg-[#F7F7F8] rounded-2xl border border-neutral-200 text-xs text-neutral-500">
-                No custom reviews or reactions recorded in Firestore yet. When customers post reviews or react (Like / Love / Dislike) on any product page, they appear here in real time.
+              <div className="p-8 text-center bg-white rounded-xl border border-slate-200 text-xs text-slate-500">
+                No custom reviews or reactions recorded in Firestore yet. When customers post reviews or react on any product page, they appear here in real time.
               </div>
             )}
 
@@ -4823,60 +4778,57 @@ export function AdminDashboard() {
 
         {/* TAB 5: CATALOG & INVENTORY */}
         {activeTab === 'products' && (
-          <div className="bg-white border border-neutral-200/80 rounded-2xl p-4 sm:p-6 shadow-xs space-y-5">
+          <div className="space-y-5">
             {!showAddProdModal ? (
               <>
-                {/* Header matching Categories style */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-neutral-100">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#FFF1F2] text-[#D71920] flex items-center justify-center shrink-0">
-                      <BookOpen size={18} />
+                {/* Clean Page Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+                        Books &amp; Stationery Inventory
+                      </h2>
+                      <span className="px-2 py-0.5 rounded-md bg-slate-200/80 text-slate-700 text-xs font-semibold tabular-nums">
+                        {products.length} items
+                      </span>
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-base sm:text-lg font-extrabold text-neutral-900">Books & Stationery Inventory</h2>
-                        <span className="px-2.5 py-0.5 rounded-full bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/25 text-xs font-bold">
-                          {products.length} items
-                        </span>
-                      </div>
-                      <p className="text-xs text-neutral-500 mt-0.5">
-                        Manage catalog items, pricing, preview pages, and delivery timing
-                      </p>
-                    </div>
+                    <p className="text-xs sm:text-[13px] text-slate-500">
+                      Manage catalog items, pricing, preview pages, and delivery timing
+                    </p>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
                     <button
                       type="button"
                       onClick={() => setShowBulkImportModal(true)}
-                      className="flex-1 sm:flex-initial px-4 py-2.5 bg-[#F7F7F8] hover:bg-neutral-200 text-neutral-800 border border-neutral-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer shrink-0 transition-all"
+                      className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-semibold rounded-lg text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
                     >
                       <FileSpreadsheet size={14} className="text-[#D71920]" />
                       <span>Bulk Import (CSV)</span>
                     </button>
                     <button 
                       onClick={() => setShowTypeChooserModal(true)}
-                      className="flex-1 sm:flex-initial px-4 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer shrink-0 transition-all"
+                      className="px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-semibold rounded-lg text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
                     >
                       <Plus size={14} /> <span>Add New Product</span>
                     </button>
                   </div>
                 </div>
 
-                {/* Search & Filter Bar matching Categories */}
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[#F7F7F8] p-3 rounded-2xl border border-[#E5E5E5]">
+                {/* Search & Filter Toolbar */}
+                <div className="bg-white border border-slate-200 rounded-xl p-3.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                   <div className="relative flex-1">
-                    <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                     <input
                       type="text"
                       placeholder="Search books by title, author, publisher, or category..."
                       value={productSearchQuery}
                       onChange={e => setProductSearchQuery(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                      className="w-full pl-9 pr-3.5 py-2 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
                     />
                   </div>
 
-                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 sm:pb-0 no-scrollbar shrink-0">
                     {[
                       { id: 'all', label: `All (${products.length})` },
                       { id: 'book', label: `Books (${products.filter(p => p.type === 'book').length})` },
@@ -4885,10 +4837,10 @@ export function AdminDashboard() {
                       <button
                         key={tab.id}
                         onClick={() => setInventoryFilter(tab.id as any)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap tabular-nums ${
                           inventoryFilter === tab.id
-                            ? 'bg-[#D71920] text-white shadow-xs'
-                            : 'bg-white text-neutral-700 border border-neutral-200 hover:bg-neutral-50'
+                            ? 'bg-slate-900 text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
                         }`}
                       >
                         {tab.label}
@@ -4897,159 +4849,209 @@ export function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* Single-Line Products Table (Matching Categories single-line row layout) */}
-                <div className="overflow-x-auto border border-[#E5E5E5] rounded-2xl bg-white shadow-2xs">
-                  <table className="w-full text-left text-xs border-collapse min-w-[720px]">
-                    <thead>
-                      <tr className="bg-[#F7F7F8] text-neutral-500 font-bold uppercase tracking-wider border-b border-[#E5E5E5] text-[11px]">
-                        <th className="py-3 px-4 w-10 text-center">
-                          <input type="checkbox" className="accent-[#D71920] rounded" />
-                        </th>
-                        <th className="py-3 px-4">Product</th>
-                        <th className="py-3 px-4">Author / Publisher</th>
-                        <th className="py-3 px-4">Category</th>
-                        <th className="py-3 px-4">Type</th>
-                        <th className="py-3 px-4">Price</th>
-                        <th className="py-3 px-4">Status</th>
-                        <th className="py-3 px-4 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#EEEEEE]">
-                      {products
-                        .filter(p => inventoryFilter === 'all' || p.type === inventoryFilter)
-                        .filter(p => {
-                          if (!productSearchQuery.trim()) return true;
-                          const q = productSearchQuery.toLowerCase();
-                          return (
-                            p.title.toLowerCase().includes(q) ||
-                            (p.author || '').toLowerCase().includes(q) ||
-                            (p.publisher || '').toLowerCase().includes(q) ||
-                            (p.category || '').toLowerCase().includes(q)
-                          );
-                        })
-                        .map((p) => (
-                          <tr key={p.id} className="hover:bg-[#FFF9F9] transition-colors group">
-                            <td className="py-3 px-4 text-center">
-                              <input type="checkbox" className="accent-[#D71920] rounded" />
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-3">
-                                <div className="w-11 h-14 rounded-xl overflow-hidden shrink-0 border border-neutral-200 bg-neutral-50 p-0.5 flex items-center justify-center">
+                {(() => {
+                  const filteredInventory = products
+                    .filter(p => inventoryFilter === 'all' || p.type === inventoryFilter)
+                    .filter(p => {
+                      if (!productSearchQuery.trim()) return true;
+                      const q = productSearchQuery.toLowerCase();
+                      return (
+                        p.title.toLowerCase().includes(q) ||
+                        (p.author || '').toLowerCase().includes(q) ||
+                        (p.publisher || '').toLowerCase().includes(q) ||
+                        (p.category || '').toLowerCase().includes(q)
+                      );
+                    });
+
+                  return (
+                    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                      {filteredInventory.length === 0 ? (
+                        <div className="py-10 text-center text-slate-500 font-medium text-xs">
+                          No matching products found in inventory.
+                        </div>
+                      ) : (
+                        <>
+                          {/* Mobile & Tablet Clean Card List */}
+                          <div className="lg:hidden divide-y divide-slate-100">
+                            {filteredInventory.map(p => (
+                              <div key={p.id} className="p-4 flex gap-3 items-start">
+                                <div className="w-12 h-16 rounded-lg overflow-hidden shrink-0 border border-slate-200 bg-slate-50 p-0.5 flex items-center justify-center">
                                   {p.images?.[0] ? (
-                                    <img src={p.images[0]} alt={p.title} className="w-full h-full object-contain rounded-lg" />
+                                    <img src={p.images[0]} alt={p.title} className="w-full h-full object-contain rounded" />
                                   ) : (
                                     <BookOpen size={16} className="text-[#D71920]" />
                                   )}
                                 </div>
-                                <div className="min-w-0 max-w-[220px] sm:max-w-[260px]">
-                                  <h4 className="font-black text-xs text-neutral-900 truncate" title={p.title}>
-                                    {p.title}
-                                  </h4>
-                                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                                    {p.sku && (
-                                      <span className="text-[10px] text-neutral-400 font-mono">#{p.sku}</span>
-                                    )}
-                                    {p.previewPages && p.previewPages.length > 0 && (
-                                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/20">
-                                        📖 {p.previewPages.length}p
+                                <div className="flex-1 min-w-0 space-y-1.5">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <h4 className="font-semibold text-sm text-slate-900 leading-snug line-clamp-2">
+                                      {p.title}
+                                    </h4>
+                                    <span className="font-bold text-sm text-slate-900 tabular-nums shrink-0">
+                                      ৳{p.price}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-slate-500 truncate">
+                                    {p.author || p.brand || '—'}{p.publisher ? ` · ${p.publisher}` : ''}
+                                  </p>
+                                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-medium">
+                                        {p.category}
                                       </span>
-                                    )}
-                                    {p.deliveryEstimate && (
-                                      <span className="text-[10px] text-neutral-500 truncate">
-                                        • {p.deliveryEstimate}
+                                      <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-medium">
+                                        {p.isOriginalBadge !== false ? 'Original' : 'Active'}
                                       </span>
-                                    )}
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDuplicateProduct(p)}
+                                        className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-blue-600 cursor-pointer"
+                                        title="Duplicate / Copy Product"
+                                      >
+                                        <Copy size={13} />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => openEditProduct(p)}
+                                        className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-[#D71920] cursor-pointer"
+                                        title="Edit Product"
+                                      >
+                                        <Edit2 size={13} />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => deleteProduct(p.id)}
+                                        className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-red-600 cursor-pointer"
+                                        title="Delete Product"
+                                      >
+                                        <Trash2 size={13} />
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="min-w-0 max-w-[180px]">
-                                <div className="font-bold text-neutral-800 truncate">
-                                  {p.author || p.brand || '—'}
-                                </div>
-                                {p.publisher && (
-                                  <div className="text-[11px] text-neutral-500 truncate mt-0.5">
-                                    {p.publisher}
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                            <td className="py-3 px-4">
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-700 border border-neutral-200 text-[11px] font-bold truncate max-w-[150px]">
-                                {p.category}
-                              </span>
-                            </td>
-                            <td className="py-3 px-4">
-                              <span className={`px-2.5 py-1 rounded-lg text-[11px] font-black border ${
-                                p.type === 'book'
-                                  ? 'bg-amber-50 text-amber-800 border-amber-200'
-                                  : 'bg-blue-50 text-blue-800 border-blue-200'
-                              }`}>
-                                {p.type === 'book' ? 'Book' : 'Stationery'}
-                              </span>
-                            </td>
-                            <td className="py-3 px-4">
-                              <span className="font-black text-sm text-[#D71920]">৳{p.price}</span>
-                            </td>
-                            <td className="py-3 px-4">
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                {p.isOriginalBadge !== false ? 'Original' : 'Active'}
-                              </span>
-                            </td>
-                            <td className="py-3 px-4 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
-                                <button 
-                                  type="button"
-                                  onClick={() => handleDuplicateProduct(p)}
-                                  className="p-1.5 rounded-lg border border-neutral-200 bg-white text-neutral-700 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50/50 cursor-pointer transition-colors"
-                                  title="Duplicate / Copy Product (ডুপ্লিকেট করুন)"
-                                >
-                                  <Copy size={13} />
-                                </button>
-                                <button 
-                                  type="button"
-                                  onClick={() => openEditProduct(p)}
-                                  className="p-1.5 rounded-lg border border-neutral-200 bg-white text-neutral-700 hover:text-[#D71920] hover:border-[#D71920] hover:bg-red-50/50 cursor-pointer transition-colors"
-                                  title="Edit Product (এডিট করুন)"
-                                >
-                                  <Edit2 size={13} />
-                                </button>
-                                <button 
-                                  type="button"
-                                  onClick={() => deleteProduct(p.id)}
-                                  className="p-1.5 rounded-lg border border-neutral-200 bg-white text-neutral-700 hover:text-red-600 hover:border-red-300 hover:bg-red-50/50 cursor-pointer transition-colors"
-                                  title="Delete Product (মুছে ফেলুন)"
-                                >
-                                  <Trash2 size={13} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
+                            ))}
+                          </div>
 
-                      {products
-                        .filter(p => inventoryFilter === 'all' || p.type === inventoryFilter)
-                        .filter(p => {
-                          if (!productSearchQuery.trim()) return true;
-                          const q = productSearchQuery.toLowerCase();
-                          return (
-                            p.title.toLowerCase().includes(q) ||
-                            (p.author || '').toLowerCase().includes(q) ||
-                            (p.publisher || '').toLowerCase().includes(q) ||
-                            (p.category || '').toLowerCase().includes(q)
-                          );
-                        }).length === 0 && (
-                        <tr>
-                          <td colSpan={8} className="py-10 text-center text-neutral-400 font-bold text-xs">
-                            No matching products found in inventory.
-                          </td>
-                        </tr>
+                          {/* Desktop Table (Zero Horizontal Clipping at 1024px-1440px+) */}
+                          <div className="hidden lg:block overflow-x-auto">
+                            <table className="w-full table-fixed text-left text-xs border-collapse">
+                              <thead>
+                                <tr className="bg-slate-50 text-slate-500 font-semibold uppercase tracking-wider border-b border-slate-200 text-[11px]">
+                                  <th className="py-3 px-3 w-[30%]">Product</th>
+                                  <th className="py-3 px-3 w-[19%]">Author / Publisher</th>
+                                  <th className="py-3 px-3 w-[15%]">Category</th>
+                                  <th className="py-3 px-3 w-[9%]">Type</th>
+                                  <th className="py-3 px-3 w-[8%]">Price</th>
+                                  <th className="py-3 px-3 w-[9%]">Status</th>
+                                  <th className="py-3 px-3 w-[10%] text-right">Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                {filteredInventory.map((p) => (
+                                  <tr key={p.id} className="hover:bg-slate-50/70 transition-colors">
+                                    <td className="py-3 px-3">
+                                      <div className="flex items-center gap-2.5 min-w-0">
+                                        <div className="w-9 h-12 rounded-lg overflow-hidden shrink-0 border border-slate-200 bg-slate-50 p-0.5 flex items-center justify-center">
+                                          {p.images?.[0] ? (
+                                            <img src={p.images[0]} alt={p.title} className="w-full h-full object-contain rounded" />
+                                          ) : (
+                                            <BookOpen size={15} className="text-[#D71920]" />
+                                          )}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                          <h4 className="font-semibold text-xs text-slate-900 truncate" title={p.title}>
+                                            {p.title}
+                                          </h4>
+                                          <div className="flex items-center gap-1.5 mt-0.5 truncate text-[10px] text-slate-500">
+                                            {p.sku && <span className="font-mono">#{p.sku}</span>}
+                                            {p.previewPages && p.previewPages.length > 0 && (
+                                              <span className="font-semibold text-[#D71920]">
+                                                {p.previewPages.length}p preview
+                                              </span>
+                                            )}
+                                            {p.deliveryEstimate && (
+                                              <span className="truncate">{p.deliveryEstimate}</span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </td>
+                                    <td className="py-3 px-3">
+                                      <div className="min-w-0">
+                                        <div className="font-medium text-slate-800 truncate" title={p.author || p.brand || '—'}>
+                                          {p.author || p.brand || '—'}
+                                        </div>
+                                        {p.publisher && (
+                                          <div className="text-[11px] text-slate-500 truncate mt-0.5" title={p.publisher}>
+                                            {p.publisher}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td className="py-3 px-3">
+                                      <span className="inline-block px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 text-[11px] font-medium truncate max-w-full" title={p.category}>
+                                        {p.category}
+                                      </span>
+                                    </td>
+                                    <td className="py-3 px-3">
+                                      <span className={`inline-block px-2 py-0.5 rounded-md text-[11px] font-semibold border ${
+                                        p.type === 'book'
+                                          ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                          : 'bg-blue-50 text-blue-800 border-blue-200'
+                                      }`}>
+                                        {p.type === 'book' ? 'Book' : 'Stationery'}
+                                      </span>
+                                    </td>
+                                    <td className="py-3 px-3 whitespace-nowrap">
+                                      <span className="font-bold text-sm text-slate-900 tabular-nums">৳{p.price}</span>
+                                    </td>
+                                    <td className="py-3 px-3 whitespace-nowrap">
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                                        {p.isOriginalBadge !== false ? 'Original' : 'Active'}
+                                      </span>
+                                    </td>
+                                    <td className="py-3 px-3 text-right whitespace-nowrap">
+                                      <div className="flex items-center justify-end gap-1">
+                                        <button 
+                                          type="button"
+                                          onClick={() => handleDuplicateProduct(p)}
+                                          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-colors"
+                                          title="Duplicate / Copy Product"
+                                        >
+                                          <Copy size={13} />
+                                        </button>
+                                        <button 
+                                          type="button"
+                                          onClick={() => openEditProduct(p)}
+                                          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-[#D71920] hover:border-[#D71920] hover:bg-red-50 cursor-pointer transition-colors"
+                                          title="Edit Product"
+                                        >
+                                          <Edit2 size={13} />
+                                        </button>
+                                        <button 
+                                          type="button"
+                                          onClick={() => deleteProduct(p.id)}
+                                          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-red-600 hover:border-red-300 hover:bg-red-50 cursor-pointer transition-colors"
+                                          title="Delete Product"
+                                        >
+                                          <Trash2 size={13} />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </>
                       )}
-                    </tbody>
-                  </table>
-                </div>
+                    </div>
+                  );
+                })()}
               </>
             ) : (
               /* DEDICATED ADD / EDIT PRODUCT PAGE VIEW (MATCHING image_c4b27017.png & image_44c07b58.png) */
@@ -7825,30 +7827,31 @@ export function AdminDashboard() {
 
         {/* TAB: AUTHORS / WRITERS MANAGEMENT */}
         {activeTab === 'authors' && (
-          <div className="bg-white border border-neutral-200/80 rounded-2xl p-4 sm:p-6 shadow-xs space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-neutral-100">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#FFF1F2] text-[#D71920] flex items-center justify-center shrink-0">
-                  <Users size={18} />
-                </div>
-                <div>
-                  <h2 className="text-base sm:text-lg font-extrabold text-neutral-900">
-                    Writers & Author Profiles ({authors.length})
+          <div className="space-y-5">
+            {/* Clean Page Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+                    Writers &amp; Author Profiles
                   </h2>
-                  <p className="text-xs text-neutral-500">
-                    Manage author portraits, biographies, and published book counts
-                  </p>
+                  <span className="px-2 py-0.5 rounded-md bg-slate-200/80 text-slate-700 text-xs font-semibold tabular-nums">
+                    {authors.length}
+                  </span>
                 </div>
+                <p className="text-xs sm:text-[13px] text-slate-500">
+                  Manage author portraits, biographies, and published book counts
+                </p>
               </div>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-                <div className="relative sm:w-64">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
+                <div className="relative sm:w-56">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   <input
                     type="text"
                     placeholder="Search writers..."
                     value={authorSearchQuery}
                     onChange={e => setAuthorSearchQuery(e.target.value)}
-                    className="w-full pl-8 pr-3 py-2 rounded-xl border border-neutral-200 bg-neutral-50/70 focus:bg-white text-xs font-semibold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                    className="w-full pl-8 pr-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
                   />
                 </div>
                 <button 
@@ -7860,52 +7863,52 @@ export function AdminDashboard() {
                     setAuthorBooksCount(20);
                     setShowAddAuthorModal(true);
                   }}
-                  className="px-4 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer shrink-0 transition-all"
+                  className="px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-semibold rounded-lg text-xs flex items-center justify-center gap-1.5 cursor-pointer shrink-0 transition-colors"
                 >
                   <Plus size={14} /> <span>Add Author</span>
                 </button>
               </div>
             </div>
 
-            {/* HOMEPAGE WRITER / AUTHOR VISIBILITY & FUTURE SLOT REPLACEMENT SYSTEM */}
+            {/* HOMEPAGE WRITER / AUTHOR VISIBILITY & SLOT REPLACEMENT SYSTEM */}
             <div
               data-testid="admin-home-writer-system-panel"
-              className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-[#FFF1F2]/70 via-white to-emerald-50/40 border border-neutral-200/90 space-y-4"
+              className="p-4 sm:p-5 rounded-xl bg-white border border-slate-200 space-y-4"
             >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-neutral-200/70">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#D71920] text-white flex items-center justify-center shrink-0 shadow-xs">
-                    <UserCheck size={18} />
+                  <div className="w-9 h-9 rounded-lg bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/15 flex items-center justify-center shrink-0">
+                    <UserCheck size={17} />
                   </div>
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-sm font-black text-neutral-900">
-                        Customer Homepage Writer On/Off & Slot Replacement System
+                      <h3 className="text-sm font-bold text-slate-900">
+                        Homepage Writer Display &amp; Slot Settings
                       </h3>
                       <span
-                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                        className={`px-2 py-0.5 rounded-md text-[11px] font-semibold border ${
                           settings.showHomeWritersSection !== false &&
                           settings.homeWritersSlotReplacement !== 'off'
-                            ? 'bg-emerald-600 text-white border-emerald-700'
-                            : 'bg-neutral-200 text-neutral-700 border-neutral-300'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : 'bg-slate-100 text-slate-600 border-slate-200'
                         }`}
                       >
                         {settings.showHomeWritersSection === false ||
                         settings.homeWritersSlotReplacement === 'off'
-                          ? 'Homepage Writer Section: OFF'
+                          ? 'Writers: OFF'
                           : settings.homeWritersSlotReplacement &&
                               settings.homeWritersSlotReplacement !== 'writers'
-                            ? `Replaced with: ${settings.homeWritersSlotReplacement.replace('_', ' ')}`
-                            : 'Homepage Writer Section: SHOW (Active)'}
+                            ? `Slot: ${settings.homeWritersSlotReplacement.replace('_', ' ')}`
+                            : 'Writers: Active'}
                       </span>
                     </div>
-                    <p className="text-xs text-neutral-600 mt-0.5">
-                      Turn the Customer Homepage Writer section ON or OFF anytime, or replace that Homepage space & Product Card Writer line with another feature whenever you want.
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Toggle the Customer Homepage Writer section ON/OFF or replace that slot and product card writer line.
                     </p>
                   </div>
                 </div>
 
-                {/* Quick Show / Off Master Switch for Homepage Writers */}
+                {/* Quick Show / Off Master Switch */}
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
@@ -7925,11 +7928,11 @@ export function AdminDashboard() {
                         message: 'Homepage Authors section enabled in homeConfig!',
                       });
                     }}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-extrabold border cursor-pointer transition-all flex items-center gap-1.5 ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer transition-colors flex items-center gap-1.5 ${
                       homeConfig.showAuthors !== false &&
                       homeConfig.authorsSlotReplacement !== 'off'
-                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                        : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
+                        ? 'bg-emerald-600 text-white border-emerald-600'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                     }`}
                   >
                     <Eye size={13} />
@@ -7949,11 +7952,11 @@ export function AdminDashboard() {
                         message: 'Homepage Authors section turned OFF in homeConfig!',
                       });
                     }}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-extrabold border cursor-pointer transition-all flex items-center gap-1.5 ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer transition-colors flex items-center gap-1.5 ${
                       homeConfig.showAuthors === false ||
                       homeConfig.authorsSlotReplacement === 'off'
-                        ? 'bg-red-600 text-white border-red-600 shadow-xs'
-                        : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
+                        ? 'bg-red-600 text-white border-red-600'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                     }`}
                   >
                     <EyeOff size={13} />
@@ -7963,10 +7966,9 @@ export function AdminDashboard() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* 1. Customer Homepage Writer Section Slot (Show Writers vs Replace with Feature vs Off) */}
-                <div className="p-3.5 rounded-2xl bg-white border border-neutral-200/90 space-y-2">
-                  <label className="block text-[11px] font-black uppercase text-neutral-900">
-                    1. Customer Homepage Writer Section Slot (What to Show)
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-700">
+                    1. Homepage Writer Section Slot
                   </label>
                   <select
                     data-testid="home-writers-slot-select"
@@ -7998,34 +8000,23 @@ export function AdminDashboard() {
                             : `Homepage Writer slot updated to: ${val.replace('_', ' ')}`,
                       });
                     }}
-                    className="w-full px-3 py-2.5 rounded-xl border border-neutral-300 bg-[#F8FAFC] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:border-[#D71920]"
                   >
-                    <option value="writers">
-                      ✍️ Show Featured Writers / Authors Carousel (Default)
-                    </option>
-                    <option value="publishers_spotlight">
-                      🏛️ Replace with: Official Publications & Partner Houses
-                    </option>
-                    <option value="bestsellers_showcase">
-                      🔥 Replace with: Reader Favorites & Top Bestselling Books
-                    </option>
-                    <option value="trust_features">
-                      🛡️ Replace with: Store Trust & Fast Delivery Guarantees
-                    </option>
-                    <option value="reading_benefits">
-                      📖 Replace with: Look Inside Book Preview & Reader Perks Banner
-                    </option>
-                    <option value="off">🚫 Turn Off (Keep Homepage Writer Slot Empty)</option>
+                    <option value="writers">Show Featured Writers Carousel (Default)</option>
+                    <option value="publishers_spotlight">Replace with: Official Publications &amp; Partners</option>
+                    <option value="bestsellers_showcase">Replace with: Reader Favorites &amp; Bestsellers</option>
+                    <option value="trust_features">Replace with: Store Trust &amp; Fast Delivery</option>
+                    <option value="reading_benefits">Replace with: Look Inside &amp; Reader Perks</option>
+                    <option value="off">Turn Off (Keep Slot Hidden)</option>
                   </select>
-                  <p className="text-[11px] text-neutral-500">
-                    Keep Featured Writers active on the Customer Homepage, replace that space with another store feature, or turn it off completely.
+                  <p className="text-[11px] text-slate-500">
+                    Keep Featured Writers active on the Homepage, replace that space with another feature, or turn it off.
                   </p>
                 </div>
 
-                {/* 2. Product Card Writer Line Slot (Below Book Title on Cards) */}
-                <div className="p-3.5 rounded-2xl bg-white border border-neutral-200/90 space-y-2">
-                  <label className="block text-[11px] font-black uppercase text-neutral-900">
-                    2. Product Card Writer Slot (Below Book Title on Cards)
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-700">
+                    2. Product Card Writer Line Slot
                   </label>
                   <select
                     data-testid="product-card-writer-slot-select"
@@ -8045,62 +8036,51 @@ export function AdminDashboard() {
                         message: 'Product card writer line updated!',
                       });
                     }}
-                    className="w-full px-3 py-2.5 rounded-xl border border-neutral-300 bg-[#F8FAFC] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:border-[#D71920]"
                   >
-                    <option value="writer_name">
-                      ✍️ Show Writer / Author Name (Default, e.g. Arif Azad)
-                    </option>
-                    <option value="publisher_name">
-                      🏛️ Replace with: Publisher Name (e.g. Guardian Publications)
-                    </option>
-                    <option value="category_name">
-                      📚 Replace with: Book Category Name (e.g. Islamic Books)
-                    </option>
-                    <option value="edition_info">
-                      📖 Replace with: Edition & Original Print Badge
-                    </option>
-                    <option value="delivery_badge">
-                      🚚 Replace with: "✓ Fast Cash on Delivery" Tag
-                    </option>
-                    <option value="off">🚫 Turn Off (Hide Writer Line on Product Cards)</option>
+                    <option value="writer_name">Show Writer / Author Name (Default)</option>
+                    <option value="publisher_name">Replace with: Publisher Name</option>
+                    <option value="category_name">Replace with: Book Category Name</option>
+                    <option value="edition_info">Replace with: Edition &amp; Print Badge</option>
+                    <option value="delivery_badge">Replace with: Fast Cash on Delivery Tag</option>
+                    <option value="off">Turn Off (Hide Writer Line on Cards)</option>
                   </select>
-                  <p className="text-[11px] text-neutral-500">
-                    Control whether book cards on the Homepage show the Writer name, replace that line with Publisher/Category/Edition info, or turn it off.
+                  <p className="text-[11px] text-slate-500">
+                    Control whether book cards display the Writer name, Publisher/Category info, or remain hidden.
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Authors Responsive Grid: 1 col mobile, 2 col tablet, 3 col laptop, 4 col PC */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
+            {/* Authors Responsive Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {authors
                 .filter(author => !authorSearchQuery.trim() || author.name.toLowerCase().includes(authorSearchQuery.toLowerCase()))
                 .map(author => (
-                <div key={author.id} className="p-3.5 rounded-xl border border-neutral-200/90 bg-white hover:border-neutral-300 transition-all flex flex-col justify-between gap-3 shadow-2xs group">
+                <div key={author.id} className="p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors flex flex-col justify-between gap-3 group">
                   <div className="flex items-center gap-3">
-                    {/* Author Profile Picture */}
-                    <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-neutral-200 bg-[#FFF1F2] flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-slate-200 bg-slate-50 flex items-center justify-center">
                       {author.photoUrl ? (
                         <img 
                           src={author.photoUrl} 
                           alt={author.name} 
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                          className="w-full h-full object-cover"
                           onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
                         />
                       ) : (
-                        <span className="text-[#D71920] font-black text-base">{author.name[0]}</span>
+                        <span className="text-[#D71920] font-bold text-base">{author.name[0]}</span>
                       )}
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-bold text-sm text-neutral-900 truncate">{author.name}</h4>
-                      <p className="text-[11px] font-semibold text-neutral-500 mt-0.5">
+                      <h4 className="font-bold text-sm text-slate-900 truncate">{author.name}</h4>
+                      <p className="text-[11px] font-medium text-slate-500 mt-0.5 tabular-nums">
                         {author.booksCount || 10}+ Books Published
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 pt-2.5 border-t border-neutral-100">
+                  <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
                     <button 
                       onClick={() => {
                         setEditingAuthorId(author.id);
@@ -8110,16 +8090,16 @@ export function AdminDashboard() {
                         setAuthorBooksCount(author.booksCount || 20);
                         setShowAddAuthorModal(true);
                       }}
-                      className="flex-1 py-1.5 px-2.5 rounded-lg bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                      className="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-semibold flex items-center justify-center gap-1 cursor-pointer transition-colors"
                     >
                       <Edit2 size={11} /> <span>Edit</span>
                     </button>
                     <button 
                       onClick={() => deleteAuthor(author.id)}
-                      className="py-1.5 px-2.5 rounded-lg bg-red-50/70 hover:bg-red-100 text-red-600 text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                      className="py-1.5 px-2.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-[11px] font-semibold flex items-center justify-center cursor-pointer transition-colors"
                       title="Delete Author"
                     >
-                      <Trash2 size={11} />
+                      <Trash2 size={12} />
                     </button>
                   </div>
                 </div>
@@ -8254,30 +8234,31 @@ export function AdminDashboard() {
 
         {/* TAB: PUBLISHERS MANAGEMENT */}
         {activeTab === 'publishers' && (
-          <div className="bg-white border border-neutral-200/80 rounded-2xl p-4 sm:p-6 shadow-xs space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-neutral-100">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#FFF1F2] text-[#D71920] flex items-center justify-center shrink-0">
-                  <Building2 size={18} />
-                </div>
-                <div>
-                  <h2 className="text-base sm:text-lg font-extrabold text-neutral-900">
-                    Publishers Directory ({publishers.length})
+          <div className="space-y-5">
+            {/* Clean Page Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+                    Publishers Directory
                   </h2>
-                  <p className="text-xs text-neutral-500">
-                    Add and manage publishers like categories — book counts update automatically when books are assigned
-                  </p>
+                  <span className="px-2 py-0.5 rounded-md bg-slate-200/80 text-slate-700 text-xs font-semibold tabular-nums">
+                    {publishers.length}
+                  </span>
                 </div>
+                <p className="text-xs sm:text-[13px] text-slate-500">
+                  Manage publishing houses — book counts update automatically when catalog items are assigned
+                </p>
               </div>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-                <div className="relative sm:w-64">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
+                <div className="relative sm:w-56">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   <input
                     type="text"
                     placeholder="Search publishers..."
                     value={publisherSearchQuery}
                     onChange={e => setPublisherSearchQuery(e.target.value)}
-                    className="w-full pl-8 pr-3 py-2 rounded-xl border border-neutral-200 bg-neutral-50/70 focus:bg-white text-xs font-semibold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                    className="w-full pl-8 pr-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
                   />
                 </div>
                 <button
@@ -8291,7 +8272,7 @@ export function AdminDashboard() {
                     setPubEstYear('');
                     setShowAddPublisherModal(true);
                   }}
-                  className="px-4 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer shrink-0"
+                  className="px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-semibold rounded-lg text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
                 >
                   <Plus size={14} /> <span>Add Publisher</span>
                 </button>
@@ -8299,17 +8280,17 @@ export function AdminDashboard() {
             </div>
 
             {publishers.length === 0 ? (
-              <div className="bg-neutral-50/70 border border-dashed border-neutral-200 rounded-2xl p-8 text-center space-y-4">
-                <div className="w-12 h-12 rounded-xl bg-[#FFF1F2] text-[#D71920] flex items-center justify-center mx-auto">
-                  <Building2 size={24} />
+              <div className="bg-white border border-slate-200 rounded-xl p-10 text-center space-y-3">
+                <div className="w-11 h-11 rounded-lg bg-slate-50 border border-slate-200 text-slate-500 flex items-center justify-center mx-auto">
+                  <Building2 size={20} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-extrabold text-neutral-900">No Custom Publishers Saved Yet</h3>
-                  <p className="text-xs text-neutral-500 max-w-md mx-auto mt-1">
+                  <h3 className="text-sm font-bold text-slate-900">No Custom Publishers Saved Yet</h3>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
                     Import default Bangladeshi publishing houses or add a custom publisher profile.
                   </p>
                 </div>
-                <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
+                <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
                   <button
                     onClick={async () => {
                       for (const defPub of DEFAULT_PUBLISHERS_LIST) {
@@ -8327,7 +8308,7 @@ export function AdminDashboard() {
                       }
                       setToast({ show: true, type: 'success', message: 'Default publishers imported to Firebase!' });
                     }}
-                    className="px-4 py-2 bg-white border border-neutral-200 hover:bg-neutral-100 text-neutral-800 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                    className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
                   >
                     Import Defaults ({DEFAULT_PUBLISHERS_LIST.length})
                   </button>
@@ -8342,14 +8323,14 @@ export function AdminDashboard() {
                       setPubEstYear('');
                       setShowAddPublisherModal(true);
                     }}
-                    className="px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
+                    className="px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
                   >
                     <Plus size={14} /> Add First Publisher
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {publishers
                   .filter(pub => {
                     if (!publisherSearchQuery.trim()) return true;
@@ -8359,34 +8340,34 @@ export function AdminDashboard() {
                   .map(pub => {
                   const catalogMatches = countBooksForPublisher(pub, products);
                   return (
-                    <div key={pub.id} className="bg-white border border-neutral-200/90 hover:border-neutral-300 rounded-xl p-3.5 flex flex-col justify-between gap-3 shadow-2xs transition-all">
+                    <div key={pub.id} className="bg-white border border-slate-200 hover:border-slate-300 rounded-xl p-4 flex flex-col justify-between gap-3 transition-colors">
                       <div className="flex items-start gap-3">
                         <img
                           src={pub.logoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(pub.name)}&background=FFF0F0&color=D71920&bold=true&size=200`}
                           alt={pub.name}
-                          className="w-12 h-12 rounded-xl object-cover shrink-0 border border-neutral-200 bg-[#FFF5F5]"
+                          className="w-11 h-11 rounded-lg object-cover shrink-0 border border-slate-200 bg-slate-50"
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-1.5">
-                            <h3 className="font-bold text-neutral-900 text-sm truncate">
+                            <h3 className="font-bold text-slate-900 text-sm truncate">
                               {pub.banglaName || pub.name}
                             </h3>
                             {pub.establishedYear && (
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-500 shrink-0">
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 shrink-0 tabular-nums">
                                 {pub.establishedYear}
                               </span>
                             )}
                           </div>
                           {pub.banglaName && (
-                            <p className="text-[11px] text-neutral-500 truncate">{pub.name}</p>
+                            <p className="text-[11px] text-slate-500 truncate">{pub.name}</p>
                           )}
-                          <p className="text-[11px] text-[#D71920] font-bold mt-1">
+                          <p className="text-[11px] text-[#D71920] font-semibold mt-1 tabular-nums">
                             {catalogMatches} {catalogMatches === 1 ? 'Book' : 'Books'}
                           </p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 pt-2.5 border-t border-neutral-100">
+                      <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
                         <button
                           onClick={() => {
                             setEditingPublisherId(pub.id);
@@ -8398,7 +8379,7 @@ export function AdminDashboard() {
                             setPubEstYear(pub.establishedYear || '');
                             setShowAddPublisherModal(true);
                           }}
-                          className="flex-1 py-1.5 px-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-[11px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                          className="flex-1 py-1.5 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-semibold rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
                         >
                           <Edit2 size={11} /> <span>Edit</span>
                         </button>
@@ -8407,10 +8388,10 @@ export function AdminDashboard() {
                             await deletePublisher(pub.id);
                             setToast({ show: true, type: 'success', message: 'Publisher deleted.' });
                           }}
-                          className="py-1.5 px-2.5 bg-red-50/70 hover:bg-red-100 text-red-600 text-[11px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                          className="py-1.5 px-2.5 bg-red-50 hover:bg-red-100 text-red-600 text-[11px] font-semibold rounded-lg transition-colors flex items-center justify-center cursor-pointer"
                           title="Delete Publisher"
                         >
-                          <Trash2 size={11} />
+                          <Trash2 size={12} />
                         </button>
                       </div>
                     </div>
@@ -8557,28 +8538,23 @@ export function AdminDashboard() {
 
         {/* TAB: SUBSCRIBERS AUDIENCE MANAGEMENT */}
         {activeTab === 'subscribers' && (
-          <div className="bg-white border border-neutral-200/80 rounded-2xl p-4 sm:p-6 shadow-xs space-y-5">
-            {/* Minimal Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-neutral-100">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#FFF1F2] text-[#D71920] flex items-center justify-center shrink-0">
-                  <Mail size={18} />
-                </div>
-                <div>
-                  <h2 className="text-base sm:text-lg font-extrabold text-neutral-900">
-                    VIP Club & Discount Subscribers
-                  </h2>
-                  <p className="text-xs text-neutral-500">
-                    Phone numbers and emails collected from the storefront newsletter & discount club
-                  </p>
-                </div>
+          <div className="space-y-5">
+            {/* Clean Page Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+              <div className="space-y-1">
+                <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+                  VIP Club &amp; Discount Subscribers
+                </h2>
+                <p className="text-xs sm:text-[13px] text-slate-500">
+                  Phone numbers and emails collected from the storefront newsletter &amp; discount club
+                </p>
               </div>
 
-              <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
                 <button
                   onClick={() => {
                     if (subscribers.length === 0) {
-                      alert('No subscribers to copy.');
+                      setToast({ show: true, type: 'error', message: 'No subscribers to copy.' });
                       return;
                     }
                     const list = subscribers.map(s => s.emailOrPhone).join('\n');
@@ -8586,7 +8562,7 @@ export function AdminDashboard() {
                     setCopiedSubs(true);
                     setTimeout(() => setCopiedSubs(false), 2500);
                   }}
-                  className="flex-1 sm:flex-initial px-3.5 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  className="flex-1 sm:flex-initial px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-semibold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
                   {copiedSubs ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
                   <span>{copiedSubs ? 'Copied!' : 'Copy All'}</span>
@@ -8598,7 +8574,7 @@ export function AdminDashboard() {
                     setNewSubMsg(null);
                     setShowAddSubModal(true);
                   }}
-                  className="flex-1 sm:flex-initial px-3.5 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                  className="flex-1 sm:flex-initial px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-semibold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <Plus size={14} />
                   <span>Add Subscriber</span>
@@ -8606,42 +8582,42 @@ export function AdminDashboard() {
               </div>
             </div>
 
-            {/* Compact 3-Column Metric Bar */}
-            <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
-              <div className="bg-neutral-50/80 p-3 sm:p-4 rounded-xl border border-neutral-200/80">
-                <span className="text-[10px] sm:text-xs font-bold text-neutral-500 uppercase tracking-wider block truncate">Total Audience</span>
-                <div className="text-lg sm:text-2xl font-black text-neutral-900 mt-0.5">{subscribers.length}</div>
+            {/* 3-Column Metric Bar */}
+            <div className="grid grid-cols-3 gap-3 sm:gap-4">
+              <div className="bg-white p-4 rounded-xl border border-slate-200">
+                <span className="text-[11px] sm:text-xs font-medium text-slate-500 block truncate">Total Audience</span>
+                <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1 tabular-nums">{subscribers.length}</div>
               </div>
 
-              <div className="bg-neutral-50/80 p-3 sm:p-4 rounded-xl border border-neutral-200/80">
-                <span className="text-[10px] sm:text-xs font-bold text-neutral-500 uppercase tracking-wider block truncate">Mobile Numbers</span>
-                <div className="text-lg sm:text-2xl font-black text-[#D71920] mt-0.5">
+              <div className="bg-white p-4 rounded-xl border border-slate-200">
+                <span className="text-[11px] sm:text-xs font-medium text-slate-500 block truncate">Mobile Numbers</span>
+                <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1 tabular-nums">
                   {subscribers.filter(s => s.type === 'phone').length}
                 </div>
               </div>
 
-              <div className="bg-neutral-50/80 p-3 sm:p-4 rounded-xl border border-neutral-200/80">
-                <span className="text-[10px] sm:text-xs font-bold text-neutral-500 uppercase tracking-wider block truncate">Email Addresses</span>
-                <div className="text-lg sm:text-2xl font-black text-blue-600 mt-0.5">
+              <div className="bg-white p-4 rounded-xl border border-slate-200">
+                <span className="text-[11px] sm:text-xs font-medium text-slate-500 block truncate">Email Addresses</span>
+                <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1 tabular-nums">
                   {subscribers.filter(s => s.type === 'email').length}
                 </div>
               </div>
             </div>
 
-            {/* Search & Count Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            {/* Search & Count Toolbar */}
+            <div className="bg-white border border-slate-200 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
               <div className="relative w-full sm:w-80">
-                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 <input
                   type="text"
                   placeholder="Search by phone number or email..."
                   value={subSearchQuery}
                   onChange={e => setSubSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-neutral-200 bg-neutral-50/70 focus:bg-white text-xs font-semibold text-neutral-800 focus:outline-none focus:border-[#D71920]"
+                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
                 />
               </div>
 
-              <span className="text-xs font-semibold text-neutral-500">
+              <span className="text-xs font-medium text-slate-500 tabular-nums">
                 Showing {subscribers.filter(s => {
                   if (!subSearchQuery.trim()) return true;
                   return s.emailOrPhone.toLowerCase().includes(subSearchQuery.toLowerCase());
@@ -8649,8 +8625,8 @@ export function AdminDashboard() {
               </span>
             </div>
 
-            {/* Subscribers Grid (1 col mobile, 2 cols desktop) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+            {/* Subscribers Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {subscribers
                 .filter(s => {
                   if (!subSearchQuery.trim()) return true;
@@ -8660,23 +8636,23 @@ export function AdminDashboard() {
                 .map(sub => (
                   <div
                     key={sub.id}
-                    className="flex items-center justify-between p-3 rounded-xl bg-white border border-neutral-200/90 hover:border-neutral-300 transition-colors shadow-2xs"
+                    className="flex items-center justify-between p-3.5 rounded-xl bg-white border border-slate-200 hover:border-slate-300 transition-colors gap-3"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs ${
                         sub.type === 'phone' 
-                          ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/70' 
-                          : 'bg-blue-50 text-blue-600 border border-blue-200/70'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                          : 'bg-blue-50 text-blue-700 border border-blue-200'
                       }`}>
-                        {sub.type === 'phone' ? '📱' : <Mail size={14} />}
+                        {sub.type === 'phone' ? <Phone size={14} /> : <Mail size={14} />}
                       </div>
 
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-xs sm:text-sm text-neutral-900 truncate">
+                          <span className="font-mono font-semibold text-xs sm:text-sm text-slate-900 truncate">
                             {sub.emailOrPhone}
                           </span>
-                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase ${
                             sub.type === 'phone' 
                               ? 'bg-emerald-50 text-emerald-700' 
                               : 'bg-blue-50 text-blue-700'
@@ -8684,44 +8660,67 @@ export function AdminDashboard() {
                             {sub.type}
                           </span>
                         </div>
-                        <p className="text-[10px] text-neutral-400 mt-0.5">
+                        <p className="text-[11px] text-slate-400 mt-0.5 tabular-nums">
                           {new Date(sub.subscribedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        onClick={() => {
-                          navigator.clipboard?.writeText(sub.emailOrPhone);
-                          setToast({ show: true, type: 'success', message: `Copied ${sub.emailOrPhone}` });
-                        }}
-                        className="p-2 rounded-lg bg-neutral-100 hover:bg-neutral-200 text-neutral-600 cursor-pointer transition-colors"
-                        title="Copy"
-                      >
-                        <Copy size={12} />
-                      </button>
+                      {deletingSubId === sub.id ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              await deleteSubscriber(sub.id);
+                              setDeletingSubId(null);
+                              setToast({ show: true, type: 'success', message: 'Subscriber removed.' });
+                            }}
+                            className="px-2 py-1 rounded-md bg-red-600 hover:bg-red-700 text-white text-[11px] font-semibold cursor-pointer"
+                          >
+                            Confirm
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeletingSubId(null)}
+                            className="px-2 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-semibold cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard?.writeText(sub.emailOrPhone);
+                              setToast({ show: true, type: 'success', message: `Copied ${sub.emailOrPhone}` });
+                            }}
+                            className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 cursor-pointer transition-colors"
+                            title="Copy"
+                          >
+                            <Copy size={13} />
+                          </button>
 
-                      <button
-                        onClick={async () => {
-                          if (confirm(`Remove subscriber ${sub.emailOrPhone}?`)) {
-                            await deleteSubscriber(sub.id);
-                          }
-                        }}
-                        className="p-2 rounded-lg bg-red-50/70 hover:bg-red-100 text-red-600 cursor-pointer transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 size={12} />
-                      </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeletingSubId(sub.id)}
+                            className="p-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 cursor-pointer transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}
 
               {subscribers.length === 0 && (
-                <div className="col-span-full text-center py-10 bg-neutral-50/70 rounded-xl border border-dashed border-neutral-200">
-                  <Mail size={26} className="mx-auto text-neutral-300 mb-1.5" />
-                  <p className="font-bold text-neutral-700 text-xs">No subscribers recorded yet</p>
-                  <p className="text-[11px] text-neutral-400 mt-0.5">
+                <div className="col-span-full text-center py-10 bg-white rounded-xl border border-slate-200">
+                  <Mail size={24} className="mx-auto text-slate-300 mb-1.5" />
+                  <p className="font-semibold text-slate-700 text-xs">No subscribers recorded yet</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
                     Visitors subscribing from the website footer will appear here automatically
                   </p>
                 </div>

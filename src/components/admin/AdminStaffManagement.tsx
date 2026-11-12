@@ -325,374 +325,512 @@ export function AdminStaffManagement({
   };
 
   return (
-    <div className="space-y-6">
-      
-      {/* 1. TOP HEADER BANNER CARD */}
-      <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#D71920] to-[#B9151B] text-white flex items-center justify-center shadow-md shadow-[#D71920]/25 shrink-0">
-            <Key size={22} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h2 className="text-lg font-black text-neutral-900 tracking-tight">
-                Staff & Roles Access Management
-              </h2>
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>Firestore Live Protected</span>
-              </span>
-            </div>
-            <p className="text-xs text-neutral-500 mt-0.5">
-              ম্যানেজার (Manager), এমপ্লয়ী (Employee) ও কাস্টম রোলকে ইমেইল ও পাসওয়ার্ড দিয়ে অ্যাডমিন এক্সেস দিন এবং পাসওয়ার্ড পরিবর্তন করুন।
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={handleOpenAddModal}
-            data-testid="add-new-staff-btn"
-            className="px-4 py-2.5 bg-[#D71920] hover:bg-[#B9151B] active:scale-95 text-white rounded-xl text-xs font-black flex items-center gap-2 shadow-md shadow-[#D71920]/25 cursor-pointer transition-all shrink-0"
-          >
-            <Plus size={15} />
-            <span>নতুন স্টাফ যুক্ত করুন (Add Staff)</span>
-          </button>
-        </div>
-      </div>
-
-      {/* 2. FOUR SUMMARY METRICS CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        
-        {/* Total Staff Accounts */}
-        <div className="bg-white border border-[#E5E5E5] rounded-3xl p-5 shadow-xs flex flex-col justify-between space-y-3">
-          <div className="flex items-start justify-between">
-            <div>
-              <span className="text-xs font-bold uppercase text-neutral-500 tracking-wider block">Total Staff Accounts</span>
-              <div className="text-2xl font-black text-neutral-900 mt-1">{staffMembers.length}</div>
-              <div className="text-xs font-bold text-emerald-600 mt-1">{activeCount} Active Accounts</div>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center border border-slate-200">
-              <Users size={20} />
-            </div>
-          </div>
-        </div>
-
-        {/* Active Managers */}
-        <div className="bg-white border border-[#E5E5E5] rounded-3xl p-5 shadow-xs flex flex-col justify-between space-y-3">
-          <div className="flex items-start justify-between">
-            <div>
-              <span className="text-xs font-bold uppercase text-neutral-500 tracking-wider block">Managers (ম্যানেজার)</span>
-              <div className="text-2xl font-black text-purple-700 mt-1">{managersCount}</div>
-              <div className="text-xs font-bold text-purple-600 mt-1">Full Operations Access</div>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-200">
-              <ShieldCheck size={20} />
-            </div>
-          </div>
-        </div>
-
-        {/* Active Employees */}
-        <div className="bg-white border border-[#E5E5E5] rounded-3xl p-5 shadow-xs flex flex-col justify-between space-y-3">
-          <div className="flex items-start justify-between">
-            <div>
-              <span className="text-xs font-bold uppercase text-neutral-500 tracking-wider block">Employees (এমপ্লয়ী)</span>
-              <div className="text-2xl font-black text-amber-700 mt-1">{employeesCount}</div>
-              <div className="text-xs font-bold text-amber-600 mt-1">Order Processing Staff</div>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-200">
-              <UserCheck size={20} />
-            </div>
-          </div>
-        </div>
-
-        {/* Security & Access Protection */}
-        <div className="bg-white border border-[#E5E5E5] rounded-3xl p-5 shadow-xs flex flex-col justify-between space-y-3">
-          <div className="flex items-start justify-between">
-            <div>
-              <span className="text-xs font-bold uppercase text-neutral-500 tracking-wider block">Access Control Engine</span>
-              <div className="text-lg font-black text-emerald-700 mt-1">Cloud Firestore</div>
-              <div className="text-xs font-bold text-neutral-500 mt-1">Role-Based Permissions</div>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200">
-              <Lock size={20} />
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      {/* 3. SEARCH & FILTER TOOLBAR */}
-      <div className="bg-white border border-[#E5E5E5] rounded-3xl p-5 shadow-xs space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="relative flex-1">
-            <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">
-              <Search size={15} />
+    <div className="space-y-5">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+              Staff &amp; Roles Access
+            </h2>
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+              Role-Based Access
             </span>
-            <input
-              type="text"
-              placeholder="স্টাফের নাম, ইমেইল বা ফোন দিয়ে খুঁজুন..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-[#E5E5E5] bg-[#F7F7F8] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
-            />
           </div>
+          <p className="text-xs sm:text-[13px] text-slate-500">
+            ম্যানেজার, এমপ্লয়ী ও কাস্টম রোলের ইমেইল, পাসওয়ার্ড এবং পেজ পারমিশন ম্যানেজ করুন।
+          </p>
+        </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {[
-              { id: 'all', label: `সকল স্টাফ (${staffMembers.length})` },
-              { id: 'manager', label: `ম্যানেজার (${managersCount})` },
-              { id: 'employee', label: `এমপ্লয়ী (${employeesCount})` },
-              { id: 'admin', label: 'অ্যাডমিন' },
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setRoleFilter(tab.id as any)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  roleFilter === tab.id
-                    ? 'bg-[#D71920] text-white shadow-xs'
-                    : 'bg-[#F7F7F8] text-neutral-700 hover:bg-neutral-200 border border-[#E5E5E5]'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+        <button
+          onClick={handleOpenAddModal}
+          data-testid="add-new-staff-btn"
+          className="px-4 py-2 rounded-lg bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-semibold inline-flex items-center justify-center gap-1.5 cursor-pointer transition-colors shrink-0 self-start sm:self-auto"
+        >
+          <Plus size={14} />
+          <span>Add Staff Member</span>
+        </button>
+      </div>
+
+      {/* 4 Summary Metrics Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <span className="text-xs font-medium text-slate-500 block">Total Staff</span>
+            <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1.5 tabular-nums tracking-tight">
+              {staffMembers.length}
+            </div>
+            <span className="text-xs font-medium text-emerald-700 mt-1 block tabular-nums">
+              {activeCount} active
+            </span>
+          </div>
+          <div className="w-9 h-9 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 flex items-center justify-center shrink-0">
+            <Users size={17} />
+          </div>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <span className="text-xs font-medium text-slate-500 block">Managers</span>
+            <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1.5 tabular-nums tracking-tight">
+              {managersCount}
+            </div>
+            <span className="text-xs font-medium text-slate-500 mt-1 block">
+              Operations access
+            </span>
+          </div>
+          <div className="w-9 h-9 rounded-lg bg-slate-50 border border-slate-200 text-purple-600 flex items-center justify-center shrink-0">
+            <ShieldCheck size={17} />
+          </div>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <span className="text-xs font-medium text-slate-500 block">Employees</span>
+            <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1.5 tabular-nums tracking-tight">
+              {employeesCount}
+            </div>
+            <span className="text-xs font-medium text-slate-500 mt-1 block">
+              Order &amp; support staff
+            </span>
+          </div>
+          <div className="w-9 h-9 rounded-lg bg-slate-50 border border-slate-200 text-amber-600 flex items-center justify-center shrink-0">
+            <UserCheck size={17} />
+          </div>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <span className="text-xs font-medium text-slate-500 block">Access Engine</span>
+            <div className="text-lg sm:text-xl font-bold text-slate-900 mt-1.5 tracking-tight">
+              Cloud Firestore
+            </div>
+            <span className="text-xs font-medium text-emerald-700 mt-1 block">
+              Real-time permissions
+            </span>
+          </div>
+          <div className="w-9 h-9 rounded-lg bg-slate-50 border border-slate-200 text-emerald-600 flex items-center justify-center shrink-0">
+            <Lock size={17} />
           </div>
         </div>
       </div>
 
-      {/* 4. STAFF LIST TABLE & CARDS */}
-      <div className="bg-white border border-[#E5E5E5] rounded-3xl shadow-xs overflow-hidden">
+      {/* Search & Role Filter Toolbar */}
+      <div className="bg-white border border-slate-200 rounded-xl p-3.5 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="relative flex-1">
+          <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+            <Search size={14} />
+          </span>
+          <input
+            type="text"
+            placeholder="স্টাফের নাম, ইমেইল বা ফোন দিয়ে খুঁজুন..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-3.5 py-2 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          {[
+            { id: 'all', label: `All (${staffMembers.length})` },
+            { id: 'manager', label: `Managers (${managersCount})` },
+            { id: 'employee', label: `Employees (${employeesCount})` },
+            { id: 'admin', label: 'Admins' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setRoleFilter(tab.id as any)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
+                roleFilter === tab.id
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Staff Directory: Empty State, Mobile/Tablet Cards, Desktop Table */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
         {filteredStaff.length === 0 ? (
-          <div className="p-12 text-center space-y-4">
-            <div className="w-16 h-16 rounded-3xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
-              <Users size={32} />
+          <div className="p-10 text-center space-y-3">
+            <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-200 text-slate-400 flex items-center justify-center mx-auto">
+              <Users size={22} />
             </div>
             <div>
-              <h3 className="text-base font-black text-neutral-900">কোনো স্টাফ অ্যাকাউন্ট পাওয়া যায়নি</h3>
-              <p className="text-xs text-neutral-500 max-w-md mx-auto mt-1">
-                {searchQuery || roleFilter !== 'all' 
+              <h3 className="text-sm font-bold text-slate-900">কোনো স্টাফ অ্যাকাউন্ট পাওয়া যায়নি</h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
+                {searchQuery || roleFilter !== 'all'
                   ? 'আপনার ফিল্টারের সাথে মিল রেখে কোনো রেকর্ড পাওয়া যায়নি।'
-                  : 'আপনি এখনো কোনো ম্যানেজার বা এমপ্লয়ী একাউন্ট তৈরি করেননি। উপরের বাটন থেকে প্রথম স্টাফ একাউন্ট তৈরি করুন।'}
+                  : 'আপনি এখনো কোনো ম্যানেজার বা এমপ্লয়ী একাউন্ট তৈরি করেননি। প্রথম স্টাফ একাউন্ট তৈরি করুন।'}
               </p>
             </div>
-            {(!searchQuery && roleFilter === 'all') && (
+            {!searchQuery && roleFilter === 'all' && (
               <button
+                type="button"
                 onClick={handleOpenAddModal}
-                className="px-5 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white rounded-xl text-xs font-bold cursor-pointer inline-flex items-center gap-2 shadow-sm"
+                className="px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white rounded-lg text-xs font-semibold cursor-pointer inline-flex items-center gap-1.5"
               >
-                <Plus size={15} />
-                <span>প্রথম স্টাফ অ্যাকাউন্ট তৈরি করুন</span>
+                <Plus size={14} />
+                <span>Create First Staff Account</span>
               </button>
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-[#F8F9FA] border-b border-[#E5E5E5] text-[11px] font-black uppercase text-neutral-500 tracking-wider">
-                  <th className="py-3.5 px-4">Staff Member (স্টাফ)</th>
-                  <th className="py-3.5 px-4">Role (ভূমিকা)</th>
-                  <th className="py-3.5 px-4">Password (পাসওয়ার্ড)</th>
-                  <th className="py-3.5 px-4">Allowed Modules (এক্সেস)</th>
-                  <th className="py-3.5 px-4">Status (স্ট্যাটাস)</th>
-                  <th className="py-3.5 px-4 text-right">Actions (পদক্ষেপ)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#EEEEEE]">
-                {filteredStaff.map(staff => {
-                  const isRevealed = Boolean(revealedPasswords[staff.id]);
-                  const isCopied = copiedId === staff.id;
-                  const isManager = staff.role === 'manager';
-                  const isEmployee = staff.role === 'employee';
-                  const isAdminRole = staff.role === 'admin';
+          <>
+            {/* Mobile & Tablet Card View */}
+            <div className="lg:hidden divide-y divide-slate-100">
+              {filteredStaff.map(staff => {
+                const isRevealed = Boolean(revealedPasswords[staff.id]);
+                const isCopied = copiedId === staff.id;
+                const isManager = staff.role === 'manager';
+                const isEmployee = staff.role === 'employee';
 
-                  return (
-                    <tr key={staff.id} className="hover:bg-slate-50/70 transition-colors">
-                      
-                      {/* Member Info */}
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-9 h-9 rounded-xl font-black text-xs flex items-center justify-center shrink-0 shadow-2xs ${
-                            isManager ? 'bg-purple-100 text-purple-700' :
-                            isEmployee ? 'bg-amber-100 text-amber-700' :
-                            'bg-red-100 text-red-700'
-                          }`}>
-                            {(staff.name[0] || 'S').toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="font-black text-sm text-neutral-900 flex items-center gap-1.5">
-                              <span>{staff.name}</span>
-                              {staff.email === currentUserEmail && (
-                                <span className="text-[10px] font-bold text-neutral-400 bg-neutral-100 px-1.5 py-0.5 rounded">
-                                  You
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[11px] font-mono text-neutral-500 flex items-center gap-1 mt-0.5">
-                              <Mail size={11} className="text-neutral-400" />
-                              <span>{staff.email}</span>
-                            </div>
-                            {staff.phone && (
-                              <div className="text-[10px] text-neutral-400 flex items-center gap-1 mt-0.5">
-                                <Phone size={10} />
-                                <span>{staff.phone}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Role Badge */}
-                      <td className="py-4 px-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider border shadow-2xs ${
-                          isManager ? 'bg-purple-50 text-purple-700 border-purple-200' :
-                          isEmployee ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                          'bg-red-50 text-red-700 border-red-200'
-                        }`}>
-                          <Shield size={12} />
-                          <span>{staff.role}</span>
-                        </span>
-                      </td>
-
-                      {/* Password Management */}
-                      <td className="py-4 px-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <div className="font-mono text-xs font-bold bg-[#F7F7F8] border border-[#E5E5E5] px-2.5 py-1 rounded-lg text-neutral-800 tracking-wider">
-                            {isRevealed ? staff.password : '••••••••'}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => togglePasswordReveal(staff.id)}
-                            title={isRevealed ? 'পাসওয়ার্ড লুকান' : 'পাসওয়ার্ড দেখুন'}
-                            className="p-1.5 text-neutral-400 hover:text-neutral-800 bg-[#F7F7F8] hover:bg-neutral-200 rounded-lg cursor-pointer transition-colors"
-                          >
-                            {isRevealed ? <EyeOff size={13} /> : <Eye size={13} />}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => copyPasswordToClipboard(staff.password, staff.id)}
-                            title="পাসওয়ার্ড কপি করুন"
-                            className="p-1.5 text-neutral-400 hover:text-neutral-800 bg-[#F7F7F8] hover:bg-neutral-200 rounded-lg cursor-pointer transition-colors"
-                          >
-                            {isCopied ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
-                          </button>
-                        </div>
-                      </td>
-
-                      {/* Permissions Chips */}
-                      <td className="py-4 px-4">
-                        <div className="flex flex-wrap gap-1 max-w-xs">
-                          {Array.isArray(staff.permissions) && staff.permissions.length > 0 ? (
-                            staff.permissions.slice(0, 4).map(perm => (
-                              <span key={perm} className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-bold">
-                                {perm}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-neutral-400 text-[11px] italic">No permissions</span>
-                          )}
-                          {staff.permissions && staff.permissions.length > 4 && (
-                            <span className="px-1.5 py-0.5 rounded-md bg-neutral-200 text-neutral-700 text-[10px] font-bold">
-                              +{staff.permissions.length - 4} more
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Status */}
-                      <td className="py-4 px-4 whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => handleToggleStatus(staff)}
-                          title="ক্লিক করে স্ট্যাটাস পরিবর্তন করুন"
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border transition-colors cursor-pointer ${
-                            staff.status === 'active'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                              : 'bg-neutral-100 text-neutral-600 border-neutral-300 hover:bg-neutral-200'
+                return (
+                  <div key={staff.id} className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className={`w-9 h-9 rounded-lg font-bold text-xs flex items-center justify-center shrink-0 ${
+                            isManager
+                              ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                              : isEmployee
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                              : 'bg-red-50 text-red-700 border border-red-200'
                           }`}
                         >
-                          <span className={`w-1.5 h-1.5 rounded-full ${staff.status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-neutral-400'}`}></span>
-                          <span>{staff.status === 'active' ? 'Active' : 'Disabled'}</span>
-                        </button>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="py-4 px-4 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEditModal(staff)}
-                            data-testid={`edit-staff-btn-${staff.id}`}
-                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                          >
-                            <Edit3 size={13} />
-                            <span>Edit / পাসওয়ার্ড</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDeleteConfirmStaff(staff)}
-                            data-testid={`delete-staff-btn-${staff.id}`}
-                            className="p-1.5 bg-red-50 hover:bg-red-100 text-[#D71920] rounded-xl cursor-pointer transition-colors"
-                            title="অ্যাকাউন্ট রিমুভ করুন"
-                          >
-                            <Trash2 size={15} />
-                          </button>
+                          {(staff.name[0] || 'S').toUpperCase()}
                         </div>
-                      </td>
+                        <div className="min-w-0">
+                          <div className="font-semibold text-sm text-slate-900 flex items-center gap-1.5 truncate">
+                            <span className="truncate">{staff.name}</span>
+                            {staff.email === currentUserEmail && (
+                              <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">
+                                You
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] font-mono text-slate-500 truncate mt-0.5">
+                            {staff.email}
+                          </div>
+                        </div>
+                      </div>
 
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleStatus(staff)}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold border cursor-pointer shrink-0 ${
+                          staff.status === 'active'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : 'bg-slate-100 text-slate-600 border-slate-200'
+                        }`}
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            staff.status === 'active' ? 'bg-emerald-600' : 'bg-slate-400'
+                          }`}
+                        />
+                        <span>{staff.status === 'active' ? 'Active' : 'Disabled'}</span>
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold uppercase border ${
+                          isManager
+                            ? 'bg-purple-50 text-purple-700 border-purple-200'
+                            : isEmployee
+                            ? 'bg-amber-50 text-amber-700 border-amber-200'
+                            : 'bg-red-50 text-red-700 border-red-200'
+                        }`}
+                      >
+                        <Shield size={11} />
+                        <span>{staff.role}</span>
+                      </span>
+
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-xs bg-slate-50 border border-slate-200 px-2 py-1 rounded text-slate-800">
+                          {isRevealed ? staff.password : '••••••••'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => togglePasswordReveal(staff.id)}
+                          title={isRevealed ? 'পাসওয়ার্ড লুকান' : 'পাসওয়ার্ড দেখুন'}
+                          className="p-1.5 text-slate-500 hover:text-slate-900 bg-slate-100 rounded-md cursor-pointer"
+                        >
+                          {isRevealed ? <EyeOff size={13} /> : <Eye size={13} />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => copyPasswordToClipboard(staff.password, staff.id)}
+                          title="পাসওয়ার্ড কপি করুন"
+                          className="p-1.5 text-slate-500 hover:text-slate-900 bg-slate-100 rounded-md cursor-pointer"
+                        >
+                          {isCopied ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1">
+                      {Array.isArray(staff.permissions) && staff.permissions.length > 0 ? (
+                        staff.permissions.slice(0, 4).map(perm => (
+                          <span
+                            key={perm}
+                            className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-medium"
+                          >
+                            {perm}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-slate-400 text-[11px]">No permissions</span>
+                      )}
+                      {staff.permissions && staff.permissions.length > 4 && (
+                        <span className="px-1.5 py-0.5 rounded bg-slate-200/80 text-slate-700 text-[10px] font-medium">
+                          +{staff.permissions.length - 4} more
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditModal(staff)}
+                        data-testid={`edit-staff-btn-${staff.id}`}
+                        className="flex-1 py-1.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <Edit3 size={13} />
+                        <span>Edit / Password</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteConfirmStaff(staff)}
+                        data-testid={`delete-staff-btn-${staff.id}`}
+                        className="p-1.5 bg-red-50 hover:bg-red-100 text-[#D71920] rounded-lg cursor-pointer"
+                        title="অ্যাকাউন্ট রিমুভ করুন"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop Clean Table */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold uppercase text-slate-500 tracking-wider">
+                    <th className="py-3 px-4">Staff Member</th>
+                    <th className="py-3 px-4">Role</th>
+                    <th className="py-3 px-4">Password</th>
+                    <th className="py-3 px-4">Permissions</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredStaff.map(staff => {
+                    const isRevealed = Boolean(revealedPasswords[staff.id]);
+                    const isCopied = copiedId === staff.id;
+                    const isManager = staff.role === 'manager';
+                    const isEmployee = staff.role === 'employee';
+
+                    return (
+                      <tr key={staff.id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`w-8 h-8 rounded-lg font-bold text-xs flex items-center justify-center shrink-0 ${
+                                isManager
+                                  ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                  : isEmployee
+                                  ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                  : 'bg-red-50 text-red-700 border border-red-200'
+                              }`}
+                            >
+                              {(staff.name[0] || 'S').toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="font-semibold text-sm text-slate-900 flex items-center gap-1.5">
+                                <span>{staff.name}</span>
+                                {staff.email === currentUserEmail && (
+                                  <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                    You
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] font-mono text-slate-500 flex items-center gap-1 mt-0.5">
+                                <Mail size={11} className="text-slate-400" />
+                                <span>{staff.email}</span>
+                              </div>
+                              {staff.phone && (
+                                <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                                  <Phone size={10} />
+                                  <span>{staff.phone}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold uppercase tracking-wide border ${
+                              isManager
+                                ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                : isEmployee
+                                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                : 'bg-red-50 text-red-700 border-red-200'
+                            }`}
+                          >
+                            <Shield size={11} />
+                            <span>{staff.role}</span>
+                          </span>
+                        </td>
+
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <div className="flex items-center gap-1.5">
+                            <div className="font-mono text-xs font-medium bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-md text-slate-800 tracking-wider">
+                              {isRevealed ? staff.password : '••••••••'}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => togglePasswordReveal(staff.id)}
+                              title={isRevealed ? 'পাসওয়ার্ড লুকান' : 'পাসওয়ার্ড দেখুন'}
+                              className="p-1.5 text-slate-500 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-md cursor-pointer transition-colors"
+                            >
+                              {isRevealed ? <EyeOff size={13} /> : <Eye size={13} />}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => copyPasswordToClipboard(staff.password, staff.id)}
+                              title="পাসওয়ার্ড কপি করুন"
+                              className="p-1.5 text-slate-500 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-md cursor-pointer transition-colors"
+                            >
+                              {isCopied ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+                            </button>
+                          </div>
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          <div className="flex flex-wrap gap-1 max-w-xs">
+                            {Array.isArray(staff.permissions) && staff.permissions.length > 0 ? (
+                              staff.permissions.slice(0, 4).map(perm => (
+                                <span
+                                  key={perm}
+                                  className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-medium"
+                                >
+                                  {perm}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-slate-400 text-[11px]">No permissions</span>
+                            )}
+                            {staff.permissions && staff.permissions.length > 4 && (
+                              <span className="px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 text-[10px] font-medium">
+                                +{staff.permissions.length - 4} more
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleStatus(staff)}
+                            title="ক্লিক করে স্ট্যাটাস পরিবর্তন করুন"
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border transition-colors cursor-pointer ${
+                              staff.status === 'active'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                                : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                            }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                staff.status === 'active' ? 'bg-emerald-600' : 'bg-slate-400'
+                              }`}
+                            />
+                            <span>{staff.status === 'active' ? 'Active' : 'Disabled'}</span>
+                          </button>
+                        </td>
+
+                        <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditModal(staff)}
+                              data-testid={`edit-staff-btn-${staff.id}`}
+                              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-semibold inline-flex items-center gap-1 cursor-pointer transition-colors"
+                            >
+                              <Edit3 size={13} />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteConfirmStaff(staff)}
+                              data-testid={`delete-staff-btn-${staff.id}`}
+                              className="p-1.5 bg-red-50 hover:bg-red-100 text-[#D71920] rounded-lg cursor-pointer transition-colors"
+                              title="অ্যাকাউন্ট রিমুভ করুন"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
-      {/* 5. ADD NEW STAFF MODAL */}
+      {/* ADD NEW STAFF MODAL */}
       {showAddModal && (
-        <div 
+        <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs overflow-y-auto"
           onClick={e => e.target === e.currentTarget && setShowAddModal(false)}
         >
-          <div className="w-full max-w-xl bg-white rounded-3xl border border-neutral-200 p-6 shadow-2xl space-y-4 my-auto max-h-[90vh] overflow-y-auto admin-modal-card">
-            
-            <div className="flex items-center justify-between pb-3 border-b border-neutral-200">
+          <div className="w-full max-w-xl bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xl space-y-4 my-auto max-h-[90vh] overflow-y-auto admin-modal-card">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#D71920] text-white flex items-center justify-center shadow-xs">
-                  <Key size={18} />
+                <div className="w-9 h-9 rounded-lg bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/20 flex items-center justify-center">
+                  <Key size={17} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-neutral-900">Add New Staff Member</h3>
-                  <p className="text-xs text-neutral-500">নতুন ম্যানেজার বা এমপ্লয়ী একাউন্ট তৈরি করুন</p>
+                  <h3 className="text-base font-bold text-slate-900">Add New Staff Member</h3>
+                  <p className="text-xs text-slate-500">নতুন ম্যানেজার বা এমপ্লয়ী একাউন্ট তৈরি করুন</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-neutral-600 flex items-center justify-center cursor-pointer"
+                className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center cursor-pointer"
               >
                 <X size={16} />
               </button>
             </div>
 
             {formError && (
-              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold flex items-center gap-2">
+              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-2">
                 <AlertCircle size={15} className="shrink-0 text-red-600" />
                 <span>{formError}</span>
               </div>
             )}
 
             <form onSubmit={handleSaveNewStaff} className="space-y-4 text-xs">
-              
-              {/* Full Name & Email */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block font-bold text-neutral-800 mb-1">
-                    Full Name (স্টাফের পুরো নাম) *
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Full Name *
                   </label>
                   <input
                     type="text"
@@ -700,12 +838,12 @@ export function AdminStaffManagement({
                     placeholder="e.g. Kamal Hossain"
                     value={nameInput}
                     onChange={e => setNameInput(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-300 bg-white font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                    className="w-full px-3.5 py-2 rounded-lg border border-slate-300 bg-white font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-neutral-800 mb-1">
-                    Login Email (লগইন ইমেইল) *
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Login Email *
                   </label>
                   <input
                     type="email"
@@ -713,24 +851,23 @@ export function AdminStaffManagement({
                     placeholder="manager@mrbooks.com"
                     value={emailInput}
                     onChange={e => setEmailInput(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-300 bg-white font-mono font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                    className="w-full px-3.5 py-2 rounded-lg border border-slate-300 bg-white font-mono font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
                   />
                 </div>
               </div>
 
-              {/* Password & Generator */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block font-bold text-neutral-800">
-                    Login Password (লগইন পাসওয়ার্ড) *
+                  <label className="block font-semibold text-slate-700">
+                    Login Password *
                   </label>
                   <button
                     type="button"
                     onClick={() => setPasswordInput(generateSecureRandomPassword())}
-                    className="text-[11px] font-bold text-[#D71920] hover:underline flex items-center gap-1 cursor-pointer"
+                    className="text-[11px] font-semibold text-[#D71920] hover:underline flex items-center gap-1 cursor-pointer"
                   >
                     <RefreshCw size={11} />
-                    <span>Generate Strong Password</span>
+                    <span>Generate Password</span>
                   </button>
                 </div>
                 <input
@@ -739,74 +876,72 @@ export function AdminStaffManagement({
                   placeholder="Secret password"
                   value={passwordInput}
                   onChange={e => setPasswordInput(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-300 bg-white font-mono font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                  className="w-full px-3.5 py-2 rounded-lg border border-slate-300 bg-white font-mono font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
                 />
-                <p className="text-[11px] text-neutral-500 mt-1">
-                  স্টাফ এই পাসওয়ার্ড ব্যবহার করে অ্যাডমিন পোর্টালে লগইন করতে পারবেন। আপনি পরবর্তীতে যেকোনো সময় পরিবর্তন করতে পারবেন।
+                <p className="text-[11px] text-slate-500 mt-1">
+                  স্টাফ এই পাসওয়ার্ড ব্যবহার করে অ্যাডমিন পোর্টালে লগইন করতে পারবেন।
                 </p>
               </div>
 
-              {/* Role Selection */}
               <div>
-                <label className="block font-bold text-neutral-800 mb-1.5">
-                  Assigned Role (নির্ধারিত ভূমিকা) *
+                <label className="block font-semibold text-slate-700 mb-1.5">
+                  Assigned Role *
                 </label>
-                <div className="grid grid-cols-3 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   {[
-                    { id: 'manager', label: 'Manager (ম্যানেজার)', desc: 'Full store operations' },
-                    { id: 'employee', label: 'Employee (এমপ্লয়ী)', desc: 'Order & review staff' },
-                    { id: 'admin', label: 'Admin (অ্যাডমিন)', desc: 'Full system control' }
+                    { id: 'manager', label: 'Manager', desc: 'Full store operations' },
+                    { id: 'employee', label: 'Employee', desc: 'Order & review staff' },
+                    { id: 'admin', label: 'Admin', desc: 'Full system control' }
                   ].map(r => (
                     <button
                       key={r.id}
                       type="button"
                       onClick={() => handleRoleChangeForAdd(r.id as any)}
-                      className={`p-3 rounded-2xl border-2 text-left transition-all cursor-pointer ${
+                      className={`p-3 rounded-lg border text-left transition-colors cursor-pointer ${
                         roleInput === r.id
-                          ? 'border-[#D71920] bg-red-50/60 shadow-2xs'
-                          : 'border-neutral-200 hover:border-neutral-300 bg-white'
+                          ? 'border-[#D71920] bg-red-50/50'
+                          : 'border-slate-200 hover:border-slate-300 bg-white'
                       }`}
                     >
-                      <div className="font-black text-xs text-neutral-900">{r.label}</div>
-                      <div className="text-[10px] text-neutral-500 mt-0.5">{r.desc}</div>
+                      <div className="font-bold text-xs text-slate-900">{r.label}</div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">{r.desc}</div>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Permissions Checkbox Grid */}
-              <div className="space-y-2 pt-1 border-t border-neutral-200">
+              <div className="space-y-2 pt-1 border-t border-slate-200">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-neutral-800">
-                    Accessible Tabs & Permissions (কোন কোন পেজের এক্সেস থাকবে):
+                  <span className="font-semibold text-slate-700">
+                    Accessible Tabs &amp; Permissions
                   </span>
                   <div className="flex items-center gap-1.5 text-[11px]">
                     <button
                       type="button"
                       onClick={() => setPermissionsInput(ALL_PERMISSIONS)}
-                      className="text-[#D71920] hover:underline cursor-pointer font-bold"
+                      className="text-[#D71920] hover:underline cursor-pointer font-semibold"
                     >
                       Select All
                     </button>
-                    <span>•</span>
+                    <span className="text-slate-300">•</span>
                     <button
                       type="button"
                       onClick={() => setPermissionsInput([])}
-                      className="text-neutral-500 hover:underline cursor-pointer"
+                      className="text-slate-500 hover:underline cursor-pointer"
                     >
                       Clear
                     </button>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-[#F8F9FA] p-3 rounded-2xl border border-neutral-200 max-h-48 overflow-y-auto">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200 max-h-48 overflow-y-auto">
                   {MODULE_PERMISSIONS.map(perm => {
                     const isChecked = permissionsInput.includes(perm.id);
                     return (
-                      <label 
-                        key={perm.id} 
-                        className={`flex items-start gap-2.5 p-2 rounded-xl border transition-colors cursor-pointer ${
-                          isChecked ? 'bg-white border-[#D71920]/40 shadow-2xs' : 'border-transparent hover:bg-white'
+                      <label
+                        key={perm.id}
+                        className={`flex items-start gap-2.5 p-2 rounded-lg border transition-colors cursor-pointer ${
+                          isChecked ? 'bg-white border-[#D71920]/40' : 'border-transparent hover:bg-white'
                         }`}
                       >
                         <input
@@ -816,8 +951,8 @@ export function AdminStaffManagement({
                           className="mt-0.5 accent-[#D71920] cursor-pointer rounded"
                         />
                         <div className="min-w-0">
-                          <div className="font-bold text-neutral-900 leading-tight">{perm.label}</div>
-                          <div className="text-[10px] text-neutral-500 leading-tight truncate">{perm.desc}</div>
+                          <div className="font-semibold text-slate-900 leading-tight">{perm.label}</div>
+                          <div className="text-[10px] text-slate-500 leading-tight truncate">{perm.desc}</div>
                         </div>
                       </label>
                     );
@@ -825,100 +960,94 @@ export function AdminStaffManagement({
                 </div>
               </div>
 
-              {/* Phone & Status */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
                 <div>
-                  <label className="block font-bold text-neutral-800 mb-1">
-                    Phone Number (ঐচ্ছিক)
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Phone Number (Optional)
                   </label>
                   <input
                     type="tel"
                     placeholder="017XXXXXXXX"
                     value={phoneInput}
                     onChange={e => setPhoneInput(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-300 bg-white text-neutral-900"
+                    className="w-full px-3.5 py-2 rounded-lg border border-slate-300 bg-white text-slate-900"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-neutral-800 mb-1">
+                  <label className="block font-semibold text-slate-700 mb-1">
                     Account Status
                   </label>
                   <select
                     value={statusInput}
                     onChange={e => setStatusInput(e.target.value as any)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-300 bg-white font-bold text-neutral-900"
+                    className="w-full px-3.5 py-2 rounded-lg border border-slate-300 bg-white font-semibold text-slate-900"
                   >
-                    <option value="active">Active (সক্রিয় - লগইন করতে পারবে)</option>
-                    <option value="disabled">Disabled (নিষ্ক্রিয় - এক্সেস বন্ধ থাকবে)</option>
+                    <option value="active">Active (Login enabled)</option>
+                    <option value="disabled">Disabled (Access paused)</option>
                   </select>
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="pt-3 border-t border-neutral-200 flex items-center justify-end gap-2.5">
+              <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2.5 rounded-xl border border-neutral-300 text-neutral-700 font-bold hover:bg-neutral-100 cursor-pointer"
+                  className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 cursor-pointer"
                 >
-                  বাতিল (Cancel)
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2.5 rounded-xl bg-[#D71920] hover:bg-[#B9151B] text-white font-black cursor-pointer shadow-md disabled:opacity-50 flex items-center gap-1.5"
+                  className="px-5 py-2 rounded-lg bg-[#D71920] hover:bg-[#B9151B] text-white font-semibold cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                 >
-                  {submitting ? 'সংরক্ষণ হচ্ছে...' : 'Create Staff Access'}
+                  {submitting ? 'Saving...' : 'Create Staff Access'}
                 </button>
               </div>
-
             </form>
-
           </div>
         </div>
       )}
 
-      {/* 6. EDIT STAFF & CHANGE PASSWORD MODAL */}
+      {/* EDIT STAFF & CHANGE PASSWORD MODAL */}
       {showEditModal && editingStaff && (
-        <div 
+        <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs overflow-y-auto"
           onClick={e => e.target === e.currentTarget && setShowEditModal(false)}
         >
-          <div className="w-full max-w-xl bg-white rounded-3xl border border-neutral-200 p-6 shadow-2xl space-y-4 my-auto max-h-[90vh] overflow-y-auto admin-modal-card">
-            
-            <div className="flex items-center justify-between pb-3 border-b border-neutral-200">
+          <div className="w-full max-w-xl bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xl space-y-4 my-auto max-h-[90vh] overflow-y-auto admin-modal-card">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#D71920] text-white flex items-center justify-center shadow-xs">
-                  <Edit3 size={18} />
+                <div className="w-9 h-9 rounded-lg bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/20 flex items-center justify-center">
+                  <Edit3 size={17} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-neutral-900">Edit Staff & Change Password</h3>
-                  <p className="text-xs text-neutral-500">পাসওয়ার্ড পরিবর্তন ও রোল এক্সেস আপডেট করুন</p>
+                  <h3 className="text-base font-bold text-slate-900">Edit Staff &amp; Change Password</h3>
+                  <p className="text-xs text-slate-500">পাসওয়ার্ড পরিবর্তন ও রোল এক্সেস আপডেট করুন</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowEditModal(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-neutral-600 flex items-center justify-center cursor-pointer"
+                className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center cursor-pointer"
               >
                 <X size={16} />
               </button>
             </div>
 
             {editError && (
-              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold flex items-center gap-2">
+              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-2">
                 <AlertCircle size={15} className="shrink-0 text-red-600" />
                 <span>{editError}</span>
               </div>
             )}
 
             <form onSubmit={handleSaveEditStaff} className="space-y-4 text-xs">
-              
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block font-bold text-neutral-800 mb-1">
+                  <label className="block font-semibold text-slate-700 mb-1">
                     Staff Name *
                   </label>
                   <input
@@ -926,11 +1055,11 @@ export function AdminStaffManagement({
                     required
                     value={editName}
                     onChange={e => setEditName(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-300 bg-white font-bold text-neutral-900"
+                    className="w-full px-3.5 py-2 rounded-lg border border-slate-300 bg-white font-medium text-slate-900"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-neutral-800 mb-1">
+                  <label className="block font-semibold text-slate-700 mb-1">
                     Login Email *
                   </label>
                   <input
@@ -938,21 +1067,20 @@ export function AdminStaffManagement({
                     required
                     value={editEmail}
                     onChange={e => setEditEmail(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-300 bg-white font-mono font-bold text-neutral-900"
+                    className="w-full px-3.5 py-2 rounded-lg border border-slate-300 bg-white font-mono font-medium text-slate-900"
                   />
                 </div>
               </div>
 
-              {/* Password Change Field */}
-              <div className="bg-amber-50/60 p-3.5 rounded-2xl border border-amber-200/80 space-y-2">
+              <div className="bg-amber-50/50 p-3.5 rounded-xl border border-amber-200 space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="block font-black text-amber-950">
-                    Change Password (পাসওয়ার্ড পরিবর্তন করুন) *
+                  <label className="block font-semibold text-amber-950">
+                    Change Password *
                   </label>
                   <button
                     type="button"
                     onClick={() => setEditPassword(generateSecureRandomPassword())}
-                    className="text-[11px] font-bold text-[#D71920] hover:underline flex items-center gap-1 cursor-pointer"
+                    className="text-[11px] font-semibold text-[#D71920] hover:underline flex items-center gap-1 cursor-pointer"
                   >
                     <RefreshCw size={11} />
                     <span>Generate New Password</span>
@@ -964,18 +1092,17 @@ export function AdminStaffManagement({
                   placeholder="New password"
                   value={editPassword}
                   onChange={e => setEditPassword(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-amber-300 bg-white font-mono font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                  className="w-full px-3.5 py-2 rounded-lg border border-amber-300 bg-white font-mono font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
                 />
-                <p className="text-[10.5px] text-amber-900 font-medium">
-                  নতুন পাসওয়ার্ড লিখে সেভ করলেই স্টাফ মেম্বার নতুন পাসওয়ার্ড দিয়ে তৎক্ষণাৎ লগইন করতে পারবেন।
+                <p className="text-[11px] text-amber-900">
+                  নতুন পাসওয়ার্ড লিখে সেভ করলেই স্টাফ মেম্বার নতুন পাসওয়ার্ড দিয়ে লগইন করতে পারবেন।
                 </p>
               </div>
 
-              {/* Role & Status */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block font-bold text-neutral-800 mb-1">
-                    Role (ভূমিকা)
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Role
                   </label>
                   <select
                     value={editRole}
@@ -986,61 +1113,60 @@ export function AdminStaffManagement({
                       if (r === 'employee') setEditPermissions(EMPLOYEE_PRESET_PERMISSIONS);
                       if (r === 'admin') setEditPermissions(ALL_PERMISSIONS);
                     }}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-300 bg-white font-bold text-neutral-900"
+                    className="w-full px-3.5 py-2 rounded-lg border border-slate-300 bg-white font-semibold text-slate-900"
                   >
-                    <option value="manager">Manager (ম্যানেজার)</option>
-                    <option value="employee">Employee (এমপ্লয়ী)</option>
-                    <option value="admin">Admin (অ্যাডমিন)</option>
+                    <option value="manager">Manager</option>
+                    <option value="employee">Employee</option>
+                    <option value="admin">Admin</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block font-bold text-neutral-800 mb-1">
-                    Status (স্ট্যাটাস)
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Status
                   </label>
                   <select
                     value={editStatus}
                     onChange={e => setEditStatus(e.target.value as any)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-300 bg-white font-bold text-neutral-900"
+                    className="w-full px-3.5 py-2 rounded-lg border border-slate-300 bg-white font-semibold text-slate-900"
                   >
-                    <option value="active">Active (সক্রিয়)</option>
-                    <option value="disabled">Disabled (নিষ্ক্রিয়)</option>
+                    <option value="active">Active</option>
+                    <option value="disabled">Disabled</option>
                   </select>
                 </div>
               </div>
 
-              {/* Permissions */}
-              <div className="space-y-2 pt-1 border-t border-neutral-200">
+              <div className="space-y-2 pt-1 border-t border-slate-200">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-neutral-800">
-                    Accessible Modules (অনুমোদিত পেজসমূহ):
+                  <span className="font-semibold text-slate-700">
+                    Accessible Modules
                   </span>
                   <div className="flex items-center gap-1.5 text-[11px]">
                     <button
                       type="button"
                       onClick={() => setEditPermissions(ALL_PERMISSIONS)}
-                      className="text-[#D71920] hover:underline cursor-pointer font-bold"
+                      className="text-[#D71920] hover:underline cursor-pointer font-semibold"
                     >
                       Select All
                     </button>
-                    <span>•</span>
+                    <span className="text-slate-300">•</span>
                     <button
                       type="button"
                       onClick={() => setEditPermissions([])}
-                      className="text-neutral-500 hover:underline cursor-pointer"
+                      className="text-slate-500 hover:underline cursor-pointer"
                     >
                       Clear
                     </button>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-[#F8F9FA] p-3 rounded-2xl border border-neutral-200 max-h-48 overflow-y-auto">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200 max-h-48 overflow-y-auto">
                   {MODULE_PERMISSIONS.map(perm => {
                     const isChecked = editPermissions.includes(perm.id);
                     return (
-                      <label 
-                        key={perm.id} 
-                        className={`flex items-start gap-2.5 p-2 rounded-xl border transition-colors cursor-pointer ${
-                          isChecked ? 'bg-white border-[#D71920]/40 shadow-2xs' : 'border-transparent hover:bg-white'
+                      <label
+                        key={perm.id}
+                        className={`flex items-start gap-2.5 p-2 rounded-lg border transition-colors cursor-pointer ${
+                          isChecked ? 'bg-white border-[#D71920]/40' : 'border-transparent hover:bg-white'
                         }`}
                       >
                         <input
@@ -1050,8 +1176,8 @@ export function AdminStaffManagement({
                           className="mt-0.5 accent-[#D71920] cursor-pointer rounded"
                         />
                         <div className="min-w-0">
-                          <div className="font-bold text-neutral-900 leading-tight">{perm.label}</div>
-                          <div className="text-[10px] text-neutral-500 leading-tight truncate">{perm.desc}</div>
+                          <div className="font-semibold text-slate-900 leading-tight">{perm.label}</div>
+                          <div className="text-[10px] text-slate-500 leading-tight truncate">{perm.desc}</div>
                         </div>
                       </label>
                     );
@@ -1059,70 +1185,66 @@ export function AdminStaffManagement({
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="pt-3 border-t border-neutral-200 flex items-center justify-end gap-2.5">
+              <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowEditModal(false)}
-                  className="px-4 py-2.5 rounded-xl border border-neutral-300 text-neutral-700 font-bold hover:bg-neutral-100 cursor-pointer"
+                  className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 cursor-pointer"
                 >
-                  বাতিল (Cancel)
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={editSubmitting}
-                  className="px-5 py-2.5 rounded-xl bg-[#D71920] hover:bg-[#B9151B] text-white font-black cursor-pointer shadow-md disabled:opacity-50 flex items-center gap-1.5"
+                  className="px-5 py-2 rounded-lg bg-[#D71920] hover:bg-[#B9151B] text-white font-semibold cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                 >
-                  {editSubmitting ? 'আপডেট হচ্ছে...' : 'Save & Update Password'}
+                  {editSubmitting ? 'Updating...' : 'Save & Update Password'}
                 </button>
               </div>
-
             </form>
-
           </div>
         </div>
       )}
 
-      {/* 7. DELETE STAFF CONFIRMATION MODAL */}
+      {/* DELETE STAFF CONFIRMATION MODAL */}
       {deleteConfirmStaff && (
-        <div 
+        <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs"
           onClick={e => e.target === e.currentTarget && setDeleteConfirmStaff(null)}
         >
-          <div className="w-full max-w-md bg-white rounded-3xl border border-neutral-200 p-6 shadow-2xl space-y-4 admin-modal-card">
-            <div className="w-12 h-12 rounded-2xl bg-red-100 text-[#D71920] flex items-center justify-center mx-auto">
-              <Trash2 size={24} />
+          <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 p-6 shadow-xl space-y-4 admin-modal-card">
+            <div className="w-11 h-11 rounded-xl bg-red-50 border border-red-200 text-[#D71920] flex items-center justify-center mx-auto">
+              <Trash2 size={20} />
             </div>
             <div className="text-center space-y-1">
-              <h3 className="text-base font-black text-neutral-900">
-                স্টাফ অ্যাকাউন্ট রিমুভ নিশ্চিতকরণ
+              <h3 className="text-base font-bold text-slate-900">
+                Remove Staff Account
               </h3>
-              <p className="text-xs text-neutral-500">
-                আপনি কি নিশ্চিতভাবে <strong className="text-neutral-900">{deleteConfirmStaff.name}</strong> ({deleteConfirmStaff.email})-এর এক্সেস মুছে ফেলতে চান? মুছে ফেললে তিনি আর অ্যাডমিন পোর্টালে লগইন করতে পারবেন না।
+              <p className="text-xs text-slate-500">
+                আপনি কি নিশ্চিতভাবে <strong className="text-slate-900">{deleteConfirmStaff.name}</strong> ({deleteConfirmStaff.email})-এর এক্সেস মুছে ফেলতে চান?
               </p>
             </div>
             <div className="flex items-center gap-2.5 pt-2">
               <button
                 type="button"
                 onClick={() => setDeleteConfirmStaff(null)}
-                className="flex-1 py-2.5 rounded-xl border border-neutral-300 text-neutral-700 font-bold hover:bg-neutral-100 cursor-pointer text-xs"
+                className="flex-1 py-2 rounded-lg border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 cursor-pointer text-xs"
               >
-                না, রাখুন
+                Cancel
               </button>
               <button
                 type="button"
                 onClick={handleDeleteStaffConfirm}
-                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black cursor-pointer shadow-sm text-xs"
+                className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold cursor-pointer text-xs"
               >
-                হ্যাঁ, এক্সেস রিমুভ করুন
+                Remove Access
               </button>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }

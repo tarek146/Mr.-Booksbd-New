@@ -167,38 +167,33 @@ export function AdminPaymentTransactionsManager({
   };
 
   return (
-    <div data-testid="admin-payments-dashboard" className="space-y-4">
-      {/* Header Bar Card */}
-      <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center shrink-0">
-            <CreditCard size={19} />
+    <div data-testid="admin-payments-dashboard" className="space-y-5">
+      {/* Clean Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+              Payment Transactions
+            </h2>
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+              Real-time sync
+            </span>
           </div>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-base sm:text-lg font-black text-neutral-900 tracking-tight">
-                Payment Transactions
-              </h2>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Real-time
-              </span>
-            </div>
-            <p className="text-xs text-neutral-500">
-              MFS & Digital Payment Tracking &amp; Verification
-            </p>
-          </div>
+          <p className="text-xs sm:text-[13px] text-slate-500">
+            MFS &amp; digital payment tracking, TrxID verification, and settlement records
+          </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap shrink-0">
           <button
             type="button"
             data-testid="payments-export-csv-btn"
             onClick={handleExportCsv}
-            className="px-3 py-2 rounded-xl bg-white hover:bg-neutral-50 border border-neutral-200 text-neutral-700 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+            className="px-3.5 py-2 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
           >
-            <Download size={13} />
-            <span>CSV</span>
+            <Download size={14} className="text-slate-500" />
+            <span>Export CSV</span>
           </button>
 
           <button
@@ -213,9 +208,9 @@ export function AdminPaymentTransactionsManager({
                 setRefreshing(false);
               }
             }}
-            className="px-3 py-2 rounded-xl bg-white hover:bg-neutral-50 border border-neutral-200 text-neutral-700 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+            className="px-3.5 py-2 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
           >
-            <RefreshCw size={13} className={refreshing ? 'animate-spin text-[#D71920]' : ''} />
+            <RefreshCw size={14} className={refreshing ? 'animate-spin text-[#D71920]' : 'text-slate-500'} />
             <span>Refresh</span>
           </button>
 
@@ -223,203 +218,204 @@ export function AdminPaymentTransactionsManager({
             type="button"
             data-testid="payments-new-payment-btn"
             onClick={() => setShowNewModal(true)}
-            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black inline-flex items-center gap-1.5 shadow-2xs cursor-pointer"
+            className="px-4 py-2 rounded-lg bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
           >
             <Plus size={14} />
-            <span>+ New Payment</span>
+            <span>New Payment</span>
           </button>
         </div>
       </div>
 
-      {/* 4 KPI Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 shadow-2xs flex items-center justify-between gap-3">
-          <div>
-            <span className="text-xs font-bold text-neutral-500 block">Total Collected</span>
-            <div className="text-2xl font-black text-neutral-900 mt-1 tabular-nums">
+      {/* 4 Clean KPI Metric Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <span className="text-xs font-medium text-slate-500 block">Total Collected</span>
+            <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1.5 tabular-nums tracking-tight">
               ৳{metrics.totalCollected.toLocaleString()}
             </div>
-            <span className="text-[11px] font-bold text-emerald-600 mt-0.5 block">
-              {metrics.completedCount} Completed
+            <span className="text-xs font-medium text-emerald-700 mt-1 block tabular-nums">
+              {metrics.completedCount} completed
             </span>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shrink-0">
-            <Wallet size={18} />
+          <div className="w-9 h-9 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 flex items-center justify-center shrink-0">
+            <Wallet size={17} />
           </div>
         </div>
 
-        <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 shadow-2xs flex items-center justify-between gap-3">
-          <div>
-            <span className="text-xs font-bold text-neutral-500 block">Today Collected</span>
-            <div className="text-2xl font-black text-neutral-900 mt-1 tabular-nums">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <span className="text-xs font-medium text-slate-500 block">Today Collected</span>
+            <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1.5 tabular-nums tracking-tight">
               ৳{metrics.todayCollected.toLocaleString()}
             </div>
-            <span className="text-[11px] font-bold text-[#D71920] mt-0.5 block">
-              Today Collection
+            <span className="text-xs font-medium text-slate-500 mt-1 block">
+              Daily settlement
             </span>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/20 flex items-center justify-center shrink-0">
-            <TrendingUp size={18} />
+          <div className="w-9 h-9 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 flex items-center justify-center shrink-0">
+            <TrendingUp size={17} />
           </div>
         </div>
 
-        <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 shadow-2xs flex items-center justify-between gap-3">
-          <div>
-            <span className="text-xs font-bold text-neutral-500 block">Pending Payments</span>
-            <div className="text-2xl font-black text-neutral-900 mt-1 tabular-nums">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <span className="text-xs font-medium text-slate-500 block">Pending Review</span>
+            <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1.5 tabular-nums tracking-tight">
               ৳{metrics.pendingAmount.toLocaleString()}
             </div>
-            <span className="text-[11px] font-bold text-amber-600 mt-0.5 block">
-              {metrics.pendingCount} pending verification
+            <span className="text-xs font-medium text-amber-700 mt-1 block tabular-nums">
+              {metrics.pendingCount} awaiting check
             </span>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center shrink-0">
-            <Clock size={18} />
+          <div className="w-9 h-9 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 flex items-center justify-center shrink-0">
+            <Clock size={17} />
           </div>
         </div>
 
-        <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 shadow-2xs flex items-center justify-between gap-3">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <span className="text-xs font-bold text-neutral-500 block">Digital MFS &amp; Bank</span>
-            <div className="text-2xl font-black text-neutral-900 mt-1 tabular-nums">
+            <span className="text-xs font-medium text-slate-500 block">Digital MFS &amp; Bank</span>
+            <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1.5 tabular-nums tracking-tight">
               ৳{metrics.digitalTotal.toLocaleString()}
             </div>
-            <span className="text-[11px] font-medium text-neutral-500 mt-0.5 block truncate">
-              bKash: ৳{metrics.bkashTotal} | Nagad: ৳{metrics.nagadTotal}
+            <span className="text-xs text-slate-500 mt-1 block truncate tabular-nums">
+              bKash ৳{metrics.bkashTotal} · Nagad ৳{metrics.nagadTotal}
             </span>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center shrink-0">
-            <CreditCard size={18} />
+          <div className="w-9 h-9 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 flex items-center justify-center shrink-0">
+            <CreditCard size={17} />
           </div>
         </div>
       </div>
 
-      {/* Search + Gateway & Status Filter Bar */}
-      <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 shadow-xs space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
-          <div className="relative flex-1">
-            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
-            <input
-              type="text"
-              data-testid="payments-search-input"
-              placeholder="Search by TrxID, mobile, customer or order..."
-              value={searchQuery}
-              onChange={e => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full pl-9 pr-8 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50/70 focus:bg-white text-xs font-semibold text-neutral-900 focus:outline-none focus:border-[#D71920]"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 cursor-pointer"
-              >
-                <X size={13} />
-              </button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => {
-                setStatusTab(prev => (prev === 'failed' ? 'all' : 'failed'));
-                setCurrentPage(1);
-              }}
-              className={`px-3 py-2 rounded-xl text-xs font-bold border inline-flex items-center gap-1.5 cursor-pointer transition-colors ${
-                statusTab === 'failed'
-                  ? 'bg-red-600 text-white border-red-600'
-                  : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
-              }`}
-            >
-              <XCircle size={13} />
-              <span>Failed ({metrics.failedCount})</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setStatusTab(prev => (prev === 'flagged' ? 'all' : 'flagged'));
-                setCurrentPage(1);
-              }}
-              className={`px-3 py-2 rounded-xl text-xs font-bold border inline-flex items-center gap-1.5 cursor-pointer transition-colors ${
-                statusTab === 'flagged'
-                  ? 'bg-amber-600 text-white border-amber-600'
-                  : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
-              }`}
-            >
-              <AlertTriangle size={13} />
-              <span>Flagged ({metrics.flaggedCount})</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Gateway Chips + Status Strip */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-neutral-100">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {GATEWAY_TABS.map(gw => {
-              const active = gatewayTab === gw.id;
-              return (
-                <button
-                  key={gw.id}
-                  type="button"
-                  data-testid={`payments-gateway-${gw.id}`}
-                  onClick={() => {
-                    setGatewayTab(gw.id);
-                    setCurrentPage(1);
-                  }}
-                  className={`px-3 py-1 rounded-xl text-[11px] font-bold border cursor-pointer transition-all ${
-                    active
-                      ? 'bg-[#D71920] text-white border-[#D71920] shadow-2xs'
-                      : 'bg-neutral-50 text-neutral-700 border-neutral-200 hover:bg-neutral-100'
-                  }`}
-                >
-                  {gw.label} ({metrics.gatewayCounts[gw.id]})
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="flex items-center gap-1 bg-neutral-100 p-1 rounded-xl">
-            {(
-              [
-                { id: 'all', label: `All (${paymentSubmissions.length})` },
-                { id: 'pending', label: `Pending (${metrics.pendingCount})` },
-                { id: 'done', label: `Payment Done (${metrics.completedCount})` },
-                { id: 'failed', label: `Failed (${metrics.failedCount})` },
-              ] as const
-            ).map(st => (
-              <button
-                key={st.id}
-                type="button"
-                onClick={() => {
-                  setStatusTab(st.id);
+      {/* Unified Filter & Record Table Card */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        {/* Search & Filter Controls */}
+        <div className="p-4 border-b border-slate-200 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
+            <div className="relative flex-1">
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                data-testid="payments-search-input"
+                placeholder="Search by TrxID, mobile number, customer, or order #..."
+                value={searchQuery}
+                onChange={e => {
+                  setSearchQuery(e.target.value);
                   setCurrentPage(1);
                 }}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition-colors ${
-                  statusTab === st.id
-                    ? 'bg-white text-neutral-900 shadow-2xs'
-                    : 'text-neutral-600 hover:text-neutral-900'
+                className="w-full pl-9 pr-8 py-2 rounded-lg border border-slate-200 bg-slate-50/70 focus:bg-white text-[13px] text-slate-900 focus:outline-none focus:border-[#D71920]"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear search"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusTab(prev => (prev === 'failed' ? 'all' : 'failed'));
+                  setCurrentPage(1);
+                }}
+                className={`px-3 py-2 rounded-lg text-xs font-semibold border inline-flex items-center gap-1.5 cursor-pointer transition-colors tabular-nums ${
+                  statusTab === 'failed'
+                    ? 'bg-red-600 text-white border-red-600'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                 }`}
               >
-                {st.label}
+                <XCircle size={13} className={statusTab === 'failed' ? 'text-white' : 'text-red-600'} />
+                <span>Failed ({metrics.failedCount})</span>
               </button>
-            ))}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusTab(prev => (prev === 'flagged' ? 'all' : 'flagged'));
+                  setCurrentPage(1);
+                }}
+                className={`px-3 py-2 rounded-lg text-xs font-semibold border inline-flex items-center gap-1.5 cursor-pointer transition-colors tabular-nums ${
+                  statusTab === 'flagged'
+                    ? 'bg-amber-600 text-white border-amber-600'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <AlertTriangle size={13} className={statusTab === 'flagged' ? 'text-white' : 'text-amber-600'} />
+                <span>Flagged ({metrics.flaggedCount})</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 pt-1">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+              {GATEWAY_TABS.map(gw => {
+                const active = gatewayTab === gw.id;
+                return (
+                  <button
+                    key={gw.id}
+                    type="button"
+                    data-testid={`payments-gateway-${gw.id}`}
+                    onClick={() => {
+                      setGatewayTab(gw.id);
+                      setCurrentPage(1);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border cursor-pointer transition-colors whitespace-nowrap shrink-0 tabular-nums ${
+                      active
+                        ? 'bg-slate-900 text-white border-slate-900'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                  >
+                    {gw.label} ({metrics.gatewayCounts[gw.id]})
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg w-fit overflow-x-auto no-scrollbar">
+              {(
+                [
+                  { id: 'all', label: `All (${paymentSubmissions.length})` },
+                  { id: 'pending', label: `Pending (${metrics.pendingCount})` },
+                  { id: 'done', label: `Verified (${metrics.completedCount})` },
+                  { id: 'failed', label: `Failed (${metrics.failedCount})` },
+                ] as const
+              ).map(st => (
+                <button
+                  key={st.id}
+                  type="button"
+                  onClick={() => {
+                    setStatusTab(st.id);
+                    setCurrentPage(1);
+                  }}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium cursor-pointer transition-colors whitespace-nowrap tabular-nums ${
+                    statusTab === st.id
+                      ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {st.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Payments Record List Container */}
-      <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
-        <div className="flex items-center justify-between gap-2 pb-3 border-b border-neutral-100">
-          <div className="text-sm font-black text-neutral-900">
-            Payments Record List <span className="text-neutral-400 font-bold">({filteredRecords.length})</span>
+        {/* List Sub-Header */}
+        <div className="px-4 py-3 bg-slate-50/60 border-b border-slate-200 flex items-center justify-between gap-2">
+          <div className="text-xs font-semibold text-slate-700 tabular-nums">
+            Payments Record List <span className="text-slate-400 font-normal">({filteredRecords.length})</span>
           </div>
 
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-neutral-500 font-semibold">Per page</span>
+            <span className="text-slate-500">Per page</span>
             <select
               value={perPage}
               onChange={e => {
@@ -427,7 +423,7 @@ export function AdminPaymentTransactionsManager({
                 setCurrentPage(1);
               }}
               aria-label="Records per page"
-              className="px-2.5 py-1 rounded-lg border border-neutral-200 bg-neutral-50 font-bold text-neutral-800 cursor-pointer"
+              className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white font-medium text-slate-800 cursor-pointer tabular-nums"
             >
               <option value={10}>10</option>
               <option value={25}>25</option>
@@ -436,55 +432,58 @@ export function AdminPaymentTransactionsManager({
           </div>
         </div>
 
+        {/* Records Content */}
         {paginatedRecords.length === 0 ? (
-          <div className="py-12 text-center space-y-2">
-            <div className="w-11 h-11 rounded-2xl bg-neutral-100 text-neutral-400 flex items-center justify-center mx-auto border border-neutral-200">
-              <CreditCard size={20} />
+          <div className="py-14 px-4 text-center space-y-2">
+            <div className="w-10 h-10 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+              <CreditCard size={18} />
             </div>
-            <h3 className="text-sm font-black text-neutral-800">No payment records found</h3>
-            <p className="text-xs text-neutral-500">New online payments will appear here.</p>
+            <h3 className="text-sm font-semibold text-slate-900">No payment records found</h3>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+              New online transactions and manual verification submissions will appear here automatically.
+            </p>
           </div>
         ) : (
           <>
-            {/* Desktop Table */}
+            {/* Desktop / Tablet Table */}
             <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
+              <table className="w-full text-left border-collapse text-[13px]">
                 <thead>
-                  <tr className="border-b border-neutral-200 text-neutral-500 text-[10.5px] uppercase font-bold tracking-wider">
-                    <th className="py-2.5 px-3">Order #</th>
-                    <th className="py-2.5 px-3">Customer</th>
-                    <th className="py-2.5 px-3">Gateway</th>
-                    <th className="py-2.5 px-3">TrxID &amp; Sender</th>
-                    <th className="py-2.5 px-3">Amount</th>
-                    <th className="py-2.5 px-3">Status</th>
-                    <th className="py-2.5 px-3 text-right">Actions</th>
+                  <tr className="border-b border-slate-200 bg-slate-50/40 text-slate-500 text-[11px] uppercase font-semibold tracking-wider">
+                    <th className="py-3 px-4">Order #</th>
+                    <th className="py-3 px-4">Customer</th>
+                    <th className="py-3 px-4">Gateway</th>
+                    <th className="py-3 px-4">TrxID &amp; Sender</th>
+                    <th className="py-3 px-4 text-right">Amount</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-neutral-100">
+                <tbody className="divide-y divide-slate-100">
                   {paginatedRecords.map(rec => (
-                    <tr key={rec.id} className="hover:bg-neutral-50/70 transition-colors">
-                      <td className="py-3 px-3 font-mono font-bold text-[#D71920]">#{rec.orderId}</td>
-                      <td className="py-3 px-3">
-                        <div className="font-bold text-neutral-900">{rec.customerName}</div>
-                        <div className="text-[11px] text-neutral-500">{rec.customerPhone}</div>
+                    <tr key={rec.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-3 px-4 font-mono text-xs font-semibold text-slate-900 tabular-nums whitespace-nowrap">
+                        #{rec.orderId}
                       </td>
-                      <td className="py-3 px-3">
-                        <span className="px-2.5 py-1 rounded-lg bg-neutral-100 text-neutral-800 font-bold text-[11px]">
-                          {rec.providerName}
-                        </span>
+                      <td className="py-3 px-4">
+                        <div className="font-medium text-slate-900 truncate max-w-[180px]">{rec.customerName}</div>
+                        <div className="text-xs text-slate-500 font-mono tabular-nums">{rec.customerPhone}</div>
                       </td>
-                      <td className="py-3 px-3">
-                        <div className="font-mono font-bold text-neutral-900">{rec.transactionReference}</div>
-                        <div className="text-[11px] text-neutral-500">
-                          Sender: {rec.senderIdentifier || 'N/A'}
+                      <td className="py-3 px-4 text-xs font-medium text-slate-700 whitespace-nowrap">
+                        {rec.providerName}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="font-mono text-xs font-semibold text-slate-900">{rec.transactionReference}</div>
+                        <div className="text-xs text-slate-500 font-mono tabular-nums">
+                          {rec.senderIdentifier || '—'}
                         </div>
                       </td>
-                      <td className="py-3 px-3 font-black text-neutral-900 text-sm">
+                      <td className="py-3 px-4 text-right font-semibold text-slate-900 tabular-nums whitespace-nowrap">
                         ৳{rec.amount.toLocaleString()}
                       </td>
-                      <td className="py-3 px-3">
+                      <td className="py-3 px-4 whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
+                          className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium border ${
                             rec.status === 'approved'
                               ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                               : rec.status === 'rejected'
@@ -493,35 +492,36 @@ export function AdminPaymentTransactionsManager({
                           }`}
                         >
                           {rec.status === 'approved'
-                            ? 'Payment Done'
+                            ? 'Verified'
                             : rec.status === 'rejected'
                             ? 'Failed'
                             : 'Pending'}
                         </span>
                       </td>
-                      <td className="py-3 px-3 text-right">
+                      <td className="py-3 px-4 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             type="button"
                             onClick={() => setReceiptRecord(rec)}
-                            className="p-1.5 rounded-lg border border-neutral-200 hover:bg-neutral-100 text-neutral-600 cursor-pointer"
+                            className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 cursor-pointer transition-colors"
                             title="View Receipt"
+                            aria-label={`View receipt for order ${rec.orderId}`}
                           >
-                            <Receipt size={13} />
+                            <Receipt size={14} />
                           </button>
                           {rec.source === 'submission' && rec.status === 'pending_verification' && (
                             <>
                               <button
                                 type="button"
                                 onClick={() => void onReviewSubmission(rec.id, 'approved')}
-                                className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-[11px] inline-flex items-center gap-1 cursor-pointer"
+                                className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg text-xs inline-flex items-center gap-1 cursor-pointer transition-colors"
                               >
                                 <CheckCircle2 size={12} /> Approve
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setRejectingId(rec.id)}
-                                className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-[#D71920] font-bold rounded-lg text-[11px] inline-flex items-center gap-1 cursor-pointer"
+                                className="px-2.5 py-1.5 bg-white hover:bg-red-50 text-red-600 border border-red-200 font-medium rounded-lg text-xs inline-flex items-center gap-1 cursor-pointer transition-colors"
                               >
                                 <XCircle size={12} /> Reject
                               </button>
@@ -536,16 +536,13 @@ export function AdminPaymentTransactionsManager({
             </div>
 
             {/* Mobile Cards */}
-            <div className="md:hidden space-y-2.5">
+            <div className="md:hidden divide-y divide-slate-100">
               {paginatedRecords.map(rec => (
-                <div
-                  key={rec.id}
-                  className="p-3.5 rounded-xl border border-neutral-200 bg-neutral-50/50 space-y-2 text-xs"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono font-black text-[#D71920]">#{rec.orderId}</span>
+                <div key={rec.id} className="p-4 space-y-2.5 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono font-semibold text-slate-900">#{rec.orderId}</span>
                     <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                      className={`px-2 py-0.5 rounded-md text-[11px] font-medium border ${
                         rec.status === 'approved'
                           ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                           : rec.status === 'rejected'
@@ -554,39 +551,47 @@ export function AdminPaymentTransactionsManager({
                       }`}
                     >
                       {rec.status === 'approved'
-                        ? 'Payment Done'
+                        ? 'Verified'
                         : rec.status === 'rejected'
                         ? 'Failed'
                         : 'Pending'}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <div>
-                      <div className="font-bold text-neutral-900">{rec.customerName}</div>
-                      <div className="text-[11px] text-neutral-500">{rec.customerPhone}</div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-slate-900 truncate">{rec.customerName}</div>
+                      <div className="text-slate-500 font-mono tabular-nums">{rec.customerPhone}</div>
                     </div>
-                    <div className="text-right">
-                      <div className="font-black text-sm">৳{rec.amount.toLocaleString()}</div>
-                      <div className="text-[11px] text-neutral-600">{rec.providerName}</div>
+                    <div className="text-right shrink-0">
+                      <div className="font-bold text-sm text-slate-900 tabular-nums">৳{rec.amount.toLocaleString()}</div>
+                      <div className="text-slate-500">{rec.providerName}</div>
                     </div>
                   </div>
-                  <div className="p-2 rounded-lg bg-white border border-neutral-200 flex justify-between text-[11px]">
-                    <span>TrxID: <strong className="font-mono">{rec.transactionReference}</strong></span>
-                    <span>From: <strong className="font-mono">{rec.senderIdentifier || 'N/A'}</strong></span>
+                  <div className="flex items-center justify-between text-slate-600 pt-1">
+                    <span>
+                      TrxID: <strong className="font-mono text-slate-900">{rec.transactionReference}</strong>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setReceiptRecord(rec)}
+                      className="text-slate-700 font-medium hover:underline inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <Receipt size={12} /> Receipt
+                    </button>
                   </div>
                   {rec.source === 'submission' && rec.status === 'pending_verification' && (
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-2 pt-1">
                       <button
                         type="button"
                         onClick={() => void onReviewSubmission(rec.id, 'approved')}
-                        className="py-2 bg-emerald-600 text-white font-bold rounded-lg text-xs cursor-pointer"
+                        className="py-2 bg-emerald-600 text-white font-semibold rounded-lg text-xs cursor-pointer"
                       >
                         Approve
                       </button>
                       <button
                         type="button"
                         onClick={() => setRejectingId(rec.id)}
-                        className="py-2 bg-red-50 text-[#D71920] font-bold rounded-lg text-xs cursor-pointer"
+                        className="py-2 bg-white border border-red-200 text-red-600 font-semibold rounded-lg text-xs cursor-pointer"
                       >
                         Reject
                       </button>
@@ -597,8 +602,8 @@ export function AdminPaymentTransactionsManager({
             </div>
 
             {totalPages > 1 && (
-              <div className="flex items-center justify-between pt-3 border-t border-neutral-100 text-xs">
-                <span className="text-neutral-500">
+              <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 text-xs bg-slate-50/40">
+                <span className="text-slate-500 tabular-nums">
                   Page {safePage} of {totalPages}
                 </span>
                 <div className="flex items-center gap-1.5">
@@ -606,15 +611,15 @@ export function AdminPaymentTransactionsManager({
                     type="button"
                     disabled={safePage <= 1}
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    className="px-3 py-1 rounded-lg border border-neutral-200 disabled:opacity-40 cursor-pointer"
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-medium disabled:opacity-40 cursor-pointer"
                   >
-                    Prev
+                    Previous
                   </button>
                   <button
                     type="button"
                     disabled={safePage >= totalPages}
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    className="px-3 py-1 rounded-lg border border-neutral-200 disabled:opacity-40 cursor-pointer"
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-medium disabled:opacity-40 cursor-pointer"
                   >
                     Next
                   </button>
@@ -626,20 +631,20 @@ export function AdminPaymentTransactionsManager({
 
         {/* Inline Rejection Reason Box */}
         {rejectingId && (
-          <div className="p-4 bg-red-50/70 rounded-xl border border-red-200 space-y-3">
-            <h4 className="font-bold text-xs text-[#D71920]">Reason for Payment Rejection</h4>
+          <div className="m-4 p-4 bg-red-50/70 rounded-xl border border-red-200 space-y-3">
+            <h4 className="font-semibold text-xs text-red-700">Reason for Payment Rejection</h4>
             <input
               type="text"
               placeholder="e.g. Transaction ID was not found in statement"
               value={rejectReason}
               onChange={e => setRejectReason(e.target.value)}
-              className="w-full px-3.5 py-2 rounded-xl border border-neutral-200 bg-white text-xs text-neutral-900 focus:outline-none focus:border-[#D71920]"
+              className="w-full px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:border-[#D71920]"
             />
             <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setRejectingId(null)}
-                className="px-3.5 py-1.5 bg-white text-xs font-bold rounded-lg border border-neutral-200 cursor-pointer"
+                className="px-3.5 py-1.5 bg-white text-xs font-medium rounded-lg border border-slate-200 cursor-pointer"
               >
                 Cancel
               </button>
@@ -651,7 +656,7 @@ export function AdminPaymentTransactionsManager({
                   await onReviewSubmission(id, 'rejected', rejectReason);
                   setRejectReason('');
                 }}
-                className="px-4 py-1.5 bg-[#D71920] text-white text-xs font-bold rounded-lg cursor-pointer"
+                className="px-4 py-1.5 bg-[#D71920] text-white text-xs font-semibold rounded-lg cursor-pointer"
               >
                 Confirm Rejection
               </button>
@@ -662,14 +667,15 @@ export function AdminPaymentTransactionsManager({
 
       {/* New Payment Modal */}
       {showNewModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-neutral-200 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
-              <h3 className="text-sm font-black text-neutral-900">Record New Payment</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="text-sm font-bold text-slate-900">Record New Payment</h3>
               <button
                 type="button"
                 onClick={() => setShowNewModal(false)}
-                className="p-1.5 rounded-xl hover:bg-neutral-100 text-neutral-500 cursor-pointer"
+                aria-label="Close modal"
+                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 cursor-pointer"
               >
                 <X size={16} />
               </button>
@@ -677,22 +683,22 @@ export function AdminPaymentTransactionsManager({
             <form onSubmit={handleCreatePaymentSubmit} className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-neutral-700 mb-1">Order ID *</label>
+                  <label className="block font-medium text-slate-700 mb-1">Order ID *</label>
                   <input
                     type="text"
                     required
                     value={newOrderId}
                     onChange={e => setNewOrderId(e.target.value)}
                     placeholder="MRB-123456"
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 font-mono"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-neutral-700 mb-1">Gateway *</label>
+                  <label className="block font-medium text-slate-700 mb-1">Gateway *</label>
                   <select
                     value={newProviderName}
                     onChange={e => setNewProviderName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white"
                   >
                     <option value="bKash">bKash</option>
                     <option value="Nagad">Nagad</option>
@@ -704,54 +710,54 @@ export function AdminPaymentTransactionsManager({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-neutral-700 mb-1">Customer Name *</label>
+                  <label className="block font-medium text-slate-700 mb-1">Customer Name *</label>
                   <input
                     type="text"
                     required
                     value={newCustomerName}
                     onChange={e => setNewCustomerName(e.target.value)}
-                    placeholder="Name"
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200"
+                    placeholder="Full name"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-neutral-700 mb-1">Mobile *</label>
+                  <label className="block font-medium text-slate-700 mb-1">Mobile *</label>
                   <input
                     type="tel"
                     required
                     value={newCustomerPhone}
                     onChange={e => setNewCustomerPhone(e.target.value)}
                     placeholder="017XXXXXXXX"
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 font-mono"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-neutral-700 mb-1">TrxID *</label>
+                  <label className="block font-medium text-slate-700 mb-1">TrxID *</label>
                   <input
                     type="text"
                     required
                     value={newTrxId}
                     onChange={e => setNewTrxId(e.target.value)}
                     placeholder="8J2K9901"
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 font-mono"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 font-mono"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-neutral-700 mb-1">Sender Number</label>
+                  <label className="block font-medium text-slate-700 mb-1">Sender Number</label>
                   <input
                     type="text"
                     value={newSenderAcc}
                     onChange={e => setNewSenderAcc(e.target.value)}
                     placeholder="Optional"
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 font-mono"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 font-mono"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-neutral-700 mb-1">Amount (৳) *</label>
+                  <label className="block font-medium text-slate-700 mb-1">Amount (৳) *</label>
                   <input
                     type="number"
                     required
@@ -759,33 +765,33 @@ export function AdminPaymentTransactionsManager({
                     value={newAmount}
                     onChange={e => setNewAmount(e.target.value)}
                     placeholder="500"
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 tabular-nums"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-neutral-700 mb-1">Initial Status</label>
+                  <label className="block font-medium text-slate-700 mb-1">Initial Status</label>
                   <select
                     value={newPayStatus}
                     onChange={e => setNewPayStatus(e.target.value as 'pending_verification' | 'approved')}
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-white"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white"
                   >
-                    <option value="approved">Payment Done</option>
+                    <option value="approved">Verified</option>
                     <option value="pending_verification">Pending Verification</option>
                   </select>
                 </div>
               </div>
-              <div className="flex justify-end gap-2 pt-2 border-t border-neutral-100">
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowNewModal(false)}
-                  className="px-4 py-2 rounded-xl bg-neutral-100 text-neutral-700 font-bold cursor-pointer"
+                  className="px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 font-medium cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={creatingPayment}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2 rounded-lg bg-[#D71920] hover:bg-[#B9151B] text-white font-semibold cursor-pointer disabled:opacity-50"
                 >
                   {creatingPayment ? 'Saving...' : 'Save Payment'}
                 </button>
@@ -797,36 +803,37 @@ export function AdminPaymentTransactionsManager({
 
       {/* Receipt Modal */}
       {receiptRecord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-neutral-200 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
-              <h3 className="text-sm font-black text-neutral-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="text-sm font-bold text-slate-900">
                 Transaction Receipt · #{receiptRecord.orderId}
               </h3>
               <button
                 type="button"
                 onClick={() => setReceiptRecord(null)}
-                className="p-1.5 rounded-xl hover:bg-neutral-100 text-neutral-500 cursor-pointer"
+                aria-label="Close receipt"
+                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 cursor-pointer"
               >
                 <X size={16} />
               </button>
             </div>
-            <div className="space-y-2 text-xs bg-neutral-50 p-4 rounded-2xl border border-neutral-200">
-              <div className="flex justify-between">
-                <span className="text-neutral-500">Customer:</span>
-                <span className="font-bold">{receiptRecord.customerName}</span>
+            <div className="divide-y divide-slate-100 text-xs">
+              <div className="flex justify-between py-2.5">
+                <span className="text-slate-500">Customer</span>
+                <span className="font-semibold text-slate-900">{receiptRecord.customerName}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-500">Gateway:</span>
-                <span className="font-bold">{receiptRecord.providerName}</span>
+              <div className="flex justify-between py-2.5">
+                <span className="text-slate-500">Gateway</span>
+                <span className="font-semibold text-slate-900">{receiptRecord.providerName}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-500">TrxID:</span>
-                <span className="font-mono font-bold text-[#D71920]">{receiptRecord.transactionReference}</span>
+              <div className="flex justify-between py-2.5">
+                <span className="text-slate-500">TrxID</span>
+                <span className="font-mono font-semibold text-slate-900">{receiptRecord.transactionReference}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-500">Amount:</span>
-                <span className="font-black text-emerald-700">৳{receiptRecord.amount.toLocaleString()}</span>
+              <div className="flex justify-between py-2.5">
+                <span className="text-slate-500">Amount</span>
+                <span className="font-bold text-emerald-700 tabular-nums">৳{receiptRecord.amount.toLocaleString()}</span>
               </div>
             </div>
           </div>
