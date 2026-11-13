@@ -524,6 +524,7 @@ export interface AdminStaffMember {
 export interface HomeConfig {
   showReviews: boolean;
   showAuthors: boolean;
+  newArrivalsTitle?: string;
   reviewsSlotReplacement?: 'reviews' | 'trust_features' | 'publishers_spotlight' | 'reading_benefits' | 'off';
   authorsSlotReplacement?: 'writers' | 'publishers_spotlight' | 'bestsellers_showcase' | 'trust_features' | 'reading_benefits' | 'off';
   reviewIconStyle?: 'heart' | 'verified_shield' | 'thumbs_up' | 'check_badge' | 'sparkles' | 'book_love' | 'star';

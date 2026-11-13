@@ -3,12 +3,23 @@ import { HomeConfig, StoreSettings } from '../types';
 export const DEFAULT_HOME_CONFIG: HomeConfig = {
   showReviews: true,
   showAuthors: true,
+  newArrivalsTitle: 'New Arrivals Collection',
   reviewsSlotReplacement: 'reviews',
   authorsSlotReplacement: 'writers',
   reviewIconStyle: 'heart',
   productCardReviewSlotMode: 'green_rating',
   productCardWriterSlotMode: 'writer_name',
 };
+
+export function resolveNewArrivalsTitle(
+  homeConfig?: Partial<HomeConfig> | null
+): string {
+  const raw = homeConfig?.newArrivalsTitle?.trim();
+  if (!raw || raw === 'New Arrivals Collection / নতুন বই কালেকশন') {
+    return DEFAULT_HOME_CONFIG.newArrivalsTitle || 'New Arrivals Collection';
+  }
+  return raw;
+}
 
 /**
  * Resolves a complete `HomeConfig` object by merging the `homeConfig` document
@@ -51,6 +62,7 @@ export function resolveHomeConfig(
   return {
     showReviews,
     showAuthors,
+    newArrivalsTitle: resolveNewArrivalsTitle(rawConfig),
     reviewsSlotReplacement,
     authorsSlotReplacement,
     reviewIconStyle:

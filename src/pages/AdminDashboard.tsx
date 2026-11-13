@@ -9802,6 +9802,49 @@ export function AdminDashboard() {
                       </select>
                     </div>
                   </div>
+
+                  <div className="pt-2 border-t border-neutral-100">
+                    <label className="block text-[10px] font-black uppercase text-neutral-600 mb-1">
+                      New Arrivals Section Heading (Firebase: homeConfig.newArrivalsTitle)
+                    </label>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        data-testid="home-config-new-arrivals-title-input"
+                        defaultValue={homeConfig.newArrivalsTitle || 'New Arrivals Collection'}
+                        key={homeConfig.newArrivalsTitle || 'New Arrivals Collection'}
+                        onBlur={async e => {
+                          const nextVal = e.target.value.trim() || 'New Arrivals Collection';
+                          if (nextVal !== (homeConfig.newArrivalsTitle || 'New Arrivals Collection')) {
+                            await updateHomeConfig({ newArrivalsTitle: nextVal });
+                            setToast({
+                              show: true,
+                              type: 'success',
+                              message: `Updated New Arrivals heading to: ${nextVal}`,
+                            });
+                          }
+                        }}
+                        placeholder="New Arrivals Collection"
+                        className="flex-1 px-3 py-1.5 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-neutral-900"
+                      />
+                      <button
+                        type="button"
+                        onClick={async e => {
+                          const input = e.currentTarget.previousElementSibling as HTMLInputElement | null;
+                          const nextVal = input?.value.trim() || 'New Arrivals Collection';
+                          await updateHomeConfig({ newArrivalsTitle: nextVal });
+                          setToast({
+                            show: true,
+                            type: 'success',
+                            message: `Saved New Arrivals heading: ${nextVal}`,
+                          });
+                        }}
+                        className="px-3.5 py-1.5 rounded-xl bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-bold cursor-pointer shrink-0 transition-colors"
+                      >
+                        Apply Heading
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

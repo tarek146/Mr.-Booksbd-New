@@ -11,6 +11,7 @@ import { buildEnrichedPublishersList } from '../utils/publisherAndDeliveryHelper
 import {
   resolveHomeReviewsSlotMode,
   resolveHomeAuthorsSlotMode,
+  resolveNewArrivalsTitle,
 } from '../utils/homeConfigHelpers';
 import { 
   ArrowRight, 
@@ -166,8 +167,11 @@ export function Home() {
         <div className="flex items-center justify-between mb-3 sm:mb-4 pb-1 border-b border-[#F0F0F0]">
           <div className="flex items-center gap-2">
             <Sparkles size={18} className="text-[#D71920]" />
-            <h2 className="text-lg sm:text-2xl font-black text-[#171717] tracking-tight">
-              New Arrivals Collection / নতুন বই কালেকশন
+            <h2
+              data-testid="home-new-arrivals-heading"
+              className="text-lg sm:text-2xl font-black text-[#171717] tracking-tight"
+            >
+              {resolveNewArrivalsTitle(homeConfig)}
             </h2>
           </div>
           <button 

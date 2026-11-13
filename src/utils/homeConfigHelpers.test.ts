@@ -9,6 +9,7 @@ import {
   resolveHomeAuthorsSlotMode,
   buildSettingsMirrorFromHomeConfig,
   buildHomeConfigMirrorFromSettings,
+  resolveNewArrivalsTitle,
 } from './homeConfigHelpers';
 
 describe('homeConfigHelpers', () => {
@@ -75,5 +76,17 @@ describe('homeConfigHelpers', () => {
     assert.equal(homeConfigMirror.showReviews, true);
     assert.equal(homeConfigMirror.showAuthors, false);
     assert.equal(homeConfigMirror.authorsSlotReplacement, 'off');
+  });
+
+  it('resolves New Arrivals heading cleanly in English without Bengali suffix and allows Admin override', () => {
+    assert.equal(resolveNewArrivalsTitle(undefined), 'New Arrivals Collection');
+    assert.equal(
+      resolveNewArrivalsTitle({ newArrivalsTitle: 'New Arrivals Collection / নতুন বই কালেকশন' }),
+      'New Arrivals Collection'
+    );
+    assert.equal(
+      resolveNewArrivalsTitle({ newArrivalsTitle: 'Latest Releases' }),
+      'Latest Releases'
+    );
   });
 });
