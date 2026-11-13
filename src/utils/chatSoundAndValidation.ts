@@ -1,10 +1,16 @@
 import { CustomerChatSegment, LiveChatMessage, LiveChatSession, Order } from '../types';
 
 export interface PreChatFormInput {
-  customerName: string;
-  customerPhone: string;
-  customerEmail: string;
+  customerName?: string;
+  customerPhone?: string;
+  customerEmail?: string;
   firstMessage: string;
+}
+
+export interface PreChatValidationOptions {
+  requireContactInfo?: boolean;
+  requireEmail?: boolean;
+  defaultGuestName?: string;
 }
 
 export interface PreChatValidationResult {
@@ -15,29 +21,51 @@ export interface PreChatValidationResult {
     email?: string;
     message?: string;
   };
-  cleaned: PreChatFormInput;
+  cleaned: {
+    customerName: string;
+    customerPhone: string;
+    customerEmail: string;
+    firstMessage: string;
+  };
 }
 
-export function validatePreChatForm(input: PreChatFormInput): PreChatValidationResult {
-  const customerName = (input.customerName || '').trim();
+export function validatePreChatForm(
+  input: PreChatFormInput,
+  options: PreChatValidationOptions = {}
+): PreChatValidationResult {
+  const {
+    requireContactInfo = false,
+    requireEmail = false,
+    defaultGuestName = 'Guest Reader',
+  } = options;
+
+  const rawName = (input.customerName || '').trim();
   const customerPhone = (input.customerPhone || '').trim();
   const customerEmail = (input.customerEmail || '').trim();
   const firstMessage = (input.firstMessage || '').trim();
 
   const errors: PreChatValidationResult['errors'] = {};
 
-  if (customerName.length < 2) {
-    errors.name = 'আপনার পুরো নাম লিখুন (কমপক্ষে ২ অক্ষর)।';
+  if (requireContactInfo) {
+    if (rawName.length < 2) {
+      errors.name = 'আপনার নাম লিখুন (কমপক্ষে ২ অক্ষর)।';
+    }
+    const digits = customerPhone.replace(/[^0-9]/g, '');
+    if (digits.length < 10 || digits.length > 15) {
+      errors.phone = 'সঠিক মোবাইল নম্বর দিন (যেমন: 017XXXXXXXX)।';
+    }
+  } else if (customerPhone.length > 0) {
+    const digits = customerPhone.replace(/[^0-9]/g, '');
+    if (digits.length < 6 || digits.length > 15) {
+      errors.phone = 'সঠিক মোবাইল নম্বর দিন অথবা ঘরটি খালি রাখুন।';
+    }
   }
 
-  const digits = customerPhone.replace(/[^0-9]/g, '');
-  if (digits.length < 10 || digits.length > 15) {
-    errors.phone = 'সঠিক মোবাইল নম্বর দিন (যেমন: 017XXXXXXXX)।';
-  }
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-  if (!emailRegex.test(customerEmail)) {
-    errors.email = 'সঠিক ইমেইল অ্যাড্রেস লিখুন (যেমন: name@example.com)।';
+  if (requireEmail || customerEmail.length > 0) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (!emailRegex.test(customerEmail)) {
+      errors.email = 'সঠিক ইমেইল দিন অথবা ঘরটি খালি রাখুন।';
+    }
   }
 
   if (firstMessage.length < 1) {
@@ -48,12 +76,26 @@ export function validatePreChatForm(input: PreChatFormInput): PreChatValidationR
     valid: Object.keys(errors).length === 0,
     errors,
     cleaned: {
-      customerName,
+      customerName: rawName || defaultGuestName,
       customerPhone,
       customerEmail,
       firstMessage,
     },
   };
+}
+
+/**
+ * Resolves the auto-hide delay (in milliseconds) for the floating Live Chat launcher button.
+ * - Default: 4000ms (4 seconds)
+ * - 0 disables auto-hide (stays expanded)
+ * - Non-zero values clamp between 2000ms and 30000ms
+ */
+export function resolveLiveChatAutoHideMs(seconds?: number): number {
+  if (seconds === 0) return 0;
+  const num = Number(seconds);
+  if (!Number.isFinite(num) || num < 0) return 4000;
+  const clampedSeconds = Math.min(30, Math.max(2, num));
+  return clampedSeconds * 1000;
 }
 
 export function mergeLiveChatMessages(

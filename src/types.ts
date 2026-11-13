@@ -402,6 +402,9 @@ export interface StoreSettings {
   liveChatTitle?: string;
   liveChatWelcomeMessage?: string;
   liveChatQuickReplies?: string[];
+  liveChatAutoHideSeconds?: number;
+  liveChatRequireContactInfo?: boolean;
+  liveChatShowEmailField?: boolean;
   // Quick Contact Buttons (Product Detail & Support)
   whatsappNumber?: string;
   callNumber?: string;

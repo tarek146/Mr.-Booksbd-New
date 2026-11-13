@@ -4,20 +4,16 @@ import {
   MessageCircle,
   X,
   Send,
-  Sparkles,
   CheckCheck,
   Phone,
-  Mail,
-  User,
-  ShieldCheck,
-  Headphones,
   Volume2,
   VolumeX,
   RotateCcw,
-  FileText,
+  ChevronLeft,
 } from 'lucide-react';
 import {
   validatePreChatForm,
+  resolveLiveChatAutoHideMs,
   detectNewIncomingMessages,
   unlockChatAudioContext,
   playOutgoingChatChime,
@@ -29,12 +25,12 @@ const QUICK_CHAT_TOPICS = [
   'অর্ডার স্ট্যাটাস জানতে চাই',
   'বইটি কি স্টকে আছে?',
   'ডেলিভারি চার্জ ও সময় কত?',
-  'এক্সচেঞ্জ / রিটার্ন পলিসি',
 ];
 
 export function LiveChatWidget() {
   const {
     settings,
+    isLoading,
     customerChatSession,
     isLiveChatOpen,
     setIsLiveChatOpen,
@@ -44,13 +40,17 @@ export function LiveChatWidget() {
   } = useStore();
 
   const [customerName, setCustomerName] = useState<string>(() => {
-    if (customerChatSession?.customerName) return customerChatSession.customerName;
+    if (customerChatSession?.customerName && customerChatSession.customerName !== 'Guest Reader') {
+      return customerChatSession.customerName;
+    }
     if (typeof window !== 'undefined') {
       try {
         const raw = window.localStorage.getItem('mrb_livechat_profile');
         if (raw) {
           const parsed = JSON.parse(raw) as { customerName?: string };
-          if (parsed.customerName) return parsed.customerName;
+          if (parsed.customerName && parsed.customerName !== 'Guest Reader') {
+            return parsed.customerName;
+          }
         }
       } catch {
         // ignore
@@ -58,6 +58,7 @@ export function LiveChatWidget() {
     }
     return '';
   });
+
   const [customerPhone, setCustomerPhone] = useState<string>(() => {
     if (customerChatSession?.customerPhone) return customerChatSession.customerPhone;
     if (typeof window !== 'undefined') {
@@ -73,21 +74,12 @@ export function LiveChatWidget() {
     }
     return '';
   });
+
   const [customerEmail, setCustomerEmail] = useState<string>(() => {
     if (customerChatSession?.customerEmail) return customerChatSession.customerEmail;
-    if (typeof window !== 'undefined') {
-      try {
-        const raw = window.localStorage.getItem('mrb_livechat_profile');
-        if (raw) {
-          const parsed = JSON.parse(raw) as { customerEmail?: string };
-          if (parsed.customerEmail) return parsed.customerEmail;
-        }
-      } catch {
-        // ignore
-      }
-    }
     return '';
   });
+
   const [firstMessageNote, setFirstMessageNote] = useState<string>('');
   const [formErrors, setFormErrors] = useState<{
     name?: string;
@@ -109,13 +101,66 @@ export function LiveChatWidget() {
     return false;
   });
 
+  // Side slide-out & 3-5s auto-hide state for floating trigger
+  const [isSlideVisible, setIsSlideVisible] = useState<boolean>(false);
+  const [isLauncherExpanded, setIsLauncherExpanded] = useState<boolean>(true);
+  const [isLauncherHovered, setIsLauncherHovered] = useState<boolean>(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevMessagesRef = useRef<LiveChatMessage[] | null>(null);
   const hydratedSessionIdRef = useRef<string | null>(null);
+  const prevUnreadRef = useRef<number>(customerChatSession?.unreadByCustomer || 0);
+  const wasChatOpenRef = useRef<boolean>(isLiveChatOpen);
+
+  const unreadCount = customerChatSession?.unreadByCustomer || 0;
+  const autoHideMs = resolveLiveChatAutoHideMs(settings.liveChatAutoHideSeconds);
+  const requireContactInfo = Boolean(settings.liveChatRequireContactInfo);
+  const showEmailField = Boolean(settings.liveChatShowEmailField);
+
+  // Trigger smooth side slide-in once store finishes initial hydration
+  useEffect(() => {
+    if (isLoading) return;
+    const raf = window.requestAnimationFrame(() => {
+      setIsSlideVisible(true);
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [isLoading]);
+
+  // Re-expand when drawer closes so user sees slide-out before auto-hiding again
+  useEffect(() => {
+    if (wasChatOpenRef.current && !isLiveChatOpen) {
+      setIsLauncherExpanded(true);
+    }
+    wasChatOpenRef.current = isLiveChatOpen;
+  }, [isLiveChatOpen]);
+
+  // Auto-reveal launcher briefly whenever a new Admin reply increases unread count
+  useEffect(() => {
+    if (unreadCount > prevUnreadRef.current && !isLiveChatOpen) {
+      setIsLauncherExpanded(true);
+    }
+    prevUnreadRef.current = unreadCount;
+  }, [unreadCount, isLiveChatOpen]);
+
+  // Auto-hide countdown (default 4s, Admin configurable 3-5s or Off)
+  useEffect(() => {
+    if (isLoading || !isSlideVisible || isLiveChatOpen || !isLauncherExpanded || isLauncherHovered || autoHideMs === 0) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setIsLauncherExpanded(false);
+    }, autoHideMs);
+
+    return () => window.clearTimeout(timer);
+  }, [isLoading, isSlideVisible, isLiveChatOpen, isLauncherExpanded, isLauncherHovered, autoHideMs]);
 
   // Sync saved customer details when Firestore session loads
   useEffect(() => {
-    if (customerChatSession?.customerName && !customerName) {
+    if (
+      customerChatSession?.customerName &&
+      customerChatSession.customerName !== 'Guest Reader' &&
+      !customerName
+    ) {
       setCustomerName(customerChatSession.customerName);
     }
     if (customerChatSession?.customerPhone && !customerPhone) {
@@ -137,7 +182,6 @@ export function LiveChatWidget() {
       return;
     }
 
-    // Skip chime on initial session hydration / page load
     if (hydratedSessionIdRef.current !== currentId || prevMessagesRef.current === null) {
       prevMessagesRef.current = currentMsgs;
       hydratedSessionIdRef.current = currentId;
@@ -162,7 +206,7 @@ export function LiveChatWidget() {
     }
   }, [isLiveChatOpen, customerChatSession?.messages?.length, customerChatSession?.unreadByCustomer]);
 
-  // Unlock Web Audio across touch, pointer, and keyboard gestures so incoming Admin replies always play chime
+  // Unlock Web Audio across touch, pointer, and keyboard gestures
   useEffect(() => {
     const unlock = () => unlockChatAudioContext();
     window.addEventListener('pointerdown', unlock, { passive: true });
@@ -181,7 +225,6 @@ export function LiveChatWidget() {
 
   const messages = customerChatSession?.messages || [];
   const hasStartedChat = messages.some((m) => m.sender === 'customer' || m.sender === 'admin');
-  const unreadCount = customerChatSession?.unreadByCustomer || 0;
   const soundEnabled = settings.enableLiveChatSound !== false && !isMuted;
 
   const toggleMute = () => {
@@ -200,12 +243,19 @@ export function LiveChatWidget() {
   const handlePreChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     unlockChatAudioContext();
-    const check = validatePreChatForm({
-      customerName,
-      customerPhone,
-      customerEmail,
-      firstMessage: firstMessageNote,
-    });
+    const check = validatePreChatForm(
+      {
+        customerName,
+        customerPhone,
+        customerEmail: showEmailField ? customerEmail : '',
+        firstMessage: firstMessageNote,
+      },
+      {
+        requireContactInfo,
+        requireEmail: false,
+        defaultGuestName: 'Guest Reader',
+      }
+    );
 
     if (!check.valid) {
       setFormErrors(check.errors);
@@ -222,7 +272,6 @@ export function LiveChatWidget() {
             JSON.stringify({
               customerName: check.cleaned.customerName,
               customerPhone: check.cleaned.customerPhone,
-              customerEmail: check.cleaned.customerEmail,
             })
           );
         } catch {
@@ -251,9 +300,9 @@ export function LiveChatWidget() {
     try {
       if (soundEnabled) playOutgoingChatChime();
       await sendCustomerChatMessage({
-        customerName: customerName.trim() || customerChatSession?.customerName || 'Reader',
+        customerName: customerName.trim() || customerChatSession?.customerName || 'Guest Reader',
         customerPhone: customerPhone.trim() || customerChatSession?.customerPhone || '',
-        customerEmail: customerEmail.trim() || customerChatSession?.customerEmail || '',
+        customerEmail: showEmailField ? (customerEmail.trim() || customerChatSession?.customerEmail || '') : '',
         text,
       });
     } finally {
@@ -269,74 +318,104 @@ export function LiveChatWidget() {
 
   return (
     <>
-      {/* Sticky Floating Live Chat Trigger Button */}
+      {/* Side Slide-Out Trigger + Auto-Hide Docked Tick Arrow */}
       {!isLiveChatOpen && (
-        <button
-          type="button"
-          data-testid="live-chat-trigger"
-          onClick={() => {
-            unlockChatAudioContext();
-            setIsLiveChatOpen(true);
-          }}
-          aria-label="Open Live Chat Support"
-          className="fixed bottom-18 right-3.5 md:bottom-6 md:right-6 z-40 group flex items-center gap-2 pl-3 pr-3.5 py-2.5 rounded-full bg-gradient-to-r from-[#D71920] to-[#B01218] hover:from-[#B9151B] hover:to-[#940F14] text-white shadow-xl shadow-[#D71920]/30 border border-white/20 transition-all cursor-pointer active:scale-95"
+        <div
+          data-testid="live-chat-dock"
+          onMouseEnter={() => setIsLauncherHovered(true)}
+          onMouseLeave={() => setIsLauncherHovered(false)}
+          className="fixed bottom-20 right-0 md:bottom-6 z-40 pointer-events-none flex items-center"
         >
-          <span className="relative flex items-center justify-center">
-            <MessageCircle size={19} className="group-hover:scale-110 transition-transform" />
-            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#D71920] animate-pulse" />
-          </span>
-          <span className="text-xs font-black tracking-tight">
-            {unreadCount > 0 ? 'নতুন রিপ্লাই!' : 'Live Chat'}
-          </span>
-          {unreadCount > 0 && (
-            <span
-              data-testid="live-chat-unread-badge"
-              className="min-w-[18px] h-[18px] px-1 rounded-full bg-white text-[#D71920] text-[10px] font-black flex items-center justify-center animate-bounce"
+          {/* Expanded Side Slide-Out Launcher Button */}
+          <div
+            className={`mr-3 md:mr-5 transition-all duration-300 ease-out ${
+              isSlideVisible && isLauncherExpanded
+                ? 'translate-x-0 opacity-100 pointer-events-auto'
+                : 'translate-x-[120%] opacity-0 pointer-events-none'
+            }`}
+          >
+            <button
+              type="button"
+              data-testid="live-chat-trigger"
+              onClick={() => {
+                unlockChatAudioContext();
+                setIsLiveChatOpen(true);
+              }}
+              aria-label="Open Live Chat Support"
+              className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-[#D71920] hover:bg-[#B9151B] text-white shadow-lg shadow-black/15 border border-white/15 transition-colors cursor-pointer active:scale-95 whitespace-nowrap"
             >
-              {unreadCount}
-            </span>
-          )}
-        </button>
+              <MessageCircle size={16} strokeWidth={2.2} />
+              <span className="text-xs font-semibold tracking-tight">
+                {unreadCount > 0 ? 'নতুন রিপ্লাই' : 'Live Chat'}
+              </span>
+              {unreadCount > 0 && (
+                <span
+                  data-testid="live-chat-unread-badge"
+                  className="min-w-[17px] h-[17px] px-1 rounded-full bg-white text-[#D71920] text-[10px] font-bold flex items-center justify-center tabular-nums"
+                >
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* Docked Tick Arrow Handle (Visible when Launcher Auto-Hides) */}
+          <button
+            type="button"
+            data-testid="live-chat-reveal-arrow"
+            aria-label="Show Live Chat"
+            title="Live Chat"
+            onClick={() => {
+              unlockChatAudioContext();
+              setIsLauncherExpanded(true);
+            }}
+            className={`absolute right-0 top-1/2 -translate-y-1/2 h-10 w-7 rounded-l-lg bg-white dark:bg-slate-900 border border-r-0 border-neutral-200 dark:border-slate-700 shadow-md flex items-center justify-center text-[#D71920] hover:bg-neutral-50 dark:hover:bg-slate-800 transition-all duration-300 ease-out cursor-pointer ${
+              !isLauncherExpanded
+                ? 'translate-x-0 opacity-100 pointer-events-auto'
+                : 'translate-x-full opacity-0 pointer-events-none'
+            }`}
+          >
+            <ChevronLeft size={16} strokeWidth={2.3} />
+            {unreadCount > 0 && (
+              <span
+                data-testid="live-chat-arrow-unread-dot"
+                className="absolute -top-1 left-0.5 w-2.5 h-2.5 rounded-full bg-[#D71920] border border-white dark:border-slate-900"
+              />
+            )}
+          </button>
+        </div>
       )}
 
-      {/* Interactive Phone-Optimized Live Chat Drawer */}
+      {/* Minimal, Compact Live Chat Drawer */}
       {isLiveChatOpen && (
         <div
           data-testid="live-chat-drawer"
-          className="fixed inset-x-2 bottom-2 sm:inset-auto sm:bottom-6 sm:right-6 z-[70] w-auto sm:w-[390px] bg-white dark:bg-[#101623] rounded-3xl border border-neutral-200 dark:border-slate-700 shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 duration-200 max-h-[88dvh] sm:max-h-[82vh]"
+          className="fixed bottom-[68px] right-3 sm:bottom-5 sm:right-5 z-[70] w-[calc(100vw-24px)] max-w-[330px] sm:w-[330px] bg-white dark:bg-[#111827] rounded-2xl border border-neutral-200 dark:border-slate-700/90 shadow-xl overflow-hidden flex flex-col max-h-[68dvh] sm:max-h-[460px]"
         >
-          {/* Header */}
-          <div className="bg-gradient-to-r from-[#D71920] to-[#9E0F14] text-white px-4 py-3.5 flex items-center justify-between gap-2 shrink-0">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-2xl bg-white/15 border border-white/25 flex items-center justify-center shrink-0">
-                <Headphones size={18} />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <h3 className="font-black text-sm truncate">
-                    {settings.liveChatTitle || 'MR. BOOKS Live Support'}
-                  </h3>
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                </div>
-                <p className="text-[10.5px] text-white/85 font-medium truncate">
-                  {hasStartedChat
-                    ? 'সরাসরি রিয়েল-টাইম কাস্টমার সাপোর্ট চালু আছে'
-                    : 'তথ্য দিয়ে সরাসরি চ্যাট শুরু করুন'}
-                </p>
-              </div>
+          {/* Compact Minimal Header */}
+          <div className="bg-[#D71920] text-white px-3.5 py-2.5 flex items-center justify-between gap-2 shrink-0">
+            <div className="min-w-0">
+              <h3 className="font-semibold text-[13px] tracking-tight truncate">
+                {settings.liveChatTitle || 'MR. BOOKS Support'}
+              </h3>
+              <p className="text-[11px] text-white/85 truncate">
+                {hasStartedChat
+                  ? 'সরাসরি চ্যাট চলছে'
+                  : 'সহজেই আপনার মেসেজটি পাঠান'}
+              </p>
             </div>
 
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-1 shrink-0">
               {settings.enableLiveChatSound !== false && (
                 <button
                   type="button"
                   onClick={toggleMute}
                   data-testid="customer-chat-sound-toggle"
-                  className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-white transition-colors cursor-pointer"
-                  title={soundEnabled ? 'Mute notification sound' : 'Unmute notification sound'}
+                  className="w-7 h-7 rounded-lg hover:bg-white/15 flex items-center justify-center text-white transition-colors cursor-pointer"
+                  title={soundEnabled ? 'Mute sound' : 'Unmute sound'}
                   aria-label={soundEnabled ? 'Mute notification sound' : 'Unmute notification sound'}
                 >
-                  {soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
+                  {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
                 </button>
               )}
 
@@ -345,118 +424,133 @@ export function LiveChatWidget() {
                   type="button"
                   onClick={handleStartFreshChat}
                   data-testid="customer-new-chat-btn"
-                  className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-white transition-colors cursor-pointer"
-                  title="নতুন চ্যাট শুরু করুন"
+                  className="w-7 h-7 rounded-lg hover:bg-white/15 flex items-center justify-center text-white transition-colors cursor-pointer"
+                  title="নতুন চ্যাট"
                   aria-label="Start new chat"
                 >
-                  <RotateCcw size={14} />
+                  <RotateCcw size={13} />
                 </button>
               )}
 
               <button
                 type="button"
                 onClick={() => setIsLiveChatOpen(false)}
-                className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-white transition-colors cursor-pointer"
+                className="w-7 h-7 rounded-lg hover:bg-white/15 flex items-center justify-center text-white transition-colors cursor-pointer"
                 aria-label="Close Live Chat"
               >
-                <X size={16} />
+                <X size={15} />
               </button>
             </div>
           </div>
 
           {!hasStartedChat ? (
-            /* STEP 1: Pre-Chat Customer Info & Message Note Form (Mobile Optimized) */
+            /* STEP 1: Minimal Pre-Chat Form (No Email, Optional Name & Phone, Instant Messaging) */
             <form
               onSubmit={handlePreChatSubmit}
+              noValidate
               data-testid="live-chat-prechat-form"
-              className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-3 bg-neutral-50/60 dark:bg-[#0D1320]"
+              className="flex-1 overflow-y-auto overscroll-contain bg-white dark:bg-[#0D1320]"
             >
-              <div className="rounded-2xl bg-white dark:bg-slate-800/80 border border-neutral-200/80 dark:border-slate-700 p-3 text-xs leading-relaxed text-neutral-700 dark:text-slate-200 shadow-2xs">
-                <span className="text-[10px] font-black text-[#D71920] flex items-center gap-1 mb-0.5">
-                  <Sparkles size={11} /> MR. BOOKS Support
-                </span>
-                <p>
-                  {settings.liveChatWelcomeMessage ||
-                    'আসসালামু আলাইকুম! MR. BOOKS-এ স্বাগতম। চ্যাট শুরু করতে নিচের আপনার নাম, ফোন নম্বর, ইমেইল এবং আপনার মেসেজটি লিখুন।'}
-                </p>
+              {/* Quiet hairline welcome intro */}
+              <div className="px-3.5 py-2.5 border-b border-neutral-100 dark:border-slate-800 text-[11.5px] leading-relaxed text-neutral-600 dark:text-slate-300">
+                {settings.liveChatWelcomeMessage ||
+                  'আসসালামু আলাইকুম! বই, অর্ডার বা ডেলিভারি নিয়ে যেকোনো প্রশ্ন এখানে লিখুন।'}
               </div>
 
-              <div className="space-y-2.5">
-                {/* 1. Name */}
-                <div>
-                  <label className="block text-[11px] font-bold text-neutral-700 dark:text-slate-300 mb-1 flex items-center gap-1">
-                    <User size={12} className="text-[#D71920]" /> আপনার নাম <span className="text-[#D71920]">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    data-testid="prechat-name-input"
-                    value={customerName}
-                    onChange={(e) => {
-                      setCustomerName(e.target.value);
-                      if (formErrors.name) setFormErrors((p) => ({ ...p, name: undefined }));
-                    }}
-                    placeholder="যেমন: ফজলে রাব্বি / Abdullah"
-                    className="w-full min-h-[42px] px-3 py-2 rounded-xl border border-neutral-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-[15px] sm:text-xs font-medium text-neutral-900 dark:text-white focus:outline-none focus:border-[#D71920]"
-                  />
-                  {formErrors.name && (
-                    <p className="text-[11px] font-semibold text-red-600 mt-0.5">{formErrors.name}</p>
-                  )}
+              <div className="p-3.5 space-y-2.5">
+                {/* Optional Name & Phone (Compact 2-Column Row) */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label
+                      htmlFor="livechat-name"
+                      className="block text-[11px] font-medium text-neutral-600 dark:text-slate-400 mb-1"
+                    >
+                      নাম {requireContactInfo ? <span className="text-[#D71920]">*</span> : '(ঐচ্ছিক)'}
+                    </label>
+                    <input
+                      id="livechat-name"
+                      type="text"
+                      required={requireContactInfo}
+                      data-testid="prechat-name-input"
+                      value={customerName}
+                      onChange={(e) => {
+                        setCustomerName(e.target.value);
+                        if (formErrors.name) setFormErrors((p) => ({ ...p, name: undefined }));
+                      }}
+                      placeholder="আপনার নাম"
+                      className="w-full h-9 px-2.5 rounded-lg border border-neutral-200 dark:border-slate-700 bg-neutral-50/70 dark:bg-slate-800/80 text-xs text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:border-[#D71920] focus:bg-white dark:focus:bg-slate-800 transition-colors"
+                    />
+                    {formErrors.name && (
+                      <p className="text-[10.5px] text-red-600 mt-0.5">{formErrors.name}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="livechat-phone"
+                      className="block text-[11px] font-medium text-neutral-600 dark:text-slate-400 mb-1"
+                    >
+                      ফোন {requireContactInfo ? <span className="text-[#D71920]">*</span> : '(ঐচ্ছিক)'}
+                    </label>
+                    <input
+                      id="livechat-phone"
+                      type="tel"
+                      inputMode="tel"
+                      required={requireContactInfo}
+                      data-testid="prechat-phone-input"
+                      value={customerPhone}
+                      onChange={(e) => {
+                        setCustomerPhone(e.target.value);
+                        if (formErrors.phone) setFormErrors((p) => ({ ...p, phone: undefined }));
+                      }}
+                      placeholder="017XXXXXXXX"
+                      className="w-full h-9 px-2.5 rounded-lg border border-neutral-200 dark:border-slate-700 bg-neutral-50/70 dark:bg-slate-800/80 text-xs text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:border-[#D71920] focus:bg-white dark:focus:bg-slate-800 transition-colors"
+                    />
+                    {formErrors.phone && (
+                      <p className="text-[10.5px] text-red-600 mt-0.5">{formErrors.phone}</p>
+                    )}
+                  </div>
                 </div>
 
-                {/* 2. Phone */}
-                <div>
-                  <label className="block text-[11px] font-bold text-neutral-700 dark:text-slate-300 mb-1 flex items-center gap-1">
-                    <Phone size={12} className="text-[#D71920]" /> মোবাইল নম্বর <span className="text-[#D71920]">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    inputMode="tel"
-                    required
-                    data-testid="prechat-phone-input"
-                    value={customerPhone}
-                    onChange={(e) => {
-                      setCustomerPhone(e.target.value);
-                      if (formErrors.phone) setFormErrors((p) => ({ ...p, phone: undefined }));
-                    }}
-                    placeholder="017XXXXXXXX"
-                    className="w-full min-h-[42px] px-3 py-2 rounded-xl border border-neutral-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-[15px] sm:text-xs font-medium text-neutral-900 dark:text-white focus:outline-none focus:border-[#D71920]"
-                  />
-                  {formErrors.phone && (
-                    <p className="text-[11px] font-semibold text-red-600 mt-0.5">{formErrors.phone}</p>
-                  )}
-                </div>
+                {/* Optional Email only if Admin explicitly enables liveChatShowEmailField */}
+                {showEmailField && (
+                  <div>
+                    <label
+                      htmlFor="livechat-email"
+                      className="block text-[11px] font-medium text-neutral-600 dark:text-slate-400 mb-1"
+                    >
+                      ইমেইল (ঐচ্ছিক)
+                    </label>
+                    <input
+                      id="livechat-email"
+                      type="email"
+                      inputMode="email"
+                      data-testid="prechat-email-input"
+                      value={customerEmail}
+                      onChange={(e) => {
+                        setCustomerEmail(e.target.value);
+                        if (formErrors.email) setFormErrors((p) => ({ ...p, email: undefined }));
+                      }}
+                      placeholder="name@example.com"
+                      className="w-full h-9 px-2.5 rounded-lg border border-neutral-200 dark:border-slate-700 bg-neutral-50/70 dark:bg-slate-800/80 text-xs text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:border-[#D71920] focus:bg-white dark:focus:bg-slate-800 transition-colors"
+                    />
+                    {formErrors.email && (
+                      <p className="text-[10.5px] text-red-600 mt-0.5">{formErrors.email}</p>
+                    )}
+                  </div>
+                )}
 
-                {/* 3. Email */}
+                {/* Focused Compact Message Input */}
                 <div>
-                  <label className="block text-[11px] font-bold text-neutral-700 dark:text-slate-300 mb-1 flex items-center gap-1">
-                    <Mail size={12} className="text-[#D71920]" /> ইমেইল অ্যাড্রেস <span className="text-[#D71920]">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    inputMode="email"
-                    required
-                    data-testid="prechat-email-input"
-                    value={customerEmail}
-                    onChange={(e) => {
-                      setCustomerEmail(e.target.value);
-                      if (formErrors.email) setFormErrors((p) => ({ ...p, email: undefined }));
-                    }}
-                    placeholder="example@gmail.com"
-                    className="w-full min-h-[42px] px-3 py-2 rounded-xl border border-neutral-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-[15px] sm:text-xs font-medium text-neutral-900 dark:text-white focus:outline-none focus:border-[#D71920]"
-                  />
-                  {formErrors.email && (
-                    <p className="text-[11px] font-semibold text-red-600 mt-0.5">{formErrors.email}</p>
-                  )}
-                </div>
-
-                {/* 4. Note: Write Your Message */}
-                <div>
-                  <label className="block text-[11px] font-bold text-neutral-700 dark:text-slate-300 mb-1 flex items-center gap-1">
-                    <FileText size={12} className="text-[#D71920]" /> নোট: আপনার মেসেজটি লিখুন <span className="text-[#D71920]">*</span>
+                  <label
+                    htmlFor="livechat-first-message"
+                    className="block text-[11px] font-medium text-neutral-700 dark:text-slate-300 mb-1"
+                  >
+                    মেসেজ
                   </label>
                   <textarea
-                    rows={3}
+                    id="livechat-first-message"
+                    rows={2}
                     required
                     data-testid="prechat-message-input"
                     value={firstMessageNote}
@@ -464,14 +558,14 @@ export function LiveChatWidget() {
                       setFirstMessageNote(e.target.value);
                       if (formErrors.message) setFormErrors((p) => ({ ...p, message: undefined }));
                     }}
-                    placeholder="আপনার মেসেজটি লিখুন... (যেমন: অর্ডার নম্বর বা বইয়ের নাম)"
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-[15px] sm:text-xs font-medium text-neutral-900 dark:text-white focus:outline-none focus:border-[#D71920] resize-none"
+                    placeholder="আপনার প্রশ্ন বা বইয়ের নাম লিখুন..."
+                    className="w-full px-2.5 py-2 rounded-lg border border-neutral-200 dark:border-slate-700 bg-neutral-50/70 dark:bg-slate-800/80 text-xs text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:border-[#D71920] focus:bg-white dark:focus:bg-slate-800 resize-none transition-colors"
                   />
                   {formErrors.message && (
-                    <p className="text-[11px] font-semibold text-red-600 mt-0.5">{formErrors.message}</p>
+                    <p className="text-[10.5px] text-red-600 mt-0.5">{formErrors.message}</p>
                   )}
 
-                  {/* Quick Fill Note Suggestions */}
+                  {/* Minimal Quick Fill Suggestions */}
                   <div className="flex flex-wrap gap-1.5 pt-1.5">
                     {QUICK_CHAT_TOPICS.map((topic) => (
                       <button
@@ -481,62 +575,57 @@ export function LiveChatWidget() {
                           setFirstMessageNote(topic);
                           if (formErrors.message) setFormErrors((p) => ({ ...p, message: undefined }));
                         }}
-                        className="px-2 py-1 rounded-lg bg-[#FFF1F2] dark:bg-[#D71920]/15 text-[#D71920] border border-[#D71920]/25 text-[10.5px] font-bold hover:bg-[#D71920] hover:text-white transition-colors cursor-pointer"
+                        className="px-2 py-1 rounded-md border border-neutral-200 dark:border-slate-700 bg-neutral-50 dark:bg-slate-800/60 text-neutral-600 dark:text-slate-300 text-[10.5px] font-medium hover:border-[#D71920] hover:text-[#D71920] transition-colors cursor-pointer"
                       >
                         {topic}
                       </button>
                     ))}
                   </div>
                 </div>
-              </div>
 
-              <button
-                type="submit"
-                disabled={sending}
-                data-testid="prechat-submit-btn"
-                className="w-full min-h-[44px] py-2.5 px-4 rounded-xl bg-[#D71920] hover:bg-[#B9151B] disabled:opacity-50 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#D71920]/25 transition-all cursor-pointer active:scale-[0.98]"
-              >
-                <Send size={15} />
-                <span>{sending ? 'পাঠানো হচ্ছে...' : 'মেসেজ পাঠান ও চ্যাট শুরু করুন'}</span>
-              </button>
+                <button
+                  type="submit"
+                  disabled={sending}
+                  data-testid="prechat-submit-btn"
+                  className="w-full h-9 px-3 rounded-lg bg-[#D71920] hover:bg-[#B9151B] disabled:opacity-50 text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Send size={13} />
+                  <span>{sending ? 'পাঠানো হচ্ছে...' : 'মেসেজ পাঠান'}</span>
+                </button>
+              </div>
             </form>
           ) : (
-            /* STEP 2: Full Active Real-Time Chat Box (Unlocked after Submitting Pre-Chat Info) */
+            /* STEP 2: Compact Active Real-Time Chat */
             <>
-              {/* Verified Customer Compact Summary Strip */}
-              <div className="px-3.5 py-2 bg-neutral-50 dark:bg-slate-900/80 border-b border-neutral-100 dark:border-slate-800 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] text-neutral-600 dark:text-slate-300 shrink-0">
-                <span className="font-bold text-neutral-900 dark:text-white flex items-center gap-1 truncate max-w-[140px]">
-                  <User size={11} className="text-[#D71920] shrink-0" />
-                  {customerChatSession?.customerName || customerName}
-                </span>
-                {(customerChatSession?.customerPhone || customerPhone) && (
-                  <span className="flex items-center gap-1">
-                    <Phone size={10} className="text-[#D71920]" />
-                    {customerChatSession?.customerPhone || customerPhone}
+              {(customerChatSession?.customerName || customerName || customerChatSession?.customerPhone || customerPhone) && (
+                <div className="px-3.5 py-1.5 bg-neutral-50 dark:bg-slate-900/70 border-b border-neutral-100 dark:border-slate-800 flex items-center gap-1.5 text-[11px] text-neutral-600 dark:text-slate-300 shrink-0 truncate">
+                  <span className="font-medium text-neutral-800 dark:text-slate-100 truncate">
+                    {customerChatSession?.customerName || customerName || 'Guest Reader'}
                   </span>
-                )}
-                {(customerChatSession?.customerEmail || customerEmail) && (
-                  <span className="flex items-center gap-1 truncate max-w-[160px]">
-                    <Mail size={10} className="text-[#D71920] shrink-0" />
-                    {customerChatSession?.customerEmail || customerEmail}
-                  </span>
-                )}
-              </div>
+                  {(customerChatSession?.customerPhone || customerPhone) && (
+                    <>
+                      <span aria-hidden="true" className="text-neutral-300 dark:text-slate-600">·</span>
+                      <span className="tabular-nums truncate">
+                        {customerChatSession?.customerPhone || customerPhone}
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
 
               {/* Scrollable Messages Feed */}
               <div
                 data-testid="live-chat-messages-feed"
-                className="flex-1 overflow-y-auto overscroll-contain p-3.5 space-y-2.5 min-h-[240px] sm:min-h-[280px] max-h-[52dvh] sm:max-h-[360px] bg-white dark:bg-[#0D1320]"
+                className="flex-1 overflow-y-auto overscroll-contain p-3 space-y-2 min-h-[180px] max-h-[260px] bg-white dark:bg-[#0D1320]"
               >
-                {/* Welcome Bubble */}
                 <div className="flex justify-start">
-                  <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-neutral-100 dark:bg-slate-800 text-neutral-800 dark:text-slate-100 px-3.5 py-2.5 text-xs leading-relaxed border border-neutral-200/70 dark:border-slate-700">
-                    <span className="text-[10px] font-black text-[#D71920] flex items-center gap-1 mb-0.5">
-                      <Sparkles size={10} /> MR. BOOKS Support
+                  <div className="max-w-[86%] rounded-xl rounded-tl-xs bg-neutral-100 dark:bg-slate-800 text-neutral-700 dark:text-slate-200 px-3 py-2 text-xs leading-relaxed border border-neutral-200/70 dark:border-slate-700">
+                    <span className="text-[10px] font-semibold text-[#D71920] block mb-0.5">
+                      MR. BOOKS Support
                     </span>
                     <p>
                       {settings.liveChatWelcomeMessage ||
-                        'আসসালামু আলাইকুম! MR. BOOKS-এ স্বাগতম। বইয়ের অর্ডার, ডেলিভারি বা কুপন সম্পর্কে যেকোনো প্রশ্ন করতে পারেন।'}
+                        'আসসালামু আলাইকুম! বই, অর্ডার বা ডেলিভারি নিয়ে যেকোনো প্রশ্ন এখানে লিখুন।'}
                     </p>
                   </div>
                 </div>
@@ -551,21 +640,21 @@ export function LiveChatWidget() {
                         className={`flex ${isCustomer ? 'justify-end' : 'justify-start'}`}
                       >
                         <div
-                          className={`max-w-[82%] rounded-2xl px-3.5 py-2 text-xs leading-relaxed shadow-2xs ${
+                          className={`max-w-[84%] rounded-xl px-3 py-1.5 text-xs leading-relaxed ${
                             isCustomer
-                              ? 'rounded-tr-sm bg-[#D71920] text-white'
-                              : 'rounded-tl-sm bg-emerald-50 dark:bg-emerald-950/60 text-emerald-950 dark:text-emerald-100 border border-emerald-200 dark:border-emerald-800'
+                              ? 'rounded-tr-xs bg-[#D71920] text-white'
+                              : 'rounded-tl-xs bg-neutral-100 dark:bg-slate-800 text-neutral-900 dark:text-slate-100 border border-neutral-200/80 dark:border-slate-700'
                           }`}
                         >
                           {!isCustomer && (
-                            <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-300 block mb-0.5">
-                              {msg.senderName || 'MR. BOOKS Support'}
+                            <span className="text-[10px] font-semibold text-[#D71920] dark:text-rose-400 block mb-0.5">
+                              {msg.senderName || 'Support'}
                             </span>
                           )}
                           <p className="whitespace-pre-line">{msg.text}</p>
                           <div
-                            className={`text-[9px] mt-1 flex items-center justify-end gap-1 ${
-                              isCustomer ? 'text-white/75' : 'text-emerald-700/70 dark:text-emerald-300/70'
+                            className={`text-[9px] mt-0.5 flex items-center justify-end gap-1 tabular-nums ${
+                              isCustomer ? 'text-white/75' : 'text-neutral-400 dark:text-slate-400'
                             }`}
                           >
                             <span>
@@ -584,48 +673,44 @@ export function LiveChatWidget() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Sticky Bottom Message Composer */}
-              <div className="p-3 border-t border-neutral-100 dark:border-slate-800 bg-neutral-50/90 dark:bg-slate-900/90 space-y-2 shrink-0">
+              {/* Compact Bottom Composer */}
+              <div className="p-2.5 border-t border-neutral-100 dark:border-slate-800 bg-neutral-50/70 dark:bg-slate-900/90 space-y-1.5 shrink-0">
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
                     void handleSendFollowup();
                   }}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-1.5"
                 >
                   <input
                     type="text"
                     data-testid="live-chat-input"
                     value={messageInput}
                     onChange={(e) => setMessageInput(e.target.value)}
-                    placeholder="আপনার মেসেজ লিখুন..."
-                    className="flex-1 min-h-[42px] px-3.5 py-2 rounded-xl border border-neutral-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[15px] sm:text-xs font-medium text-neutral-900 dark:text-white focus:outline-none focus:border-[#D71920]"
+                    placeholder="মেসেজ লিখুন..."
+                    className="flex-1 h-9 px-3 rounded-lg border border-neutral-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-neutral-900 dark:text-white focus:outline-none focus:border-[#D71920]"
                   />
                   <button
                     type="submit"
                     disabled={!messageInput.trim() || sending}
                     data-testid="live-chat-send-btn"
-                    className="w-10 h-10 rounded-xl bg-[#D71920] hover:bg-[#B9151B] disabled:opacity-40 text-white flex items-center justify-center shrink-0 transition-all cursor-pointer active:scale-95"
+                    className="w-9 h-9 rounded-lg bg-[#D71920] hover:bg-[#B9151B] disabled:opacity-40 text-white flex items-center justify-center shrink-0 transition-colors cursor-pointer"
                     aria-label="Send chat message"
                   >
-                    <Send size={16} />
+                    <Send size={14} />
                   </button>
                 </form>
 
-                <div className="flex items-center justify-between text-[10px] text-neutral-500 dark:text-slate-400 px-1">
-                  <span className="flex items-center gap-1">
-                    <ShieldCheck size={11} className="text-emerald-600" />
-                    Real-time synced with Support
-                  </span>
-                  {settings.phone && (
+                {settings.phone && (
+                  <div className="flex items-center justify-end px-0.5">
                     <a
                       href={`tel:${settings.phone.replace(/\s+/g, '')}`}
-                      className="font-bold text-[#D71920] hover:underline flex items-center gap-1"
+                      className="text-[10.5px] font-medium text-neutral-500 hover:text-[#D71920] dark:text-slate-400 inline-flex items-center gap-1"
                     >
-                      <Phone size={10} /> Call Support
+                      <Phone size={10} /> সরাসরি কল: {settings.phone}
                     </a>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </>
           )}

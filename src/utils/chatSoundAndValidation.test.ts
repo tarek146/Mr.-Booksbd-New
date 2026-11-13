@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   validatePreChatForm,
+  resolveLiveChatAutoHideMs,
   mergeLiveChatMessages,
   detectNewIncomingMessages,
   detectAdminNewCustomerActivity,
@@ -12,28 +13,56 @@ import {
 } from './chatSoundAndValidation';
 import { LiveChatMessage, LiveChatSession, Order } from '../types';
 
-test('validatePreChatForm requires Name, Phone, Email, and Message Note', () => {
-  const invalid = validatePreChatForm({
-    customerName: 'A',
-    customerPhone: '123',
-    customerEmail: 'bad-email',
+test('validatePreChatForm makes Name & Phone optional and allows instant messaging without Email', () => {
+  // Missing message is still rejected
+  const emptyMessage = validatePreChatForm({
+    customerName: '',
+    customerPhone: '',
+    customerEmail: '',
     firstMessage: '   ',
   });
-  assert.equal(invalid.valid, false);
-  assert.ok(invalid.errors.name);
-  assert.ok(invalid.errors.phone);
-  assert.ok(invalid.errors.email);
-  assert.ok(invalid.errors.message);
+  assert.equal(emptyMessage.valid, false);
+  assert.equal(emptyMessage.errors.name, undefined);
+  assert.equal(emptyMessage.errors.phone, undefined);
+  assert.equal(emptyMessage.errors.email, undefined);
+  assert.ok(emptyMessage.errors.message);
 
-  const valid = validatePreChatForm({
-    customerName: '  Fazla Rabbi  ',
-    customerPhone: '01712345678',
-    customerEmail: 'fazla@example.com',
+  // Easy instant chat: message only, no name, no phone, no email
+  const messageOnly = validatePreChatForm({
     firstMessage: 'অর্ডার স্ট্যাটাস জানতে চাই',
   });
-  assert.equal(valid.valid, true);
-  assert.deepEqual(valid.errors, {});
-  assert.equal(valid.cleaned.customerName, 'Fazla Rabbi');
+  assert.equal(messageOnly.valid, true);
+  assert.deepEqual(messageOnly.errors, {});
+  assert.equal(messageOnly.cleaned.customerName, 'Guest Reader');
+  assert.equal(messageOnly.cleaned.customerPhone, '');
+  assert.equal(messageOnly.cleaned.customerEmail, '');
+
+  // Optional name/phone provided passes cleanly
+  const withContact = validatePreChatForm({
+    customerName: '  Fazla Rabbi  ',
+    customerPhone: '01712345678',
+    firstMessage: 'বইটি স্টকে আছে?',
+  });
+  assert.equal(withContact.valid, true);
+  assert.equal(withContact.cleaned.customerName, 'Fazla Rabbi');
+  assert.equal(withContact.cleaned.customerPhone, '01712345678');
+
+  // Strict mode (if Admin turns on Require Name & Phone) still works
+  const strictFail = validatePreChatForm(
+    { customerName: 'A', customerPhone: '123', firstMessage: 'Hi' },
+    { requireContactInfo: true }
+  );
+  assert.equal(strictFail.valid, false);
+  assert.ok(strictFail.errors.name);
+  assert.ok(strictFail.errors.phone);
+});
+
+test('resolveLiveChatAutoHideMs resolves 3-5s defaults and disable state accurately', () => {
+  assert.equal(resolveLiveChatAutoHideMs(undefined), 4000);
+  assert.equal(resolveLiveChatAutoHideMs(3), 3000);
+  assert.equal(resolveLiveChatAutoHideMs(5), 5000);
+  assert.equal(resolveLiveChatAutoHideMs(0), 0);
+  assert.equal(resolveLiveChatAutoHideMs(1), 2000);
 });
 
 test('mergeLiveChatMessages dedupes by id and preserves chronological order across concurrent customer & admin writes', () => {

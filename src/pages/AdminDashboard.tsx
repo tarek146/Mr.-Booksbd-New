@@ -11143,6 +11143,64 @@ export function AdminDashboard() {
                           />
                         </div>
                       </div>
+                      <div className="grid grid-cols-1 gap-2 pt-1">
+                        <div>
+                          <label className="block font-bold text-neutral-600 mb-1 text-[10px] uppercase">
+                            Auto-Hide Launcher Timer
+                          </label>
+                          <select
+                            data-testid="admin-livechat-autohide-select"
+                            value={String(settingsForm.liveChatAutoHideSeconds ?? 4)}
+                            onChange={e =>
+                              setSettingsForm(prev => ({
+                                ...prev,
+                                liveChatAutoHideSeconds: Number(e.target.value),
+                              }))
+                            }
+                            className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-300 bg-white font-semibold text-xs"
+                          >
+                            <option value="3">3 Seconds</option>
+                            <option value="4">4 Seconds (Default)</option>
+                            <option value="5">5 Seconds</option>
+                            <option value="0">Off (Always Visible)</option>
+                          </select>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <label className="flex items-center gap-2 px-2.5 py-2 rounded-lg border border-neutral-200 bg-white font-semibold text-neutral-800 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              data-testid="admin-livechat-require-contact-checkbox"
+                              checked={Boolean(settingsForm.liveChatRequireContactInfo)}
+                              onChange={e =>
+                                setSettingsForm(prev => ({
+                                  ...prev,
+                                  liveChatRequireContactInfo: e.target.checked,
+                                }))
+                              }
+                              className="w-3.5 h-3.5 accent-[#D71920] shrink-0"
+                            />
+                            <span className="text-[11px] whitespace-nowrap">Require Name &amp; Phone</span>
+                          </label>
+
+                          <label className="flex items-center gap-2 px-2.5 py-2 rounded-lg border border-neutral-200 bg-white font-semibold text-neutral-800 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              data-testid="admin-livechat-show-email-checkbox"
+                              checked={Boolean(settingsForm.liveChatShowEmailField)}
+                              onChange={e =>
+                                setSettingsForm(prev => ({
+                                  ...prev,
+                                  liveChatShowEmailField: e.target.checked,
+                                }))
+                              }
+                              className="w-3.5 h-3.5 accent-[#D71920] shrink-0"
+                            />
+                            <span className="text-[11px] whitespace-nowrap">Show Email Field</span>
+                          </label>
+                        </div>
+                      </div>
+
                       <div>
                         <label className="block font-bold text-neutral-600 mb-1 text-[10px] uppercase">
                           Quick Canned Replies (এক লাইনে একটি করে দ্রুত উত্তর লিখুন)
