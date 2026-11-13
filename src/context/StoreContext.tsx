@@ -707,6 +707,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     showSundarbanOnCheckout: true,
     hubDeliveryLabel: 'Standard Hub Delivery / Point Delivery',
     hubDeliverySubtitle: 'Courier hub or point pickup · Advance payment',
+    codPaymentIconUrl: '',
+    onlinePaymentIconUrl: '',
     sundarbanForcesPrepayment: true,
     extraWeightChargePerKg: 20,
     deliveryNote: 'Standard Hub Delivery / Point Delivery orders require advance online payment.',

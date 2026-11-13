@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
-import { PaymentInstructions, PaymentBrandIcon } from '../components/PaymentInstructions';
+import {
+  PaymentInstructions,
+  CheckoutCodPaymentIcon,
+  CheckoutOnlinePaymentIcon,
+} from '../components/PaymentInstructions';
 import {
   validateBangladeshPhone,
   sortPaymentMethods,
@@ -1046,8 +1050,11 @@ export function CheckoutPage() {
                         : 'border-neutral-200 dark:border-slate-700 bg-white dark:bg-[#121722] hover:border-neutral-300'
                     }`}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <PaymentBrandIcon method={codMethod} size="sm" />
+                    <div className="flex items-center gap-3 min-w-0">
+                      <CheckoutCodPaymentIcon
+                        customIconUrl={settings.codPaymentIconUrl}
+                        isSelected={!isOnlineSelected}
+                      />
                       <div className="min-w-0">
                         <div className="font-semibold text-xs sm:text-sm text-neutral-900 dark:text-white leading-tight">
                           Cash on Delivery
@@ -1084,8 +1091,11 @@ export function CheckoutPage() {
                         : 'border-neutral-200 dark:border-slate-700 bg-white dark:bg-[#121722] hover:border-neutral-300'
                     }`}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <PaymentBrandIcon method={activeOnlineMethod} size="sm" />
+                    <div className="flex items-center gap-3 min-w-0">
+                      <CheckoutOnlinePaymentIcon
+                        customIconUrl={settings.onlinePaymentIconUrl}
+                        isSelected={isOnlineSelected}
+                      />
                       <div className="min-w-0">
                         <div className="font-semibold text-xs sm:text-sm text-neutral-900 dark:text-white leading-tight">
                           Online Payment

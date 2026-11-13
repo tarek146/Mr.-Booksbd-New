@@ -11460,6 +11460,32 @@ export function AdminDashboard() {
                             className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-[#171717] font-bold text-xs"
                           />
                         </div>
+
+                        <div>
+                          <label className="block font-bold uppercase text-[#5F6368] mb-1 text-[11px]">
+                            Cash on Delivery Icon URL (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            value={settingsForm.codPaymentIconUrl ?? ''}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, codPaymentIconUrl: e.target.value }))}
+                            placeholder="Leave blank for built-in Cash on Delivery vector icon"
+                            className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-[#171717] font-medium text-xs"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block font-bold uppercase text-[#5F6368] mb-1 text-[11px]">
+                            Online Payment Icon URL (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            value={settingsForm.onlinePaymentIconUrl ?? ''}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, onlinePaymentIconUrl: e.target.value }))}
+                            placeholder="Leave blank for built-in Online Payment vector icon"
+                            className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-[#171717] font-medium text-xs"
+                          />
+                        </div>
                       </div>
 
                       <div className="flex flex-wrap items-center gap-4 pt-1">

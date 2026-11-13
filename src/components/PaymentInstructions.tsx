@@ -220,6 +220,196 @@ function generateFallbackPaymentQrDataUrl(
   }
 }
 
+export function CheckoutCodPaymentIcon({
+  customIconUrl,
+  isSelected = false,
+}: {
+  customIconUrl?: string;
+  isSelected?: boolean;
+}) {
+  const [imgError, setImgError] = useState(false);
+  const cleanUrl = (customIconUrl || '').trim();
+
+  useEffect(() => {
+    setImgError(false);
+  }, [cleanUrl]);
+
+  if (cleanUrl && !imgError) {
+    return (
+      <div
+        data-testid="checkout-cod-icon"
+        className={`w-10 h-10 rounded-xl border p-1.5 flex items-center justify-center shrink-0 overflow-hidden transition-colors ${
+          isSelected
+            ? 'bg-white border-emerald-300 shadow-2xs'
+            : 'bg-emerald-50/70 border-emerald-200/80'
+        }`}
+      >
+        <img
+          src={cleanUrl}
+          alt="Cash on Delivery"
+          onError={() => setImgError(true)}
+          className="w-full h-full object-contain"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      data-testid="checkout-cod-icon"
+      className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 transition-colors ${
+        isSelected
+          ? 'bg-emerald-50 border-emerald-300 text-emerald-700 shadow-2xs'
+          : 'bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-200/80 dark:border-emerald-800/60 text-emerald-600 dark:text-emerald-400'
+      }`}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        className="w-5 h-5"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        {/* Stacked back banknote */}
+        <path
+          d="M5 6V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-1"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity="0.45"
+        />
+        {/* Primary banknote */}
+        <rect
+          x="2"
+          y="7"
+          width="17"
+          height="11"
+          rx="2.2"
+          fill="currentColor"
+          fillOpacity="0.12"
+          stroke="currentColor"
+          strokeWidth="1.85"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {/* Center currency emblem */}
+        <circle
+          cx="10.5"
+          cy="12.5"
+          r="2.4"
+          stroke="currentColor"
+          strokeWidth="1.75"
+        />
+        {/* Crisp corner bill accents */}
+        <path
+          d="M5 10.5v4M16 10.5v4"
+          stroke="currentColor"
+          strokeWidth="1.65"
+          strokeLinecap="round"
+        />
+      </svg>
+    </div>
+  );
+}
+
+export function CheckoutOnlinePaymentIcon({
+  customIconUrl,
+  isSelected = false,
+}: {
+  customIconUrl?: string;
+  isSelected?: boolean;
+}) {
+  const [imgError, setImgError] = useState(false);
+  const cleanUrl = (customIconUrl || '').trim();
+
+  useEffect(() => {
+    setImgError(false);
+  }, [cleanUrl]);
+
+  if (cleanUrl && !imgError) {
+    return (
+      <div
+        data-testid="checkout-online-icon"
+        className={`w-10 h-10 rounded-xl border p-1.5 flex items-center justify-center shrink-0 overflow-hidden transition-colors ${
+          isSelected
+            ? 'bg-white border-[#D71920]/30 shadow-2xs'
+            : 'bg-[#FFF1F2]/70 border-[#D71920]/20'
+        }`}
+      >
+        <img
+          src={cleanUrl}
+          alt="Online Payment"
+          onError={() => setImgError(true)}
+          className="w-full h-full object-contain"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      data-testid="checkout-online-icon"
+      className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 transition-colors ${
+        isSelected
+          ? 'bg-[#FFF1F2] border-[#D71920]/35 text-[#D71920] shadow-2xs'
+          : 'bg-[#FFF1F2]/75 dark:bg-[#D71920]/15 border-[#D71920]/20 dark:border-[#D71920]/30 text-[#D71920]'
+      }`}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        className="w-5 h-5"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        {/* Digital payment card / mobile wallet body */}
+        <rect
+          x="2"
+          y="4.5"
+          width="17"
+          height="12.5"
+          rx="2.4"
+          fill="currentColor"
+          fillOpacity="0.1"
+          stroke="currentColor"
+          strokeWidth="1.85"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {/* Card header band */}
+        <path
+          d="M2 8.75h17"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+        />
+        {/* Smart chip detail */}
+        <path
+          d="M5.5 12.75h3.5"
+          stroke="currentColor"
+          strokeWidth="1.85"
+          strokeLinecap="round"
+        />
+        {/* Instant verified payment badge */}
+        <circle
+          cx="17.5"
+          cy="16.5"
+          r="4.2"
+          className="fill-white dark:fill-[#121722]"
+          stroke="currentColor"
+          strokeWidth="1.75"
+        />
+        <path
+          d="M15.85 16.5l1.15 1.15 2.25-2.3"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </div>
+  );
+}
+
 export function PaymentBrandIcon({
   method,
   size = 'md',
@@ -238,7 +428,7 @@ export function PaymentBrandIcon({
     size === 'lg'
       ? 'w-12 h-12 rounded-2xl'
       : size === 'sm'
-      ? 'w-8 h-8 rounded-lg'
+      ? 'w-9 h-9 rounded-xl'
       : 'w-11 h-11 rounded-xl';
 
   if (meta.customLogoUrl && !imgError) {
@@ -260,26 +450,21 @@ export function PaymentBrandIcon({
     case 'cod':
       return (
         <div
-          className={`${dimClass} bg-white border border-slate-200/80 p-1.5 flex items-center justify-center shrink-0 shadow-2xs`}
+          className={`${dimClass} bg-emerald-50 border border-emerald-200/90 text-emerald-700 flex items-center justify-center shrink-0 shadow-2xs`}
         >
-          <div className="w-full h-full rounded-lg bg-[#00A651] text-white flex flex-col items-center justify-center leading-none">
-            <svg
-              viewBox="0 0 24 24"
-              className={size === 'sm' ? 'w-3.5 h-3.5' : 'w-4 h-4'}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="2" y="6" width="20" height="12" rx="2" />
-              <circle cx="12" cy="12" r="2.5" />
-              <path d="M6 12h.01M18 12h.01" />
-            </svg>
-            <span className="text-[7px] font-black tracking-tighter mt-0.5 uppercase">
-              COD
-            </span>
-          </div>
+          <svg
+            viewBox="0 0 24 24"
+            className={size === 'sm' ? 'w-4 h-4' : 'w-5 h-5'}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.9"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect x="2" y="6" width="20" height="12" rx="2.2" fill="currentColor" fillOpacity="0.12" />
+            <circle cx="12" cy="12" r="2.5" />
+            <path d="M5.5 10v4M18.5 10v4" />
+          </svg>
         </div>
       );
 
