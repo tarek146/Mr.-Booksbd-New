@@ -2281,7 +2281,7 @@ export function AdminDashboard() {
               </div>
               <div className="min-w-0">
                 <div className="font-bold text-sm tracking-tight text-white truncate">
-                  MR. BOOKS
+                  MR. BOOKS BD
                 </div>
                 <div className="text-[11px] text-slate-400 truncate">
                   Store Admin Console
