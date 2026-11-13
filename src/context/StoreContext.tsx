@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { 
   Product, 
   CartItem, 
@@ -38,7 +38,12 @@ import {
   resolveActiveCoupons,
   calculateCheckoutPricing,
 } from '../utils/storeEnhancementsHelpers';
-import { DEFAULT_PUBLISHERS_LIST } from '../utils/publisherAndDeliveryHelpers';
+import {
+  DEFAULT_PUBLISHERS_LIST,
+  buildSyncedAuthorsAndPublishers,
+  countBooksForAuthor,
+  countBooksForPublisher,
+} from '../utils/publisherAndDeliveryHelpers';
 import {
   initFacebookBrowserPixel,
   trackFacebookConversionEvent,
@@ -382,6 +387,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [publishers, setPublishers] = useState<Publisher[]>(() =>
     readCachedSlice('publishers', DEFAULT_PUBLISHERS_LIST)
   );
+  const productsRef = useRef<Product[]>(products);
+  const authorsRef = useRef<Author[]>(authors);
+  const publishersRef = useRef<Publisher[]>(publishers);
+  useEffect(() => {
+    productsRef.current = products;
+  }, [products]);
+  useEffect(() => {
+    authorsRef.current = authors;
+  }, [authors]);
+  useEffect(() => {
+    publishersRef.current = publishers;
+  }, [publishers]);
   const [banners, setBanners] = useState<Banner[]>(() =>
     readCachedSlice('banners', DEFAULT_BANNERS)
   );
@@ -1936,6 +1953,57 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     } : o));
   };
 
+  const syncPublishersToSettingsDoc = async (nextList: Publisher[]) => {
+    try {
+      await setDoc(
+        doc(db, 'settings', 'publishers_directory'),
+        cleanForFirestore({ items: nextList, updatedAt: Date.now() }),
+        { merge: true }
+      );
+    } catch (err) {
+      console.warn('Publishers settings doc sync notice:', err);
+    }
+  };
+
+  const syncAuthorAndPublisherCounts = async (
+    nextProducts: Product[],
+    targetAuthorName?: string,
+    targetPublisherName?: string
+  ) => {
+    const syncRes = buildSyncedAuthorsAndPublishers({
+      nextProducts,
+      currentAuthors: authorsRef.current,
+      currentPublishers: publishersRef.current,
+      targetAuthorName,
+      targetPublisherName,
+    });
+
+    if (syncRes.updatedAuthors.length > 0 || syncRes.createdAuthors.length > 0) {
+      authorsRef.current = syncRes.nextAuthors;
+      setAuthors(syncRes.nextAuthors);
+      for (const a of [...syncRes.updatedAuthors, ...syncRes.createdAuthors]) {
+        try {
+          await setDoc(doc(db, 'authors', a.id), cleanForFirestore(a), { merge: true });
+        } catch (err) {
+          console.warn('Author count sync notice:', err);
+        }
+      }
+    }
+
+    if (syncRes.publishersChanged) {
+      publishersRef.current = syncRes.nextPublishers;
+      setPublishers(syncRes.nextPublishers);
+      for (const p of [...syncRes.updatedPublishers, ...syncRes.createdPublishers]) {
+        try {
+          await setDoc(doc(db, 'publishers', p.id), cleanForFirestore(p), { merge: true });
+        } catch (err) {
+          console.warn('Primary publishers count sync notice:', err);
+        }
+      }
+      await syncPublishersToSettingsDoc(syncRes.nextPublishers);
+    }
+  };
+
   const addProduct = async (productData: Omit<Product, 'id' | 'createdAt'>) => {
     const id = 'prod-' + Date.now() + '-' + Math.random().toString(36).substring(2, 8);
     const newProd: Product = {
@@ -1951,10 +2019,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       console.error('Firestore add product error:', err);
       throw err;
     }
-    setProducts(prev => [newProd, ...prev.filter(p => p.id !== id)]);
+    const nextProducts = [newProd, ...productsRef.current.filter(p => p.id !== id)];
+    productsRef.current = nextProducts;
+    setProducts(nextProducts);
+    if (newProd.type === 'book') {
+      await syncAuthorAndPublisherCounts(nextProducts, newProd.author, newProd.publisher);
+    }
   };
 
   const updateProduct = async (id: string, data: Partial<Product>) => {
+    const prevProduct = productsRef.current.find(p => p.id === id);
     try {
       const cleaned = cleanForFirestore(data);
       await setDoc(doc(db, 'products', id), cleaned, { merge: true });
@@ -1963,10 +2037,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       console.error('Firestore update product error:', err);
       throw err;
     }
-    setProducts(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
+    const nextProducts = productsRef.current.map(p => p.id === id ? { ...p, ...data } : p);
+    productsRef.current = nextProducts;
+    setProducts(nextProducts);
+    const updatedItem = nextProducts.find(p => p.id === id);
+    if (updatedItem?.type === 'book' || prevProduct?.type === 'book') {
+      await syncAuthorAndPublisherCounts(
+        nextProducts,
+        updatedItem?.type === 'book' ? updatedItem.author : undefined,
+        updatedItem?.type === 'book' ? updatedItem.publisher : undefined
+      );
+    }
   };
 
   const deleteProduct = async (id: string) => {
+    const prevProduct = productsRef.current.find(p => p.id === id);
     try {
       await deleteDoc(doc(db, 'products', id));
       await logAdminAction('product_deleted', id, `Deleted product id: ${id}`);
@@ -1974,7 +2059,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       console.error('Firestore delete product error:', err);
       throw err;
     }
-    setProducts(prev => prev.filter(p => p.id !== id));
+    const nextProducts = productsRef.current.filter(p => p.id !== id);
+    productsRef.current = nextProducts;
+    setProducts(nextProducts);
+    if (prevProduct?.type === 'book') {
+      await syncAuthorAndPublisherCounts(nextProducts);
+    }
   };
 
   const addPaymentMethod = async (method: PaymentMethodConfig) => {
@@ -2076,27 +2166,37 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addAuthor = async (author: Author) => {
+    const autoCount = countBooksForAuthor(author, productsRef.current);
+    const syncedAuthor: Author = { ...author, booksCount: autoCount };
     try {
-      const cleaned = cleanForFirestore(author);
-      await setDoc(doc(db, 'authors', author.id), cleaned);
-      await logAdminAction('author_created', author.id, `Added author: ${author.name}`);
+      const cleaned = cleanForFirestore(syncedAuthor);
+      await setDoc(doc(db, 'authors', syncedAuthor.id), cleaned);
+      await logAdminAction('author_created', syncedAuthor.id, `Added author: ${syncedAuthor.name}`);
     } catch (err) {
       console.error('Firestore add author error:', err);
       throw err;
     }
-    setAuthors(prev => [...prev.filter(a => a.id !== author.id), author]);
+    const nextAuthors = [...authorsRef.current.filter(a => a.id !== syncedAuthor.id), syncedAuthor];
+    authorsRef.current = nextAuthors;
+    setAuthors(nextAuthors);
   };
 
   const updateAuthor = async (id: string, data: Partial<Author>) => {
+    const existing = authorsRef.current.find(a => a.id === id);
+    const resolvedName = (data.name ?? existing?.name ?? '').trim();
+    const autoCount = countBooksForAuthor({ name: resolvedName }, productsRef.current);
+    const syncedData: Partial<Author> = { ...data, booksCount: autoCount };
     try {
-      const cleaned = cleanForFirestore(data);
+      const cleaned = cleanForFirestore(syncedData);
       await setDoc(doc(db, 'authors', id), cleaned, { merge: true });
       await logAdminAction('author_updated', id, `Updated author: ${id}`);
     } catch (err) {
       console.error('Firestore update author error:', err);
       throw err;
     }
-    setAuthors(prev => prev.map(a => a.id === id ? { ...a, ...data } : a));
+    const nextAuthors = authorsRef.current.map(a => a.id === id ? { ...a, ...syncedData } : a);
+    authorsRef.current = nextAuthors;
+    setAuthors(nextAuthors);
   };
 
   const deleteAuthor = async (id: string) => {
@@ -2107,44 +2207,43 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       console.error('Firestore delete author error:', err);
       throw err;
     }
-    setAuthors(prev => prev.filter(a => a.id !== id));
-  };
-
-  const syncPublishersToSettingsDoc = async (nextList: Publisher[]) => {
-    try {
-      await setDoc(
-        doc(db, 'settings', 'publishers_directory'),
-        cleanForFirestore({ items: nextList, updatedAt: Date.now() }),
-        { merge: true }
-      );
-    } catch (err) {
-      console.warn('Publishers settings doc sync notice:', err);
-    }
+    const nextAuthors = authorsRef.current.filter(a => a.id !== id);
+    authorsRef.current = nextAuthors;
+    setAuthors(nextAuthors);
   };
 
   const addPublisher = async (publisher: Publisher) => {
-    const nextList = [...publishers.filter(p => p.id !== publisher.id), publisher];
+    const autoCount = countBooksForPublisher(publisher, productsRef.current);
+    const syncedPublisher: Publisher = { ...publisher, booksCount: autoCount };
+    const nextList = [...publishersRef.current.filter(p => p.id !== syncedPublisher.id), syncedPublisher];
+    publishersRef.current = nextList;
     setPublishers(nextList);
-    const cleaned = cleanForFirestore(publisher);
+    const cleaned = cleanForFirestore(syncedPublisher);
     let savedToPrimary = false;
     try {
-      await setDoc(doc(db, 'publishers', publisher.id), cleaned);
+      await setDoc(doc(db, 'publishers', syncedPublisher.id), cleaned);
       savedToPrimary = true;
     } catch (err) {
       console.warn('Primary publishers collection write notice, syncing via settings/publishers_directory:', err);
     }
     await syncPublishersToSettingsDoc(nextList);
-    await logAdminAction('publisher_created', publisher.id, `Added publisher: ${publisher.name}`);
+    await logAdminAction('publisher_created', syncedPublisher.id, `Added publisher: ${syncedPublisher.name}`);
     if (!savedToPrimary) {
       // Saved to settings/publishers_directory which is publicly readable & admin-writable
     }
   };
 
   const updatePublisher = async (id: string, data: Partial<Publisher>) => {
-    const nextList = publishers.map(p => (p.id === id ? { ...p, ...data } : p));
+    const existing = publishersRef.current.find(p => p.id === id);
+    const targetName = data.name ?? existing?.name ?? '';
+    const targetBangla = data.banglaName ?? existing?.banglaName ?? '';
+    const autoCount = countBooksForPublisher({ name: targetName, banglaName: targetBangla }, productsRef.current);
+    const syncedData: Partial<Publisher> = { ...data, booksCount: autoCount };
+    const nextList = publishersRef.current.map(p => (p.id === id ? { ...p, ...syncedData } : p));
+    publishersRef.current = nextList;
     setPublishers(nextList);
     try {
-      const cleaned = cleanForFirestore(data);
+      const cleaned = cleanForFirestore(syncedData);
       await setDoc(doc(db, 'publishers', id), cleaned, { merge: true });
     } catch (err) {
       console.warn('Primary publishers collection update notice, syncing via settings/publishers_directory:', err);
@@ -2154,7 +2253,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deletePublisher = async (id: string) => {
-    const nextList = publishers.filter(p => p.id !== id);
+    const nextList = publishersRef.current.filter(p => p.id !== id);
+    publishersRef.current = nextList;
     setPublishers(nextList);
     try {
       await deleteDoc(doc(db, 'publishers', id));

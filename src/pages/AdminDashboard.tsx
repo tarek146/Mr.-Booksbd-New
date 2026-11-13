@@ -72,7 +72,16 @@ import {
 } from 'lucide-react';
 import { BulkProductImportModal } from '../components/BulkProductImportModal';
 import { Product, Author, Publisher, Banner, BookPreviewPage, Order, PaymentMethodConfig, PaymentSubOptionConfig, AdminStaffMember, AdminStaffRole, AdminProfile, Review, LiveChatSession } from '../types';
-import { DEFAULT_PUBLISHERS_LIST, countBooksForPublisher, parseCustomBookDetails, serializeCustomBookDetails } from '../utils/publisherAndDeliveryHelpers';
+import {
+  DEFAULT_PUBLISHERS_LIST,
+  countBooksForAuthor,
+  countBooksForPublisher,
+  buildEnrichedAuthorsList,
+  buildEnrichedPublishersList,
+  resolveAuthorOrPublisherCountPreview,
+  parseCustomBookDetails,
+  serializeCustomBookDetails,
+} from '../utils/publisherAndDeliveryHelpers';
 import { DEFAULT_PAYMENT_METHODS } from '../firebase';
 import { AdminAnalytics } from '../components/admin/AdminAnalytics';
 import { AdminStaffManagement } from '../components/admin/AdminStaffManagement';
@@ -675,6 +684,42 @@ export function AdminDashboard() {
   const [publisherSearchQuery, setPublisherSearchQuery] = useState('');
   const [categorySearchQuery, setCategorySearchQuery] = useState('');
   const [categoryFilterTab, setCategoryFilterTab] = useState<'all' | 'main' | 'sub' | 'child'>('all');
+
+  // Auto-enriched Writers & Publishers + Live post-upload count previews
+  const enrichedAuthors = useMemo(
+    () => buildEnrichedAuthorsList(authors, products),
+    [authors, products]
+  );
+  const enrichedPublishers = useMemo(
+    () => buildEnrichedPublishersList(publishers, products),
+    [publishers, products]
+  );
+  const writerCountPreview = useMemo(
+    () =>
+      resolveAuthorOrPublisherCountPreview({
+        kind: 'author',
+        name: prodAuthor,
+        products,
+        authors,
+        publishers,
+        editingProductId,
+        productType: prodType,
+      }),
+    [prodAuthor, products, authors, publishers, editingProductId, prodType]
+  );
+  const publisherCountPreview = useMemo(
+    () =>
+      resolveAuthorOrPublisherCountPreview({
+        kind: 'publisher',
+        name: prodPublisher,
+        products,
+        authors,
+        publishers,
+        editingProductId,
+        productType: prodType,
+      }),
+    [prodPublisher, products, authors, publishers, editingProductId, prodType]
+  );
 
   // Stats
   const totalRevenue = orders.filter(o => o.paymentStatus === 'approved' && !o.isTrashed).reduce((sum, o) => sum + o.total, 0);
@@ -1588,28 +1633,6 @@ export function AdminDashboard() {
         }
       }
 
-      // Sync publisher book count or auto-register new publisher when saving a book
-      if (prodType === 'book' && prodPublisher.trim()) {
-        const normalizedPub = prodPublisher.trim().toLowerCase();
-        const matchedPub = publishers.find(
-          p =>
-            p.name.trim().toLowerCase() === normalizedPub ||
-            (p.banglaName || '').trim().toLowerCase() === normalizedPub
-        );
-        if (!matchedPub) {
-          await addPublisher({
-            id: 'pub-' + Date.now(),
-            name: prodPublisher.trim(),
-            banglaName: prodPublisher.trim(),
-            description: '',
-            logoUrl: '',
-            booksCount: 1,
-            establishedYear: '',
-            isFeatured: true,
-          });
-        }
-      }
-
       setEditingProductId(null);
       setShowAddProdModal(false);
     } catch (err: any) {
@@ -1719,24 +1742,26 @@ export function AdminDashboard() {
 
   const handleSaveAuthor = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!authorName) return;
+    if (!authorName.trim()) return;
+
+    const autoCount = countBooksForAuthor({ name: authorName.trim() }, products);
 
     try {
       if (editingAuthorId) {
         await updateAuthor(editingAuthorId, {
-          name: authorName,
+          name: authorName.trim(),
           bio: authorBio,
           photoUrl: authorPhoto,
-          booksCount: authorBooksCount
+          booksCount: autoCount
         });
         setToast({ show: true, type: 'success', message: 'Author details updated and synced to Firebase in real-time!' });
       } else {
         await addAuthor({
           id: 'author-' + Date.now(),
-          name: authorName,
+          name: authorName.trim(),
           bio: authorBio,
           photoUrl: authorPhoto,
-          booksCount: authorBooksCount
+          booksCount: autoCount
         });
         setToast({ show: true, type: 'success', message: 'Author created and saved to Firebase in real-time!' });
       }
@@ -1746,7 +1771,7 @@ export function AdminDashboard() {
       setAuthorName('');
       setAuthorBio('');
       setAuthorPhoto('');
-      setAuthorBooksCount(20);
+      setAuthorBooksCount(0);
     } catch (err: any) {
       setToast({ show: true, type: 'error', message: 'Firebase Error: ' + (err.message || 'Failed to save author') });
     }
@@ -5670,7 +5695,7 @@ export function AdminDashboard() {
 
                         {/* Row 1: Writer Selection & Publisher Selection */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                          {/* Writer Selection */}
+                          {/* Writer Selection (with real-time auto book count) */}
                           <div>
                             <div className="flex items-center justify-between mb-1">
                               <label className="block text-[11px] font-bold text-neutral-600 uppercase">
@@ -5695,6 +5720,7 @@ export function AdminDashboard() {
                               />
                             ) : (
                               <select
+                                data-testid="product-writer-select"
                                 value={prodAuthor}
                                 onChange={e => {
                                   if (e.target.value === '__custom__') {
@@ -5706,17 +5732,31 @@ export function AdminDashboard() {
                                 className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs cursor-pointer"
                               >
                                 <option value="">-- Select Writer --</option>
-                                {authors.map(a => (
+                                {enrichedAuthors.map(a => (
                                   <option key={a.id} value={a.name}>
-                                    ✍️ {a.name}
+                                    ✍️ {a.name} — ({a.liveBooksCount} {a.liveBooksCount === 1 ? 'Book' : 'Books'})
                                   </option>
                                 ))}
                                 <option value="__custom__">✏️ + Add Custom Writer...</option>
                               </select>
                             )}
+
+                            {prodAuthor.trim() && (
+                              <div
+                                data-testid="writer-live-book-count"
+                                className="mt-1.5 flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200/80 text-[11px] tabular-nums"
+                              >
+                                <span className="text-slate-600 font-medium">
+                                  Catalog: <strong className="text-slate-900">{writerCountPreview.currentCount} {writerCountPreview.currentCount === 1 ? 'Book' : 'Books'}</strong>
+                                </span>
+                                <span className="text-[#D71920] font-bold">
+                                  {editingProductId ? 'Total after save' : 'After upload'}: {writerCountPreview.projectedCount} {writerCountPreview.projectedCount === 1 ? 'Book' : 'Books'}
+                                </span>
+                              </div>
+                            )}
                           </div>
 
-                          {/* Publisher Selection (Category-style dropdown with auto book count) */}
+                          {/* Publisher Selection (with real-time auto book count) */}
                           <div>
                             <div className="flex items-center justify-between mb-1">
                               <label className="block text-[11px] font-bold text-neutral-600 uppercase">
@@ -5741,6 +5781,7 @@ export function AdminDashboard() {
                               />
                             ) : (
                               <select
+                                data-testid="product-publisher-select"
                                 value={prodPublisher}
                                 onChange={e => {
                                   if (e.target.value === '__custom__') {
@@ -5752,19 +5793,30 @@ export function AdminDashboard() {
                                 className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs cursor-pointer"
                               >
                                 <option value="">-- Select Publisher --</option>
-                                {(publishers.length > 0 ? publishers : DEFAULT_PUBLISHERS_LIST).map(pub => {
-                                  const pubBookCount = countBooksForPublisher(pub, products);
-                                  return (
-                                    <option key={pub.id} value={pub.name}>
-                                      {pub.banglaName && pub.banglaName !== pub.name
-                                        ? `${pub.name} (${pub.banglaName})`
-                                        : pub.name}{' '}
-                                      — ({pubBookCount} {pubBookCount === 1 ? 'Book' : 'Books'})
-                                    </option>
-                                  );
-                                })}
+                                {enrichedPublishers.map(pub => (
+                                  <option key={pub.id} value={pub.name}>
+                                    {pub.banglaName && pub.banglaName !== pub.name
+                                      ? `${pub.name} (${pub.banglaName})`
+                                      : pub.name}{' '}
+                                    — ({pub.liveBooksCount} {pub.liveBooksCount === 1 ? 'Book' : 'Books'})
+                                  </option>
+                                ))}
                                 <option value="__custom__">+ Add Custom Publisher...</option>
                               </select>
+                            )}
+
+                            {prodPublisher.trim() && (
+                              <div
+                                data-testid="publisher-live-book-count"
+                                className="mt-1.5 flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200/80 text-[11px] tabular-nums"
+                              >
+                                <span className="text-slate-600 font-medium">
+                                  Catalog: <strong className="text-slate-900">{publisherCountPreview.currentCount} {publisherCountPreview.currentCount === 1 ? 'Book' : 'Books'}</strong>
+                                </span>
+                                <span className="text-[#D71920] font-bold">
+                                  {editingProductId ? 'Total after save' : 'After upload'}: {publisherCountPreview.projectedCount} {publisherCountPreview.projectedCount === 1 ? 'Book' : 'Books'}
+                                </span>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -6820,15 +6872,20 @@ export function AdminDashboard() {
                             className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                           >
                             <option value="">-- Select Publisher --</option>
-                            {(publishers.length > 0 ? publishers : DEFAULT_PUBLISHERS_LIST).map(pub => {
-                              const pubBookCount = countBooksForPublisher(pub, products);
-                              return (
-                                <option key={pub.id} value={pub.name} className="bg-white text-neutral-900">
-                                  {pub.name} ({pubBookCount} {pubBookCount === 1 ? 'Book' : 'Books'})
-                                </option>
-                              );
-                            })}
+                            {enrichedPublishers.map(pub => (
+                              <option key={pub.id} value={pub.name} className="bg-white text-neutral-900">
+                                {pub.name} ({pub.liveBooksCount} {pub.liveBooksCount === 1 ? 'Book' : 'Books'})
+                              </option>
+                            ))}
                           </select>
+                          {prodPublisher.trim() && (
+                            <p className="mt-1 text-[11px] text-slate-500 font-medium tabular-nums">
+                              Auto-count: {publisherCountPreview.currentCount} in catalog →{' '}
+                              <span className="text-[#D71920] font-bold">
+                                {publisherCountPreview.projectedCount} after {editingProductId ? 'save' : 'upload'}
+                              </span>
+                            </p>
+                          )}
                         </div>
                       )}
 
@@ -8149,7 +8206,7 @@ export function AdminDashboard() {
                     setAuthorName('');
                     setAuthorBio('');
                     setAuthorPhoto('https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&auto=format&fit=crop&q=80');
-                    setAuthorBooksCount(20);
+                    setAuthorBooksCount(0);
                     setShowAddAuthorModal(true);
                   }}
                   className="px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-semibold rounded-lg text-xs flex items-center justify-center gap-1.5 cursor-pointer shrink-0 transition-colors"
@@ -8345,54 +8402,57 @@ export function AdminDashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {authors
                 .filter(author => !authorSearchQuery.trim() || author.name.toLowerCase().includes(authorSearchQuery.toLowerCase()))
-                .map(author => (
-                <div key={author.id} className="p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors flex flex-col justify-between gap-3 group">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-slate-200 bg-slate-50 flex items-center justify-center">
-                      {author.photoUrl ? (
-                        <img 
-                          src={author.photoUrl} 
-                          alt={author.name} 
-                          className="w-full h-full object-cover"
-                          onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-                        />
-                      ) : (
-                        <span className="text-[#D71920] font-bold text-base">{author.name[0]}</span>
-                      )}
-                    </div>
+                .map(author => {
+                  const catalogMatches = countBooksForAuthor(author, products);
+                  return (
+                    <div key={author.id} className="p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors flex flex-col justify-between gap-3 group">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-slate-200 bg-slate-50 flex items-center justify-center">
+                          {author.photoUrl ? (
+                            <img 
+                              src={author.photoUrl} 
+                              alt={author.name} 
+                              className="w-full h-full object-cover"
+                              onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                            />
+                          ) : (
+                            <span className="text-[#D71920] font-bold text-base">{author.name[0]}</span>
+                          )}
+                        </div>
 
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-bold text-sm text-slate-900 truncate">{author.name}</h4>
-                      <p className="text-[11px] font-medium text-slate-500 mt-0.5 tabular-nums">
-                        {author.booksCount || 10}+ Books Published
-                      </p>
-                    </div>
-                  </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-bold text-sm text-slate-900 truncate">{author.name}</h4>
+                          <p className="text-[11px] font-semibold text-[#D71920] mt-0.5 tabular-nums">
+                            {catalogMatches} {catalogMatches === 1 ? 'Book' : 'Books'} Published
+                          </p>
+                        </div>
+                      </div>
 
-                  <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
-                    <button 
-                      onClick={() => {
-                        setEditingAuthorId(author.id);
-                        setAuthorName(author.name);
-                        setAuthorBio(author.bio || '');
-                        setAuthorPhoto(author.photoUrl || '');
-                        setAuthorBooksCount(author.booksCount || 20);
-                        setShowAddAuthorModal(true);
-                      }}
-                      className="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-semibold flex items-center justify-center gap-1 cursor-pointer transition-colors"
-                    >
-                      <Edit2 size={11} /> <span>Edit</span>
-                    </button>
-                    <button 
-                      onClick={() => deleteAuthor(author.id)}
-                      className="py-1.5 px-2.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-[11px] font-semibold flex items-center justify-center cursor-pointer transition-colors"
-                      title="Delete Author"
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                      <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
+                        <button 
+                          onClick={() => {
+                            setEditingAuthorId(author.id);
+                            setAuthorName(author.name);
+                            setAuthorBio(author.bio || '');
+                            setAuthorPhoto(author.photoUrl || '');
+                            setAuthorBooksCount(catalogMatches);
+                            setShowAddAuthorModal(true);
+                          }}
+                          className="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-semibold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <Edit2 size={11} /> <span>Edit</span>
+                        </button>
+                        <button 
+                          onClick={() => deleteAuthor(author.id)}
+                          className="py-1.5 px-2.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-[11px] font-semibold flex items-center justify-center cursor-pointer transition-colors"
+                          title="Delete Author"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
 
             {/* Add / Edit Author Modal */}
@@ -8475,16 +8535,18 @@ export function AdminDashboard() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block font-bold text-[#171717] mb-1 uppercase tracking-wider text-[11px]">Books Count</label>
-                        <input 
-                          type="number" 
-                          min="1"
-                          value={authorBooksCount} 
-                          onChange={e => setAuthorBooksCount(Number(e.target.value))} 
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
-                        />
+                    <div>
+                      <label className="block font-bold text-[#171717] mb-1 uppercase tracking-wider text-[11px]">
+                        Total Books (Auto-Counted)
+                      </label>
+                      <div className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-neutral-100/80 text-[#171717] text-xs font-extrabold flex items-center justify-between tabular-nums">
+                        <span>
+                          {countBooksForAuthor({ name: authorName }, products)}{' '}
+                          {countBooksForAuthor({ name: authorName }, products) === 1 ? 'Book' : 'Books'} in Catalog
+                        </span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FFF1F2] text-[#D71920]">
+                          Auto
+                        </span>
                       </div>
                     </div>
 

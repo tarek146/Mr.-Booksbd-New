@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useStore } from '../context/StoreContext';
 import { ArrowRight, BookOpen, UserCheck, ChevronLeft, ChevronRight, X, Star, ShoppingBag, CheckCircle2 } from 'lucide-react';
 import { Author } from '../types';
+import { countBooksForAuthor } from '../utils/publisherAndDeliveryHelpers';
 
 export function FeaturedAuthorsSection() {
   const { authors, products, setActivePage, setSelectedCategoryFilter, setSearchQuery, addToCart } = useStore();
@@ -120,10 +121,15 @@ export function FeaturedAuthorsSection() {
                       <h3 className="font-bold text-sm text-[#171717] group-hover:text-[#D71920] transition-colors truncate">
                         {author.name}
                       </h3>
-                      <div className="inline-flex items-center gap-1 text-[10px] font-bold text-[#5F6368] bg-[#F7F7F8] px-2 py-0.5 rounded-md border border-[#E5E5E5] mt-1">
-                        <BookOpen size={10} className="text-[#D71920]" />
-                        <span>{author.booksCount || 15}+ Publications</span>
-                      </div>
+                      {(() => {
+                        const liveCount = countBooksForAuthor(author, products);
+                        return (
+                          <div className="inline-flex items-center gap-1 text-[10px] font-bold text-[#5F6368] bg-[#F7F7F8] px-2 py-0.5 rounded-md border border-[#E5E5E5] mt-1 tabular-nums">
+                            <BookOpen size={10} className="text-[#D71920]" />
+                            <span>{liveCount} {liveCount === 1 ? 'Book' : 'Books'}</span>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
 
@@ -195,9 +201,14 @@ export function FeaturedAuthorsSection() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-xs text-neutral-600 font-semibold">
-                    <span className="inline-flex items-center gap-1 text-[#D71920]">
-                      <BookOpen size={13} /> {selectedModalAuthor.booksCount || 15}+ Published Books
-                    </span>
+                    {(() => {
+                      const modalLiveCount = countBooksForAuthor(selectedModalAuthor, products);
+                      return (
+                        <span className="inline-flex items-center gap-1 text-[#D71920] tabular-nums">
+                          <BookOpen size={13} /> {modalLiveCount} Published {modalLiveCount === 1 ? 'Book' : 'Books'}
+                        </span>
+                      );
+                    })()}
                     <span>•</span>
                     <span className="inline-flex items-center gap-1 text-amber-600">
                       <Star size={12} fill="currentColor" /> 4.9 Reader Rating

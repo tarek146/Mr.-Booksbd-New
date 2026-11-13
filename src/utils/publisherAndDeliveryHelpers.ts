@@ -1,4 +1,4 @@
-import { Product, Publisher } from '../types';
+import { Author, Product, Publisher } from '../types';
 
 export const DEFAULT_PUBLISHERS_LIST: Publisher[] = [
   {
@@ -74,7 +74,8 @@ export interface EnrichedPublisher extends Publisher {
  */
 export function countBooksForPublisher(
   pub: { name: string; banglaName?: string },
-  products: Product[]
+  products: Product[],
+  excludeProductId?: string
 ): number {
   const enKey = (pub.name || '').trim().toLowerCase();
   const bnKey = (pub.banglaName || '').trim().toLowerCase();
@@ -83,6 +84,7 @@ export function countBooksForPublisher(
   let count = 0;
   for (const prod of products) {
     if (prod.type !== 'book') continue;
+    if (excludeProductId && prod.id === excludeProductId) continue;
     const prodPub = (prod.publisher || '').trim().toLowerCase();
     if (!prodPub) continue;
     if ((enKey && prodPub === enKey) || (bnKey && prodPub === bnKey)) {
@@ -90,6 +92,101 @@ export function countBooksForPublisher(
     }
   }
   return count;
+}
+
+export interface EnrichedAuthor extends Author {
+  liveBooksCount: number;
+  displayBooksCount: number;
+}
+
+/**
+ * Automatically counts the exact number of books in the catalog belonging to an author
+ * (case-insensitively, excluding stationery items and optionally excluding a product being edited).
+ */
+export function countBooksForAuthor(
+  author: { name: string },
+  products: Product[],
+  excludeProductId?: string
+): number {
+  const key = (author.name || '').trim().toLowerCase();
+  if (!key) return 0;
+
+  let count = 0;
+  for (const prod of products) {
+    if (prod.type !== 'book') continue;
+    if (excludeProductId && prod.id === excludeProductId) continue;
+    const prodAuthor = (prod.author || '').trim().toLowerCase();
+    if (!prodAuthor) continue;
+    if (prodAuthor === key) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+/**
+ * Merges configured authors from Firestore with any custom writer names present on books
+ * in the catalog, computing exact real-time book counts automatically.
+ */
+export function buildEnrichedAuthorsList(
+  storedAuthors: Author[],
+  products: Product[]
+): EnrichedAuthor[] {
+  const bookCountByNormalizedName = new Map<string, { rawName: string; count: number; sampleImage?: string }>();
+
+  for (const prod of products) {
+    if (prod.type !== 'book') continue;
+    const rawAuthor = (prod.author || '').trim();
+    if (!rawAuthor) continue;
+    const key = rawAuthor.toLowerCase();
+    const existing = bookCountByNormalizedName.get(key);
+    if (existing) {
+      existing.count += 1;
+    } else {
+      bookCountByNormalizedName.set(key, {
+        rawName: rawAuthor,
+        count: 1,
+        sampleImage: prod.images?.[0],
+      });
+    }
+  }
+
+  const seenKeys = new Set<string>();
+  const result: EnrichedAuthor[] = [];
+
+  for (const author of storedAuthors) {
+    const key = (author.name || '').trim().toLowerCase();
+    if (!key || seenKeys.has(key)) continue;
+    seenKeys.add(key);
+
+    const liveCount = countBooksForAuthor(author, products);
+    result.push({
+      ...author,
+      booksCount: liveCount,
+      liveBooksCount: liveCount,
+      displayBooksCount: liveCount,
+    });
+  }
+
+  let derivedIdx = 0;
+  for (const [key, info] of bookCountByNormalizedName.entries()) {
+    if (!seenKeys.has(key)) {
+      seenKeys.add(key);
+      derivedIdx += 1;
+      const slug = key.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || encodeURIComponent(key);
+      result.push({
+        id: `derived-author-${slug}-${derivedIdx}`,
+        name: info.rawName,
+        bio: `${info.rawName} — catalog author profile.`,
+        photoUrl: '',
+        booksCount: info.count,
+        liveBooksCount: info.count,
+        displayBooksCount: info.count,
+      });
+    }
+  }
+
+  return result;
 }
 
 /**
@@ -328,4 +425,200 @@ export function serializeCustomBookDetails(details?: { label: string; value: str
     .filter(d => d && d.label && d.value)
     .map(d => `${d.label}: ${d.value}`)
     .join('\n');
+}
+
+export interface UploadBookCountPreview {
+  name: string;
+  currentCount: number;
+  otherCount: number;
+  projectedCount: number;
+  isNewEntity: boolean;
+}
+
+/**
+ * Computes real-time existing and post-upload book counts when selecting a Writer or Publisher
+ * in the Admin Book Upload / Edit modal so counts update automatically (0 -> 1, 1 -> 2, 9 -> 10).
+ */
+export function resolveAuthorOrPublisherCountPreview(params: {
+  kind: 'author' | 'publisher';
+  name: string;
+  products: Product[];
+  authors?: Author[];
+  publishers?: Publisher[];
+  editingProductId?: string | null;
+  productType?: 'book' | 'stationery';
+}): UploadBookCountPreview {
+  const trimmedName = (params.name || '').trim();
+  if (!trimmedName) {
+    return { name: '', currentCount: 0, otherCount: 0, projectedCount: 0, isNewEntity: false };
+  }
+
+  const key = trimmedName.toLowerCase();
+  const isBook = (params.productType || 'book') === 'book';
+
+  if (params.kind === 'author') {
+    const matched = (params.authors || []).find(a => (a.name || '').trim().toLowerCase() === key);
+    const target = matched ? { name: matched.name } : { name: trimmedName };
+    const currentCount = countBooksForAuthor(target, params.products);
+    const otherCount = params.editingProductId
+      ? countBooksForAuthor(target, params.products, params.editingProductId)
+      : currentCount;
+    const projectedCount = isBook ? otherCount + 1 : otherCount;
+
+    return {
+      name: matched?.name || trimmedName,
+      currentCount,
+      otherCount,
+      projectedCount,
+      isNewEntity: !matched && currentCount === 0,
+    };
+  }
+
+  const matchedPub = (params.publishers || []).find(
+    p =>
+      (p.name || '').trim().toLowerCase() === key ||
+      (p.banglaName || '').trim().toLowerCase() === key
+  );
+  const pubTarget = matchedPub
+    ? { name: matchedPub.name, banglaName: matchedPub.banglaName }
+    : { name: trimmedName };
+  const currentCount = countBooksForPublisher(pubTarget, params.products);
+  const otherCount = params.editingProductId
+    ? countBooksForPublisher(pubTarget, params.products, params.editingProductId)
+    : currentCount;
+  const projectedCount = isBook ? otherCount + 1 : otherCount;
+
+  return {
+    name: matchedPub?.name || trimmedName,
+    currentCount,
+    otherCount,
+    projectedCount,
+    isNewEntity: !matchedPub && currentCount === 0,
+  };
+}
+
+export interface SyncedAuthorsAndPublishersResult {
+  nextAuthors: Author[];
+  updatedAuthors: Author[];
+  createdAuthors: Author[];
+  nextPublishers: Publisher[];
+  updatedPublishers: Publisher[];
+  createdPublishers: Publisher[];
+  publishersChanged: boolean;
+}
+
+/**
+ * Pure state-sync builder that recalculates exact book counts for all stored Authors & Publishers
+ * against `nextProducts`, and auto-registers missing Writer/Publisher profiles when a book is uploaded.
+ */
+export function buildSyncedAuthorsAndPublishers(params: {
+  nextProducts: Product[];
+  currentAuthors: Author[];
+  currentPublishers: Publisher[];
+  targetAuthorName?: string;
+  targetPublisherName?: string;
+  now?: number;
+}): SyncedAuthorsAndPublishersResult {
+  const {
+    nextProducts,
+    currentAuthors,
+    currentPublishers,
+    targetAuthorName,
+    targetPublisherName,
+    now = Date.now(),
+  } = params;
+
+  const updatedAuthors: Author[] = [];
+  const createdAuthors: Author[] = [];
+  const nextAuthors: Author[] = currentAuthors.map(author => {
+    const exactCount = countBooksForAuthor(author, nextProducts);
+    if (author.booksCount !== exactCount) {
+      const updated = { ...author, booksCount: exactCount };
+      updatedAuthors.push(updated);
+      return updated;
+    }
+    return author;
+  });
+
+  const cleanAuthorTarget = (targetAuthorName || '').trim();
+  if (cleanAuthorTarget && cleanAuthorTarget.toLowerCase() !== 'stationery brand') {
+    const targetKey = cleanAuthorTarget.toLowerCase();
+    const exists = nextAuthors.some(a => (a.name || '').trim().toLowerCase() === targetKey);
+    if (!exists) {
+      const slug = targetKey.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || now.toString(36);
+      const count = countBooksForAuthor({ name: cleanAuthorTarget }, nextProducts);
+      if (count > 0) {
+        const created: Author = {
+          id: `author-${slug}-${now.toString(36)}`,
+          name: cleanAuthorTarget,
+          bio: `${cleanAuthorTarget} — Featured author at MR. BOOKS.`,
+          photoUrl: '',
+          booksCount: count,
+        };
+        createdAuthors.push(created);
+        nextAuthors.push(created);
+      }
+    }
+  }
+
+  const updatedPublishers: Publisher[] = [];
+  const createdPublishers: Publisher[] = [];
+  const nextPublishers: Publisher[] = currentPublishers.map(pub => {
+    const exactCount = countBooksForPublisher(pub, nextProducts);
+    if (pub.booksCount !== exactCount) {
+      const updated = { ...pub, booksCount: exactCount };
+      updatedPublishers.push(updated);
+      return updated;
+    }
+    return pub;
+  });
+
+  const cleanPubTarget = (targetPublisherName || '').trim();
+  if (cleanPubTarget && cleanPubTarget.toLowerCase() !== 'mr. books publications') {
+    const targetKey = cleanPubTarget.toLowerCase();
+    const exists = nextPublishers.some(
+      p =>
+        (p.name || '').trim().toLowerCase() === targetKey ||
+        (p.banglaName || '').trim().toLowerCase() === targetKey
+    );
+    if (!exists) {
+      const slug = targetKey.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || now.toString(36);
+      const count = countBooksForPublisher({ name: cleanPubTarget }, nextProducts);
+      if (count > 0) {
+        const defaultMatch = DEFAULT_PUBLISHERS_LIST.find(
+          d =>
+            d.name.trim().toLowerCase() === targetKey ||
+            (d.banglaName || '').trim().toLowerCase() === targetKey
+        );
+        const created: Publisher = defaultMatch
+          ? {
+              ...defaultMatch,
+              booksCount: count,
+              isFeatured: true,
+            }
+          : {
+              id: `pub-${slug}-${now.toString(36)}`,
+              name: cleanPubTarget,
+              banglaName: cleanPubTarget,
+              description: '',
+              logoUrl: '',
+              booksCount: count,
+              establishedYear: '',
+              isFeatured: true,
+            };
+        createdPublishers.push(created);
+        nextPublishers.push(created);
+      }
+    }
+  }
+
+  return {
+    nextAuthors,
+    updatedAuthors,
+    createdAuthors,
+    nextPublishers,
+    updatedPublishers,
+    createdPublishers,
+    publishersChanged: updatedPublishers.length > 0 || createdPublishers.length > 0,
+  };
 }

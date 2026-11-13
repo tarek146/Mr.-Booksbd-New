@@ -3,9 +3,10 @@ import { useStore } from '../context/StoreContext';
 import { AuthorsPageSkeleton } from '../components/SkeletonScreens';
 import { shouldShowSkeletonScreen } from '../utils/instantStoreCache';
 import { Award, ArrowRight } from 'lucide-react';
+import { countBooksForAuthor } from '../utils/publisherAndDeliveryHelpers';
 
 export function AuthorsPage() {
-  const { authors, isLoading, settings, setActivePage, setSearchQuery } = useStore();
+  const { authors, products, isLoading, settings, setActivePage, setSearchQuery } = useStore();
 
   const handleAuthorClick = (authorName: string) => {
     setSearchQuery(authorName);
@@ -31,7 +32,9 @@ export function AuthorsPage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {authors.map(author => (
+          {authors.map(author => {
+            const liveCount = countBooksForAuthor(author, products);
+            return (
             <div 
               key={author.id}
               onClick={() => handleAuthorClick(author.name)}
@@ -63,13 +66,14 @@ export function AuthorsPage() {
               </div>
 
               <div className="mt-5 pt-4 border-t border-[#EEEEEE] flex items-center justify-between text-xs font-bold text-[#D71920]">
-                <span>{author.booksCount || 15}+ Published Books</span>
+                <span className="tabular-nums">{liveCount} Published {liveCount === 1 ? 'Book' : 'Books'}</span>
                 <span className="flex items-center gap-1 group-hover:translate-x-1 transition-transform">
                   View <ArrowRight size={13} />
                 </span>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

@@ -32,6 +32,7 @@ import {
   resolveProductDeliveryTiming,
   buildEnrichedPublishersList,
   resolveProductPublisherInfo,
+  countBooksForAuthor,
   EnrichedPublisher,
 } from '../utils/publisherAndDeliveryHelpers';
 import {
@@ -1492,8 +1493,9 @@ export function ProductDetail() {
             name: bookAuthorName,
             bio: `${bookAuthorName} সমকালীন সাহিত্যের একজন জনপ্রিয় ও পাঠকপ্রিয় লেখক। তাঁর সাবলীল লেখনী ও উপস্থাপনা পাঠকদের কাছে বিশেষভাবে সমাদৃত।`,
             photoUrl: '',
-            booksCount: 18
+            booksCount: countBooksForAuthor({ name: bookAuthorName }, products),
           };
+          const activeAuthorLiveCount = countBooksForAuthor(activeAuthor, products) || 1;
 
           const activePublisher: EnrichedPublisher = currentProductPublisher;
           const activePubNameLower = (activePublisher.name || '').trim().toLowerCase();
@@ -1612,7 +1614,7 @@ export function ProductDetail() {
                               {activeAuthor.name}
                             </h4>
                             <p className="text-[11px] text-neutral-500 tabular-nums mt-0.5">
-                              {activeAuthor.booksCount || 15}+ প্রকাশিত বই · ৪.৯ রেটিং
+                              {activeAuthorLiveCount}টি প্রকাশিত বই · ৪.৯ রেটিং
                             </p>
                           </div>
                         </div>
