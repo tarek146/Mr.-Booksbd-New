@@ -4,7 +4,9 @@ import {
   PaymentMethodConfig,
   PaymentSubmission,
   Product,
+  StoreSettings,
 } from '../../types';
+import { getDefaultCourierProvider } from '../../utils/steadfastCourierService';
 import {
   Search,
   Plus,
@@ -61,6 +63,7 @@ interface AdminOrdersManagerProps {
   products: Product[];
   paymentMethods: PaymentMethodConfig[];
   paymentSubmissions: PaymentSubmission[];
+  settings?: Partial<StoreSettings> | null;
   onUpdateOrderStatus: (orderId: string, status: Order['orderStatus']) => Promise<void>;
   onUpdateOrderPaymentStatus: (orderId: string, status: Order['paymentStatus']) => Promise<void>;
   onOpenTrackingModal: (order: Order, preselectCourier?: string) => void;
@@ -122,6 +125,7 @@ export function AdminOrdersManager({
   products,
   paymentMethods,
   paymentSubmissions,
+  settings,
   onUpdateOrderStatus,
   onUpdateOrderPaymentStatus,
   onOpenTrackingModal,
@@ -135,6 +139,9 @@ export function AdminOrdersManager({
   onSyncOrders,
   setToast,
 }: AdminOrdersManagerProps) {
+  const activeCourier = getDefaultCourierProvider(settings);
+  const courierName = activeCourier?.name || 'Steadfast';
+  const courierId = activeCourier?.id || 'steadfast';
   const [sendingCourierOrderId, setSendingCourierOrderId] = useState<string | null>(null);
   const [syncingCourierOrderId, setSyncingCourierOrderId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1083,42 +1090,26 @@ export function AdminOrdersManager({
                         {onOneClickSendCourier && (
                           <button
                             type="button"
-                            data-testid={`order-one-click-steadfast-${order.id}`}
+                            data-testid={`order-one-click-${courierId}-${order.id}`}
                             disabled={sendingCourierOrderId === order.id}
                             onClick={async () => {
                               setSendingCourierOrderId(order.id);
                               try {
-                                await onOneClickSendCourier(order, 'steadfast');
+                                await onOneClickSendCourier(order, courierId);
                               } finally {
                                 setSendingCourierOrderId(null);
                               }
                             }}
-                            className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs disabled:opacity-50"
+                            className="w-full py-1.5 px-3.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 hover:bg-emerald-200 text-emerald-800 dark:text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs disabled:opacity-50"
                           >
-                            <Truck size={13} />
-                            <span>
+                            <Truck size={13} className="shrink-0" />
+                            <span className="truncate">
                               {sendingCourierOrderId === order.id
-                                ? 'Sending to Steadfast...'
-                                : '1-Click Send to Steadfast'}
+                                ? `Sending to ${courierName}...`
+                                : `1-Click Send to ${courierName}`}
                             </span>
                           </button>
                         )}
-                        <div className="grid grid-cols-2 gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => onOpenTrackingModal(order, 'Steadfast')}
-                            className="py-1.5 px-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10.5px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
-                          >
-                            <span>Steadfast</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => onOpenTrackingModal(order, 'Pathao')}
-                            className="py-1.5 px-2 rounded-lg bg-[#FFF1F2] hover:bg-[#FFE4E6] text-[#D71920] border border-[#D71920]/25 text-[10.5px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
-                          >
-                            <span>Pathao / Other</span>
-                          </button>
-                        </div>
                       </div>
                     )}
 

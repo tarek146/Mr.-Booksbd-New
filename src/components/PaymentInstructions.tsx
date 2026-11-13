@@ -1071,31 +1071,8 @@ export function PaymentInstructions({
                       </div>
 
                       <div className="flex flex-col gap-1">
-                        <div className="inline-flex rounded border border-neutral-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-0.5">
-                          <button
-                            type="button"
-                            onClick={() => setQrLanguage('bn')}
-                            data-testid="popup-qr-tab-bn"
-                            className={`px-1.5 py-0.5 rounded text-[10px] font-semibold cursor-pointer ${
-                              qrLanguage === 'bn'
-                                ? 'bg-neutral-900 text-white dark:bg-[#D71920]'
-                                : 'text-neutral-500 hover:text-neutral-800 dark:text-slate-400'
-                            }`}
-                          >
-                            BN
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setQrLanguage('en')}
-                            data-testid="popup-qr-tab-en"
-                            className={`px-1.5 py-0.5 rounded text-[10px] font-semibold cursor-pointer ${
-                              qrLanguage === 'en'
-                                ? 'bg-neutral-900 text-white dark:bg-[#D71920]'
-                                : 'text-neutral-500 hover:text-neutral-800 dark:text-slate-400'
-                            }`}
-                          >
-                            EN
-                          </button>
+                        <div className="px-2 py-0.5 rounded border border-neutral-200 dark:border-slate-700 bg-neutral-50 dark:bg-slate-800 text-[10px] font-semibold text-neutral-600 dark:text-slate-300 text-center">
+                          QR Code
                         </div>
 
                         <div className="flex items-center gap-1">

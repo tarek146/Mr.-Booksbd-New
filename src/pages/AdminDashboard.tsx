@@ -4811,6 +4811,7 @@ export function AdminDashboard() {
                 products={products}
                 paymentMethods={paymentMethods}
                 paymentSubmissions={paymentSubmissions}
+                settings={settings}
                 onUpdateOrderStatus={updateOrderStatus}
                 onUpdateOrderPaymentStatus={updateOrderPaymentStatus}
                 onOpenTrackingModal={(order, preselectCourier) => {
