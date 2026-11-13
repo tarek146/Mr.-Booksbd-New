@@ -90,6 +90,7 @@ interface AdminOrdersManagerProps {
   onPermanentDeleteOrder: (orderId: string) => Promise<void>;
   onSyncOrders: () => Promise<void> | void;
   setToast: (t: { show: boolean; type: 'success' | 'error'; message: string }) => void;
+  onUpdateOrder?: (orderId: string, data: Partial<Order>) => Promise<void>;
 }
 
 const CHANNEL_CHIPS: { id: OrderChannelFilter; label: string }[] = [
@@ -120,6 +121,189 @@ function cleanWhatsappPhone(phone: string): string {
   return digits;
 }
 
+function FullPageOrderEdit({
+  order,
+  onCancel,
+  onSave,
+  setToast,
+}: {
+  order: Order;
+  onCancel: () => void;
+  onSave: (updatedData: Partial<Order>) => Promise<void>;
+  setToast: (t: { show: boolean; type: 'success' | 'error'; message: string }) => void;
+}) {
+  const [customerName, setCustomerName] = useState(order.customerName || '');
+  const [phone, setPhone] = useState(order.phone || '');
+  const [address, setAddress] = useState(order.address || '');
+  const [city, setCity] = useState(order.city || 'Dhaka');
+  const [district, setDistrict] = useState(order.district || 'Dhaka');
+  const [notes, setNotes] = useState(order.notes || '');
+  const [deliveryCharge, setDeliveryCharge] = useState(String(order.deliveryCharge ?? 60));
+  const [orderStatus, setOrderStatus] = useState<Order['orderStatus']>(order.orderStatus || 'pending');
+  const [paymentStatus, setPaymentStatus] = useState<Order['paymentStatus']>(order.paymentStatus || 'pending');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await onSave({
+        customerName: customerName.trim(),
+        phone: phone.trim(),
+        address: address.trim(),
+        city: city.trim(),
+        district: district.trim(),
+        notes: notes.trim(),
+        deliveryCharge: Number(deliveryCharge) || 0,
+        orderStatus,
+        paymentStatus,
+      });
+      setToast({ show: true, type: 'success', message: `Order #${order.id} updated successfully!` });
+      onCancel();
+    } catch (err: any) {
+      setToast({ show: true, type: 'error', message: err?.message || 'Failed to update order.' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="bg-white border border-neutral-200/90 rounded-2xl p-6 shadow-sm space-y-6 max-w-4xl mx-auto my-4">
+      <div className="flex items-center justify-between border-b border-neutral-200 pb-4">
+        <div>
+          <h2 className="text-lg font-black text-neutral-900">Edit Order #{order.id}</h2>
+          <p className="text-xs text-neutral-500">Manage customer details, delivery, and payment status.</p>
+        </div>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-4 py-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-bold cursor-pointer"
+        >
+          ← Back to Orders
+        </button>
+      </div>
+
+      <form onSubmit={handleSave} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-neutral-700">Customer Name</label>
+            <input
+              type="text"
+              value={customerName}
+              onChange={e => setCustomerName(e.target.value)}
+              required
+              className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-xs font-semibold text-neutral-900 focus:bg-white focus:outline-none focus:border-[#D71920]"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-neutral-700">Phone Number</label>
+            <input
+              type="text"
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              required
+              className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-xs font-semibold text-neutral-900 focus:bg-white focus:outline-none focus:border-[#D71920]"
+            />
+          </div>
+          <div className="space-y-1.5 md:col-span-2">
+            <label className="text-xs font-bold text-neutral-700">Delivery Address</label>
+            <input
+              type="text"
+              value={address}
+              onChange={e => setAddress(e.target.value)}
+              required
+              className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-xs font-semibold text-neutral-900 focus:bg-white focus:outline-none focus:border-[#D71920]"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-neutral-700">City</label>
+            <input
+              type="text"
+              value={city}
+              onChange={e => setCity(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-xs font-semibold text-neutral-900 focus:bg-white focus:outline-none focus:border-[#D71920]"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-neutral-700">District / Region</label>
+            <input
+              type="text"
+              value={district}
+              onChange={e => setDistrict(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-xs font-semibold text-neutral-900 focus:bg-white focus:outline-none focus:border-[#D71920]"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-neutral-700">Delivery Charge (৳)</label>
+            <input
+              type="number"
+              value={deliveryCharge}
+              onChange={e => setDeliveryCharge(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-xs font-semibold text-neutral-900 focus:bg-white focus:outline-none focus:border-[#D71920]"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-neutral-700">Order Status</label>
+            <select
+              value={orderStatus}
+              onChange={e => setOrderStatus(e.target.value as Order['orderStatus'])}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-xs font-bold text-neutral-800 focus:outline-none focus:border-[#D71920]"
+            >
+              <option value="pending">Pending</option>
+              <option value="awaiting_payment">Awaiting Payment</option>
+              <option value="awaiting_payment_verification">Awaiting Verification</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="processing">Processing</option>
+              <option value="shipped">Shipped</option>
+              <option value="delivered">Delivered</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-neutral-700">Payment Status</label>
+            <select
+              value={paymentStatus}
+              onChange={e => setPaymentStatus(e.target.value as Order['paymentStatus'])}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-xs font-bold text-neutral-800 focus:outline-none focus:border-[#D71920]"
+            >
+              <option value="pending">Pending</option>
+              <option value="paid">Paid</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+          <div className="space-y-1.5 md:col-span-2">
+            <label className="text-xs font-bold text-neutral-700">Customer Notes</label>
+            <textarea
+              rows={3}
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-xs font-semibold text-neutral-900 focus:bg-white focus:outline-none focus:border-[#D71920]"
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-5 py-2.5 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-bold cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-6 py-2.5 rounded-xl bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-black shadow-md cursor-pointer disabled:opacity-50"
+          >
+            {saving ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 export function AdminOrdersManager({
   orders,
   products,
@@ -138,6 +322,7 @@ export function AdminOrdersManager({
   onPermanentDeleteOrder,
   onSyncOrders,
   setToast,
+  onUpdateOrder,
 }: AdminOrdersManagerProps) {
   const activeCourier = getDefaultCourierProvider(settings);
   const courierName = activeCourier?.name || 'Steadfast';
@@ -174,6 +359,7 @@ export function AdminOrdersManager({
   const [detailModalOrder, setDetailModalOrder] = useState<Order | null>(null);
   const [receiptModalOrder, setReceiptModalOrder] = useState<Order | null>(null);
   const [printModalData, setPrintModalData] = useState<{ mode: 'label' | 'invoice'; order: Order } | null>(null);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [confirmDeleteOrder, setConfirmDeleteOrder] = useState<{ order: Order; permanent: boolean } | null>(null);
 
   const subByOrderId = useMemo(() => {
@@ -349,6 +535,26 @@ export function AdminOrdersManager({
       setCreatingOrder(false);
     }
   };
+
+  if (editingOrderId) {
+    const orderToEdit = orders.find(o => o.id === editingOrderId);
+    if (!orderToEdit) {
+      setEditingOrderId(null);
+    } else {
+      return (
+        <FullPageOrderEdit
+          order={orderToEdit}
+          onCancel={() => setEditingOrderId(null)}
+          onSave={async (updatedData) => {
+            if (onUpdateOrder) {
+              await onUpdateOrder(orderToEdit.id, updatedData);
+            }
+          }}
+          setToast={setToast}
+        />
+      );
+    }
+  }
 
   return (
     <div data-testid="admin-orders-dashboard" className="space-y-4">
@@ -1152,6 +1358,15 @@ export function AdminOrdersManager({
                         <Edit2 size={13} />
                       </button>
 
+                      <button
+                        type="button"
+                        onClick={() => setEditingOrderId(order.id)}
+                        className="p-2 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-600 cursor-pointer"
+                        title="Edit Full Order Details Page"
+                      >
+                        <FileText size={13} />
+                      </button>
+
                       {order.isTrashed ? (
                         <>
                           <button
@@ -1461,9 +1676,32 @@ export function AdminOrdersManager({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-xs">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-neutral-200 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
-              <h3 className="text-sm font-black text-neutral-900 uppercase">
-                {printModalData.mode === 'label' ? 'Shipping Label Preview' : 'Customer Invoice Preview'} · #{printModalData.order.id}
-              </h3>
+              <div className="flex items-center gap-2">
+                <div className="inline-flex rounded-xl bg-neutral-100 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setPrintModalData({ mode: 'invoice', order: printModalData.order })}
+                    className={`px-3 py-1 rounded-lg text-xs font-black cursor-pointer transition-colors ${
+                      printModalData.mode === 'invoice'
+                        ? 'bg-neutral-900 text-white dark:bg-[#D71920]'
+                        : 'text-neutral-600 hover:text-neutral-900'
+                    }`}
+                  >
+                    Invoice
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPrintModalData({ mode: 'label', order: printModalData.order })}
+                    className={`px-3 py-1 rounded-lg text-xs font-black cursor-pointer transition-colors ${
+                      printModalData.mode === 'label'
+                        ? 'bg-neutral-900 text-white dark:bg-[#D71920]'
+                        : 'text-neutral-600 hover:text-neutral-900'
+                    }`}
+                  >
+                    Label
+                  </button>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => setPrintModalData(null)}
@@ -1472,44 +1710,119 @@ export function AdminOrdersManager({
                 <X size={16} />
               </button>
             </div>
-            <div className="p-5 rounded-2xl border-2 border-dashed border-neutral-300 bg-white space-y-3 text-xs">
-              <div className="flex justify-between items-start border-b border-neutral-200 pb-2">
-                <div>
-                  <div className="font-black text-base text-[#D71920]">MR. BOOKS</div>
-                  <div className="text-[10px] text-neutral-500">Order #{printModalData.order.id}</div>
-                </div>
-                <div className="text-right">
-                  <div className="font-bold">{printModalData.order.district}</div>
-                  <div className="text-[10px] text-neutral-500">{formatOrderDateBadge(printModalData.order.createdAt).dateStr}</div>
-                </div>
-              </div>
-              <div>
-                <div className="font-black text-sm">{printModalData.order.customerName}</div>
-                <div className="font-bold text-neutral-700">{printModalData.order.phone}</div>
-                <div className="text-neutral-600">{[printModalData.order.address, printModalData.order.city, printModalData.order.district].filter(Boolean).join(', ')}</div>
-              </div>
-              {printModalData.mode === 'invoice' && (
-                <div className="border-t border-neutral-200 pt-2 space-y-1">
-                  {(printModalData.order.items || []).map((it, idx) => (
-                    <div key={idx} className="flex justify-between">
-                      <span>{it.quantity}x {it.title}</span>
-                      <span className="font-bold">৳{it.price * it.quantity}</span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between font-black pt-1 border-t border-neutral-200 text-sm">
-                    <span>Total COD / Paid</span>
-                    <span>৳{printModalData.order.total}</span>
+
+            {printModalData.mode === 'label' ? (
+              /* Label Preview (Image 1 Style) */
+              <div className="p-5 rounded-2xl border-2 border-dashed border-neutral-300 bg-white space-y-3 text-xs">
+                <div className="flex justify-between items-center border-b border-neutral-200 pb-2">
+                  <div>
+                    <div className="font-black text-sm text-[#D71920]">MR. BOOKS BD</div>
+                    <div className="text-[10px] text-neutral-500">Merchant ID: KUSXCIG</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold uppercase text-[10px] bg-neutral-100 px-2 py-0.5 rounded">Standard Home Delivery</div>
                   </div>
                 </div>
-              )}
-              {printModalData.mode === 'label' && (
-                <div className="p-2.5 rounded-xl bg-neutral-100 flex justify-between font-black">
-                  <span>COD / Amount:</span>
-                  <span>৳{printModalData.order.paymentStatus === 'approved' ? '0 (PAID)' : printModalData.order.total}</span>
+
+                <div className="text-center py-1 bg-neutral-50 border border-neutral-200 rounded">
+                  <div className="font-mono font-black text-sm tracking-widest">||||| | ||||| ||||</div>
+                  <div className="text-[10px] font-mono">{printModalData.order.consignmentId || '320473137'}</div>
                 </div>
-              )}
-            </div>
-            <div className="flex justify-end gap-2">
+
+                <div className="grid grid-cols-2 gap-2 text-[11px] border-b border-neutral-200 pb-2">
+                  <div>
+                    <span className="text-neutral-400">INVOICE:</span> <span className="font-bold">#MRB-{printModalData.order.id}</span>
+                  </div>
+                  <div>
+                    <span className="text-neutral-400">DELIVERY:</span> <span className="font-bold">Home</span>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-[10px] text-neutral-400 font-bold">RECIPIENT</div>
+                  <div className="font-black text-sm">{printModalData.order.customerName}</div>
+                  <div className="font-bold text-neutral-700">{printModalData.order.phone}</div>
+                  <div className="text-neutral-600">{[printModalData.order.address, printModalData.order.city, printModalData.order.district].filter(Boolean).join(', ')}</div>
+                </div>
+
+                <div className="border-t border-neutral-200 pt-2 space-y-1">
+                  <div className="text-[10px] text-neutral-400 font-bold">ITEMS</div>
+                  {(printModalData.order.items || []).map((it, idx) => (
+                    <div key={idx} className="font-bold text-neutral-800">
+                      {it.quantity}x {it.title} ({it.variantName})
+                    </div>
+                  ))}
+                </div>
+
+                <div className="p-3 rounded-xl bg-neutral-900 text-white flex justify-between items-center font-black">
+                  <span>{printModalData.order.paymentStatus === 'approved' ? 'PAID ONLINE' : 'CASH ON DELIVERY'}</span>
+                  <span className="text-base text-[#D71920] bg-white px-2 py-0.5 rounded">৳{printModalData.order.paymentStatus === 'approved' ? 0 : printModalData.order.total}</span>
+                </div>
+
+                <div className="flex justify-between items-center text-[10px] text-neutral-400 pt-1 border-t border-neutral-100">
+                  <span>Printed: {formatOrderDateBadge(Date.now()).dateStr} {formatOrderDateBadge(Date.now()).timeStr}</span>
+                  <span className="font-bold">MR. BOOKS Logistics</span>
+                </div>
+              </div>
+            ) : (
+              /* Invoice Preview (Image 2 Style) */
+              <div className="p-5 rounded-2xl border-2 border-neutral-300 bg-white space-y-3 text-xs">
+                <div className="flex justify-between items-start border-b border-neutral-200 pb-3">
+                  <div>
+                    <div className="font-black text-base text-[#D71920]">MR. BOOKS BD</div>
+                    <div className="text-[10px] text-neutral-500">Merchant ID: KUSXCIG</div>
+                    <div className="text-[10px] text-neutral-500">Nilkhet Book Market, Dhaka - 1205</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-base font-black tracking-widest text-neutral-900">INVOICE</div>
+                    <div className="text-[11px] font-bold text-neutral-700">#MRB-{printModalData.order.id}</div>
+                    <div className="text-[10px] text-neutral-500">Date: {formatOrderDateBadge(printModalData.order.createdAt).dateStr}</div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-[10px] text-neutral-400 font-bold">DELIVER TO</div>
+                  <div className="font-black text-sm">{printModalData.order.customerName}</div>
+                  <div className="font-bold text-neutral-700">{printModalData.order.phone}</div>
+                  <div className="text-neutral-600">{[printModalData.order.address, printModalData.order.city, printModalData.order.district].filter(Boolean).join(', ')}</div>
+                </div>
+
+                <div className="border-t border-neutral-200 pt-2 space-y-1.5">
+                  <div className="font-bold text-neutral-400 text-[10px] uppercase">Description</div>
+                  {(printModalData.order.items || []).map((it, idx) => (
+                    <div key={idx} className="flex justify-between items-center py-1 border-b border-neutral-100">
+                      <div>
+                        <div className="font-bold text-neutral-900">{it.quantity}x {it.title}</div>
+                        <div className="text-[10px] text-neutral-500">Variant: {it.variantName}</div>
+                      </div>
+                      <span className="font-bold text-neutral-900">৳{it.price * it.quantity}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-1 pt-1 text-right text-[11px]">
+                  <div className="flex justify-between text-neutral-600">
+                    <span>Subtotal</span>
+                    <span>৳{printModalData.order.subtotal || printModalData.order.total - printModalData.order.deliveryCharge}</span>
+                  </div>
+                  <div className="flex justify-between text-neutral-600">
+                    <span>Delivery Charge</span>
+                    <span>৳{printModalData.order.deliveryCharge}</span>
+                  </div>
+                  <div className="flex justify-between font-black text-sm pt-1 border-t border-neutral-200">
+                    <span>Total Amount</span>
+                    <span className="text-[#D71920]">৳{printModalData.order.total}</span>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex justify-between items-center font-black text-emerald-900">
+                  <span>AMOUNT TO COLLECT ({printModalData.order.paymentStatus === 'approved' ? 'PAID ONLINE' : 'COD'})</span>
+                  <span className="text-base text-emerald-700">৳{printModalData.order.paymentStatus === 'approved' ? 0 : printModalData.order.total}</span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setPrintModalData(null)}

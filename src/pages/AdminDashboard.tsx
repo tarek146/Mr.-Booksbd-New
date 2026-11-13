@@ -4814,6 +4814,7 @@ export function AdminDashboard() {
                 settings={settings}
                 onUpdateOrderStatus={updateOrderStatus}
                 onUpdateOrderPaymentStatus={updateOrderPaymentStatus}
+                onUpdateOrder={updateOrderTracking}
                 onOpenTrackingModal={(order, preselectCourier) => {
                   setTrackingModalOrder(order);
                   setCourierNameInput(preselectCourier || order.courierName || 'Steadfast');
