@@ -64,6 +64,9 @@ interface AdminOrdersManagerProps {
   onUpdateOrderStatus: (orderId: string, status: Order['orderStatus']) => Promise<void>;
   onUpdateOrderPaymentStatus: (orderId: string, status: Order['paymentStatus']) => Promise<void>;
   onOpenTrackingModal: (order: Order, preselectCourier?: string) => void;
+  onOneClickSendCourier?: (order: Order, courierIdOrName?: string) => Promise<void>;
+  onSyncCourierOrder?: (order: Order) => Promise<void>;
+  onOpenFraudChecker?: (phone: string) => void;
   onCreateManualOrder: (payload: {
     customerName: string;
     phone: string;
@@ -122,6 +125,9 @@ export function AdminOrdersManager({
   onUpdateOrderStatus,
   onUpdateOrderPaymentStatus,
   onOpenTrackingModal,
+  onOneClickSendCourier,
+  onSyncCourierOrder,
+  onOpenFraudChecker,
   onCreateManualOrder,
   onSoftDeleteOrder,
   onRestoreOrder,
@@ -129,6 +135,8 @@ export function AdminOrdersManager({
   onSyncOrders,
   setToast,
 }: AdminOrdersManagerProps) {
+  const [sendingCourierOrderId, setSendingCourierOrderId] = useState<string | null>(null);
+  const [syncingCourierOrderId, setSyncingCourierOrderId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusDropdown, setStatusDropdown] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<OrderDateFilter>('all');
@@ -854,22 +862,37 @@ export function AdminOrdersManager({
                       </span>
                     </div>
 
-                    {/* Fraud Check Risk Indicator Pill */}
-                    <div
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10.5px] font-bold ${
-                        repeatMeta.cancelledCount > 0
-                          ? 'bg-amber-50 text-amber-800 border-amber-200'
-                          : 'bg-emerald-50/70 text-emerald-700 border-emerald-200/80'
-                      }`}
-                    >
-                      {repeatMeta.cancelledCount > 0 ? (
-                        <AlertTriangle size={11} className="text-amber-600 shrink-0" />
-                      ) : (
-                        <ShieldCheck size={11} className="text-emerald-600 shrink-0" />
+                    {/* Fraud Check Risk Indicator Pill + 1-Click Live Fraud Check */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <div
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10.5px] font-bold ${
+                          repeatMeta.cancelledCount > 0
+                            ? 'bg-amber-50 text-amber-800 border-amber-200'
+                            : 'bg-emerald-50/70 text-emerald-700 border-emerald-200/80'
+                        }`}
+                      >
+                        {repeatMeta.cancelledCount > 0 ? (
+                          <AlertTriangle size={11} className="text-amber-600 shrink-0" />
+                        ) : (
+                          <ShieldCheck size={11} className="text-emerald-600 shrink-0" />
+                        )}
+                        <span>
+                          Fraud: {repeatMeta.cancelledCount} Cancelled ({repeatMeta.totalOrders} total)
+                        </span>
+                      </div>
+
+                      {onOpenFraudChecker && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenFraudChecker(order.phone)}
+                          data-testid={`order-fraud-check-btn-${order.id}`}
+                          className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold inline-flex items-center gap-1 cursor-pointer"
+                          title="Verify Courier Delivery History by Phone Number"
+                        >
+                          <ShieldCheck size={11} />
+                          <span>Verify Score</span>
+                        </button>
                       )}
-                      <span>
-                        Fraud: {repeatMeta.cancelledCount} Cancelled ({repeatMeta.totalOrders} total)
-                      </span>
                     </div>
                   </div>
 
@@ -941,8 +964,14 @@ export function AdminOrdersManager({
                       <span>Delivery ৳{order.deliveryCharge || 0}</span>
                     </div>
 
-                    <div className="text-xl font-black text-neutral-900 tabular-nums leading-none">
-                      ৳{(order.total || 0).toLocaleString()}
+                    <div className="text-xl font-black text-neutral-900 tabular-nums leading-none flex items-center gap-2">
+                      <span>৳{(order.total || 0).toLocaleString()}</span>
+                      <span className="px-2 py-0.5 rounded bg-neutral-100 text-neutral-700 text-[10px] font-mono font-bold">
+                        COD: ৳
+                        {order.paymentStatus === 'approved'
+                          ? 0
+                          : (order.courierCodAmount ?? order.total ?? 0).toLocaleString()}
+                      </span>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -998,40 +1027,98 @@ export function AdminOrdersManager({
                     </div>
                   </div>
 
-                  {/* Col 4: Quick Courier Assignment + Row Action Icons (3 cols) */}
-                  <div className="lg:col-span-3 flex flex-col justify-between gap-2.5">
-                    {order.courierName || order.trackingCode ? (
-                      <button
-                        type="button"
-                        onClick={() => onOpenTrackingModal(order)}
-                        className="w-full px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-extrabold flex items-center justify-between gap-2 cursor-pointer transition-colors"
-                      >
-                        <span className="truncate flex items-center gap-1.5">
-                          <CheckCircle2 size={13} className="text-emerald-600 shrink-0" />
-                          <span className="truncate">
-                            {order.courierName || 'Courier'}: {order.trackingCode || 'Assigned'}
-                          </span>
-                        </span>
-                        <Edit2 size={12} className="shrink-0" />
-                      </button>
+                  {/* Col 4: Quick Courier Assignment + 1-Click Steadfast Transfer + Row Action Icons (3 cols) */}
+                  <div className="lg:col-span-3 flex flex-col justify-between gap-2">
+                    {order.courierName || order.trackingCode || order.consignmentId ? (
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => onOpenTrackingModal(order)}
+                            className="flex-1 min-w-0 px-2.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-extrabold flex items-center justify-between gap-1.5 cursor-pointer transition-colors"
+                          >
+                            <span className="truncate flex items-center gap-1.5">
+                              <CheckCircle2 size={13} className="text-emerald-600 shrink-0" />
+                              <span className="truncate">
+                                {order.courierName || 'Steadfast'}: {order.trackingCode || order.consignmentId || 'Sent'}
+                              </span>
+                            </span>
+                            <Edit2 size={11} className="shrink-0" />
+                          </button>
+
+                          {onSyncCourierOrder && (
+                            <button
+                              type="button"
+                              disabled={syncingCourierOrderId === order.id}
+                              onClick={async () => {
+                                setSyncingCourierOrderId(order.id);
+                                try {
+                                  await onSyncCourierOrder(order);
+                                } finally {
+                                  setSyncingCourierOrderId(null);
+                                }
+                              }}
+                              className="p-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 cursor-pointer shrink-0"
+                              title="Sync Live Delivery Status from Courier"
+                            >
+                              <RefreshCw
+                                size={13}
+                                className={syncingCourierOrderId === order.id ? 'animate-spin' : ''}
+                              />
+                            </button>
+                          )}
+                        </div>
+
+                        {order.courierDeliveryStatus && (
+                          <div className="flex items-center justify-between text-[10px] font-bold px-1">
+                            <span className="text-neutral-500">Courier Status:</span>
+                            <span className="uppercase font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                              {order.courierDeliveryStatus}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     ) : (
-                      <div className="grid grid-cols-2 gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => onOpenTrackingModal(order, 'Steadfast')}
-                          className="py-2 px-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 text-[11px] font-extrabold flex items-center justify-center gap-1 cursor-pointer transition-colors"
-                        >
-                          <Truck size={12} />
-                          <span>Steadfast</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onOpenTrackingModal(order, 'Pathao')}
-                          className="py-2 px-2.5 rounded-xl bg-[#FFF1F2] hover:bg-[#D71920] text-[#D71920] hover:text-white border border-[#D71920]/25 text-[11px] font-extrabold flex items-center justify-center gap-1 cursor-pointer transition-colors"
-                        >
-                          <Truck size={12} />
-                          <span>Pathao</span>
-                        </button>
+                      <div className="space-y-1.5">
+                        {onOneClickSendCourier && (
+                          <button
+                            type="button"
+                            data-testid={`order-one-click-steadfast-${order.id}`}
+                            disabled={sendingCourierOrderId === order.id}
+                            onClick={async () => {
+                              setSendingCourierOrderId(order.id);
+                              try {
+                                await onOneClickSendCourier(order, 'steadfast');
+                              } finally {
+                                setSendingCourierOrderId(null);
+                              }
+                            }}
+                            className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs disabled:opacity-50"
+                          >
+                            <Truck size={13} />
+                            <span>
+                              {sendingCourierOrderId === order.id
+                                ? 'Sending to Steadfast...'
+                                : '1-Click Send to Steadfast'}
+                            </span>
+                          </button>
+                        )}
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => onOpenTrackingModal(order, 'Steadfast')}
+                            className="py-1.5 px-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10.5px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                          >
+                            <span>Steadfast</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onOpenTrackingModal(order, 'Pathao')}
+                            className="py-1.5 px-2 rounded-lg bg-[#FFF1F2] hover:bg-[#FFE4E6] text-[#D71920] border border-[#D71920]/25 text-[10.5px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                          >
+                            <span>Pathao / Other</span>
+                          </button>
+                        </div>
                       </div>
                     )}
 

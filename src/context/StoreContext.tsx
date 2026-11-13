@@ -211,7 +211,7 @@ interface StoreContextType {
 
   updateOrderStatus: (orderId: string, orderStatus: Order['orderStatus']) => Promise<void>;
   updateOrderPaymentStatus: (orderId: string, paymentStatus: Order['paymentStatus']) => Promise<void>;
-  updateOrderTracking: (orderId: string, data: { orderStatus?: Order['orderStatus']; courierName?: string; trackingCode?: string; trackingUrl?: string; trackingNotes?: string }) => Promise<void>;
+  updateOrderTracking: (orderId: string, data: Partial<Order>) => Promise<void>;
   createAdminOrder: (payload: {
     customerName: string;
     phone: string;
@@ -526,8 +526,35 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setReviews(prev => prev.filter(r => r.id !== id));
   };
   
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = window.localStorage.getItem('mr_books_cart');
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter(
+        (item: any) =>
+          item &&
+          typeof item.productId === 'string' &&
+          typeof item.variantId === 'string' &&
+          typeof item.title === 'string' &&
+          Number(item.quantity) > 0
+      );
+    } catch {
+      return [];
+    }
+  });
   const [wishlist, setWishlist] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem('mr_books_cart', JSON.stringify(cart));
+    } catch {
+      // ignore storage errors
+    }
+  }, [cart]);
   
   const initialRoute = getPageFromLocation();
   const [activePage, setActivePageState] = useState<string>(initialRoute.page);
@@ -712,6 +739,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     sundarbanForcesPrepayment: true,
     extraWeightChargePerKg: 20,
     deliveryNote: 'Standard Hub Delivery / Point Delivery orders require advance online payment.',
+    enableCheckoutFraudWarning: true,
+    cancellationFraudThreshold: 30,
     enableUseOldAddress: true,
     oldAddressButtonLabel: 'Use Saved Address',
     showCheckoutCoupons: true,
@@ -1897,18 +1926,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       updatedAt: Date.now()
     };
 
-    // 7. Atomic transaction/batch write: Save order AND deduct inventory
-    const batch = writeBatch(db);
-    batch.set(doc(db, 'orders', orderId), cleanForFirestore(newOrder));
+    // 7. Save order first so customer orders always succeed, then deduct inventory
+    await setDoc(doc(db, 'orders', orderId), cleanForFirestore(newOrder));
 
-    for (const update of stockUpdates) {
-      batch.set(doc(db, 'products', update.productId), {
-        stock: update.newStock,
-        variants: update.updatedVariants
-      }, { merge: true });
+    try {
+      const batch = writeBatch(db);
+      for (const update of stockUpdates) {
+        batch.set(
+          doc(db, 'products', update.productId),
+          {
+            stock: update.newStock,
+            variants: update.updatedVariants,
+          },
+          { merge: true }
+        );
+      }
+      await batch.commit();
+    } catch (stockErr) {
+      console.warn('Inventory stock update deferred:', stockErr);
     }
-
-    await batch.commit();
 
     // Persist customer match profile & fire Dual-Channel Facebook Purchase event (EMQ 9.9/10)
     const purchaseCustomerProfile = {
@@ -2350,13 +2386,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const updateOrderTracking = async (
     orderId: string, 
-    data: { 
-      orderStatus?: Order['orderStatus']; 
-      courierName?: string; 
-      trackingCode?: string; 
-      trackingUrl?: string; 
-      trackingNotes?: string;
-    }
+    data: Partial<Order>
   ) => {
     try {
       const updatePayload = {
@@ -2364,7 +2394,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         updatedAt: Date.now()
       };
       await setDoc(doc(db, 'orders', orderId), cleanForFirestore(updatePayload), { merge: true });
-      await logAdminAction('order_tracking_updated', orderId, `Updated tracking for Order #${orderId}: ${data.courierName || 'Courier'} (${data.trackingCode || 'No Code'})`);
+      await logAdminAction(
+        'order_tracking_updated',
+        orderId,
+        `Updated tracking for Order #${orderId}: ${data.courierName || 'Courier'} (${data.trackingCode || data.consignmentId || 'No Code'})`
+      );
     } catch (err) {
       console.error('Firestore update tracking error:', err);
       throw err;

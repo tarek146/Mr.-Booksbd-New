@@ -36,7 +36,16 @@ import {
   ChevronDown,
   ChevronUp,
   ShoppingBag,
+  ShieldAlert,
+  ShieldCheck,
+  AlertTriangle,
 } from 'lucide-react';
+import {
+  checkCustomerFraudByPhone,
+  getDefaultCourierProvider,
+  SteadfastFraudCheckReport,
+} from '../utils/steadfastCourierService';
+import { useCheckoutFraudCheck } from '../hooks/useCheckoutFraudCheck';
 
 const BANGLADESH_DISTRICTS = [
   'Dhaka',
@@ -92,6 +101,9 @@ export function CheckoutPage() {
 
   // Mobile collapsible Order Summary toggle
   const [mobileSummaryOpen, setMobileSummaryOpen] = useState(false);
+
+  // Phone Number Validation & Repeat-Cancellation Fraud Checker Hook
+  const fraudCheck = useCheckoutFraudCheck(phone, orders, settings);
 
   // Check for saved delivery address from local storage on mount or recent user order
   useEffect(() => {
@@ -541,10 +553,12 @@ export function CheckoutPage() {
         .filter(Boolean)
         .join(' | ');
 
+      const methodMeta = getPaymentMethodDisplayMeta(effectiveMethod);
+      const baseMethodLabel = methodMeta.englishName || effectiveMethod.name;
       const resolvedPaymentMethodName =
         effectiveMethod.type !== 'cod' && effectiveSubLabel
-          ? `${effectiveMethod.name} (${effectiveSubLabel})`
-          : effectiveMethod.name;
+          ? `${baseMethodLabel} (${effectiveSubLabel})`
+          : baseMethodLabel;
 
       const orderId = await createOrder({
         userId: currentUser?.uid || 'guest-' + Date.now(),
@@ -858,6 +872,58 @@ export function CheckoutPage() {
                 </div>
               </div>
 
+              {/* Phone Validation & Repeat-Cancellation Fraud Checker Hook Banner */}
+              {(fraudCheck.isLoading || fraudCheck.riskLevel !== 'unknown') && (
+                <div className="mt-2">
+                  {fraudCheck.isLoading && (
+                    <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-slate-400 py-1">
+                      <div className="w-3.5 h-3.5 border-2 border-[#D71920] border-t-transparent rounded-full animate-spin" />
+                      <span>Fetching order history from Firestore &amp; calculating cancellation rate...</span>
+                    </div>
+                  )}
+
+                  {!fraudCheck.isLoading && fraudCheck.riskLevel !== 'unknown' && (
+                    <div
+                      className={`rounded-lg p-3 text-xs border flex items-start gap-2.5 ${
+                        fraudCheck.riskLevel === 'high_risk' || fraudCheck.isFlagged
+                          ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 text-red-900 dark:text-red-200'
+                          : fraudCheck.riskLevel === 'moderate'
+                          ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200'
+                          : 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
+                      }`}
+                    >
+                      {fraudCheck.riskLevel === 'high_risk' || fraudCheck.isFlagged ? (
+                        <ShieldAlert size={16} className="text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+                      ) : fraudCheck.riskLevel === 'moderate' ? (
+                        <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                      ) : (
+                        <ShieldCheck size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                      )}
+
+                      <div className="space-y-0.5 min-w-0 flex-1">
+                        <div className="font-semibold flex items-center justify-between gap-2">
+                          <span>
+                            {fraudCheck.isFlagged
+                              ? '⚠️ High Cancellation Rate Flag (Exceeds Threshold)'
+                              : fraudCheck.riskLevel === 'high_risk'
+                              ? 'High Risk Cancellation History'
+                              : fraudCheck.riskLevel === 'moderate'
+                              ? 'Moderate Order History'
+                              : 'Trusted Customer History'}
+                          </span>
+                          <span className="tabular-nums font-mono text-[10px] opacity-80">
+                            Cancellation Rate: {fraudCheck.cancellationRate}% ({fraudCheck.cancelledOrders}/{fraudCheck.totalOrders} orders)
+                          </span>
+                        </div>
+                        <p className="text-[11px] opacity-90 leading-relaxed">
+                          {fraudCheck.riskMessage}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* District & Area/Thana */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
@@ -1100,8 +1166,10 @@ export function CheckoutPage() {
                         <div className="font-semibold text-xs sm:text-sm text-neutral-900 dark:text-white leading-tight">
                           Online Payment
                         </div>
-                        <div className="text-[11px] text-neutral-500 dark:text-slate-400 mt-0.5 leading-snug">
-                          bKash, Nagad, Rocket, Upay
+                        <div className="text-[11px] text-neutral-500 dark:text-slate-400 mt-0.5 leading-snug truncate">
+                          {onlineMethods
+                            .map(m => getPaymentMethodDisplayMeta(m).englishName || m.name)
+                            .join(', ')}
                         </div>
                       </div>
                     </div>

@@ -1,0 +1,671 @@
+Getting started
+Book your first parcel
+Three ways to make the same call. Each books a real parcel, so use an invoice you do not mind keeping.
+
+cURL
+PHP (Laravel)
+Node.js
+curl -X POST https://portal.packzy.com/api/v1/create_order \
+  -H "Api-Key: yb7yrhjua6zaqh9w6yz3hvy3ry21qz5u" \
+  -H "Secret-Key: 9eglqodjxjgck3imdrnhygk8" \
+  -H "Content-Type: application/json" \
+  -d '{"invoice":"ORD-10231","recipient_name":"Jahid Hasan","recipient_phone":"01712345678","recipient_address":"Dhanmondi, Dhaka","cod_amount":1060}'
+All endpoints
+21 endpoints, each linking to its own entry below.
+
+GET	
+/ping
+Are you there? No API key needed.
+POST	
+/create_order
+Book one parcel.
+POST	
+/create_order/bulk-order
+Book up to 500 parcels in one request.
+POST	
+/create_order/bulk-order/extended
+The same as above, with per-field validation messages instead of codes.
+GET	
+/status_by_cid/{consignment_id}
+Where a parcel is, by the id we gave you.
+GET	
+/status_with_return_status_by_cid/{consignment_id}
+As above, but for a parcel coming back it says how far back it has got.
+GET	
+/status_by_invoice/{invoice}
+The same answer, by your own order number.
+GET	
+/status_by_trackingcode/{tracking_code}
+The same answer, by tracking code.
+GET	
+/trackings_by_invoice/{invoice}
+Every step a parcel has been through, not just where it is now.
+GET	
+/parcel_states
+How many parcels are in each dashboard state, and the cash on delivery riding on them.
+GET	
+/parcel_states/{state}
+The parcels in one state, latest first, a page at a time.
+GET	
+/stats
+Counts and COD per outcome for the parcels you booked between two dates.
+POST	
+/create_pickup_request
+Ask for a rider to collect from one of your addresses.
+POST	
+/create_return_request
+Ask for a parcel to be brought back to you.
+GET	
+/get_return_requests
+Your return requests, newest first, ten to a page.
+GET	
+/get_return_request/{id}
+One return request, with the parcel it is about.
+GET	
+/get_balance
+What we currently owe you.
+GET	
+/payments
+Payouts we have made to you, ten to a page.
+GET	
+/payments/{payment_id}
+One payout, with every parcel it settled.
+GET	
+/police_stations
+Every thana we deliver to, with its district.
+GET	
+/fraud_check/score/{phone}
+A customer's delivery record: how much of it arrived, how much came back, and what other merchants have reported.
+Service check
+The one call that needs no credentials. Make it first: if it answers, the address is right and your network can reach us, so anything failing after this is the keys or the request — not the connection.
+
+GET
+/ping
+Are you there? No API key needed.
+Response
+{
+    "status": 200,
+    "message": "pong",
+    "service": "steadfast-api",
+    "version": "v1",
+    "time": "2026-09-20T13:45:09+06:00"
+}
+The only endpoint that takes no credentials, which is the point of it: everywhere else a wrong key, a wrong base URL, a firewall and a proxy that drops your headers all look identical — 401. If ping answers and the rest does not, the problem is your credentials.
+It says we are reachable. It does not say your keys work — for that call GET /get_balance, which is cheap and answers 401 if they do not.
+It never touches our database or queues and reports nothing about them, so a 200 here is not a promise that booking is healthy. Use it as a connectivity check, not as a monitor for our service.
+`time` is ISO 8601 with our offset (Asia/Dhaka). Compare it with your own clock — a skewed clock is behind a surprising number of "why is my parcel dated tomorrow" questions.
+Rate limited by IP like everything else, so do not poll it in a tight loop.
+Authentication
+Headers on every request
+Api-Key
+Your API key.
+Secret-Key
+Your secret key.
+Content-Type
+application/json on POST.
+There is no login step and no token to refresh. Send both keys on every call.
+
+When it goes wrong
+Missing or wrong credentials answer 401. Repeated failures from one address and key are counted: after 10 in five minutes you are refused with 429 for 60 minutes, correct keys included. Do not retry a 401 in a loop — fix the keys first.
+
+Rate limits are 1,000 requests a minute, and 6,000 for booking.
+
+Keys belong to one profile
+If you run more than one business with us, each has its own keys. A key issued for a business books parcels onto that business and can read only that business's parcels and payouts — it cannot see your main account's, and your main account's key cannot see the business's. That is what makes a key safe to hand to one shop's developer.
+
+You can hold several keys in each profile: one per integration, named, so that retiring your old plugin does not take your ERP down with it. Issue and revoke them on
+Your API keys
+.
+
+Two things that surprise people
+We strip some characters. Before storing an address, a name or a note we replace each of {</code> <code>}</code> <code>;</code> <code><</code> <code>></code> <code>$ with a space. Text you send is not always text you get back.
+
+We truncate rather than refuse. Over-long values are cut to fit:
+
+invoice	100 characters
+recipient_name	100 characters
+recipient_phone	40 characters
+recipient_address	490 characters
+note	480 characters
+Check your own lengths if the exact value matters to you.
+
+Booking parcels
+Creating a parcel is the one call most integrations make. Everything else answers questions about parcels you already booked.
+
+POST
+/create_order
+Book one parcel.
+Fields
+Field	Type	What it is
+invoiceRequired	string	Your own order number. Letters, digits, hyphens and underscores only. Must not repeat one you have already used — that is what makes a retry safe. Stored to 100 characters.
+recipient_nameRequired	string	Stored to 100 characters.
+recipient_phoneRequired	string	Eleven digits beginning 01.
+recipient_addressRequired	string	Stored to 490 characters.
+cod_amountRequired	number	What to collect on delivery, in BDT. 0 for a prepaid order. Maximum 1,000,000.
+noteOptional	string	Delivery instructions for the rider. Up to 480 characters.
+alternative_phoneOptional	string	A second number to try. Eleven digits beginning 01.
+recipient_emailOptional	string	Must be a deliverable address — the domain is checked.
+item_descriptionOptional	string	What is in the parcel. Up to 255 characters.
+total_lotOptional	number	How many items. Defaults to 1.
+delivery_typeOptional	number	0 for home delivery (the default), 1 for point delivery.
+exchangeOptional	boolean	true to book an exchange parcel — the rider delivers this one and brings back the item being exchanged. Defaults to false. Send `true` / `false` in JSON, or `"true"` / `"false"` (or 1 / 0) in a form.
+Request
+{
+    "invoice": "ORD-10231",
+    "recipient_name": "Jahid Hasan",
+    "recipient_phone": "01712345678",
+    "recipient_address": "House 17/1, Road 3/A, Dhanmondi, Dhaka-1209",
+    "cod_amount": 1060,
+    "note": "Call before 3 PM"
+}
+Response
+{
+    "status": 200,
+    "message": "Consignment has been created successfully.",
+    "consignment": {
+        "consignment_id": 1424107,
+        "invoice": "ORD-10231",
+        "tracking_code": "15BAEB8A",
+        "tracking_link": "https://steadfast.com.bd/tl/a1b2c3d4",
+        "recipient_name": "Jahid Hasan",
+        "recipient_phone": "01712345678",
+        "recipient_address": "House 17/1, Road 3/A, Dhanmondi, Dhaka-1209",
+        "recipient_email": null,
+        "alternative_phone": null,
+        "item_description": null,
+        "total_lot": 1,
+        "cod_amount": 1060,
+        "exchange": false,
+        "status": "in_review",
+        "note": "Call before 3 PM",
+        "created_at": "2026-09-20T07:05:31.000000Z",
+        "updated_at": "2026-09-20T07:05:31.000000Z"
+    }
+}
+Keep the `consignment_id` and `tracking_code`. They are how you ask about this parcel later.
+A rejected field comes back as `{"status": 400, "errors": { ... }}` with the field names — the parcel is not booked.
+Every parcel starts `in_review` and is approved by us shortly after.
+`exchange` in the response says how the parcel was booked. Any value other than true or false is refused with the other field errors.
+POST
+/create_order/bulk-order
+Book up to 500 parcels in one request.
+Fields
+Field	Type	What it is
+dataRequired	array	The orders, each shaped exactly as a single `create_order` body. At most 500 per request.
+Request
+{
+    "data": [
+        {
+            "invoice": "ORD-10231",
+            "recipient_name": "Jahid Hasan",
+            "recipient_phone": "01712345678",
+            "recipient_address": "Dhanmondi, Dhaka",
+            "cod_amount": 1060,
+            "note": "Call first"
+        },
+        {
+            "invoice": "ORD-10232",
+            "recipient_name": "Nusrat Jahan",
+            "recipient_phone": "01812345678",
+            "recipient_address": "Uttara, Dhaka",
+            "cod_amount": 450,
+            "exchange": true
+        }
+    ]
+}
+Response
+{
+    "status": 200,
+    "message": "We have a response for you.",
+    "data": [
+        {
+            "invoice": "ORD-10231",
+            "consignment_id": 1424107,
+            "tracking_code": "15BAEB8A",
+            "status": "success",
+            "tracking_link": "https://steadfast.com.bd/tl/a1b2c3d4"
+        },
+        {
+            "invoice": "ORD-10232",
+            "consignment_id": null,
+            "tracking_code": null,
+            "status": null,
+            "error": "[\"THIS_INVOICE_ALREADY_EXISTS\"]"
+        }
+    ]
+}
+Error codes
+INVOICE_IS_REQUIRED	No `invoice` on this order.
+INVOICE_MUST_BE_ALPHA_NUM_DASH_UNDERSCORE	The invoice has a character other than a letter, digit, hyphen or underscore.
+INVOICE_LENGTH_SHOULD_BE_LESS_THAN_100_CHARS	The invoice is too long.
+THIS_INVOICE_ALREADY_EXISTS	You have already booked a parcel with this invoice.
+RECEIVER_NAME_IS_REQUIRED	No `recipient_name`.
+RECEIVER_NAME_LENGTH_SHOULD_BE_LESS_THAN_100_CHARS	The name is too long.
+RECEIVER_PHONE_IS_REQUIRED	No `recipient_phone`.
+RECEIVER_PHONE_LENGTH_SHOULD_BE_LESS_THAN_40_CHARS	The phone number is too long.
+RECEIVER_ADDRESS_IS_REQUIRED	No `recipient_address`.
+RECEIVER_ADDRESS_LENGTH_SHOULD_BE_LESS_THAN_500_CHARS	The address is too long.
+RECEIVER_NOTE_LENGTH_SHOULD_BE_LESS_THAN_500_CHARS	The note is too long.
+COD_AMOUNT_ERROR	No `cod_amount` on this order.
+ERROR	`cod_amount` is not a number.
+EXCHANGE_MUST_BE_TRUE_OR_FALSE	`exchange` is something other than true or false.
+The whole request answers 200 even when some orders failed. Read every entry.
+`data` comes back in the order you sent it, one entry per order, so you can match results to your own rows by position as well as by `invoice`.
+A successful entry carries `status: "success"` and a `consignment_id`. A failed one carries `status: null` and `error`, a JSON-encoded array of codes.
+Partial success is normal and is not an error: book the failures again after fixing them, leaving the successes alone.
+Mark an order as an exchange with `exchange: true` on that order. Orders without it are booked as ordinary parcels.
+POST
+/create_order/bulk-order/extended
+The same as above, with per-field validation messages instead of codes.
+Fields
+Field	Type	What it is
+dataRequired	array	As above. At most 500 orders.
+Response
+{
+    "status": 200,
+    "message": "Processed bulk order entries.",
+    "data": [
+        {
+            "invoice": "ORD-10232",
+            "status": "error",
+            "error": [
+                "The recipient phone format is invalid."
+            ],
+            "consignment_id": null,
+            "tracking_code": null
+        }
+    ]
+}
+Prefer this one for a new integration: the failures are sentences you can show someone, rather than codes you have to look up.
+It also accepts `recipient_email`, `alternative_phone`, `item_description` and `total_lot` per order, which the older bulk endpoint reads from the top level of the request instead.
+`exchange` is read per order on both bulk endpoints, as on `create_order`.
+Checking status
+Four ways to ask about one parcel, by whichever identifier you kept. Answers are cached for 60 seconds, so polling faster than that tells you nothing new — prefer a webhook.
+
+GET
+/status_by_cid/{consignment_id}
+Where a parcel is, by the id we gave you.
+Response
+{
+    "status": 200,
+    "delivery_status": "delivered"
+}
+GET
+/status_with_return_status_by_cid/{consignment_id}
+As above, but for a parcel coming back it says how far back it has got.
+Response
+{
+    "status": 200,
+    "delivery_status": "cancelled_return_rider_assigned"
+}
+Use this one if you reconcile stock: it is the only endpoint that tells you a returned parcel is actually back with you.
+GET
+/status_by_invoice/{invoice}
+The same answer, by your own order number.
+Response
+{
+    "status": 200,
+    "delivery_status": "pending"
+}
+If you have somehow booked the same invoice twice, this answers for the most recent one.
+GET
+/status_by_trackingcode/{tracking_code}
+The same answer, by tracking code.
+Response
+{
+    "status": 200,
+    "delivery_status": "in_review"
+}
+GET
+/trackings_by_invoice/{invoice}
+Every step a parcel has been through, not just where it is now.
+Response
+{
+    "status": 200,
+    "tracking": [
+        {
+            "consignment_id": 1424107,
+            "tracking_type": 1,
+            "text": "Consignment created by Sender(API).",
+            "created_at": "2026-09-20T07:05:31.000000Z"
+        },
+        {
+            "consignment_id": 1424107,
+            "tracking_type": 2,
+            "text": "Parcel received at Dhanmondi hub.",
+            "created_at": "2026-09-20T11:22:04.000000Z"
+        }
+    ]
+}
+This is what to show a customer asking "where is my order?".
+Parcels by state
+The four figures at the top of your dashboard — In review, Delivery processing, COD processing and Return requests — counted the same way, and the parcels behind each. Read live, not cached.
+
+GET
+/parcel_states
+How many parcels are in each dashboard state, and the cash on delivery riding on them.
+Response
+{
+    "status": 200,
+    "states": {
+        "in_review": {
+            "count": 12,
+            "cod_amount": 18450
+        },
+        "delivery_processing": {
+            "count": 87,
+            "cod_amount": 142300
+        },
+        "cod_processing": {
+            "count": 9,
+            "cod_amount": 11200
+        },
+        "return_requests": {
+            "count": 2
+        }
+    }
+}
+`in_review`: booked, waiting for us to approve.
+`delivery_processing`: approved and with the rider, not yet delivered.
+`cod_processing`: the rider has finished it and it is waiting for our approval. Its `cod_amount` counts only parcels delivered or partly delivered — a cancelled one brings in no cash — so it can be less than the sum of their COD.
+`return_requests`: a hub has asked you to agree to cancel a parcel and is waiting for your answer. These are not the return requests you raise yourself, which are under Returns.
+Each key sees its own profile: a business key counts that business's parcels, an account key the account's.
+GET
+/parcel_states/{state}
+The parcels in one state, latest first, a page at a time.
+Fields
+Field	Type	What it is
+stateRequired	string (path)	One of `in_review`, `delivery_processing`, `cod_processing`, `return_requests`. Anything else is a 404.
+sortOptional	string (query)	`desc` for the latest first (the default), `asc` for the oldest first.
+per_pageOptional	number (query)	How many per page, 1 to 100. Defaults to 20.
+pageOptional	number (query)	Which page. Defaults to 1.
+Response
+{
+    "status": 200,
+    "state": "delivery_processing",
+    "data": [
+        {
+            "consignment_id": 1424107,
+            "invoice": "ORD-10231",
+            "tracking_code": "15BAEB8A",
+            "tracking_link": "https://steadfast.com.bd/tl/a1b2c3d4",
+            "recipient_name": "Jahid Hasan",
+            "recipient_phone": "01712345678",
+            "recipient_address": "House 17/1, Road 3/A, Dhanmondi, Dhaka-1209",
+            "recipient_email": null,
+            "alternative_phone": null,
+            "item_description": null,
+            "total_lot": 1,
+            "cod_amount": 1060,
+            "exchange": false,
+            "status": "pending",
+            "note": "Call before 3 PM",
+            "created_at": "2026-11-10T07:05:31.000000Z",
+            "updated_at": "2026-11-10T09:12:04.000000Z"
+        }
+    ],
+    "meta": {
+        "total": 87,
+        "per_page": 20,
+        "current_page": 1,
+        "last_page": 5,
+        "sort": "desc"
+    }
+}
+Each parcel has the same fields `create_order` returns. Page through with `page` until `current_page` reaches `last_page`.
+For `return_requests`, each entry is the hub's request rather than a parcel: `{"request_id", "reason_id", "reason", "note", "requested_at", "consignment": { ...the parcel... }}`. `reason` is the reason as written in your dashboard.
+Parcels move between states while they are being worked, so paging through a busy state can show a parcel twice or miss one that has just moved on. Read the list again later to catch up.
+Stats
+The figures on your Stats page: how the parcels you booked in a date range turned out, and the cash on delivery in each outcome.
+
+GET
+/stats
+Counts and COD per outcome for the parcels you booked between two dates.
+Fields
+Field	Type	What it is
+fromOptional	string (query)	First day, `YYYY-MM-DD`. Defaults to 30 days ago.
+toOptional	string (query)	Last day, `YYYY-MM-DD`, counted in full. Defaults to today.
+Response
+{
+    "status": 200,
+    "from": "2026-10-01",
+    "to": "2026-10-31",
+    "total": {
+        "count": 412,
+        "cod_amount": 628450
+    },
+    "success_rate": 84,
+    "cancel_rate": 9,
+    "delivered": {
+        "count": 331,
+        "cod_amount": 512300,
+        "share": 80
+    },
+    "partial": {
+        "count": 16,
+        "cod_amount": 21400,
+        "share": 4
+    },
+    "cancelled": {
+        "count": 37,
+        "cod_amount": 52650,
+        "share": 9
+    },
+    "pending": {
+        "count": 21,
+        "cod_amount": 33900,
+        "share": 5
+    },
+    "approval": {
+        "count": 7,
+        "cod_amount": 8200,
+        "share": 2
+    }
+}
+Parcels are counted by the day they were booked. Each falls in exactly one outcome: `delivered`, `partial` (partly delivered), `cancelled`, `pending` (with the rider) or `approval` (the rider has delivered it and it is waiting for our approval).
+Parcels still in review or on hold are not counted.
+`success_rate` is delivered plus partly delivered as a percentage of `total`; `cancel_rate` and each `share` are percentages of `total`, rounded.
+Any range works, back to your first parcel — older parcels are included even after they have been archived.
+Pickups
+Ask a rider to come and collect what you have booked.
+
+POST
+/create_pickup_request
+Ask for a rider to collect from one of your addresses.
+Fields
+Field	Type	What it is
+address_idRequired	number	Which of your saved pickup addresses. From your Pickup Addresses page.
+police_station_idRequired	number	The thana the address is in. From `/police_stations`.
+addressRequired	string	The address in words, up to 255 characters.
+contact_numberRequired	string	Who the rider should call. Eleven digits beginning 013–019.
+noteOptional	string	Anything the rider should know. Up to 500 characters.
+estim_qtyOptional	number	Roughly how many parcels are waiting.
+Request
+{
+    "address_id": 42,
+    "police_station_id": 17,
+    "address": "House 17/1, Road 3/A, Dhanmondi, Dhaka",
+    "contact_number": "01712345678",
+    "estim_qty": 25
+}
+Response
+{
+    "message": "Pickup request created successfully.",
+    "data": {
+        "id": 9081,
+        "user_id": 12345,
+        "user_address_id": 42,
+        "police_station_id": 17,
+        "pickup_location": "House 17/1, Road 3/A, Dhanmondi, Dhaka",
+        "contact_number": "01712345678",
+        "note": null,
+        "estim_qty": 25,
+        "req_status": 0,
+        "created_at": "2026-09-20T07:05:31.000000Z"
+    }
+}
+Answers 201, not 200.
+Asking twice for the same address while one is still pending answers 409 with `PICKUP_REQUEST_EXISTS` — it is safe to retry, you simply will not get two riders.
+Returns
+Ask for a parcel to come back to you before it is delivered.
+
+POST
+/create_return_request
+Ask for a parcel to be brought back to you.
+Fields
+Field	Type	What it is
+consignment_idOptional	number	Name the parcel by one of these three. Whichever you have.
+invoiceOptional	string	Your own order number.
+tracking_codeOptional	string	The tracking code.
+reasonOptional	string	Why. Up to 500 characters.
+Request
+{
+    "invoice": "ORD-10231",
+    "reason": "Customer changed their mind"
+}
+Response
+{
+    "id": 1,
+    "user_id": 12345,
+    "consignment_id": 1424107,
+    "reason": "Customer changed their mind",
+    "status": "pending",
+    "created_at": "2026-09-20T23:11:45.000000Z",
+    "updated_at": "2026-09-20T23:11:45.000000Z"
+}
+Answers 201.
+Refused with 422 for a parcel already delivered, or one that is already coming back.
+Asking twice for the same parcel is refused with 422 while the first request is still open.
+Statuses: `pending`, `approved`, `processing`, `completed`, `cancelled`.
+GET
+/get_return_requests
+Your return requests, newest first, ten to a page.
+Paginated: add `?page=2` for the next ten.
+GET
+/get_return_request/{id}
+One return request, with the parcel it is about.
+Balance and payments
+What we owe you, and what we have already paid.
+
+GET
+/get_balance
+What we currently owe you.
+Response
+{
+    "status": 200,
+    "current_balance": 12450
+}
+Delivered COD, less delivery charges, less our 1% collection charge. It is what you could request a payout of right now.
+GET
+/payments
+Payouts we have made to you, ten to a page.
+Fields
+Field	Type	What it is
+sortOptional	string (query)	`asc` for the oldest payouts first (the default), `desc` for the latest first. Ordered by when the payout was raised. Anything else is refused with a 422.
+pageOptional	number (query)	Which page of ten. Defaults to 1.
+Response
+{
+    "status": 1,
+    "alertClass": "success",
+    "message": "Fetched successfully!",
+    "payments": [
+        {
+            "payment_id": "SFC-88213",
+            "amount": 12450,
+            "method": "bKash",
+            "due_bills": 0,
+            "paid_bills": 3200,
+            "charges": 124,
+            "total": 12450,
+            "status_label": "Paid",
+            "created_at": "2026-09-18 11:04:22",
+            "ready_at": "2026-09-18 12:00:00",
+            "paid_at": "2026-09-19 10:31:07"
+        }
+    ]
+}
+Both are query parameters: `GET /payments?sort=desc&page=2` is the second page of ten, latest first.
+GET
+/payments/{payment_id}
+One payout, with every parcel it settled.
+Pass the number only. `SFC-88213` is the same payout as `88213`; non-digits are ignored.
+This is how you reconcile a payout against your own orders: each parcel comes back in full, including your `invoice`.
+Lookups
+Reference data and customer history.
+
+GET
+/police_stations
+Every thana we deliver to, with its district.
+Changes rarely. Fetch it occasionally and keep it, rather than on every order.
+GET
+/fraud_check/score/{phone}
+A customer's delivery record: how much of it arrived, how much came back, and what other merchants have reported.
+Response
+{
+    "status": 200,
+    "phone": "01712345678",
+    "delivery_ratio": 92,
+    "cancellation_ratio": 7,
+    "volume_band": "high",
+    "volume_range": "50+",
+    "delivered_count": 58,
+    "cancelled_count": 5,
+    "total_reports": 0,
+    "fraud_categories": [],
+    "score": null,
+    "level": null,
+    "reasons": [],
+    "scoring_disabled": true,
+    "doubtful_reports": false
+}
+The same figures the customer check on your dashboard shows. The two cannot disagree — they read the same stored record.
+`delivery_ratio` and `cancellation_ratio` are whole percents of this customer's FINISHED parcels: delivered (partly delivered counts as delivered) against cancelled. Parcels still in flight are in neither.
+Both are null — not 0 — for a number nothing has finished for. Null means "we do not know", and a customer nobody has delivered to yet is not the same as one who takes everything. Do not render null as a clean record.
+They are each rounded down on their own, so they can add up to 99 rather than 100. That is deliberate: taking one as 100 minus the other rounds the second up, and neither a delivery record nor a cancellation record should be overstated by arithmetic.
+`volume_band` is how many parcels this number has received, of those that finished: none, low (1–5), medium (6–20), high (21–200) or very_high (200+).
+`volume_range` is the same count as merchants are shown it: exact below ten ("7"), then the step reached — "10+", "25+", "50+" or "100+". Null for a number nothing has finished for. Past ten only the step is given, because the count is every merchant's history with that customer and it is not one merchant's to read.
+`delivered_count` and `cancelled_count` are the exact counts behind the ratios, as your dashboard's check shows them. They are filled in only while you are booking regularly — parcels on at least 3 of the last 7 days, or more than 3 approved in the last 24 hours — and are null otherwise. Null is "not shown", not 0.
+`fraud_categories` is what the reports against the number were about, as code => times reported, worst first — for example {"no_response": 3, "refused": 1}. Reports filed before categories existed carry none, so `total_reports` can be higher than these add up to.
+SCORING IS DISABLED. `score` and `level` now always answer null, `reasons` is always empty, and `scoring_disabled` is true. The keys are kept so that an integration reading them keeps parsing rather than breaking — null was always a documented answer here — but they will not carry a number again. Read the ratios and the band instead.
+Why it went: one figure out of 100 made the decision and gave you nothing to check it against. A merchant refusing an order wants to know what is wrong — the split, the reports, what those reports said — and none of that survives being compressed into a single number.
+Built from every merchant's history with that number, not only your own orders.
+Rate limited per merchant against your own parcel volume: roughly four checks for every parcel you booked on your busiest day in the last week, plus ten. Over it, you get 429. The limit is shared with the older counts endpoint.
+A signal, not a verdict. A cancelled parcel is not proof of anything, and none of this is built to say otherwise.
+Already calling GET /fraud_check/{phone} for parcel counts? Move to this endpoint before 27 September 2026. On that date the old path stops returning counts, so an integration reading total_delivered and total_cancelled will find them gone. It sends a Deprecation and Sunset header in the meantime.
+Status reference
+Delivery statuses
+Anything ending _approval_pending is the rider's word, not ours yet. Do not settle your books on it — wait for delivered, partial_delivered or cancelled.
+
+pending	Booked and with us. Not yet attempted.
+in_review	Just created and awaiting our approval. Every parcel starts here.
+hold	Held — usually an address or a payment question. Contact support.
+delivered_approval_pending	The rider marked it delivered; our accounts team has not confirmed it yet.
+partial_delivered_approval_pending	The rider marked it partially delivered, awaiting confirmation.
+cancelled_approval_pending	The rider marked it cancelled, awaiting confirmation.
+unknown_approval_pending	Awaiting confirmation, outcome not one of the above.
+delivered	Delivered and confirmed. The COD is now owed to you.
+partial_delivered	Part of the order was delivered and confirmed.
+cancelled	Not delivered and confirmed. The parcel comes back to you.
+exceptional	Lost, damaged or otherwise off the normal path. Contact support.
+unknown	Not a state this API recognises. Treat as "ask us".
+Return statuses
+Only from /status_with_return_status_by_cid/{id}, and only for a parcel that did not fully arrive.
+
+partial_delivered_return_proccessing	Part delivered; the rest is being prepared for return.
+partial_delivered_return_rider_assigned	Part delivered; a rider is bringing the rest back.
+partial_delivered_return_received	Part delivered; you have the rest back.
+cancelled_return_proccessing	Cancelled; the parcel is being prepared for return.
+cancelled_return_rider_assigned	Cancelled; a rider is bringing it back.
+cancelled_return_received	Cancelled; you have it back.
+Keeping up without polling
+Status answers are cached for 60 seconds, so asking more often than that costs you requests and tells you nothing. Give us a webhook URL instead and we will tell you when a parcel moves, when a return list is accepted and when a payout is made.
+
+What the response codes mean
+Code	What it means	What to do
+200	Done, or answered.	Some endpoints report a per-item failure inside a 200 — always read the body.
+400	The request was not understood.	Usually a malformed or missing `data` payload on a bulk call.
+401	Not authenticated, or not yours.	Wrong or revoked credentials — or a parcel that belongs to another profile. See Authentication.
+403	Authenticated, but not allowed right now.	An inactive account, or ownership (KYC) details that need resubmitting.
+422	A field was rejected.	Read `errors` for the field names.
+429	Too many requests, or too many failures.	Back off. Repeated bad credentials lock the client out — see Authentication.
+500	Our fault.	Retry with the same invoice; duplicate invoices are refused, so a retry cannot double-book.

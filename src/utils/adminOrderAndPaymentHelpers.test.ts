@@ -8,8 +8,9 @@ import {
   computePaymentDashboardMetrics,
   filterPaymentRecords,
   resolveSiteSettings,
+  computePaymentChannelDistribution,
 } from './adminOrderAndPaymentHelpers';
-import type { Order, PaymentSubmission } from '../types';
+import type { Order, PaymentSubmission, PaymentMethodConfig } from '../types';
 
 function makeOrder(overrides: Partial<Order> = {}): Order {
   return {
@@ -271,3 +272,90 @@ test('resolveSiteSettings resolves defaults and overrides properly', () => {
     }
   );
 });
+
+test('computePaymentChannelDistribution accurately attributes Bengali bKash orders and filters out inactive methods', () => {
+  const methods: PaymentMethodConfig[] = [
+    {
+      id: 'cod',
+      name: 'ক্যাশ অন ডেলিভারি',
+      englishName: 'Cash on Delivery',
+      type: 'cod',
+      accountName: 'COD',
+      accountNumber: 'N/A',
+      instructions: '',
+      isActive: true,
+      displayOrder: 1,
+    },
+    {
+      id: 'bkash-personal',
+      name: 'বিকাশ',
+      englishName: 'bKash',
+      type: 'bkash',
+      accountName: 'MR. BOOKS',
+      accountNumber: '01712345678',
+      instructions: '',
+      isActive: true,
+      displayOrder: 2,
+    },
+    {
+      id: 'nagad-personal',
+      name: 'নগদ',
+      englishName: 'Nagad',
+      type: 'nagad',
+      accountName: 'MR. BOOKS',
+      accountNumber: '01812345678',
+      instructions: '',
+      isActive: true,
+      displayOrder: 3,
+    },
+    {
+      id: 'rocket-personal',
+      name: 'রকেট',
+      englishName: 'Rocket',
+      type: 'rocket',
+      accountName: 'MR. BOOKS',
+      accountNumber: '01912345678',
+      instructions: '',
+      isActive: true,
+      displayOrder: 4,
+    },
+    {
+      id: 'upay-personal',
+      name: 'উপায়',
+      englishName: 'Upay',
+      type: 'upay',
+      accountName: 'MR. BOOKS',
+      accountNumber: '01612345678',
+      instructions: '',
+      isActive: false, // hidden/off in Admin Panel
+      displayOrder: 5,
+    },
+  ];
+
+  const orders: Order[] = [
+    makeOrder({
+      id: 'MRB-BKASH-TEST',
+      paymentMethodId: 'bkash-personal',
+      paymentMethodName: 'বিকাশ (সেন্ড মানি)',
+      total: 380,
+    }),
+  ];
+
+  const dist = computePaymentChannelDistribution(orders, methods, true, []);
+  // Upay (isActive: false) must be excluded; COD, bKash, Nagad, Rocket must be shown
+  assert.deepEqual(
+    dist.channels.map(c => c.label),
+    ['Cash on Delivery', 'bKash', 'Nagad', 'Rocket']
+  );
+
+  const codRow = dist.channels.find(c => c.type === 'cod')!;
+  const bkashRow = dist.channels.find(c => c.type === 'bkash')!;
+
+  assert.equal(codRow.count, 0);
+  assert.equal(codRow.revenue, 0);
+  assert.equal(bkashRow.count, 1);
+  assert.equal(bkashRow.revenue, 380);
+  assert.equal(dist.primaryChannel.label, 'bKash');
+  assert.equal(dist.primaryChannel.percentage, 100);
+});
+

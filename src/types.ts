@@ -119,12 +119,48 @@ export interface Order {
   createdAt: number;
   updatedAt: number;
   paymentSubmissionId?: string;
+  courierId?: string;
   courierName?: string;
+  consignmentId?: string | number;
   trackingCode?: string;
   trackingUrl?: string;
   trackingNotes?: string;
+  courierDeliveryStatus?: string;
+  courierReturnStatus?: string;
+  courierCodAmount?: number;
+  courierDeliveryType?: 0 | 1;
+  courierExchange?: boolean;
+  courierSentAt?: number;
+  courierLastSyncedAt?: number;
+  courierTrackingSteps?: CourierTrackingStep[];
   isTrashed?: boolean;
   trashedAt?: number;
+}
+
+export interface CourierTrackingStep {
+  consignment_id?: number | string;
+  tracking_type?: number;
+  text: string;
+  created_at: string;
+}
+
+export interface CourierProviderConfig {
+  id: string;
+  name: string;
+  providerType: 'steadfast' | 'pathao' | 'redx' | 'paperfly' | 'sundarban' | 'custom';
+  baseUrl: string;
+  apiKey: string;
+  secretKey: string;
+  clientId?: string;
+  storeId?: string;
+  webhookUrl?: string;
+  isActive: boolean;
+  isDefault: boolean;
+  sandboxMode?: boolean;
+  autoSendOnConfirm?: boolean;
+  defaultDeliveryType?: 0 | 1;
+  trackingUrlTemplate?: string;
+  updatedAt?: number;
 }
 
 export interface Subscriber {
@@ -416,11 +452,20 @@ export interface StoreSettings {
   showSundarbanOnCheckout?: boolean;
   hubDeliveryLabel?: string;
   hubDeliverySubtitle?: string;
+  enableCheckoutFraudWarning?: boolean;
+  cancellationFraudThreshold?: number;
   codPaymentIconUrl?: string;
   onlinePaymentIconUrl?: string;
   sundarbanForcesPrepayment?: boolean;
   extraWeightChargePerKg?: number;
   deliveryNote?: string;
+  // Multi-Courier & Steadfast API Integration Settings
+  courierProviders?: CourierProviderConfig[];
+  defaultCourierId?: string;
+  steadfastApiKey?: string;
+  steadfastSecretKey?: string;
+  steadfastBaseUrl?: string;
+  steadfastSandboxMode?: boolean;
 
   // Returning Customer Address Autofill Settings
   enableUseOldAddress?: boolean;

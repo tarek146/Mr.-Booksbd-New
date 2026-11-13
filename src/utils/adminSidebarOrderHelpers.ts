@@ -20,6 +20,7 @@ export interface AdminSidebarConfig {
 export const ALL_ADMIN_SIDEBAR_TAB_IDS: readonly string[] = [
   'overview',
   'orders',
+  'courier',
   'verifications',
   'payment-methods',
   'products',
@@ -48,7 +49,7 @@ export const DEFAULT_ADMIN_SIDEBAR_SECTIONS: AdminSidebarSectionLayout[] = [
   {
     id: 'commerce_orders',
     title: 'ORDERS & PAYMENTS',
-    itemIds: ['orders', 'verifications', 'payment-methods'],
+    itemIds: ['orders', 'courier', 'verifications', 'payment-methods'],
   },
   {
     id: 'catalog_inventory',

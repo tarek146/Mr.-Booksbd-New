@@ -24,7 +24,9 @@ import {
   Download,
   FileSpreadsheet
 } from 'lucide-react';
-import { Order, Product, PaymentSubmission } from '../../types';
+import { Order, Product, PaymentSubmission, PaymentMethodConfig } from '../../types';
+import { useStore } from '../../context/StoreContext';
+import { computePaymentChannelDistribution } from '../../utils/adminOrderAndPaymentHelpers';
 import { 
   ResponsiveContainer, 
   AreaChart, 
@@ -41,6 +43,7 @@ interface AdminAnalyticsProps {
   orders: Order[];
   products: Product[];
   paymentSubmissions: PaymentSubmission[];
+  paymentMethods?: PaymentMethodConfig[];
   onSelectTab?: (tab: string) => void;
   onSelectOrder?: (orderId: string) => void;
 }
@@ -50,9 +53,13 @@ type TimeRange = 'today' | 'yesterday' | '7days' | '30days' | 'all';
 export function AdminAnalytics({
   orders,
   products,
+  paymentSubmissions,
+  paymentMethods: paymentMethodsProp,
   onSelectTab,
   onSelectOrder
 }: AdminAnalyticsProps) {
+  const { paymentMethods: storePaymentMethods, settings } = useStore();
+  const effectivePaymentMethods = paymentMethodsProp || storePaymentMethods;
   const [selectedRange, setSelectedRange] = useState<TimeRange>('7days');
   const [activeChartMetric, setActiveChartMetric] = useState<'revenue' | 'orders'>('revenue');
   
@@ -96,26 +103,13 @@ export function AdminAnalytics({
     const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
     const cancellationRate = orders.length > 0 ? ((cancelledOrders.length / orders.length) * 100).toFixed(0) : '0';
 
-    // Payment method distribution
-    let codCount = 0; let codRevenue = 0;
-    let bkashCount = 0; let bkashRevenue = 0;
-    let nagadCount = 0; let nagadRevenue = 0;
-
-    orders.forEach(o => {
-      const pm = (o.paymentMethodName || '').toLowerCase();
-      if (pm.includes('cod') || pm.includes('cash')) {
-        codCount += 1; codRevenue += o.total;
-      } else if (pm.includes('bkash')) {
-        bkashCount += 1; bkashRevenue += o.total;
-      } else if (pm.includes('nagad')) {
-        nagadCount += 1; nagadRevenue += o.total;
-      } else {
-        codCount += 1; codRevenue += o.total;
-      }
-    });
-
-    const totalPayCount = (codCount + bkashCount + nagadCount) || 1;
-    const codPct = Math.round((codCount / totalPayCount) * 100);
+    // Dynamic Payment Method distribution across all active payment methods in Admin Panel
+    const paymentDistribution = computePaymentChannelDistribution(
+      orders,
+      effectivePaymentMethods,
+      settings.enableBanglaQr !== false,
+      paymentSubmissions
+    );
 
     // Monthly data for chart
     const monthlyData = [
@@ -164,13 +158,10 @@ export function AdminAnalytics({
       totalOrdersCount: orders.length,
       totalRevenue,
       cancellationRate,
-      codCount, codRevenue,
-      bkashCount, bkashRevenue,
-      nagadCount, nagadRevenue,
-      codPct,
+      paymentDistribution,
       monthlyData
     };
-  }, [orders]);
+  }, [orders, effectivePaymentMethods, settings.enableBanglaQr, paymentSubmissions]);
 
   // Weekly Revenue (Last 7 days)
   const weeklyRevenueData = useMemo(() => {
@@ -530,37 +521,52 @@ export function AdminAnalytics({
         </div>
 
         {/* Payment Methods Distribution Card */}
-        <div className="bg-white border border-[#E5E5E5] rounded-3xl p-5 shadow-xs flex flex-col justify-between space-y-4">
+        <div
+          data-testid="admin-payment-methods-distribution-card"
+          className="bg-white border border-[#E5E5E5] rounded-3xl p-5 shadow-xs flex flex-col justify-between space-y-4"
+        >
           <div>
             <h3 className="font-black text-sm text-neutral-900">Payment Methods</h3>
             <p className="text-[11px] text-neutral-500 mt-0.5">Payment channel distribution</p>
           </div>
 
-          <div className="space-y-4 py-2">
-            {[
-              { label: 'Cash on Delivery', count: metrics.codCount, rev: metrics.codRevenue, color: 'bg-emerald-500' },
-              { label: 'bKash Online', count: metrics.bkashCount, rev: metrics.bkashRevenue, color: 'bg-pink-600' },
-              { label: 'Nagad Online', count: metrics.nagadCount, rev: metrics.nagadRevenue, color: 'bg-orange-600' },
-            ].map((pm, idx) => {
-              const maxC = Math.max(metrics.totalOrdersCount, 1);
-              const pct = Math.min(100, Math.round((pm.count / maxC) * 100));
-              return (
-                <div key={idx} className="space-y-1.5">
+          <div className="space-y-3.5 py-2">
+            {metrics.paymentDistribution.channels.length === 0 ? (
+              <div className="text-xs text-neutral-400 py-4 text-center">
+                No active payment methods enabled.
+              </div>
+            ) : (
+              metrics.paymentDistribution.channels.map(pm => (
+                <div
+                  key={pm.id}
+                  data-testid={`payment-dist-row-${pm.type}`}
+                  className="space-y-1.5"
+                >
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-bold text-neutral-800">{pm.label}</span>
-                    <span className="font-black text-neutral-900">{pm.count} orders · ৳{pm.rev}</span>
+                    <span className="font-black text-neutral-900 tabular-nums">
+                      {pm.count} orders · ৳{pm.revenue}
+                    </span>
                   </div>
                   <div className="w-full bg-neutral-100 h-2 rounded-full overflow-hidden">
-                    <div className={`h-full ${pm.color} rounded-full transition-all`} style={{ width: `${pct}%` }} />
+                    <div
+                      className={`h-full ${pm.barColor} rounded-full transition-all duration-300`}
+                      style={{ width: `${pm.percentage}%` }}
+                    />
                   </div>
                 </div>
-              );
-            })}
+              ))
+            )}
           </div>
 
           <div className="flex items-center justify-between text-xs pt-3 border-t border-neutral-100">
             <span className="font-bold text-neutral-500">Primary Channel</span>
-            <span className="font-black text-emerald-600">Cash on Delivery ({metrics.codPct}%)</span>
+            <span
+              data-testid="payment-dist-primary-channel"
+              className={`font-black ${metrics.paymentDistribution.primaryChannel.textColor}`}
+            >
+              {metrics.paymentDistribution.primaryChannel.label} ({metrics.paymentDistribution.primaryChannel.percentage}%)
+            </span>
           </div>
         </div>
 

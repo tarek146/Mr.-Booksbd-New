@@ -90,8 +90,15 @@ import { AdminConversionApiManager } from '../components/admin/AdminConversionAp
 import { AdminCouponsManager } from '../components/admin/AdminCouponsManager';
 import { AdminLiveChatManager } from '../components/admin/AdminLiveChatManager';
 import { AdminOrdersManager } from '../components/admin/AdminOrdersManager';
+import { AdminCourierManager } from '../components/admin/AdminCourierManager';
 import { AdminPaymentTransactionsManager } from '../components/admin/AdminPaymentTransactionsManager';
 import { AdminTabErrorBoundary } from '../components/admin/AdminTabErrorBoundary';
+import {
+  resolveCourierProviders,
+  getDefaultCourierProvider,
+  transferOrderToCourier,
+  syncCourierOrderStatus,
+} from '../utils/steadfastCourierService';
 import { DEFAULT_CANCEL_EXCHANGE_POLICY } from '../utils/storeEnhancementsHelpers';
 import { detectAdminNewCustomerActivity, playAdminIncomingRingtone, unlockChatAudioContext, DEFAULT_LIVE_CHAT_QUICK_REPLIES } from '../utils/chatSoundAndValidation';
 import { resolveDashboardHeaderCapiStatus } from '../utils/facebookCapiHelpers';
@@ -226,6 +233,7 @@ export function AdminDashboard() {
     | 'verifications'
     | 'payment-methods'
     | 'orders'
+    | 'courier'
     | 'products'
     | 'categories'
     | 'banners'
@@ -247,6 +255,7 @@ export function AdminDashboard() {
     'verifications',
     'payment-methods',
     'orders',
+    'courier',
     'products',
     'categories',
     'banners',
@@ -263,6 +272,9 @@ export function AdminDashboard() {
     'coupons',
     'live-chat',
   ];
+
+  const [courierInitialSubTab, setCourierInitialSubTab] = useState<'dashboard' | 'transfer' | 'fraud' | 'settings'>('dashboard');
+  const [courierInitialFraudPhone, setCourierInitialFraudPhone] = useState<string>('');
 
   const getTabFromLocation = (): AdminTabId => {
     if (typeof window === 'undefined') return 'overview';
@@ -2099,6 +2111,13 @@ export function AdminDashboard() {
       icon: Package,
       count: orders.length,
     },
+    courier: {
+      id: 'courier',
+      label: 'Courier & Steadfast',
+      icon: Truck,
+      badge: 'API v1',
+      badgeColor: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
+    },
     verifications: {
       id: 'verifications',
       label: 'Payment Verifications',
@@ -2597,6 +2616,7 @@ export function AdminDashboard() {
               orders={orders} 
               products={products} 
               paymentSubmissions={paymentSubmissions} 
+              paymentMethods={paymentMethods}
               onSelectTab={(tab) => selectAdminTab(tab)} 
             />
           </AdminTabErrorBoundary>
@@ -4801,6 +4821,71 @@ export function AdminDashboard() {
                   setTrackingNotesInput(order.trackingNotes || '');
                   setTrackingStatusInput(order.orderStatus === 'pending' ? 'shipped' : order.orderStatus);
                 }}
+                onOneClickSendCourier={async (order, courierIdOrName) => {
+                  try {
+                    const providers = resolveCourierProviders(settings);
+                    const provider =
+                      providers.find(
+                        c =>
+                          c.id === courierIdOrName ||
+                          c.name.toLowerCase().includes((courierIdOrName || 'steadfast').toLowerCase())
+                      ) || getDefaultCourierProvider(settings);
+                    const res = await transferOrderToCourier(provider, order);
+                    await updateOrderTracking(order.id, {
+                      courierId: provider.id,
+                      courierName: provider.name,
+                      consignmentId: res.consignmentId,
+                      trackingCode: res.trackingCode,
+                      trackingUrl: res.trackingLink,
+                      courierDeliveryStatus: res.status,
+                      courierCodAmount: res.codAmount,
+                      courierDeliveryType: res.deliveryType,
+                      courierSentAt: Date.now(),
+                      courierLastSyncedAt: Date.now(),
+                      orderStatus: order.orderStatus === 'pending' ? 'shipped' : order.orderStatus,
+                      courierTrackingSteps: res.trackingSteps,
+                    });
+                    setToast({ show: true, type: 'success', message: res.message });
+                  } catch (err: any) {
+                    setToast({
+                      show: true,
+                      type: 'error',
+                      message: err?.message || 'Failed to send order to courier.',
+                    });
+                  }
+                }}
+                onSyncCourierOrder={async (order) => {
+                  try {
+                    const providers = resolveCourierProviders(settings);
+                    const provider =
+                      providers.find(c => c.id === order.courierId || c.name === order.courierName) ||
+                      getDefaultCourierProvider(settings);
+                    const res = await syncCourierOrderStatus(provider, order);
+                    await updateOrderTracking(order.id, {
+                      courierDeliveryStatus: res.deliveryStatus,
+                      courierLastSyncedAt: Date.now(),
+                      orderStatus: res.orderStatus,
+                      paymentStatus: res.paymentStatus,
+                      ...(res.trackingSteps.length > 0 ? { courierTrackingSteps: res.trackingSteps } : {}),
+                    });
+                    setToast({
+                      show: true,
+                      type: 'success',
+                      message: `Order #${order.id} synced: ${res.deliveryStatus.toUpperCase()}`,
+                    });
+                  } catch (err: any) {
+                    setToast({
+                      show: true,
+                      type: 'error',
+                      message: err?.message || 'Failed to sync courier status.',
+                    });
+                  }
+                }}
+                onOpenFraudChecker={(phone) => {
+                  setCourierInitialFraudPhone(phone);
+                  setCourierInitialSubTab('fraud');
+                  selectAdminTab('courier');
+                }}
                 onCreateManualOrder={createAdminOrder}
                 onSoftDeleteOrder={softDeleteOrder}
                 onRestoreOrder={restoreOrder}
@@ -4885,13 +4970,11 @@ export function AdminDashboard() {
                           onChange={e => setCourierNameInput(e.target.value)}
                           className="w-full px-3 py-2.5 rounded-xl border border-neutral-200 bg-white font-bold text-neutral-800 focus:outline-none focus:border-[#D71920]"
                         >
-                          <option value="Steadfast">Steadfast Courier</option>
-                          <option value="Pathao">Pathao Courier</option>
-                          <option value="RedX">RedX Delivery</option>
-                          <option value="Paperfly">Paperfly</option>
-                          <option value="eCourier">eCourier</option>
-                          <option value="Sundarban Courier">Sundarban Courier</option>
-                          <option value="SA Paribahan">SA Paribahan</option>
+                          {resolveCourierProviders(settings).map(c => (
+                            <option key={c.id} value={c.name}>
+                              {c.name}
+                            </option>
+                          ))}
                           <option value="In-House Delivery">In-House Delivery (Rider)</option>
                         </select>
                       </div>
@@ -4985,6 +5068,24 @@ export function AdminDashboard() {
               </div>
             )}
           </div>
+        )}
+
+        {/* TAB 4B: COURIER & STEADFAST PACKZY API v1 HUB */}
+        {activeTab === 'courier' && (
+          <AdminTabErrorBoundary
+            tabName="Courier & Steadfast"
+            onResetTab={() => selectAdminTab('orders')}
+          >
+            <AdminCourierManager
+              orders={orders}
+              settings={settings}
+              onUpdateOrderTracking={updateOrderTracking}
+              onUpdateSettings={updateSettings}
+              setToast={setToast}
+              initialSubTab={courierInitialSubTab}
+              initialFraudPhone={courierInitialFraudPhone}
+            />
+          </AdminTabErrorBoundary>
         )}
 
         {/* TAB 5: CATALOG & INVENTORY */}

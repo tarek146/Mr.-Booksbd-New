@@ -3,10 +3,12 @@ import {
   LiveChatMessage,
   LiveChatSession,
   Order,
+  PaymentMethodConfig,
   PaymentSubmission,
   SiteSettings,
 } from '../types';
 import { normalizePhoneLast10 } from './chatSoundAndValidation';
+import { sortPaymentMethods, getPaymentMethodDisplayMeta } from './reviewHelpers';
 
 export function toNumericTimestamp(val: unknown, fallback = Date.now()): number {
   if (typeof val === 'number' && Number.isFinite(val)) return val;
@@ -114,11 +116,19 @@ export type OrderVerificationFilter = 'all' | 'paid' | 'pending_verification' | 
 
 export function getOrderChannelKey(order: Order): Exclude<OrderChannelFilter, 'all'> {
   const haystack = `${order.paymentMethodId || ''} ${order.paymentMethodName || ''}`.toLowerCase();
-  if (haystack.includes('bkash')) return 'bkash';
-  if (haystack.includes('nagad')) return 'nagad';
-  if (haystack.includes('rocket')) return 'rocket';
-  if (haystack.includes('upay')) return 'upay';
-  if (haystack.includes('bank') || haystack.includes('card') || haystack.includes('qr')) return 'banking';
+  if (haystack.includes('bkash') || haystack.includes('বিকাশ')) return 'bkash';
+  if (haystack.includes('nagad') || haystack.includes('নগদ')) return 'nagad';
+  if (haystack.includes('rocket') || haystack.includes('রকেট')) return 'rocket';
+  if (haystack.includes('upay') || haystack.includes('উপায়') || haystack.includes('উপায়')) return 'upay';
+  if (
+    haystack.includes('bank') ||
+    haystack.includes('card') ||
+    haystack.includes('qr') ||
+    haystack.includes('কিউআর') ||
+    haystack.includes('ব্যাংক')
+  ) {
+    return 'banking';
+  }
   return 'cod';
 }
 
@@ -337,11 +347,11 @@ export interface UnifiedPaymentRecord {
 
 export function detectPaymentGatewayKey(providerNameOrId?: string): Exclude<PaymentGatewayTab, 'all'> {
   const s = (providerNameOrId || '').toLowerCase();
-  if (s.includes('bkash')) return 'bkash';
-  if (s.includes('nagad')) return 'nagad';
-  if (s.includes('rocket')) return 'rocket';
-  if (s.includes('upay')) return 'upay';
-  if (s.includes('cod') || s.includes('cash')) return 'cod';
+  if (s.includes('bkash') || s.includes('বিকাশ')) return 'bkash';
+  if (s.includes('nagad') || s.includes('নগদ')) return 'nagad';
+  if (s.includes('rocket') || s.includes('রকেট')) return 'rocket';
+  if (s.includes('upay') || s.includes('উপায়') || s.includes('উপায়')) return 'upay';
+  if (s.includes('cod') || s.includes('cash') || s.includes('ক্যাশ')) return 'cod';
   return 'card';
 }
 
@@ -537,3 +547,199 @@ export function resolveSiteSettings(
     updatedAt: raw?.updatedAt || homeConfig?.updatedAt,
   };
 }
+
+export interface PaymentChannelDistributionItem {
+  id: string;
+  type: PaymentMethodConfig['type'];
+  label: string;
+  count: number;
+  revenue: number;
+  percentage: number;
+  barColor: string;
+  textColor: string;
+}
+
+export interface PaymentChannelDistributionSummary {
+  channels: PaymentChannelDistributionItem[];
+  totalOrdersCount: number;
+  primaryChannel: {
+    label: string;
+    percentage: number;
+    textColor: string;
+  };
+}
+
+function getPaymentMethodStyleMeta(method: PaymentMethodConfig): {
+  label: string;
+  barColor: string;
+  textColor: string;
+} {
+  const meta = getPaymentMethodDisplayMeta(method);
+  const cleanEnglish = (method.englishName || meta.englishName || '').trim();
+  const cleanName = (method.name || meta.displayTitle || '').trim();
+
+  let label = cleanEnglish || cleanName || 'Payment Method';
+  if (method.type === 'cod' && (!cleanEnglish || cleanEnglish === 'Cash on Delivery')) {
+    label = 'Cash on Delivery';
+  }
+
+  switch (method.type) {
+    case 'cod':
+      return { label, barColor: 'bg-emerald-500', textColor: 'text-emerald-600' };
+    case 'bkash':
+      return { label, barColor: 'bg-[#E2136E]', textColor: 'text-[#E2136E]' };
+    case 'nagad':
+      return { label, barColor: 'bg-[#F15A24]', textColor: 'text-[#F15A24]' };
+    case 'rocket':
+      return { label, barColor: 'bg-[#8C3494]', textColor: 'text-[#8C3494]' };
+    case 'upay':
+      return { label, barColor: 'bg-[#0054A6]', textColor: 'text-[#0054A6]' };
+    case 'bangla_qr':
+      return { label, barColor: 'bg-teal-600', textColor: 'text-teal-600' };
+    case 'bank':
+    default:
+      return { label, barColor: 'bg-blue-600', textColor: 'text-blue-600' };
+  }
+}
+
+export function detectOrderPaymentType(order: Order): PaymentMethodConfig['type'] {
+  const haystack = `${order.paymentMethodId || ''} ${order.paymentMethodName || ''}`.toLowerCase();
+  if (haystack.includes('bkash') || haystack.includes('বিকাশ')) return 'bkash';
+  if (haystack.includes('nagad') || haystack.includes('নগদ')) return 'nagad';
+  if (haystack.includes('rocket') || haystack.includes('রকেট')) return 'rocket';
+  if (haystack.includes('upay') || haystack.includes('উপায়') || haystack.includes('উপায়')) return 'upay';
+  if (
+    haystack.includes('bangla_qr') ||
+    haystack.includes('bangla-qr') ||
+    haystack.includes('bangla qr') ||
+    haystack.includes('কিউআর') ||
+    haystack.includes('qr')
+  ) {
+    return 'bangla_qr';
+  }
+  if (haystack.includes('bank') || haystack.includes('ব্যাংক') || haystack.includes('card')) {
+    return 'bank';
+  }
+  return 'cod';
+}
+
+/**
+ * Dynamically computes payment channel distribution for all active payment methods
+ * configured in the Admin Panel. Hidden/disabled (`isActive: false`) or removed methods
+ * are excluded from the displayed list.
+ */
+export function computePaymentChannelDistribution(
+  orders: Order[],
+  paymentMethods: PaymentMethodConfig[],
+  enableBanglaQr = true,
+  paymentSubmissions: PaymentSubmission[] = []
+): PaymentChannelDistributionSummary {
+  const activeMethods = sortPaymentMethods(paymentMethods || []).filter(m => {
+    if (!m || m.isActive === false) return false;
+    if (m.type === 'bangla_qr' && enableBanglaQr === false) return false;
+    return true;
+  });
+
+  const statsMap = new Map<string, { count: number; revenue: number }>();
+  for (const m of activeMethods) {
+    statsMap.set(m.id, { count: 0, revenue: 0 });
+  }
+
+  const subByOrderId = new Map<string, PaymentSubmission>();
+  for (const sub of paymentSubmissions || []) {
+    if (sub && sub.orderId) {
+      subByOrderId.set(sub.orderId, sub);
+    }
+  }
+
+  const validOrders = (orders || []).filter(o => !o.isTrashed);
+
+  for (const order of validOrders) {
+    const orderTotal = Number(order.total) || 0;
+    const linkedSub = subByOrderId.get(order.id);
+    const rawId = ((linkedSub?.providerId || order.paymentMethodId) || '').trim();
+    const rawName = `${linkedSub?.providerName || ''} ${order.paymentMethodName || ''}`.trim().toLowerCase();
+
+    // 1. Direct ID match against active payment methods
+    let matchedMethod = activeMethods.find(m => m.id === rawId);
+
+    // 2. Match by payment type (bkash, nagad, rocket, upay, bangla_qr, bank, cod)
+    if (!matchedMethod) {
+      const syntheticOrder: Order = {
+        ...order,
+        paymentMethodId: rawId || order.paymentMethodId,
+        paymentMethodName: rawName || order.paymentMethodName,
+      };
+      const detectedType = detectOrderPaymentType(syntheticOrder);
+      matchedMethod = activeMethods.find(m => m.type === detectedType);
+    }
+
+    // 3. Match by custom method name / English name if not matched by ID or type
+    if (!matchedMethod && rawName) {
+      matchedMethod = activeMethods.find(m => {
+        const mName = (m.name || '').trim().toLowerCase();
+        const mEng = (m.englishName || '').trim().toLowerCase();
+        return (
+          (mName && rawName.includes(mName)) ||
+          (mEng && rawName.includes(mEng))
+        );
+      });
+    }
+
+    if (matchedMethod) {
+      const prev = statsMap.get(matchedMethod.id) || { count: 0, revenue: 0 };
+      prev.count += 1;
+      prev.revenue += orderTotal;
+      statsMap.set(matchedMethod.id, prev);
+    }
+  }
+
+  const totalMatchedOrders = Array.from(statsMap.values()).reduce((sum, s) => sum + s.count, 0);
+  const denom = Math.max(totalMatchedOrders, 1);
+
+  const channels: PaymentChannelDistributionItem[] = activeMethods.map(m => {
+    const stat = statsMap.get(m.id) || { count: 0, revenue: 0 };
+    const style = getPaymentMethodStyleMeta(m);
+    const percentage = totalMatchedOrders > 0 ? Math.round((stat.count / denom) * 100) : 0;
+    return {
+      id: m.id,
+      type: m.type,
+      label: style.label,
+      count: stat.count,
+      revenue: stat.revenue,
+      percentage,
+      barColor: style.barColor,
+      textColor: style.textColor,
+    };
+  });
+
+  if (totalMatchedOrders === 0) {
+    const first = channels[0];
+    return {
+      channels,
+      totalOrdersCount: 0,
+      primaryChannel: {
+        label: first ? first.label : 'None',
+        percentage: 0,
+        textColor: first ? first.textColor : 'text-neutral-500',
+      },
+    };
+  }
+
+  const sortedByVolume = [...channels].sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    return b.revenue - a.revenue;
+  });
+  const top = sortedByVolume[0];
+
+  return {
+    channels,
+    totalOrdersCount: totalMatchedOrders,
+    primaryChannel: {
+      label: top.label,
+      percentage: top.percentage,
+      textColor: top.textColor,
+    },
+  };
+}
+

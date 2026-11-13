@@ -16,13 +16,18 @@ export function TrackOrderPage() {
     setSearched(true);
     setLoading(true);
 
-    const cleanId = orderIdInput.trim().replace(/^#/, '');
+    const cleanId = orderIdInput.trim().replace(/^#/, '').toLowerCase();
     const cleanPhone = phoneInput.trim().replace(/[\s-]/g, '');
 
     setTimeout(() => {
       const found = orders.find(o => {
-        const idMatch = o.id.toLowerCase().includes(cleanId.toLowerCase());
-        const phoneMatch = o.phone.replace(/[\s-]/g, '').includes(cleanPhone) || (o.optionalPhone && o.optionalPhone.replace(/[\s-]/g, '').includes(cleanPhone));
+        const idMatch =
+          o.id.toLowerCase().includes(cleanId) ||
+          String(o.trackingCode || '').toLowerCase().includes(cleanId) ||
+          String(o.consignmentId || '').toLowerCase().includes(cleanId);
+        const phoneMatch =
+          o.phone.replace(/[\s-]/g, '').includes(cleanPhone) ||
+          (o.optionalPhone && o.optionalPhone.replace(/[\s-]/g, '').includes(cleanPhone));
         return idMatch && phoneMatch;
       });
 
@@ -81,7 +86,7 @@ export function TrackOrderPage() {
               Real-Time Order Tracking
             </h1>
             <p className="text-xs sm:text-sm text-neutral-500 dark:text-slate-400 leading-relaxed">
-              Enter your Order ID (or parcel ID) and Mobile Phone Number below to track your book package status in real-time.
+              Enter your Order ID (or Courier Tracking ID) and Mobile Phone Number below to track your book package status in real-time.
             </p>
           </div>
 
@@ -92,7 +97,7 @@ export function TrackOrderPage() {
                 required
                 value={orderIdInput}
                 onChange={e => setOrderIdInput(e.target.value)}
-                placeholder="Order ID (e.g. 1712345678)"
+                placeholder="Order ID or Tracking Code"
                 className="w-full px-4 py-3 rounded-xl border border-neutral-200 dark:border-slate-700 bg-neutral-50 dark:bg-[#0E1420] text-xs font-bold text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-[#D71920] transition-all"
               />
             </div>
@@ -153,7 +158,7 @@ export function TrackOrderPage() {
                 <div className="py-4">
                   <h3 className="text-xs font-black uppercase tracking-wider text-neutral-500 dark:text-slate-400 mb-6">Delivery Progress Journey</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 relative">
-                    {steps.map((st, idx) => {
+                    {steps.map((st) => {
                       const currentIndex = getStatusStepIndex(matchedOrder.orderStatus);
                       const isCompleted = st.id <= currentIndex;
                       const isCurrent = st.id === currentIndex;
@@ -175,14 +180,31 @@ export function TrackOrderPage() {
                 </div>
 
                 {/* Courier Dispatch Details (if assigned) */}
-                {(matchedOrder.courierName || matchedOrder.trackingCode) && (
-                  <div className="bg-amber-50/80 border border-amber-200 rounded-2xl p-4 text-xs space-y-2">
-                    <div className="flex items-center justify-between font-bold text-amber-900">
-                      <span>🚚 Courier Partner: {matchedOrder.courierName || 'Steadfast / RedX'}</span>
-                      <span className="font-mono bg-white px-2.5 py-1 rounded-lg border border-amber-200">
-                        Tracking: {matchedOrder.trackingCode || 'DISPATCHED'}
-                      </span>
+                {(matchedOrder.courierName || matchedOrder.trackingCode || matchedOrder.consignmentId) && (
+                  <div className="bg-amber-50/80 border border-amber-200 rounded-2xl p-4 text-xs space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 font-bold text-amber-900">
+                      <span>🚚 Courier Partner: {matchedOrder.courierName || 'Steadfast Courier'}</span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {matchedOrder.courierDeliveryStatus && (
+                          <span className="uppercase bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-lg border border-emerald-300 font-black">
+                            Status: {matchedOrder.courierDeliveryStatus}
+                          </span>
+                        )}
+                        <span className="font-mono bg-white px-2.5 py-1 rounded-lg border border-amber-200">
+                          Tracking: {matchedOrder.trackingCode || matchedOrder.consignmentId || 'DISPATCHED'}
+                        </span>
+                      </div>
                     </div>
+
+                    {matchedOrder.consignmentId && (
+                      <div className="text-[11px] text-amber-800 font-mono">
+                        Consignment ID: <strong>{matchedOrder.consignmentId}</strong>
+                        {matchedOrder.courierCodAmount !== undefined && (
+                          <span className="ml-3">· COD Collectible: <strong>৳{matchedOrder.courierCodAmount}</strong></span>
+                        )}
+                      </div>
+                    )}
+
                     {matchedOrder.trackingUrl && (
                       <div>
                         <a 
@@ -196,6 +218,23 @@ export function TrackOrderPage() {
                         </a>
                       </div>
                     )}
+
+                    {matchedOrder.courierTrackingSteps && matchedOrder.courierTrackingSteps.length > 0 && (
+                      <div className="pt-2 border-t border-amber-200/70 space-y-1.5">
+                        <span className="font-black text-[10.5px] uppercase text-amber-900 block">
+                          Courier Tracking Timeline
+                        </span>
+                        {matchedOrder.courierTrackingSteps.map((step, sIdx) => (
+                          <div key={sIdx} className="flex items-start justify-between gap-2 bg-white/80 p-2 rounded-lg border border-amber-200/60 text-[11px]">
+                            <span className="font-semibold text-neutral-800">{step.text}</span>
+                            <span className="text-neutral-500 font-mono shrink-0">
+                              {new Date(step.created_at).toLocaleString()}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
                     {matchedOrder.trackingNotes && (
                       <p className="text-[11px] text-amber-800 pt-1 border-t border-amber-200/60">
                         <strong>Dispatch Note:</strong> {matchedOrder.trackingNotes}

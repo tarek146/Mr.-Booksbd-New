@@ -220,9 +220,9 @@ export function OrderTrackingModal({ order, onClose }: OrderTrackingModalProps) 
           )}
 
           {/* Courier Details (Steadfast / Pathao / RedX / etc) */}
-          {(order.courierName || order.trackingCode) && (
+          {(order.courierName || order.trackingCode || order.consignmentId) && (
             <div className="bg-gradient-to-r from-zinc-900 via-[#1e1e24] to-zinc-900 border border-zinc-700/80 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30">
                     <Truck size={16} />
@@ -231,9 +231,16 @@ export function OrderTrackingModal({ order, onClose }: OrderTrackingModalProps) 
                     <h4 className="text-xs font-black text-white uppercase tracking-wider">
                       Assigned Courier Partner
                     </h4>
-                    <p className="text-xs font-bold text-amber-400">
-                      {order.courierName || 'Third-Party Courier'}
-                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className="text-xs font-bold text-amber-400">
+                        {order.courierName || 'Steadfast Courier'}
+                      </p>
+                      {order.courierDeliveryStatus && (
+                        <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-black uppercase">
+                          {order.courierDeliveryStatus}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -250,19 +257,48 @@ export function OrderTrackingModal({ order, onClose }: OrderTrackingModalProps) 
                 )}
               </div>
 
-              {order.trackingCode && (
+              {(order.trackingCode || order.consignmentId) && (
                 <div className="bg-black/40 rounded-xl p-2.5 border border-zinc-800 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-zinc-400">Consignment / Tracking ID:</span>
-                    <span className="font-mono font-bold text-white tracking-wide">{order.trackingCode}</span>
+                    <span className="font-mono font-bold text-white tracking-wide">
+                      {order.trackingCode || order.consignmentId}
+                    </span>
+                    {order.courierCodAmount !== undefined && (
+                      <span className="text-emerald-400 font-mono font-bold ml-2">
+                        · COD: ৳{order.courierCodAmount}
+                      </span>
+                    )}
                   </div>
                   <button
-                    onClick={() => copyToClipboard(order.trackingCode!, 'code')}
+                    onClick={() => copyToClipboard(String(order.trackingCode || order.consignmentId), 'code')}
                     className="p-1 text-zinc-400 hover:text-white rounded-md bg-zinc-800 transition-colors cursor-pointer"
                     title="Copy Tracking ID"
                   >
                     {copiedCode ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
                   </button>
+                </div>
+              )}
+
+              {order.courierTrackingSteps && order.courierTrackingSteps.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-[10.5px] font-bold uppercase tracking-wider text-zinc-400 block">
+                    Live Courier Updates
+                  </span>
+                  {order.courierTrackingSteps.slice(0, 4).map((step, sIdx) => (
+                    <div
+                      key={sIdx}
+                      className="bg-black/30 border border-zinc-800 rounded-lg p-2 flex items-start justify-between gap-2 text-[11px]"
+                    >
+                      <span className="text-zinc-200 font-medium">{step.text}</span>
+                      <span className="text-zinc-500 font-mono shrink-0">
+                        {new Date(step.created_at).toLocaleDateString('en-GB', {
+                          day: 'numeric',
+                          month: 'short',
+                        })}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               )}
 
