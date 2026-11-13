@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
+  CartItem,
   Order,
   PaymentMethodConfig,
   PaymentSubmission,
@@ -123,11 +124,13 @@ function cleanWhatsappPhone(phone: string): string {
 
 function FullPageOrderEdit({
   order,
+  products,
   onCancel,
   onSave,
   setToast,
 }: {
   order: Order;
+  products: Product[];
   onCancel: () => void;
   onSave: (updatedData: Partial<Order>) => Promise<void>;
   setToast: (t: { show: boolean; type: 'success' | 'error'; message: string }) => void;
@@ -141,10 +144,74 @@ function FullPageOrderEdit({
   const [deliveryCharge, setDeliveryCharge] = useState(String(order.deliveryCharge ?? 60));
   const [orderStatus, setOrderStatus] = useState<Order['orderStatus']>(order.orderStatus || 'pending');
   const [paymentStatus, setPaymentStatus] = useState<Order['paymentStatus']>(order.paymentStatus || 'pending');
+  
+  // Items state
+  const [items, setItems] = useState<CartItem[]>(order.items ? JSON.parse(JSON.stringify(order.items)) : []);
+  const [selectedProductIdToAdd, setSelectedProductIdToAdd] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const subtotal = items.reduce((acc, item) => acc + (item.price || 0) * (item.quantity || 1), 0);
+  const deliveryNum = Number(deliveryCharge) || 0;
+  const discount = order.discount || 0;
+  const total = Math.max(0, subtotal + deliveryNum - discount);
+
+  const handleQuantityChange = (index: number, delta: number) => {
+    setItems(prev => {
+      const copy = [...prev];
+      const current = copy[index];
+      const newQty = Math.max(1, (current.quantity || 1) + delta);
+      copy[index] = { ...current, quantity: newQty };
+      return copy;
+    });
+  };
+
+  const handlePriceChange = (index: number, val: string) => {
+    const num = Number(val) || 0;
+    setItems(prev => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], price: num };
+      return copy;
+    });
+  };
+
+  const handleRemoveItem = (index: number) => {
+    setItems(prev => prev.filter((_, idx) => idx !== index));
+  };
+
+  const handleAddProduct = () => {
+    if (!selectedProductIdToAdd) return;
+    const prod = products.find(p => p.id === selectedProductIdToAdd);
+    if (!prod) return;
+    const existingIndex = items.findIndex(i => i.productId === prod.id);
+    if (existingIndex >= 0) {
+      setItems(prev => {
+        const copy = [...prev];
+        copy[existingIndex] = { ...copy[existingIndex], quantity: (copy[existingIndex].quantity || 1) + 1 };
+        return copy;
+      });
+    } else {
+      const newItem: CartItem = {
+        productId: prod.id,
+        variantId: prod.variants?.[0]?.id || 'default',
+        title: prod.title || 'Product',
+        variantName: prod.variants?.[0]?.name || 'Standard',
+        price: prod.price || 0,
+        image: prod.images?.[0] || '',
+        quantity: 1,
+        stock: prod.stock || 99,
+        type: prod.type || 'book',
+      };
+      setItems(prev => [...prev, newItem]);
+    }
+    setSelectedProductIdToAdd('');
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (items.length === 0) {
+      setToast({ show: true, type: 'error', message: 'Order must contain at least one item.' });
+      return;
+    }
     setSaving(true);
     try {
       await onSave({
@@ -154,7 +221,10 @@ function FullPageOrderEdit({
         city: city.trim(),
         district: district.trim(),
         notes: notes.trim(),
-        deliveryCharge: Number(deliveryCharge) || 0,
+        deliveryCharge: deliveryNum,
+        items,
+        subtotal,
+        total,
         orderStatus,
         paymentStatus,
       });
@@ -168,136 +238,239 @@ function FullPageOrderEdit({
   };
 
   return (
-    <div className="bg-white border border-neutral-200/90 rounded-2xl p-6 shadow-sm space-y-6 max-w-4xl mx-auto my-4">
-      <div className="flex items-center justify-between border-b border-neutral-200 pb-4">
+    <div className="bg-white border border-neutral-200/90 rounded-2xl p-6 sm:p-8 shadow-sm space-y-6 max-w-5xl mx-auto my-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-200 pb-5">
         <div>
-          <h2 className="text-lg font-black text-neutral-900">Edit Order #{order.id}</h2>
-          <p className="text-xs text-neutral-500">Manage customer details, delivery, and payment status.</p>
+          <h2 className="text-xl font-black text-neutral-900">Edit Order #{order.id}</h2>
+          <p className="text-xs text-neutral-500">Full order manager: Update items, quantities, pricing, customer details & delivery.</p>
         </div>
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-bold cursor-pointer"
+          className="px-4 py-2.5 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-bold cursor-pointer transition-colors"
         >
           ← Back to Orders
         </button>
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-neutral-700">Customer Name</label>
-            <input
-              type="text"
-              value={customerName}
-              onChange={e => setCustomerName(e.target.value)}
-              required
-              className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-xs font-semibold text-neutral-900 focus:bg-white focus:outline-none focus:border-[#D71920]"
-            />
+        {/* SECTION 1: ITEMS & PRODUCTS */}
+        <div className="bg-neutral-50/70 border border-neutral-200/80 rounded-2xl p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-black uppercase tracking-wider text-neutral-800">Order Items & Products</h3>
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedProductIdToAdd}
+                onChange={e => setSelectedProductIdToAdd(e.target.value)}
+                className="px-3 py-1.5 rounded-xl border border-neutral-200 bg-white text-xs font-semibold text-neutral-800 focus:outline-none focus:border-[#D71920]"
+              >
+                <option value="">+ Add Product from Store...</option>
+                {products.map(p => (
+                  <option key={p.id} value={p.id}>{p.title} (৳{p.price || 0})</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={handleAddProduct}
+                disabled={!selectedProductIdToAdd}
+                className="px-3.5 py-1.5 bg-[#D71920] hover:bg-[#B9151B] text-white rounded-xl text-xs font-bold cursor-pointer disabled:opacity-40"
+              >
+                Add
+              </button>
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-neutral-700">Phone Number</label>
-            <input
-              type="text"
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
-              required
-              className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-xs font-semibold text-neutral-900 focus:bg-white focus:outline-none focus:border-[#D71920]"
-            />
-          </div>
-          <div className="space-y-1.5 md:col-span-2">
-            <label className="text-xs font-bold text-neutral-700">Delivery Address</label>
-            <input
-              type="text"
-              value={address}
-              onChange={e => setAddress(e.target.value)}
-              required
-              className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-xs font-semibold text-neutral-900 focus:bg-white focus:outline-none focus:border-[#D71920]"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-neutral-700">City</label>
-            <input
-              type="text"
-              value={city}
-              onChange={e => setCity(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-xs font-semibold text-neutral-900 focus:bg-white focus:outline-none focus:border-[#D71920]"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-neutral-700">District / Region</label>
-            <input
-              type="text"
-              value={district}
-              onChange={e => setDistrict(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-xs font-semibold text-neutral-900 focus:bg-white focus:outline-none focus:border-[#D71920]"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-neutral-700">Delivery Charge (৳)</label>
-            <input
-              type="number"
-              value={deliveryCharge}
-              onChange={e => setDeliveryCharge(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-xs font-semibold text-neutral-900 focus:bg-white focus:outline-none focus:border-[#D71920]"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-neutral-700">Order Status</label>
-            <select
-              value={orderStatus}
-              onChange={e => setOrderStatus(e.target.value as Order['orderStatus'])}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-xs font-bold text-neutral-800 focus:outline-none focus:border-[#D71920]"
-            >
-              <option value="pending">Pending</option>
-              <option value="awaiting_payment">Awaiting Payment</option>
-              <option value="awaiting_payment_verification">Awaiting Verification</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="processing">Processing</option>
-              <option value="shipped">Shipped</option>
-              <option value="delivered">Delivered</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-neutral-700">Payment Status</label>
-            <select
-              value={paymentStatus}
-              onChange={e => setPaymentStatus(e.target.value as Order['paymentStatus'])}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-xs font-bold text-neutral-800 focus:outline-none focus:border-[#D71920]"
-            >
-              <option value="pending">Pending</option>
-              <option value="paid">Paid</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-            </select>
-          </div>
-          <div className="space-y-1.5 md:col-span-2">
-            <label className="text-xs font-bold text-neutral-700">Customer Notes</label>
-            <textarea
-              rows={3}
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-xs font-semibold text-neutral-900 focus:bg-white focus:outline-none focus:border-[#D71920]"
-            />
+
+          <div className="divide-y divide-neutral-200 bg-white rounded-xl border border-neutral-200 overflow-hidden">
+            {items.map((item, idx) => (
+              <div key={idx} className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={item.image || 'https://via.placeholder.com/60'}
+                    alt={item.title}
+                    className="w-12 h-12 rounded-lg object-cover border border-neutral-200 shrink-0"
+                  />
+                  <div>
+                    <h4 className="text-xs font-bold text-neutral-900">{item.title}</h4>
+                    <p className="text-[11px] text-neutral-500">Variant: {item.variantName || 'Standard'}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-neutral-500 font-bold">Price: ৳</span>
+                    <input
+                      type="number"
+                      value={item.price}
+                      onChange={e => handlePriceChange(idx, e.target.value)}
+                      className="w-20 px-2 py-1 rounded-lg border border-neutral-200 text-xs font-bold text-neutral-900 text-center"
+                    />
+                  </div>
+
+                  <div className="flex items-center border border-neutral-200 rounded-lg overflow-hidden bg-neutral-50">
+                    <button
+                      type="button"
+                      onClick={() => handleQuantityChange(idx, -1)}
+                      className="px-2.5 py-1 text-neutral-700 hover:bg-neutral-200 font-bold text-xs cursor-pointer"
+                    >
+                      -
+                    </button>
+                    <span className="px-3 py-1 text-xs font-black text-neutral-900">{item.quantity}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleQuantityChange(idx, 1)}
+                      className="px-2.5 py-1 text-neutral-700 hover:bg-neutral-200 font-bold text-xs cursor-pointer"
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  <div className="text-xs font-black text-neutral-900 w-20 text-right">
+                    ৳{(item.price || 0) * (item.quantity || 1)}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveItem(idx)}
+                    className="text-red-500 hover:text-red-700 p-1 text-xs font-bold cursor-pointer"
+                    title="Remove Item"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ))}
+            {items.length === 0 && (
+              <div className="p-6 text-center text-xs text-neutral-500">No items in this order. Please add a product above.</div>
+            )}
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-5 py-2.5 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-bold cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className="px-6 py-2.5 rounded-xl bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-black shadow-md cursor-pointer disabled:opacity-50"
-          >
-            {saving ? 'Saving...' : 'Save Changes'}
-          </button>
+        {/* SECTION 2: CUSTOMER & DELIVERY DETAILS */}
+        <div className="bg-neutral-50/70 border border-neutral-200/80 rounded-2xl p-5 space-y-4">
+          <h3 className="text-xs font-black uppercase tracking-wider text-neutral-800">Customer & Delivery Details</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-neutral-700">Customer Name</label>
+              <input
+                type="text"
+                value={customerName}
+                onChange={e => setCustomerName(e.target.value)}
+                required
+                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white text-xs font-semibold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-neutral-700">Phone Number</label>
+              <input
+                type="text"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                required
+                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white text-xs font-semibold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+              />
+            </div>
+            <div className="space-y-1.5 md:col-span-2">
+              <label className="text-xs font-bold text-neutral-700">Delivery Address</label>
+              <input
+                type="text"
+                value={address}
+                onChange={e => setAddress(e.target.value)}
+                required
+                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white text-xs font-semibold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-neutral-700">City</label>
+              <input
+                type="text"
+                value={city}
+                onChange={e => setCity(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white text-xs font-semibold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-neutral-700">District / Region</label>
+              <input
+                type="text"
+                value={district}
+                onChange={e => setDistrict(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white text-xs font-semibold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-neutral-700">Delivery Charge (৳)</label>
+              <input
+                type="number"
+                value={deliveryCharge}
+                onChange={e => setDeliveryCharge(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white text-xs font-semibold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-neutral-700">Order Status</label>
+              <select
+                value={orderStatus}
+                onChange={e => setOrderStatus(e.target.value as Order['orderStatus'])}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white text-xs font-bold text-neutral-800 focus:outline-none focus:border-[#D71920]"
+              >
+                <option value="pending">Pending</option>
+                <option value="awaiting_payment">Awaiting Payment</option>
+                <option value="awaiting_payment_verification">Awaiting Verification</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="processing">Processing</option>
+                <option value="shipped">Shipped</option>
+                <option value="delivered">Delivered</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-neutral-700">Payment Status</label>
+              <select
+                value={paymentStatus}
+                onChange={e => setPaymentStatus(e.target.value as Order['paymentStatus'])}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white text-xs font-bold text-neutral-800 focus:outline-none focus:border-[#D71920]"
+              >
+                <option value="pending">Pending</option>
+                <option value="paid">Paid</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
+            <div className="space-y-1.5 md:col-span-2">
+              <label className="text-xs font-bold text-neutral-700">Customer Notes</label>
+              <textarea
+                rows={2}
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-white text-xs font-semibold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* SECTION 3: FINANCIAL SUMMARY & ACTIONS */}
+        <div className="bg-neutral-900 text-white rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="space-y-1 text-left w-full sm:w-auto">
+            <div className="text-xs text-neutral-400">Subtotal: ৳{subtotal} | Delivery: ৳{deliveryNum} | Discount: ৳{discount}</div>
+            <div className="text-lg font-black">Total Amount to Collect: <span className="text-emerald-400">৳{total}</span></div>
+          </div>
+
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-5 py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-bold cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-6 py-2.5 rounded-xl bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-black shadow-md cursor-pointer disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save & Update Order'}
+            </button>
+          </div>
         </div>
       </form>
     </div>
@@ -544,6 +717,7 @@ export function AdminOrdersManager({
       return (
         <FullPageOrderEdit
           order={orderToEdit}
+          products={products}
           onCancel={() => setEditingOrderId(null)}
           onSave={async (updatedData) => {
             if (onUpdateOrder) {
