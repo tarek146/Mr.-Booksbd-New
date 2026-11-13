@@ -405,8 +405,34 @@ export function CheckoutPage() {
     sortedPaymentMethods[0] ||
     paymentMethods[0];
 
-  const handlePlaceOrder = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const codMethod = useMemo(
+    () => sortedPaymentMethods.find(m => m.type === 'cod'),
+    [sortedPaymentMethods]
+  );
+
+  const onlineMethods = useMemo(
+    () => sortedPaymentMethods.filter(m => m.type !== 'cod'),
+    [sortedPaymentMethods]
+  );
+
+  const isOnlineSelected = Boolean(selectedMethod && selectedMethod.type !== 'cod');
+  const activeOnlineMethod = useMemo(() => {
+    if (selectedMethod && selectedMethod.type !== 'cod') return selectedMethod;
+    return onlineMethods[0] || selectedMethod;
+  }, [selectedMethod, onlineMethods]);
+
+  const handleSelectOnlinePaymentOption = () => {
+    const targetMethod = activeOnlineMethod || onlineMethods[0];
+    if (!targetMethod) return;
+    handleSelectPaymentMethod(targetMethod);
+  };
+
+  const executeOrderSubmission = async (overridePayment?: {
+    method: PaymentMethodConfig;
+    subOptionLabel: string;
+    cleanSender: string;
+    cleanTrxId: string;
+  }) => {
     setErrorMsg('');
 
     const cleanName = name.trim();
@@ -415,11 +441,17 @@ export function CheckoutPage() {
     const cleanAddress = address.trim();
 
     if (cleanName.length < 2) {
-      setErrorMsg('Please enter your full name (minimum 2 characters).');
+      if (overridePayment) {
+        setIsPaymentModalOpen(false);
+      }
+      setErrorMsg('Please enter your full name (minimum 2 characters) in Delivery Details.');
       return;
     }
 
     if (!primaryPhoneCheck.valid) {
+      if (overridePayment) {
+        setIsPaymentModalOpen(false);
+      }
       setErrorMsg(
         primaryPhoneCheck.error ||
           'Please enter a valid 11-digit Bangladesh mobile number (e.g. 01712345678).'
@@ -428,6 +460,9 @@ export function CheckoutPage() {
     }
 
     if (!optionalPhoneCheck.valid) {
+      if (overridePayment) {
+        setIsPaymentModalOpen(false);
+      }
       setErrorMsg(
         optionalPhoneCheck.error ||
           'Please enter a valid 11-digit alternate mobile number or leave it blank.'
@@ -439,14 +474,24 @@ export function CheckoutPage() {
     const cleanOptionalPhone = optionalPhoneCheck.cleaned;
 
     if (cleanAddress.length < 5) {
-      setErrorMsg('Please enter a detailed delivery address (minimum 5 characters).');
+      if (overridePayment) {
+        setIsPaymentModalOpen(false);
+      }
+      setErrorMsg('Please enter your street address (minimum 5 characters) in Delivery Details.');
       return;
     }
+
+    const effectiveMethod = overridePayment ? overridePayment.method : selectedMethod;
+    const effectiveSubLabel = overridePayment
+      ? overridePayment.subOptionLabel
+      : selectedSubOptionLabel;
+    const effectiveSender = overridePayment ? overridePayment.cleanSender : senderNumber;
+    const effectiveTrxId = overridePayment ? overridePayment.cleanTrxId : transactionId;
 
     if (
       deliveryType === 'sundarban' &&
       settings.sundarbanForcesPrepayment !== false &&
-      selectedMethod?.type === 'cod'
+      effectiveMethod?.type === 'cod'
     ) {
       setErrorMsg(
         'Sundarban Courier Delivery requires advance online payment (bKash/Nagad/Rocket/Bank). Cash on Delivery is disabled for Sundarban.'
@@ -454,24 +499,27 @@ export function CheckoutPage() {
       return;
     }
 
-    // For online/manual payment methods, ensure the user submitted transaction details via popup Done button
-    if (selectedMethod && selectedMethod.type !== 'cod') {
+    // For online/manual payment methods, ensure transaction details are valid
+    if (effectiveMethod && effectiveMethod.type !== 'cod') {
       const popupCheck = validatePaymentTransactionPopup(
-        selectedMethod.type,
-        senderNumber,
-        transactionId
+        effectiveMethod.type,
+        effectiveSender,
+        effectiveTrxId
       );
-      if (!popupCheck.valid || !isPaymentSubmitted) {
+      if (!popupCheck.valid || (!isPaymentSubmitted && !overridePayment)) {
         setIsPaymentModalOpen(true);
         setErrorMsg(
           popupCheck.error ||
-            'Please complete the payment details and click Done in the payment modal before confirming your order.'
+            'Please complete the online payment details in the popup to confirm your order.'
         );
         return;
       }
     }
 
     if (cart.length === 0) {
+      if (overridePayment) {
+        setIsPaymentModalOpen(false);
+      }
       setErrorMsg('Your shopping cart is currently empty.');
       return;
     }
@@ -489,9 +537,9 @@ export function CheckoutPage() {
         .join(' | ');
 
       const resolvedPaymentMethodName =
-        selectedMethod.type !== 'cod' && selectedSubOptionLabel
-          ? `${selectedMethod.name} (${selectedSubOptionLabel})`
-          : selectedMethod.name;
+        effectiveMethod.type !== 'cod' && effectiveSubLabel
+          ? `${effectiveMethod.name} (${effectiveSubLabel})`
+          : effectiveMethod.name;
 
       const orderId = await createOrder({
         userId: currentUser?.uid || 'guest-' + Date.now(),
@@ -509,7 +557,7 @@ export function CheckoutPage() {
         discount,
         ...(appliedCouponCode ? { couponCode: appliedCouponCode } : {}),
         total,
-        paymentMethodId: selectedMethod.id,
+        paymentMethodId: effectiveMethod.id,
         paymentMethodName: resolvedPaymentMethodName,
       });
 
@@ -531,17 +579,17 @@ export function CheckoutPage() {
         console.warn('Could not cache address:', storageErr);
       }
 
-      if (selectedMethod?.type !== 'cod' && transactionId.trim() && senderNumber.trim()) {
+      if (effectiveMethod?.type !== 'cod' && effectiveTrxId.trim() && effectiveSender.trim()) {
         try {
           await submitPaymentProof({
             orderId,
             userId: currentUser?.uid || 'guest-' + Date.now(),
             customerName: cleanName,
             customerPhone: cleanPhone,
-            providerId: selectedMethod.id,
+            providerId: effectiveMethod.id,
             providerName: resolvedPaymentMethodName,
-            transactionReference: transactionId.trim(),
-            senderIdentifier: senderNumber.trim(),
+            transactionReference: effectiveTrxId.trim(),
+            senderIdentifier: effectiveSender.trim(),
             claimedAmount: total,
           });
         } catch (proofErr) {
@@ -549,12 +597,18 @@ export function CheckoutPage() {
         }
       }
 
+      setIsPaymentModalOpen(false);
       setActivePage('order-success', orderId);
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to place order. Please check your cart and try again.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePlaceOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await executeOrderSubmission();
   };
 
   const totalItemUnits = useMemo(
@@ -867,32 +921,40 @@ export function CheckoutPage() {
             </section>
 
             {/* 2. Delivery Method */}
-            <section className="p-5 sm:p-6 space-y-3.5">
+            <section className="p-5 sm:p-6 space-y-3">
               <div>
                 <h2 className="text-base font-semibold text-neutral-900 dark:text-white">
                   Delivery Method
                 </h2>
                 <p className="text-xs text-neutral-500 dark:text-slate-400 mt-0.5">
-                  Choose home delivery or Sundarban courier pickup.
+                  {settings.showSundarbanOnCheckout === true
+                    ? 'Choose home delivery or Sundarban courier pickup.'
+                    : 'Standard doorstep courier delivery across Bangladesh.'}
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div
+                className={
+                  settings.showSundarbanOnCheckout === true
+                    ? 'grid grid-cols-1 sm:grid-cols-2 gap-3'
+                    : 'grid grid-cols-1 gap-3'
+                }
+              >
                 <button
                   type="button"
                   onClick={() => handleDeliveryTypeChange('standard')}
-                  className={`p-3.5 rounded-lg border text-left transition-colors flex items-center justify-between gap-3 cursor-pointer ${
+                  className={`px-3.5 py-3 rounded-lg border text-left transition-colors flex items-center justify-between gap-3 cursor-pointer ${
                     deliveryType === 'standard'
                       ? 'border-[#D71920] bg-[#FFF1F2]/50 dark:bg-[#D71920]/10'
                       : 'border-neutral-200 dark:border-slate-700 bg-white dark:bg-[#121722] hover:border-neutral-300'
                   }`}
                 >
                   <div className="min-w-0">
-                    <div className="font-semibold text-sm text-neutral-900 dark:text-white">
+                    <div className="font-semibold text-xs sm:text-sm text-neutral-900 dark:text-white">
                       Standard Home Delivery
                     </div>
-                    <div className="text-xs text-neutral-500 dark:text-slate-400 mt-0.5">
-                      Inside / Outside Dhaka · COD available
+                    <div className="text-[11px] text-neutral-500 dark:text-slate-400 mt-0.5">
+                      Inside &amp; Outside Dhaka · Doorstep delivery
                     </div>
                   </div>
                   <div
@@ -908,38 +970,40 @@ export function CheckoutPage() {
                   </div>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => handleDeliveryTypeChange('sundarban')}
-                  className={`p-3.5 rounded-lg border text-left transition-colors flex items-center justify-between gap-3 cursor-pointer ${
-                    deliveryType === 'sundarban'
-                      ? 'border-[#D71920] bg-[#FFF1F2]/50 dark:bg-[#D71920]/10'
-                      : 'border-neutral-200 dark:border-slate-700 bg-white dark:bg-[#121722] hover:border-neutral-300'
-                  }`}
-                >
-                  <div className="min-w-0">
-                    <div className="font-semibold text-sm text-neutral-900 dark:text-white">
-                      Sundarban Courier
-                    </div>
-                    <div className="text-xs text-neutral-500 dark:text-slate-400 mt-0.5">
-                      Courier pickup · Advance payment required
-                    </div>
-                  </div>
-                  <div
-                    className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                {settings.showSundarbanOnCheckout === true && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeliveryTypeChange('sundarban')}
+                    className={`px-3.5 py-3 rounded-lg border text-left transition-colors flex items-center justify-between gap-3 cursor-pointer ${
                       deliveryType === 'sundarban'
-                        ? 'border-[#D71920] bg-[#D71920]'
-                        : 'border-neutral-300 dark:border-slate-600'
+                        ? 'border-[#D71920] bg-[#FFF1F2]/50 dark:bg-[#D71920]/10'
+                        : 'border-neutral-200 dark:border-slate-700 bg-white dark:bg-[#121722] hover:border-neutral-300'
                     }`}
                   >
-                    {deliveryType === 'sundarban' && (
-                      <div className="w-1.5 h-1.5 rounded-full bg-white" />
-                    )}
-                  </div>
-                </button>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-xs sm:text-sm text-neutral-900 dark:text-white">
+                        Sundarban Courier
+                      </div>
+                      <div className="text-[11px] text-neutral-500 dark:text-slate-400 mt-0.5">
+                        Courier branch pickup · Advance payment
+                      </div>
+                    </div>
+                    <div
+                      className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                        deliveryType === 'sundarban'
+                          ? 'border-[#D71920] bg-[#D71920]'
+                          : 'border-neutral-300 dark:border-slate-600'
+                      }`}
+                    >
+                      {deliveryType === 'sundarban' && (
+                        <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                      )}
+                    </div>
+                  </button>
+                )}
               </div>
 
-              {deliveryType === 'sundarban' && (
+              {deliveryType === 'sundarban' && settings.showSundarbanOnCheckout === true && (
                 <div className="rounded-lg border border-amber-200 dark:border-amber-800/60 bg-amber-50/70 dark:bg-amber-950/20 px-3.5 py-2.5 text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
                   <span className="font-semibold">Sundarban Courier Note:</span>{' '}
                   {settings.deliveryNote ||
@@ -948,77 +1012,114 @@ export function CheckoutPage() {
               )}
             </section>
 
-            {/* 3. Payment Method */}
-            <section className="p-5 sm:p-6 space-y-3.5">
+            {/* 3. Payment Method: Clean 2-Option Selector (Cash on Delivery vs Online Payment Popup) */}
+            <section className="p-5 sm:p-6 space-y-3">
               <div>
                 <h2 className="text-base font-semibold text-neutral-900 dark:text-white">
                   Payment Method
                 </h2>
                 <p className="text-xs text-neutral-500 dark:text-slate-400 mt-0.5">
-                  {deliveryType === 'sundarban'
-                    ? 'Select an online payment method to complete your courier order.'
-                    : 'Choose Cash on Delivery or mobile banking (bKash, Nagad, Rocket).'}
+                  Select Cash on Delivery or Online Payment to complete your order.
                 </p>
               </div>
 
-              {/* Clean 2-col (mobile) / 3-col (tablet & desktop) grid with zero title truncation */}
               <div
                 data-testid="payment-methods-grid"
-                className="grid grid-cols-2 sm:grid-cols-3 gap-2.5"
+                className="grid grid-cols-1 sm:grid-cols-2 gap-3"
               >
-                {sortedPaymentMethods.map(method => {
-                  const isSelected = selectedPaymentId === method.id;
-                  const meta = getPaymentMethodDisplayMeta(method);
-                  return (
-                    <button
-                      type="button"
-                      key={method.id}
-                      data-testid={`payment-card-${method.type}`}
-                      onClick={() => handleSelectPaymentMethod(method)}
-                      className={`relative p-3 rounded-lg border text-left transition-colors flex flex-col justify-between gap-2 cursor-pointer ${
-                        isSelected
-                          ? 'border-[#D71920] bg-[#FFF1F2]/50 dark:bg-[#D71920]/10'
-                          : 'border-neutral-200 dark:border-slate-700 bg-white dark:bg-[#121722] hover:border-neutral-300'
+                {/* Option 1: Cash on Delivery */}
+                {codMethod && (
+                  <button
+                    type="button"
+                    data-testid="payment-card-cod"
+                    onClick={() => handleSelectPaymentMethod(codMethod)}
+                    className={`px-3.5 py-3 rounded-lg border text-left transition-colors flex items-center justify-between gap-2.5 cursor-pointer ${
+                      !isOnlineSelected
+                        ? 'border-[#D71920] bg-[#FFF1F2]/50 dark:bg-[#D71920]/10'
+                        : 'border-neutral-200 dark:border-slate-700 bg-white dark:bg-[#121722] hover:border-neutral-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <PaymentBrandIcon method={codMethod} size="sm" />
+                      <div className="min-w-0">
+                        <div className="font-semibold text-xs sm:text-sm text-neutral-900 dark:text-white leading-tight">
+                          Cash on Delivery
+                        </div>
+                        <div className="text-[11px] text-neutral-500 dark:text-slate-400 mt-0.5 leading-snug">
+                          Pay cash upon delivery
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                        !isOnlineSelected
+                          ? 'border-[#D71920] bg-[#D71920]'
+                          : 'border-neutral-300 dark:border-slate-600'
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-2 w-full">
-                        <PaymentBrandIcon method={method} size="sm" />
-                        <div
-                          className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition-colors ${
-                            isSelected
-                              ? 'border-[#D71920] bg-[#D71920] text-white'
-                              : 'border-neutral-300 dark:border-slate-600 bg-white dark:bg-slate-800'
-                          }`}
-                        >
-                          {isSelected && <Check size={10} strokeWidth={3} />}
-                        </div>
-                      </div>
+                      {!isOnlineSelected && (
+                        <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                      )}
+                    </div>
+                  </button>
+                )}
 
-                      <div className="min-w-0 w-full">
-                        <div className="font-semibold text-xs text-neutral-900 dark:text-white leading-snug">
-                          {meta.displayTitle}
+                {/* Option 2: Online Payment (Opens minimal popup on click) */}
+                {onlineMethods.length > 0 && activeOnlineMethod && (
+                  <button
+                    type="button"
+                    data-testid="payment-card-online"
+                    onClick={handleSelectOnlinePaymentOption}
+                    className={`px-3.5 py-3 rounded-lg border text-left transition-colors flex items-center justify-between gap-2.5 cursor-pointer ${
+                      isOnlineSelected
+                        ? 'border-[#D71920] bg-[#FFF1F2]/50 dark:bg-[#D71920]/10'
+                        : 'border-neutral-200 dark:border-slate-700 bg-white dark:bg-[#121722] hover:border-neutral-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <PaymentBrandIcon method={activeOnlineMethod} size="sm" />
+                      <div className="min-w-0">
+                        <div className="font-semibold text-xs sm:text-sm text-neutral-900 dark:text-white leading-tight">
+                          Online Payment
                         </div>
-                        <div className="text-[11px] text-neutral-500 dark:text-slate-400 leading-snug mt-0.5">
-                          {meta.displaySubtitle}
+                        <div className="text-[11px] text-neutral-500 dark:text-slate-400 mt-0.5 leading-snug">
+                          bKash, Nagad, Rocket, Upay
                         </div>
-                        {meta.badgeText && (
-                          <div className="text-[10px] font-semibold text-[#D71920] mt-0.5">
-                            {meta.badgeText}
-                          </div>
-                        )}
                       </div>
-                    </button>
-                  );
-                })}
+                    </div>
+
+                    <div
+                      className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                        isOnlineSelected
+                          ? 'border-[#D71920] bg-[#D71920]'
+                          : 'border-neutral-300 dark:border-slate-600'
+                      }`}
+                    >
+                      {isOnlineSelected && (
+                        <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                      )}
+                    </div>
+                  </button>
+                )}
               </div>
 
-              {/* Clean Inline Payment Status Summary & Modal */}
+              {/* Clean Inline Payment Status Summary & Minimal Single-Screen Popup Modal */}
               {selectedMethod && (
                 <PaymentInstructions
                   selectedMethod={selectedMethod}
                   allMethods={paymentMethods}
                   onSelectMethod={m => setSelectedPaymentId(m.id)}
                   onSelectSubOption={sub => setSelectedSubOptionLabel(sub.label)}
+                  onSubmitPaymentAndOrder={async (method, subLabel, cleanSender, cleanTrxId) => {
+                    await executeOrderSubmission({
+                      method,
+                      subOptionLabel: subLabel,
+                      cleanSender,
+                      cleanTrxId,
+                    });
+                  }}
+                  isSubmittingOrder={loading}
                   totalAmount={total}
                   transactionId={transactionId}
                   setTransactionId={setTransactionId}

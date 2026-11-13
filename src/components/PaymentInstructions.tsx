@@ -399,6 +399,13 @@ interface PaymentInstructionsProps {
   allMethods?: PaymentMethodConfig[];
   onSelectMethod?: (method: PaymentMethodConfig) => void;
   onSelectSubOption?: (subOption: PaymentSubOptionConfig) => void;
+  onSubmitPaymentAndOrder?: (
+    method: PaymentMethodConfig,
+    subOptionLabel: string,
+    cleanSender: string,
+    cleanTrxId: string
+  ) => Promise<void> | void;
+  isSubmittingOrder?: boolean;
   totalAmount: number;
   transactionId: string;
   setTransactionId: (val: string) => void;
@@ -415,6 +422,8 @@ export function PaymentInstructions({
   allMethods,
   onSelectMethod,
   onSelectSubOption,
+  onSubmitPaymentAndOrder,
+  isSubmittingOrder = false,
   totalAmount,
   transactionId,
   setTransactionId,
@@ -438,10 +447,10 @@ export function PaymentInstructions({
   const [selectedSubOptionId, setSelectedSubOptionId] = useState<PaymentSubOptionType>('send_money');
 
   useEffect(() => {
-    if (selectedMethod && selectedMethod.id) {
+    if (selectedMethod && selectedMethod.id && selectedMethod.type !== 'cod') {
       setActiveTabId(selectedMethod.id);
     }
-  }, [selectedMethod.id]);
+  }, [selectedMethod.id, selectedMethod.type]);
 
   const meta = getPaymentMethodDisplayMeta(selectedMethod);
 
@@ -454,7 +463,9 @@ export function PaymentInstructions({
 
   const currentActiveMethod = useMemo(() => {
     const found = activeOnlineMethods.find(m => m.id === activeTabId);
-    return found || selectedMethod;
+    if (found) return found;
+    if (selectedMethod.type !== 'cod') return selectedMethod;
+    return activeOnlineMethods[0] || selectedMethod;
   }, [activeOnlineMethods, activeTabId, selectedMethod]);
 
   // Resolve dual sub-options (সেন্ড মানি & পেমেন্ট) for the currently selected payment method
@@ -526,7 +537,6 @@ export function PaymentInstructions({
         }
       }
 
-      // High-resolution generated canvas download
       const generated = generateFallbackPaymentQrDataUrl(method, totalAmount, lang, subOpt);
       if (generated) {
         const link = document.createElement('a');
@@ -550,7 +560,7 @@ export function PaymentInstructions({
     }
   };
 
-  const handleDoneClick = () => {
+  const handleDoneClick = async () => {
     setPopupError('');
     const check = validatePaymentTransactionPopup(
       currentActiveMethod.type,
@@ -560,121 +570,138 @@ export function PaymentInstructions({
     if (!check.valid) {
       setPopupError(
         check.error ||
-          'অনুগ্রহ করে প্রেরকের মোবাইল নাম্বার এবং ট্রানজেকশন আইডি (TrxID) সঠিকভাবে পূরণ করুন।'
+          'Please enter a valid sender mobile number and transaction ID (TrxID).'
       );
       return;
     }
 
     setSenderNumber(check.cleanSender);
     setTransactionId(check.cleanTrxId);
+    onSelectMethod?.(currentActiveMethod);
     if (setIsPaymentSubmitted) {
       setIsPaymentSubmitted(true);
     }
-    if (setIsModalOpen) {
+
+    if (onSubmitPaymentAndOrder) {
+      await onSubmitPaymentAndOrder(
+        currentActiveMethod,
+        activeSubOption?.label || 'সেন্ড মানি',
+        check.cleanSender,
+        check.cleanTrxId
+      );
+    } else if (setIsModalOpen) {
       setIsModalOpen(false);
     }
   };
 
-  // If Cash on Delivery is selected, show a clean, minimal COD note
-  if (selectedMethod.type === 'cod') {
-    return (
-      <div className="rounded-lg border border-neutral-200 dark:border-slate-700 bg-neutral-50/70 dark:bg-slate-800/50 px-3.5 py-2.5 text-xs text-neutral-700 dark:text-slate-300 leading-relaxed flex items-start gap-2.5">
-        <CheckCircle2 size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-        <div>
-          <span className="font-semibold text-neutral-900 dark:text-white">
-            Cash on Delivery
-          </span>
-          <span className="mx-1.5 text-neutral-300 dark:text-slate-600">·</span>
+  // Inline status bar below the 2-option Payment Method selector on Checkout Page
+  const renderInlineStatus = () => {
+    if (selectedMethod.type === 'cod') {
+      return (
+        <div className="rounded-lg border border-neutral-200 dark:border-slate-700 bg-neutral-50/70 dark:bg-slate-800/50 px-3.5 py-2.5 text-xs text-neutral-600 dark:text-slate-300 flex items-center gap-2">
+          <CheckCircle2 size={14} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
           <span>
-            Pay{' '}
-            <strong className="font-semibold text-neutral-900 dark:text-white tabular-nums">
-              ৳{totalAmount}
-            </strong>{' '}
-            in cash when your order arrives. No advance payment needed.
+            Pay <strong className="font-semibold text-neutral-900 dark:text-white tabular-nums">৳{totalAmount}</strong> in cash when your order arrives.
           </span>
         </div>
+      );
+    }
+
+    if (isPaymentSubmitted && senderNumber && transactionId) {
+      return (
+        <div
+          data-testid="payment-submitted-summary"
+          className="rounded-lg border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-950/20 px-3.5 py-2.5 flex items-center justify-between gap-3"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <CheckCircle2 size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <div className="min-w-0 text-xs">
+              <span className="font-semibold text-neutral-900 dark:text-white">
+                {meta.englishName || meta.displayTitle}
+              </span>
+              <span className="mx-1.5 text-neutral-300 dark:text-slate-600">·</span>
+              <span className="text-neutral-600 dark:text-slate-300 font-mono">
+                {senderNumber}
+              </span>
+              <span className="mx-1.5 text-neutral-300 dark:text-slate-600">·</span>
+              <span className="font-mono font-semibold text-[#D71920] dark:text-rose-400">
+                TrxID: {transactionId}
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setPopupError('');
+              setIsModalOpen?.(true);
+            }}
+            className="px-2.5 py-1 rounded-md bg-white dark:bg-slate-800 hover:bg-neutral-50 text-neutral-700 dark:text-slate-200 font-medium text-xs border border-neutral-200 dark:border-slate-700 inline-flex items-center gap-1 cursor-pointer shrink-0 transition-colors"
+          >
+            <Edit3 size={11} />
+            <span>Change</span>
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        data-testid="payment-pending-prompt"
+        className="rounded-lg border border-neutral-200 dark:border-slate-700 bg-neutral-50/70 dark:bg-slate-800/50 px-3.5 py-2.5 flex items-center justify-between gap-3"
+      >
+        <div className="flex items-center gap-2 min-w-0 text-xs text-neutral-600 dark:text-slate-300">
+          <PaymentBrandIcon method={currentActiveMethod} size="sm" />
+          <span className="truncate">
+            Selected: <strong className="text-neutral-900 dark:text-white">{meta.englishName || meta.displayTitle}</strong> · Payable <strong className="text-neutral-900 dark:text-white tabular-nums">৳{totalAmount}</strong>
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setPopupError('');
+            setIsModalOpen?.(true);
+          }}
+          className="px-3 py-1.5 rounded-lg bg-neutral-900 dark:bg-[#D71920] hover:bg-neutral-800 text-white font-medium text-xs inline-flex items-center justify-center gap-1.5 cursor-pointer shrink-0 transition-colors whitespace-nowrap"
+        >
+          <span>Complete Payment</span>
+        </button>
       </div>
     );
-  }
+  };
+
+  const activeMeta = useMemo(
+    () => getPaymentMethodDisplayMeta(currentActiveMethod),
+    [currentActiveMethod]
+  );
+
+  const englishQrSrc = useMemo(() => {
+    if (!isModalOpen) return '';
+    return (
+      activeSubOption?.englishQrCodeUrl ||
+      activeSubOption?.qrCodeUrl ||
+      (activeSubOption?.id === 'send_money' ? activeMeta.englishQrCodeUrl || activeMeta.qrCodeUrl : '') ||
+      generateFallbackPaymentQrDataUrl(currentActiveMethod, totalAmount, 'en', activeSubOption)
+    );
+  }, [isModalOpen, activeSubOption, activeMeta, currentActiveMethod, totalAmount]);
+
+  const bengaliQrSrc = useMemo(() => {
+    if (!isModalOpen) return '';
+    return (
+      activeSubOption?.bengaliQrCodeUrl ||
+      (activeSubOption?.id === 'send_money' ? activeMeta.bengaliQrCodeUrl : '') ||
+      (currentActiveMethod.type === 'bangla_qr' ? activeSubOption?.qrCodeUrl || activeMeta.qrCodeUrl : '') ||
+      (settings?.banglaQrImageUrl && settings.enableBanglaQr !== false ? settings.banglaQrImageUrl : '') ||
+      generateFallbackPaymentQrDataUrl(currentActiveMethod, totalAmount, 'bn', activeSubOption)
+    );
+  }, [isModalOpen, activeSubOption, activeMeta, currentActiveMethod, settings?.banglaQrImageUrl, settings?.enableBanglaQr, totalAmount]);
 
   return (
     <>
-      {/* Clean Inline Payment Status Summary below Payment Method Grid */}
-      {isPaymentSubmitted && senderNumber && transactionId ? (
-        <div
-          data-testid="payment-submitted-summary"
-          className="rounded-lg border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-950/20 px-3.5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-        >
-          <div className="flex items-start sm:items-center gap-2.5 min-w-0">
-            <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5 sm:mt-0" />
-            <div className="min-w-0 space-y-0.5">
-              <div className="text-xs font-semibold text-neutral-900 dark:text-white truncate">
-                {meta.displayTitle} ({activeSubOption?.label || 'সেন্ড মানি'}) · Verified Details Ready
-              </div>
-              <div className="text-[11px] text-neutral-600 dark:text-slate-300 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                <span>
-                  From: <strong className="font-mono text-neutral-900 dark:text-white">{senderNumber}</strong>
-                </span>
-                <span className="text-neutral-300 dark:text-slate-600">·</span>
-                <span>
-                  TrxID: <strong className="font-mono text-[#D71920] dark:text-rose-400">{transactionId}</strong>
-                </span>
-                <span className="text-neutral-300 dark:text-slate-600">·</span>
-                <span className="tabular-nums">
-                  Amount: <strong className="text-neutral-900 dark:text-white">৳{totalAmount}</strong>
-                </span>
-              </div>
-            </div>
-          </div>
+      {renderInlineStatus()}
 
-          <button
-            type="button"
-            onClick={() => {
-              setPopupError('');
-              setIsModalOpen?.(true);
-            }}
-            className="px-3 py-1.5 rounded-md bg-white dark:bg-slate-800 hover:bg-neutral-50 dark:hover:bg-slate-700 text-neutral-700 dark:text-slate-200 font-medium text-xs border border-neutral-200 dark:border-slate-700 inline-flex items-center justify-center gap-1.5 cursor-pointer shrink-0 transition-colors"
-          >
-            <Edit3 size={12} />
-            <span>Edit</span>
-          </button>
-        </div>
-      ) : (
-        <div
-          data-testid="payment-pending-prompt"
-          className="rounded-lg border border-neutral-200 dark:border-slate-700 bg-neutral-50/70 dark:bg-slate-800/50 px-3.5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-        >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <PaymentBrandIcon method={selectedMethod} size="sm" />
-            <div className="min-w-0">
-              <div className="text-xs font-semibold text-neutral-900 dark:text-white">
-                {meta.displayTitle} ({activeSubOption?.label || 'সেন্ড মানি'})
-              </div>
-              <p className="text-[11px] text-neutral-600 dark:text-slate-300">
-                Send <strong className="text-neutral-900 dark:text-white tabular-nums">৳{totalAmount}</strong> to{' '}
-                <strong className="font-mono text-neutral-900 dark:text-white">
-                  {activeSubOption?.accountNumber || selectedMethod.accountNumber}
-                </strong>{' '}
-                &amp; enter TrxID.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setPopupError('');
-              setIsModalOpen?.(true);
-            }}
-            className="px-3.5 py-2 rounded-lg bg-[#D71920] hover:bg-[#B9151B] text-white font-semibold text-xs inline-flex items-center justify-center gap-1.5 cursor-pointer shrink-0 transition-colors whitespace-nowrap"
-          >
-            <span>Enter Payment Details</span>
-          </button>
-        </div>
-      )}
-
-      {/* POPUP MODAL: Payment Method Selector Tabs, Send Money vs Payment Sub-Option Selector & Active View */}
+      {/* CLEAN, MINIMAL SINGLE-VIEWPORT PAYMENT POPUP MODAL */}
       {isModalOpen && (() => {
-        const activeMeta = getPaymentMethodDisplayMeta(currentActiveMethod);
         const copyId = `${currentActiveMethod.id}-${activeSubOption.id}`;
         const isCopied = copiedKey === copyId;
 
@@ -682,21 +709,6 @@ export function PaymentInstructions({
         const effectiveAccountName = activeSubOption?.accountName || currentActiveMethod.accountName;
         const effectiveAccountType = activeSubOption?.accountType || activeMeta.accountType;
         const effectiveInstructions = activeSubOption?.instructions || activeMeta.instructionText;
-
-        // Resolve English QR Image URL for the active sub-option: from sub-option config, fallback to method config, then canvas
-        const englishQrSrc =
-          activeSubOption?.englishQrCodeUrl ||
-          activeSubOption?.qrCodeUrl ||
-          (activeSubOption?.id === 'send_money' ? activeMeta.englishQrCodeUrl || activeMeta.qrCodeUrl : '') ||
-          generateFallbackPaymentQrDataUrl(currentActiveMethod, totalAmount, 'en', activeSubOption);
-
-        // Resolve Bengali / Bangla QR Image URL for the active sub-option
-        const bengaliQrSrc =
-          activeSubOption?.bengaliQrCodeUrl ||
-          (activeSubOption?.id === 'send_money' ? activeMeta.bengaliQrCodeUrl : '') ||
-          (currentActiveMethod.type === 'bangla_qr' ? activeSubOption?.qrCodeUrl || activeMeta.qrCodeUrl : '') ||
-          (settings?.banglaQrImageUrl && settings.enableBanglaQr !== false ? settings.banglaQrImageUrl : '') ||
-          generateFallbackPaymentQrDataUrl(currentActiveMethod, totalAmount, 'bn', activeSubOption);
 
         const activeQrSrc = qrLanguage === 'bn' ? bengaliQrSrc : englishQrSrc;
         const activeQrLabel =
@@ -712,50 +724,43 @@ export function PaymentInstructions({
             aria-modal="true"
             aria-label="Payment Method"
             data-testid="payment-instructions-modal"
-            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto"
+            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-[1px] animate-in fade-in duration-150 overflow-y-auto"
             onClick={e => {
               if (e.target === e.currentTarget) {
                 setIsModalOpen?.(false);
               }
             }}
           >
-            <div className="w-full max-w-lg bg-white dark:bg-[#121722] rounded-3xl border border-slate-200/90 dark:border-slate-800 p-5 sm:p-6 shadow-2xl space-y-4 relative my-auto max-h-[92vh] overflow-y-auto animate-in zoom-in-95 duration-200">
-              {/* 1. Modal Top Header: English "Payment Method" title with Close button */}
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-slate-900 dark:bg-[#D71920] text-white flex items-center justify-center shadow-2xs">
-                    <CreditCard size={16} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
-                      Payment Method
-                    </h3>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                      প্রথমে পেমেন্ট মেথড সিলেক্ট করুন এবং নির্ধারিত নম্বরে পরিশোধ করুন
-                    </p>
-                  </div>
+            <div className="w-full max-w-md bg-white dark:bg-[#121722] rounded-xl border border-neutral-200 dark:border-slate-800 shadow-xl overflow-hidden my-auto animate-in zoom-in-95 duration-150">
+              {/* 1. Compact Header with Payable Amount Badge */}
+              <div className="px-4 py-3 border-b border-neutral-200 dark:border-slate-800 flex items-center justify-between gap-3 bg-neutral-50/50 dark:bg-slate-900/40">
+                <div className="min-w-0">
+                  <h3 className="text-sm font-semibold text-neutral-900 dark:text-white leading-tight">
+                    Online Payment
+                  </h3>
+                  <p className="text-[11px] text-neutral-500 dark:text-slate-400 truncate mt-0.5">
+                    Select gateway, send payment &amp; submit TrxID
+                  </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen?.(false)}
-                  aria-label="Close Payment Popup"
-                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer"
-                >
-                  <X size={16} />
-                </button>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="px-2.5 py-1 rounded-md bg-rose-50 dark:bg-rose-950/40 border border-rose-200/80 dark:border-rose-900/50 text-xs font-bold text-[#D71920] dark:text-rose-400 tabular-nums">
+                    Payable: ৳{totalAmount}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen?.(false)}
+                    aria-label="Close Payment Popup"
+                    className="w-7 h-7 rounded-lg border border-neutral-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-neutral-100 text-neutral-500 hover:text-neutral-900 dark:text-slate-400 dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
               </div>
 
-              {/* 2. Grid-Selection Interface: User selects a method first (displaying logo/name) */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="block text-[10.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                    ১. সিলেক্ট করুন (Select Payment Method)
-                  </span>
-                  <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">
-                    {activeOnlineMethods.length}টি অপশন উপলব্ধ
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="p-4 space-y-3">
+                {/* 2. Compact Payment Gateway Selector Strip */}
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
                   {activeOnlineMethods.map(method => {
                     const isSel = method.id === currentActiveMethod.id;
                     const methodMeta = getPaymentMethodDisplayMeta(method);
@@ -768,49 +773,26 @@ export function PaymentInstructions({
                           onSelectMethod?.(method);
                         }}
                         data-testid={`popup-method-tab-${method.type}`}
-                        className={`p-2.5 rounded-2xl border-2 flex items-center gap-2 transition-all cursor-pointer text-left ${
+                        className={`py-2 px-1.5 rounded-lg border flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer text-center ${
                           isSel
-                            ? 'border-[#D71920] bg-[#FFF1F2]/80 dark:bg-[#D71920]/15 shadow-2xs ring-1 ring-[#D71920]/20'
-                            : 'border-slate-200/90 dark:border-slate-700 bg-white dark:bg-[#182030] hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50/70 dark:hover:bg-[#1E283C]'
+                            ? 'border-[#D71920] bg-[#FFF1F2]/60 dark:bg-[#D71920]/15 text-neutral-900 dark:text-white'
+                            : 'border-neutral-200 dark:border-slate-700 bg-white dark:bg-[#182030] hover:border-neutral-300 text-neutral-600 dark:text-slate-300'
                         }`}
                       >
                         <PaymentBrandIcon method={method} size="sm" />
-                        <div className="min-w-0 flex-1">
-                          <div className="font-black text-xs text-slate-900 dark:text-white truncate">
-                            {methodMeta.displayTitle}
-                          </div>
-                          {methodMeta.englishName && (
-                            <div className="text-[9.5px] text-slate-500 dark:text-slate-400 truncate font-semibold">
-                              {methodMeta.englishName}
-                            </div>
-                          )}
-                        </div>
-                        {isSel && (
-                          <div className="w-3.5 h-3.5 rounded-full bg-[#D71920] text-white flex items-center justify-center shrink-0">
-                            <Check size={9} strokeWidth={3} />
-                          </div>
-                        )}
+                        <span className="font-semibold text-[11px] leading-tight truncate max-w-full">
+                          {methodMeta.englishName || methodMeta.displayTitle}
+                        </span>
                       </button>
                     );
                   })}
                 </div>
-              </div>
 
-              {/* 2B. Sub-Option Selector: Customer chooses Send Money (সেন্ড মানি) or Payment (পেমেন্ট) */}
-              {activeSubOptions.length > 0 && (
-                <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
-                  <div className="flex items-center justify-between">
-                    <span className="block text-[10.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      ২. আপনি কিভাবে টাকা পাঠাতে চান? (Select Option)
-                    </span>
-                    <span className="text-[10px] font-semibold text-[#D71920] dark:text-rose-400">
-                      যেকোনো একটি বেছে নিন
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2.5">
+                {/* 3. Slim Segmented Bar: Send Money (Personal) vs Payment (Merchant) */}
+                {activeSubOptions.length > 0 && (
+                  <div className="grid grid-cols-2 gap-1.5 p-1 rounded-lg bg-neutral-100 dark:bg-slate-800/80 border border-neutral-200/70 dark:border-slate-700">
                     {activeSubOptions.map(subOpt => {
                       const isSubSelected = activeSubOption.id === subOpt.id;
-                      const isSendMoney = subOpt.id === 'send_money';
                       return (
                         <button
                           key={subOpt.id}
@@ -820,198 +802,71 @@ export function PaymentInstructions({
                             onSelectSubOption?.(subOpt);
                           }}
                           data-testid={`popup-suboption-${subOpt.id}`}
-                          className={`p-3 rounded-2xl border-2 flex items-center justify-between gap-2 transition-all cursor-pointer text-left ${
+                          className={`py-1.5 px-2.5 rounded-md text-xs font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                             isSubSelected
-                              ? 'border-[#E2136E] bg-gradient-to-r from-[#FFF0F6] to-[#FFF5F9] dark:from-[#E2136E]/20 dark:to-[#D71920]/15 shadow-xs ring-1 ring-[#E2136E]/25'
-                              : 'border-slate-200/90 dark:border-slate-700 bg-slate-50/70 dark:bg-[#182030] hover:border-slate-300 dark:hover:border-slate-600'
+                              ? 'bg-white dark:bg-[#121722] text-neutral-900 dark:text-white shadow-2xs border border-neutral-200/80 dark:border-slate-700 font-semibold'
+                              : 'text-neutral-600 dark:text-slate-400 hover:text-neutral-900 dark:hover:text-white'
                           }`}
                         >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div
-                              className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                                isSubSelected
-                                  ? 'bg-[#E2136E] text-white shadow-2xs'
-                                  : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
-                              }`}
-                            >
-                              {isSendMoney ? <Send size={14} /> : <ShoppingBag size={14} />}
-                            </div>
-                            <div className="min-w-0">
-                              <div className="font-black text-xs sm:text-sm text-slate-900 dark:text-white truncate">
-                                {subOpt.label}
-                              </div>
-                              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                                {subOpt.englishLabel && (
-                                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold truncate">
-                                    {subOpt.englishLabel}
-                                  </span>
-                                )}
-                                <span
-                                  className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
-                                    subOpt.accountType === 'Merchant'
-                                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
-                                      : 'bg-pink-100 text-[#E2136E] dark:bg-pink-950/60 dark:text-pink-300'
-                                  }`}
-                                >
-                                  {subOpt.accountType}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div
-                            className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition-all ${
-                              isSubSelected
-                                ? 'bg-[#E2136E] border-[#E2136E] text-white'
-                                : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
-                            }`}
-                          >
-                            {isSubSelected && <Check size={10} strokeWidth={3} />}
-                          </div>
+                          <span>{subOpt.englishLabel || subOpt.label}</span>
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-neutral-100 dark:bg-slate-800 text-neutral-500 dark:text-slate-400 font-normal">
+                            {subOpt.accountType}
+                          </span>
                         </button>
                       );
                     })}
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* 3. Dynamically Loaded Active Method & Sub-Option Details Section */}
-              <div className="space-y-3.5 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <div className="flex items-center justify-between">
-                  <span className="block text-[10.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                    ৩. {activeMeta.displayTitle} ({activeSubOption.label}) পেমেন্ট তথ্য ও নির্দেশাবলী
-                  </span>
-                  <span className="px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/40 text-[#D71920] dark:text-rose-300 border border-rose-200/80 dark:border-rose-900/50 text-[10px] font-bold">
-                    {activeSubOption.label} নির্বাচিত
-                  </span>
-                </div>
-
-                {/* 3A. Upfront Payable Amount Banner */}
-                <div className="rounded-2xl bg-gradient-to-r from-rose-50 via-[#FFF5F9] to-amber-50/80 dark:from-[#221722] dark:via-[#1F1728] dark:to-[#221C18] border border-rose-200/90 dark:border-rose-900/40 p-3.5 flex items-center justify-between gap-3 shadow-2xs">
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                      Payable Amount (মোট প্রদেয়)
-                    </span>
-                    <div className="text-xl sm:text-2xl font-black text-[#D71920] dark:text-[#FF4D4F] tracking-tight">
-                      ৳{totalAmount}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="px-2.5 py-1 rounded-lg bg-white dark:bg-[#182030] border border-rose-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 shadow-2xs">
-                      {effectiveAccountType !== 'None' ? effectiveAccountType : 'Personal'} Account
-                    </span>
-                    <p className="text-[10.5px] text-[#E2136E] dark:text-pink-400 mt-1 font-bold">
-                      {activeSubOption.label} ({activeSubOption.englishLabel || activeSubOption.accountType}) করুন
-                    </p>
-                  </div>
-                </div>
-
-                {/* 3B. Copyable Account Number Card (Dynamically displays selected sub-option's number) */}
-                <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#161D2B] p-3.5 sm:p-4 shadow-2xs space-y-2.5">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                    <div className="space-y-0.5 min-w-0">
-                      <span className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400 block">
-                        {currentActiveMethod.type === 'bangla_qr'
-                          ? `BANGLA QR (${activeSubOption.label}) NUMBER:`
-                          : currentActiveMethod.type === 'bank'
-                          ? `BANK ACCOUNT (${activeSubOption.label}) NUMBER:`
-                          : `${currentActiveMethod.type.toUpperCase()} ${activeSubOption.label} NUMBER:`}
-                      </span>
-                      <div
-                        data-testid="popup-account-number"
-                        className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight font-mono select-all break-all"
-                      >
-                        {effectiveAccountNumber}
+                {/* 4. Unified Account Number, Copy & Compact QR Box */}
+                <div className="rounded-lg border border-neutral-200 dark:border-slate-700 bg-neutral-50/70 dark:bg-[#161D2B] p-3 space-y-2.5">
+                  <div className="flex items-center justify-between gap-3">
+                    {/* Left: Account Number & Copy */}
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="text-[11px] font-medium text-neutral-500 dark:text-slate-400 flex items-center gap-1.5">
+                        <span>
+                          {activeMeta.englishName || activeMeta.displayTitle}{' '}
+                          {effectiveAccountType !== 'None' ? effectiveAccountType : 'Personal'} Number
+                        </span>
                       </div>
+
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span
+                          data-testid="popup-account-number"
+                          className="text-base sm:text-lg font-bold text-neutral-900 dark:text-white font-mono tracking-tight select-all"
+                        >
+                          {effectiveAccountNumber}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(effectiveAccountNumber, copyId)}
+                          data-testid="popup-copy-number-btn"
+                          className={`px-2.5 py-1 rounded-md text-[11px] font-medium inline-flex items-center gap-1 transition-colors cursor-pointer ${
+                            isCopied
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-white dark:bg-slate-800 hover:bg-neutral-100 text-neutral-700 dark:text-slate-200 border border-neutral-300 dark:border-slate-600'
+                          }`}
+                        >
+                          {isCopied ? <Check size={12} /> : <Copy size={12} />}
+                          <span>{isCopied ? 'Copied' : 'Copy'}</span>
+                        </button>
+                      </div>
+
                       {effectiveAccountName && (
-                        <div className="text-xs text-slate-600 dark:text-slate-300 font-medium">
-                          Account Name: <strong className="text-slate-800 dark:text-slate-200">{effectiveAccountName}</strong>
+                        <div className="text-[11px] text-neutral-500 dark:text-slate-400 truncate">
+                          Account: <span className="font-medium text-neutral-700 dark:text-slate-300">{effectiveAccountName}</span>
                         </div>
                       )}
-                      {currentActiveMethod.type === 'bank' && (
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 space-y-0.5 pt-1">
-                          {currentActiveMethod.bankName && (
-                            <p className="font-bold text-slate-800 dark:text-slate-200">
-                              Bank: {currentActiveMethod.bankName}
-                            </p>
-                          )}
-                          {(currentActiveMethod.branchName || currentActiveMethod.routingNumber) && (
-                            <p>
-                              {currentActiveMethod.branchName ? `Branch: ${currentActiveMethod.branchName}` : ''}
-                              {currentActiveMethod.branchName && currentActiveMethod.routingNumber ? ' • ' : ''}
-                              {currentActiveMethod.routingNumber ? `Routing: ${currentActiveMethod.routingNumber}` : ''}
-                            </p>
-                          )}
+                      {currentActiveMethod.type === 'bank' && currentActiveMethod.bankName && (
+                        <div className="text-[11px] text-neutral-500 dark:text-slate-400">
+                          {currentActiveMethod.bankName}
+                          {currentActiveMethod.branchName ? ` · ${currentActiveMethod.branchName}` : ''}
                         </div>
                       )}
                     </div>
 
-                    {/* Copy Number Button with crisp dark mode contrast */}
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(effectiveAccountNumber, copyId)}
-                      data-testid="popup-copy-number-btn"
-                      className={`px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shrink-0 shadow-2xs ${
-                        isCopied
-                          ? 'bg-emerald-600 text-white shadow-xs'
-                          : 'bg-[#F1F5F9] hover:bg-[#E2E8F0] dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-white border border-slate-200/80 dark:border-slate-600'
-                      }`}
-                    >
-                      {isCopied ? <Check size={14} /> : <Copy size={14} className="text-slate-500 dark:text-slate-300" />}
-                      <span>{isCopied ? 'কপি হয়েছে' : 'কপি নাম্বার'}</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* 3C. Dynamic Payment Instructions Box from Admin Panel for the selected sub-option */}
-                <div
-                  data-testid="popup-suboption-instructions"
-                  className="rounded-2xl bg-[#FFFDF2] dark:bg-amber-950/30 border border-[#FDE68A] dark:border-amber-700/50 px-3.5 py-2.5 text-xs text-amber-950 dark:text-amber-200 leading-relaxed font-semibold"
-                >
-                  {effectiveInstructions}
-                </div>
-
-                {/* 3D. Both English & Bengali QR Codes Section */}
-                <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/70 dark:bg-[#161D2B] p-3.5 sm:p-4 shadow-2xs space-y-3">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <QrCode size={15} className="text-[#D71920]" />
-                      <span className="font-bold text-xs text-slate-900 dark:text-white">
-                        Payment QR Code (কিউআর কোড)
-                      </span>
-                    </div>
-
-                    {/* English / Bengali QR Switcher Tabs */}
-                    <div className="flex items-center bg-slate-200/80 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-300/60 dark:border-slate-700">
-                      <button
-                        type="button"
-                        onClick={() => setQrLanguage('bn')}
-                        data-testid="popup-qr-tab-bn"
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                          qrLanguage === 'bn'
-                            ? 'bg-white dark:bg-[#1E283A] text-emerald-700 dark:text-emerald-400 shadow-2xs'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                        }`}
-                      >
-                        <span>🇧🇩 বাংলা কিউআর</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setQrLanguage('en')}
-                        data-testid="popup-qr-tab-en"
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                          qrLanguage === 'en'
-                            ? 'bg-white dark:bg-[#1E283A] text-[#D71920] dark:text-rose-400 shadow-2xs'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                        }`}
-                      >
-                        <span>🇬🇧 English QR</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-0.5">
-                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                    {/* Right: Compact QR Thumbnail + Quick Actions */}
+                    <div className="flex items-center gap-2 shrink-0 border-l border-neutral-200 dark:border-slate-700 pl-3">
                       <div
                         onClick={() =>
                           setQrModalMethod({
@@ -1020,8 +875,8 @@ export function PaymentInstructions({
                             language: qrLanguage,
                           })
                         }
-                        title="Click to view large QR Code"
-                        className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl bg-white border border-slate-200 dark:border-slate-700 p-1 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs cursor-pointer hover:scale-105 transition-transform"
+                        title="Click to enlarge QR Code"
+                        className="w-14 h-14 rounded-lg bg-white border border-neutral-200 dark:border-slate-700 p-1 flex items-center justify-center shrink-0 cursor-pointer hover:border-neutral-400 transition-colors"
                       >
                         <img
                           src={activeQrSrc}
@@ -1029,57 +884,80 @@ export function PaymentInstructions({
                           className="w-full h-full object-contain"
                         />
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <h4 className="font-black text-xs sm:text-sm text-slate-900 dark:text-white truncate">
-                            {activeQrLabel}
-                          </h4>
-                          <span className="px-2 py-0.5 rounded-md text-[9.5px] font-bold bg-slate-200/70 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
-                            {qrLanguage === 'bn' ? 'বাংলা ভার্সন' : 'English Version'}
-                          </span>
+
+                      <div className="flex flex-col gap-1">
+                        <div className="inline-flex rounded border border-neutral-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-0.5">
+                          <button
+                            type="button"
+                            onClick={() => setQrLanguage('bn')}
+                            data-testid="popup-qr-tab-bn"
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-semibold cursor-pointer ${
+                              qrLanguage === 'bn'
+                                ? 'bg-neutral-900 text-white dark:bg-[#D71920]'
+                                : 'text-neutral-500 hover:text-neutral-800 dark:text-slate-400'
+                            }`}
+                          >
+                            BN
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setQrLanguage('en')}
+                            data-testid="popup-qr-tab-en"
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-semibold cursor-pointer ${
+                              qrLanguage === 'en'
+                                ? 'bg-neutral-900 text-white dark:bg-[#D71920]'
+                                : 'text-neutral-500 hover:text-neutral-800 dark:text-slate-400'
+                            }`}
+                          >
+                            EN
+                          </button>
                         </div>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
-                          {qrLanguage === 'bn'
-                            ? `অ্যাপ দিয়ে সরাসরি স্ক্যান করে ${activeSubOption.label} সম্পন্ন করুন`
-                            : `Scan with official app to complete ${activeSubOption.englishLabel || activeSubOption.label}`}
-                        </p>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setQrModalMethod({
+                                method: currentActiveMethod,
+                                subOption: activeSubOption,
+                                language: qrLanguage,
+                              })
+                            }
+                            data-testid="popup-view-large-qr-btn"
+                            title="View large QR"
+                            className="px-1.5 py-1 rounded border border-neutral-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-neutral-100 text-neutral-700 dark:text-slate-200 text-[10px] font-medium inline-flex items-center gap-0.5 cursor-pointer"
+                          >
+                            <Eye size={10} />
+                            <span>QR</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadQrImage(currentActiveMethod, activeQrSrc, qrLanguage, activeSubOption)}
+                            data-testid="popup-download-qr-btn"
+                            title="Download QR"
+                            className="px-1.5 py-1 rounded border border-neutral-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-neutral-100 text-neutral-700 dark:text-slate-200 text-[10px] font-medium inline-flex items-center gap-0.5 cursor-pointer"
+                          >
+                            <Download size={10} />
+                          </button>
+                        </div>
                       </div>
                     </div>
+                  </div>
 
-                    <div className="flex sm:flex-col gap-2 w-full sm:w-auto shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleDownloadQrImage(currentActiveMethod, activeQrSrc, qrLanguage, activeSubOption)}
-                        data-testid="popup-download-qr-btn"
-                        className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm cursor-pointer transition-all"
-                      >
-                        <Download size={13} />
-                        <span>কিউআর ডাউনলোড</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setQrModalMethod({
-                            method: currentActiveMethod,
-                            subOption: activeSubOption,
-                            language: qrLanguage,
-                          })
-                        }
-                        data-testid="popup-view-large-qr-btn"
-                        className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer transition-all"
-                      >
-                        <Eye size={13} />
-                        <span>বড় করে দেখুন</span>
-                      </button>
-                    </div>
+                  {/* Concise 1-line instruction */}
+                  <div
+                    data-testid="popup-suboption-instructions"
+                    className="pt-2 border-t border-neutral-200/80 dark:border-slate-700/80 text-[11px] text-neutral-600 dark:text-slate-300 leading-snug"
+                  >
+                    {effectiveInstructions}
                   </div>
                 </div>
 
-                {/* 3E. Payment Verification Form (Sender Mobile Number & Transaction ID) */}
-                <div className="space-y-3 pt-1 border-t border-slate-100 dark:border-slate-800">
+                {/* 5. Side-by-Side Verification Inputs */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div>
-                    <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                      Sender Mobile Number (Account used for payment)
+                    <label className="block text-[11px] font-medium text-neutral-700 dark:text-slate-300 mb-1">
+                      Sender Number <span className="text-[#D71920]">*</span>
                     </label>
                     <input
                       type="tel"
@@ -1088,15 +966,15 @@ export function PaymentInstructions({
                         setSenderNumber(e.target.value);
                         if (popupError) setPopupError('');
                       }}
-                      placeholder="01XXXXXXXXX"
+                      placeholder="017XXXXXXXX"
                       data-testid="popup-sender-input"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0B0F19] text-sm font-mono text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/15 transition-all"
+                      className="w-full h-9 px-3 rounded-lg border border-neutral-300 dark:border-slate-700 bg-white dark:bg-[#0B0F19] text-xs font-mono text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:border-[#D71920] transition-colors"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                      Enter Transaction ID (TrxID) <span className="text-[#D71920]">*</span>
+                    <label className="block text-[11px] font-medium text-neutral-700 dark:text-slate-300 mb-1">
+                      Transaction ID (TrxID) <span className="text-[#D71920]">*</span>
                     </label>
                     <input
                       type="text"
@@ -1105,9 +983,15 @@ export function PaymentInstructions({
                         setTransactionId(e.target.value.toUpperCase());
                         if (popupError) setPopupError('');
                       }}
-                      placeholder="E.G., 9X7D892K"
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          void handleDoneClick();
+                        }
+                      }}
+                      placeholder="e.g. 9X7D892K"
                       data-testid="popup-trxid-input"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0B0F19] text-sm font-mono uppercase text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/15 transition-all"
+                      className="w-full h-9 px-3 rounded-lg border border-neutral-300 dark:border-slate-700 bg-white dark:bg-[#0B0F19] text-xs font-mono uppercase text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:border-[#D71920] transition-colors"
                     />
                   </div>
                 </div>
@@ -1116,32 +1000,35 @@ export function PaymentInstructions({
                 {popupError && (
                   <div
                     data-testid="popup-error-msg"
-                    className="p-3 rounded-xl bg-red-50 dark:bg-rose-950/40 border border-red-200 dark:border-rose-850 text-red-700 dark:text-rose-300 text-xs font-bold flex items-center gap-2 animate-in fade-in"
+                    className="px-3 py-2 rounded-lg bg-red-50 dark:bg-rose-950/40 border border-red-200 dark:border-rose-800 text-red-700 dark:text-rose-300 text-xs font-medium flex items-center gap-2"
                   >
-                    <AlertCircle size={15} className="shrink-0 text-red-600 dark:text-rose-400" />
+                    <AlertCircle size={14} className="shrink-0 text-red-600 dark:text-rose-400" />
                     <span>{popupError}</span>
                   </div>
                 )}
 
-                {/* Done Button */}
-                <div className="pt-1">
-                  <button
-                    type="button"
-                    onClick={handleDoneClick}
-                    data-testid="popup-done-button"
-                    className="w-full py-3 px-5 rounded-xl bg-gradient-to-r from-[#D71920] to-[#B9151B] hover:from-[#B9151B] hover:to-[#961015] text-white font-black text-sm tracking-wide shadow-md shadow-[#D71920]/25 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.99]"
-                  >
-                    <CheckCircle2 size={17} />
-                    <span>Done (ডান)</span>
-                  </button>
-                </div>
+                {/* 6. Submit Payment & Auto-Confirm Order CTA */}
+                <button
+                  type="button"
+                  disabled={isSubmittingOrder}
+                  onClick={() => void handleDoneClick()}
+                  data-testid="popup-done-button"
+                  className="w-full h-10 px-4 rounded-lg bg-[#D71920] hover:bg-[#B9151B] text-white font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors disabled:opacity-50"
+                >
+                  <CheckCircle2 size={15} />
+                  <span>
+                    {isSubmittingOrder
+                      ? 'Confirming Order...'
+                      : 'Submit Payment & Confirm Order'}
+                  </span>
+                </button>
               </div>
             </div>
           </div>
         );
       })()}
 
-      {/* ENLARGED PAYMENT QR CODE / PAYMENT IMAGE VIEW & DOWNLOAD MODAL */}
+      {/* ENLARGED PAYMENT QR CODE MODAL */}
       {qrModalMethod && (() => {
         const method = qrModalMethod.method;
         const subOpt = qrModalMethod.subOption;
@@ -1175,100 +1062,87 @@ export function PaymentInstructions({
             aria-modal="true"
             aria-label={`${qrMeta.displayTitle} QR Code`}
             data-testid="payment-qr-modal"
-            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-150"
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/65 backdrop-blur-[1px] animate-in fade-in duration-150"
             onClick={e => {
               if (e.target === e.currentTarget) {
                 setQrModalMethod(null);
               }
             }}
           >
-            <div className="w-full max-w-sm bg-white dark:bg-[#121722] rounded-3xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-2xl space-y-4 relative animate-in zoom-in-95 duration-150 text-center">
-              <button
-                type="button"
-                onClick={() => setQrModalMethod(null)}
-                aria-label="Close QR Modal"
-                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer"
-              >
-                <X size={16} />
-              </button>
-
-              {/* Modal Header */}
-              <div className="flex items-center justify-center gap-3 pt-1">
-                <PaymentBrandIcon method={method} size="md" />
-                <div className="text-left">
-                  <h4 className="text-base font-black text-slate-900 dark:text-white leading-tight">
-                    {qrTitle}
-                  </h4>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <span className="px-2 py-0.5 rounded-md bg-[#FFF0F6] dark:bg-rose-950/40 text-[#E2136E] dark:text-pink-300 border border-[#FFADD2] dark:border-rose-900/60 text-[10px] font-bold">
-                      {subOpt.accountType !== 'None' ? subOpt.accountType : 'Personal'}
-                    </span>
-                    <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-200">
+            <div className="w-full max-w-xs bg-white dark:bg-[#121722] rounded-xl border border-neutral-200 dark:border-slate-800 p-4 shadow-xl space-y-3 relative text-center">
+              <div className="flex items-center justify-between border-b border-neutral-100 dark:border-slate-800 pb-2.5">
+                <div className="flex items-center gap-2 text-left">
+                  <PaymentBrandIcon method={method} size="sm" />
+                  <div>
+                    <h4 className="text-xs font-semibold text-neutral-900 dark:text-white leading-tight">
+                      {qrTitle}
+                    </h4>
+                    <span className="text-[11px] font-mono text-neutral-500 dark:text-slate-400">
                       {subOpt.accountNumber || method.accountNumber}
                     </span>
                   </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setQrModalMethod(null)}
+                  aria-label="Close QR Modal"
+                  className="w-7 h-7 rounded-md bg-neutral-100 hover:bg-neutral-200 dark:bg-slate-800 text-neutral-500 flex items-center justify-center cursor-pointer"
+                >
+                  <X size={14} />
+                </button>
               </div>
 
-              {/* Language Switcher inside enlarged modal */}
-              <div className="flex items-center justify-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 max-w-xs mx-auto">
+              <div className="grid grid-cols-2 gap-1 bg-neutral-100 dark:bg-slate-800 p-1 rounded-lg">
                 <button
                   type="button"
                   onClick={() => setQrModalMethod({ method, subOption: subOpt, language: 'bn' })}
-                  className={`flex-1 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`py-1 rounded text-xs font-medium cursor-pointer ${
                     currentLang === 'bn'
-                      ? 'bg-white dark:bg-[#1E283A] text-emerald-700 dark:text-emerald-400 shadow-2xs'
-                      : 'text-slate-600 dark:text-slate-400'
+                      ? 'bg-white dark:bg-[#1E283A] text-neutral-900 dark:text-white shadow-2xs'
+                      : 'text-neutral-500'
                   }`}
                 >
-                  🇧🇩 বাংলা কিউআর
+                  বাংলা QR
                 </button>
                 <button
                   type="button"
                   onClick={() => setQrModalMethod({ method, subOption: subOpt, language: 'en' })}
-                  className={`flex-1 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`py-1 rounded text-xs font-medium cursor-pointer ${
                     currentLang === 'en'
-                      ? 'bg-white dark:bg-[#1E283A] text-[#D71920] dark:text-rose-400 shadow-2xs'
-                      : 'text-slate-600 dark:text-slate-400'
+                      ? 'bg-white dark:bg-[#1E283A] text-neutral-900 dark:text-white shadow-2xs'
+                      : 'text-neutral-500'
                   }`}
                 >
-                  🇬🇧 English QR
+                  English QR
                 </button>
               </div>
 
-              {/* Enlarged QR Image Container */}
-              <div className="bg-slate-50 dark:bg-[#161D2B] border border-slate-200 dark:border-slate-700 rounded-2xl p-3 flex items-center justify-center">
+              <div className="bg-neutral-50 dark:bg-[#161D2B] border border-neutral-200 dark:border-slate-700 rounded-lg p-2.5 flex items-center justify-center">
                 {displayQrSrc ? (
                   <img
                     src={displayQrSrc}
                     alt={qrTitle}
-                    className="w-full max-h-[340px] object-contain rounded-xl bg-white mx-auto shadow-2xs"
+                    className="w-full max-h-[260px] object-contain rounded bg-white mx-auto"
                   />
                 ) : (
-                  <div className="py-12 text-xs text-slate-400">QR Code Unavailable</div>
+                  <div className="py-10 text-xs text-neutral-400">QR Code Unavailable</div>
                 )}
               </div>
 
-              <p className="text-xs text-slate-600 dark:text-slate-300">
-                Scan QR code or send <strong className="text-slate-900 dark:text-white font-black">৳{totalAmount}</strong> to{' '}
-                <strong className="font-mono text-slate-900 dark:text-white">{subOpt.accountNumber || method.accountNumber}</strong>
-              </p>
-
-              {/* Download QR Code & Close Buttons */}
-              <div className="flex items-center gap-2.5 pt-1">
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => handleDownloadQrImage(method, displayQrSrc, currentLang, subOpt)}
                   data-testid="download-qr-btn"
-                  className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-[#E2136E] to-[#D71920] hover:from-[#c81060] hover:to-[#b8141a] text-white font-black text-xs flex items-center justify-center gap-2 shadow-md shadow-[#E2136E]/20 cursor-pointer transition-all"
+                  className="flex-1 h-9 px-3 rounded-lg bg-neutral-900 dark:bg-[#D71920] hover:bg-neutral-800 text-white font-medium text-xs flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  <Download size={15} />
-                  <span>Download ({currentLang === 'bn' ? 'বাংলা' : 'EN'})</span>
+                  <Download size={13} />
+                  <span>Download QR</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setQrModalMethod(null)}
-                  className="py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs cursor-pointer transition-colors"
+                  className="h-9 px-3 rounded-lg border border-neutral-200 dark:border-slate-700 text-neutral-700 dark:text-slate-200 font-medium text-xs cursor-pointer"
                 >
                   Close
                 </button>
@@ -1280,3 +1154,4 @@ export function PaymentInstructions({
     </>
   );
 }
+

@@ -413,6 +413,7 @@ export interface StoreSettings {
   // Delivery & Courier Settings
   sundarbanDeliveryCharge?: number;
   enableSundarbanCourier?: boolean;
+  showSundarbanOnCheckout?: boolean;
   sundarbanForcesPrepayment?: boolean;
   extraWeightChargePerKg?: number;
   deliveryNote?: string;

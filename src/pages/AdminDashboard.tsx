@@ -11447,16 +11447,29 @@ export function AdminDashboard() {
                         </div>
                       )}
 
-                      <label className="flex items-center gap-2 pt-1 text-xs font-bold text-neutral-800 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          data-testid="admin-show-checkout-coupons-checkbox"
-                          checked={settingsForm.showCheckoutCoupons !== false}
-                          onChange={e => setSettingsForm(prev => ({ ...prev, showCheckoutCoupons: e.target.checked }))}
-                          className="w-4 h-4 accent-[#D71920]"
-                        />
-                        <span>Show Quick Coupon Suggestions on Checkout Page</span>
-                      </label>
+                      <div className="flex flex-wrap items-center gap-4 pt-1">
+                        <label className="flex items-center gap-2 text-xs font-bold text-neutral-800 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            data-testid="admin-show-checkout-coupons-checkbox"
+                            checked={settingsForm.showCheckoutCoupons !== false}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, showCheckoutCoupons: e.target.checked }))}
+                            className="w-4 h-4 accent-[#D71920]"
+                          />
+                          <span>Show Quick Coupon Suggestions on Checkout Page</span>
+                        </label>
+
+                        <label className="flex items-center gap-2 text-xs font-bold text-neutral-800 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            data-testid="admin-show-sundarban-checkout-checkbox"
+                            checked={settingsForm.showSundarbanOnCheckout === true}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, showSundarbanOnCheckout: e.target.checked }))}
+                            className="w-4 h-4 accent-[#D71920]"
+                          />
+                          <span>Show Sundarban Courier Option on Checkout Page</span>
+                        </label>
+                      </div>
                     </div>
 
                     {/* Bangla QR (বাংলা কিউআর) Settings */}

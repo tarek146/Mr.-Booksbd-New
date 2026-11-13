@@ -704,6 +704,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     keywords: 'bookstore bangladesh, online book shop dhaka, stationery, novel, islamic books, mr books',
     sundarbanDeliveryCharge: 120,
     enableSundarbanCourier: true,
+    showSundarbanOnCheckout: false,
     sundarbanForcesPrepayment: true,
     extraWeightChargePerKg: 20,
     deliveryNote: 'সুন্দরবন কুরিয়ার সার্ভিসের ক্ষেত্রে সম্পূর্ণ পেমেন্ট অগ্রিম প্রযোজ্য।',
