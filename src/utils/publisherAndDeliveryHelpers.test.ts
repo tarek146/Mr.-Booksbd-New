@@ -10,35 +10,53 @@ import {
 } from './publisherAndDeliveryHelpers';
 import { Product, Publisher } from '../types';
 
-test('resolveProductDeliveryTiming returns custom per-book delivery timing when configured', () => {
+test('resolveProductDeliveryTiming returns custom per-book English delivery timing when configured', () => {
   const customBook: Partial<Product> = {
     title: 'Paradoxical Sajid 2',
-    deliveryEstimate: '১-২ দিন (এক্সপ্রেস ডেলিভারি)',
-    deliveryTimingTitle: 'স্পেশাল ফাস্ট ডেলিভারি টাইমিং',
-    insideDhakaDelivery: '২৪ ঘণ্টা (ঢাকার ভেতরে)',
-    outsideDhakaDelivery: '২ দিন (ঢাকার বাইরে)',
-    deliveryTimingNote: 'বিকেল ৫টার আগে অর্ডার করলে আজই ডিসপ্যাচ হবে।',
+    deliveryEstimate: '1-2 Days Express',
+    deliveryTimingTitle: 'Fast Express Delivery',
+    insideDhakaDelivery: 'Within 24 Hours',
+    outsideDhakaDelivery: '1-2 Business Days',
+    deliveryTimingNote: 'Orders placed before 5 PM dispatch the same day.',
     deliveryTimerHours: 24,
   };
 
   const resolved = resolveProductDeliveryTiming(customBook);
-  assert.equal(resolved.estimateBadge, '১-২ দিন (এক্সপ্রেস ডেলিভারি)');
-  assert.equal(resolved.title, 'স্পেশাল ফাস্ট ডেলিভারি টাইমিং');
-  assert.equal(resolved.insideDhaka, '২৪ ঘণ্টা (ঢাকার ভেতরে)');
-  assert.equal(resolved.outsideDhaka, '২ দিন (ঢাকার বাইরে)');
-  assert.equal(resolved.note, 'বিকেল ৫টার আগে অর্ডার করলে আজই ডিসপ্যাচ হবে।');
+  assert.equal(resolved.estimateBadge, '1-2 Days Express');
+  assert.equal(resolved.title, 'Fast Express Delivery');
+  assert.equal(resolved.insideDhaka, 'Within 24 Hours');
+  assert.equal(resolved.outsideDhaka, '1-2 Business Days');
+  assert.equal(resolved.note, 'Orders placed before 5 PM dispatch the same day.');
   assert.equal(resolved.timerHours, 24);
 });
 
-test('resolveProductDeliveryTiming falls back to clean defaults when fields are omitted', () => {
+test('resolveProductDeliveryTiming normalizes legacy Bengali defaults to English and falls back to English defaults', () => {
+  const legacySavedBook: Partial<Product> = {
+    title: 'Legacy Firestore Book',
+    deliveryTimingTitle: 'ডেলিভারি টাইমিং (Delivery Timing)',
+    deliveryEstimate: '২-৩ কার্যদিবস (2-3 Days)',
+    insideDhakaDelivery: '২৪-৪৮ ঘণ্টা (১-২ দিন)',
+    outsideDhakaDelivery: '২-৩ কার্যদিবস (সারাদেশে)',
+    deliveryTimingNote: 'আজকে অর্ডার করলে দ্রুততম সময়ে বাবল-র‍্যাপ প্যাকেজিংসহ কুরিয়ারে পাঠানো হবে।',
+  };
+
+  const normalized = resolveProductDeliveryTiming(legacySavedBook);
+  assert.equal(normalized.title, 'Delivery Timing');
+  assert.equal(normalized.estimateBadge, '2-3 Business Days');
+  assert.equal(normalized.insideDhaka, '24-48 Hours (1-2 Days)');
+  assert.equal(normalized.outsideDhaka, '2-3 Business Days (Nationwide)');
+  assert.doesNotMatch(normalized.note, /[\u0980-\u09FF]/);
+
   const minimalBook: Partial<Product> = {
     title: 'Himu Omnibus',
   };
 
   const resolved = resolveProductDeliveryTiming(minimalBook);
-  assert.equal(resolved.estimateBadge, '২-৩ কার্যদিবস (2-3 Days)');
-  assert.equal(resolved.insideDhaka, '২৪-৪৮ ঘণ্টা (১-২ দিন)');
+  assert.equal(resolved.title, 'Delivery Timing');
+  assert.equal(resolved.estimateBadge, '2-3 Business Days');
+  assert.equal(resolved.insideDhaka, '24-48 Hours (1-2 Days)');
   assert.equal(resolved.timerHours, 48);
+  assert.doesNotMatch(resolved.note, /[\u0980-\u09FF]/);
   assert.ok(resolved.note.length > 10);
 });
 

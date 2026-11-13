@@ -2594,7 +2594,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       await logAdminAction(
         'site_settings_updated',
         'siteSettings',
-        `Updated siteSettings: reviewDisplay=${nextSite.reviewDisplay}, authorInfo=${nextSite.authorInfo}`
+        `Updated siteSettings: reviewDisplay=${nextSite.reviewDisplay}, authorInfo=${nextSite.authorInfo}, deliveryTimingDisplay=${nextSite.deliveryTimingDisplay}`
       );
     } catch (err) {
       console.error('Firestore update siteSettings error:', err);

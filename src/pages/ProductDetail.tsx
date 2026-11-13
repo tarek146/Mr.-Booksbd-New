@@ -18,17 +18,10 @@ import {
   Copy,
   Check,
   BookOpen,
-  Sparkles,
   FileText,
   MessageSquare,
   ChevronLeft,
   ChevronRight,
-  Layers,
-  Tag,
-  Globe,
-  Award,
-  Barcode,
-  QrCode,
   Edit3,
   ThumbsUp,
   ThumbsDown,
@@ -131,9 +124,9 @@ export function ProductDetail() {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [copiedLink, setCopiedLink] = useState(false);
   const [addedAlert, setAddedAlert] = useState(false);
-  const [activeAccordion, setActiveAccordion] = useState<'description' | 'specifications' | 'reviews' | null>('description');
+  const [activeAccordion, setActiveAccordion] = useState<'description' | 'specifications' | 'delivery' | 'reviews' | null>('description');
 
-  const toggleAccordion = (section: 'description' | 'specifications' | 'reviews') => {
+  const toggleAccordion = (section: 'description' | 'specifications' | 'delivery' | 'reviews') => {
     setActiveAccordion(prev => prev === section ? null : section);
   };
 
@@ -802,44 +795,48 @@ export function ProductDetail() {
                 </a>
               </div>
 
-              {/* Single-Open Interactive Accordion: Description, Full Specification, Reviews */}
-              <div className="pt-2 space-y-2">
+              {/* Minimal Hairline Accordion: Description, Book Details, Delivery Timing, Reviews */}
+              <div
+                data-testid="product-detail-accordions"
+                className="pt-1.5"
+              >
+                <div className="rounded-lg border border-neutral-200 bg-white divide-y divide-neutral-200 overflow-hidden">
                 
-                {/* Accordion 1: Description */}
-                <div className={`rounded-2xl border transition-all duration-200 overflow-hidden bg-white ${
-                  activeAccordion === 'description' 
-                    ? 'border-[#D71920]/40 ring-1 ring-[#D71920]/15 shadow-xs' 
-                    : 'border-neutral-200 hover:border-neutral-300 shadow-2xs'
-                }`}>
+                {/* Section 1: Description */}
+                <div>
                   <button
                     type="button"
+                    aria-expanded={activeAccordion === 'description'}
                     onClick={() => toggleAccordion('description')}
-                    className="w-full p-3 sm:p-3.5 text-left flex items-center justify-between gap-2.5 hover:bg-neutral-50/70 transition-colors cursor-pointer group"
+                    className={`w-full px-3.5 py-2.5 text-left flex items-center justify-between gap-3 transition-colors cursor-pointer group ${
+                      activeAccordion === 'description' ? 'bg-neutral-50/70' : 'hover:bg-neutral-50/70'
+                    }`}
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <FileText size={16} className={activeAccordion === 'description' ? 'text-[#D71920]' : 'text-neutral-500'} />
-                        <h3 className={`text-sm sm:text-[15px] font-bold ${activeAccordion === 'description' ? 'text-[#D71920]' : 'text-neutral-900 group-hover:text-neutral-950'}`}>
-                          Description
-                        </h3>
-                      </div>
-                      <p className="text-[11px] sm:text-xs text-neutral-500 mt-0.5 truncate pl-6">
-                        {presentation.descriptionSubtitle}
-                      </p>
+                    <div className="min-w-0 flex items-center gap-2">
+                      <FileText size={14} strokeWidth={1.75} className={`shrink-0 ${activeAccordion === 'description' ? 'text-[#D71920]' : 'text-neutral-400'}`} />
+                      <span className={`text-[13px] font-semibold tracking-[-0.01em] ${activeAccordion === 'description' ? 'text-[#D71920]' : 'text-neutral-900'}`}>
+                        Description
+                      </span>
                     </div>
-                    <div className={`p-1.5 rounded-full transition-all duration-200 shrink-0 ${
-                      activeAccordion === 'description' ? 'bg-[#FFF1F2] text-[#D71920] rotate-90' : 'bg-neutral-100 text-neutral-400 group-hover:text-neutral-600'
-                    }`}>
-                      <ChevronRight size={14} className="stroke-[2.5]" />
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[11px] font-medium text-neutral-400 truncate max-w-[110px]">
+                        {activeVariantDescription.formatLabel}
+                      </span>
+                      <ChevronRight
+                        size={14}
+                        className={`shrink-0 transition-transform duration-150 ${
+                          activeAccordion === 'description' ? 'rotate-90 text-[#D71920]' : 'text-neutral-400 group-hover:text-neutral-600'
+                        }`}
+                      />
                     </div>
                   </button>
 
                   {activeAccordion === 'description' && (
-                    <div className="px-4 pb-4 pt-3 border-t border-neutral-100 space-y-3.5 text-xs text-neutral-700">
-                      {/* Format-Synced Dynamic Edition Description (Clean, Unboxed) */}
+                    <div className="px-3.5 pb-3.5 pt-2.5 border-t border-neutral-100 bg-neutral-50/50 space-y-3 text-xs text-neutral-700">
+                      {/* Format-Synced Dynamic Edition Description */}
                       <div
                         data-testid="selected-format-description"
-                        className="pb-3 border-b border-neutral-100 space-y-1.5"
+                        className="pb-2.5 border-b border-neutral-200/70 space-y-1.5"
                       >
                         <div className="flex items-center justify-between gap-2 flex-wrap">
                           <span className="font-semibold text-xs text-neutral-900">
@@ -866,75 +863,73 @@ export function ProductDetail() {
                         {product.description}
                       </p>
 
-                      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-2.5 border-t border-neutral-100 text-[11px] text-neutral-600">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-2 border-t border-neutral-200/70 text-[11px] text-neutral-600">
                         <span className="inline-flex items-center gap-1.5">
-                          <ShieldCheck size={13} className="text-emerald-600 shrink-0" />
+                          <ShieldCheck size={12} className="text-emerald-600 shrink-0" />
                           <span>{presentation.authenticityBadge}</span>
                         </span>
                         <span className="inline-flex items-center gap-1.5">
-                          <Truck size={13} className="text-neutral-500 shrink-0" />
-                          <span>Safe Bubble-Wrap Packaging</span>
+                          <Truck size={12} className="text-neutral-500 shrink-0" />
+                          <span>Bubble-Wrap Packaging</span>
                         </span>
                         <span className="inline-flex items-center gap-1.5">
-                          <CheckCircle2 size={13} className="text-neutral-500 shrink-0" />
-                          <span>Cash on Delivery Available</span>
+                          <CheckCircle2 size={12} className="text-neutral-500 shrink-0" />
+                          <span>Cash on Delivery</span>
                         </span>
                       </div>
                     </div>
                   )}
                 </div>
 
-                {/* Accordion 2: Book Details / Product Specifications */}
-                {(() => {
-                  const deliveryTiming = resolveProductDeliveryTiming(product);
-                  return (
-                    <div className={`rounded-2xl border transition-all duration-200 overflow-hidden bg-white ${
-                      activeAccordion === 'specifications' 
-                        ? 'border-[#D71920]/40 ring-1 ring-[#D71920]/15 shadow-xs' 
-                        : 'border-neutral-200 hover:border-neutral-300 shadow-2xs'
-                    }`}>
-                      <button
-                        type="button"
-                        onClick={() => toggleAccordion('specifications')}
-                        className="w-full p-3 sm:p-3.5 text-left flex items-center justify-between gap-2.5 hover:bg-neutral-50/70 transition-colors cursor-pointer group"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <BookOpen size={16} className={activeAccordion === 'specifications' ? 'text-[#D71920]' : 'text-neutral-500'} />
-                            <h3 className={`text-sm sm:text-[15px] font-bold ${activeAccordion === 'specifications' ? 'text-[#D71920]' : 'text-neutral-900 group-hover:text-neutral-950'}`}>
-                              {presentation.detailsHeading}
-                            </h3>
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FFF1F2] text-[#D71920] text-[10px] font-extrabold border border-[#D71920]/20">
-                              <Clock size={10} /> {deliveryTiming.estimateBadge}
-                            </span>
-                          </div>
-                          <p className="text-[11px] sm:text-xs text-neutral-500 mt-0.5 truncate pl-6">
-                            {presentation.detailsSubtitle}
-                          </p>
-                        </div>
-                        <div className={`p-1.5 rounded-full transition-all duration-200 shrink-0 ${
-                          activeAccordion === 'specifications' ? 'bg-[#FFF1F2] text-[#D71920] rotate-90' : 'bg-neutral-100 text-neutral-400 group-hover:text-neutral-600'
-                        }`}>
-                          <ChevronRight size={14} className="stroke-[2.5]" />
-                        </div>
-                      </button>
+                {/* Section 2: Book Details / Product Specifications */}
+                <div data-testid="product-detail-specifications-accordion">
+                  <button
+                    type="button"
+                    data-testid="accordion-btn-specifications"
+                    aria-expanded={activeAccordion === 'specifications'}
+                    onClick={() => toggleAccordion('specifications')}
+                    className={`w-full px-3.5 py-2.5 text-left flex items-center justify-between gap-3 transition-colors cursor-pointer group ${
+                      activeAccordion === 'specifications' ? 'bg-neutral-50/70' : 'hover:bg-neutral-50/70'
+                    }`}
+                  >
+                    <div className="min-w-0 flex items-center gap-2">
+                      <BookOpen size={14} strokeWidth={1.75} className={`shrink-0 ${activeAccordion === 'specifications' ? 'text-[#D71920]' : 'text-neutral-400'}`} />
+                      <span className={`text-[13px] font-semibold tracking-[-0.01em] ${activeAccordion === 'specifications' ? 'text-[#D71920]' : 'text-neutral-900'}`}>
+                        {presentation.detailsHeading}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[11px] font-medium text-neutral-400 tabular-nums">
+                        {product.type === 'book'
+                          ? (product.pages ? `${product.pages} pages` : (product.edition || 'Details'))
+                          : (product.brand || 'Specs')}
+                      </span>
+                      <ChevronRight
+                        size={14}
+                        className={`shrink-0 transition-transform duration-150 ${
+                          activeAccordion === 'specifications' ? 'rotate-90 text-[#D71920]' : 'text-neutral-400 group-hover:text-neutral-600'
+                        }`}
+                      />
+                    </div>
+                  </button>
 
-                      {activeAccordion === 'specifications' && (
-                        <div className="px-3.5 sm:px-4 pb-4 pt-2 border-t border-neutral-100 text-xs space-y-3 animate-in fade-in duration-200">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                              <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                                <BookOpen size={13} className="text-[#D71920]" /> Title
-                              </span>
-                              <span className="font-bold text-neutral-900 text-right truncate max-w-[180px]">{product.title}</span>
-                            </div>
+                  {activeAccordion === 'specifications' && (
+                    <div
+                      data-testid="book-details-panel"
+                      className="px-3.5 pb-3 pt-1 border-t border-neutral-100 bg-neutral-50/50 text-xs"
+                    >
+                      <dl className="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-8">
+                        <div className="py-1.5 border-b border-neutral-200/70 flex items-baseline justify-between gap-3">
+                          <dt className="text-neutral-500 shrink-0">Title</dt>
+                          <dd className="font-medium text-neutral-900 text-right truncate">{product.title}</dd>
+                        </div>
 
-                            {product.type === 'book' ? (
-                              <>
-                                <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                                  <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                                    <Award size={13} className="text-[#D71920]" /> Author
-                                  </span>
+                        {product.type === 'book' ? (
+                          <>
+                            {siteSettings.authorInfo !== false && (
+                              <div className="py-1.5 border-b border-neutral-200/70 flex items-baseline justify-between gap-3">
+                                <dt className="text-neutral-500 shrink-0">Author</dt>
+                                <dd className="text-right min-w-0">
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -943,242 +938,226 @@ export function ProductDetail() {
                                         setActivePage('books');
                                       }
                                     }}
-                                    className="font-bold text-neutral-900 hover:text-[#D71920] text-right cursor-pointer"
+                                    className="font-medium text-neutral-900 hover:text-[#D71920] hover:underline underline-offset-4 transition-colors cursor-pointer truncate max-w-full"
                                   >
                                     {product.author || 'Renowned Author'}
                                   </button>
-                                </div>
-
-                                <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                                  <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                                    <Building2 size={13} className="text-[#D71920]" /> Publisher (প্রকাশনী)
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setSearchQuery(currentProductPublisher.name);
-                                      setActivePage('books');
-                                    }}
-                                    className="font-bold text-neutral-900 hover:text-[#D71920] text-right cursor-pointer"
-                                  >
-                                    {currentProductPublisher.banglaName &&
-                                    currentProductPublisher.banglaName !== currentProductPublisher.name
-                                      ? `${currentProductPublisher.name} (${currentProductPublisher.banglaName})`
-                                      : currentProductPublisher.name}
-                                  </button>
-                                </div>
-
-                                {seriesInfo.hasSeries && (
-                                  <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                                    <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                                      <Layers size={13} className="text-[#D71920]" /> Series (সিরিজ)
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={handleViewSeriesBooks}
-                                      className="font-bold text-neutral-900 hover:text-[#D71920] text-right cursor-pointer"
-                                    >
-                                      {seriesInfo.label}
-                                      {seriesBooks.length > 1 ? ` (${seriesBooks.length} books)` : ''}
-                                    </button>
-                                  </div>
-                                )}
-
-                                <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                                  <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                                    <Tag size={13} className="text-[#D71920]" /> Edition
-                                  </span>
-                                  <span className="font-bold text-neutral-900 text-right">{product.edition || activeVariant.name || 'Standard Edition'}</span>
-                                </div>
-
-                                <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                                  <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                                    <FileText size={13} className="text-[#D71920]" /> Pages
-                                  </span>
-                                  <span className="font-bold text-neutral-900 text-right">{product.pages ? `${product.pages} Pages` : 'Standard Print'}</span>
-                                </div>
-
-                                <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                                  <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                                    <Globe size={13} className="text-[#D71920]" /> Language
-                                  </span>
-                                  <span className="font-bold text-neutral-900 text-right">{product.language || 'Bengali'}</span>
-                                </div>
-
-                                {product.isbn && (
-                                  <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                                    <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                                      <Barcode size={13} className="text-[#D71920]" /> ISBN
-                                    </span>
-                                    <span className="font-bold text-neutral-900 text-right font-mono">{product.isbn}</span>
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                                  <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                                    <Award size={13} className="text-[#D71920]" /> Brand
-                                  </span>
-                                  <span className="font-bold text-neutral-900 text-right">{product.brand || 'Premium Stationery'}</span>
-                                </div>
-
-                                {product.material && (
-                                  <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                                    <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                                      <Layers size={13} className="text-[#D71920]" /> Material
-                                    </span>
-                                    <span className="font-bold text-neutral-900 text-right">{product.material}</span>
-                                  </div>
-                                )}
-
-                                {product.dimensions && (
-                                  <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                                    <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                                      <FileText size={13} className="text-[#D71920]" /> Dimensions
-                                    </span>
-                                    <span className="font-bold text-neutral-900 text-right">{product.dimensions}</span>
-                                  </div>
-                                )}
-
-                                {product.colorModel && (
-                                  <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                                    <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                                      <Tag size={13} className="text-[#D71920]" /> Color / Model
-                                    </span>
-                                    <span className="font-bold text-neutral-900 text-right">{product.colorModel}</span>
-                                  </div>
-                                )}
-                              </>
+                                </dd>
+                              </div>
                             )}
 
-                            <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                              <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                                <Tag size={13} className="text-[#D71920]" /> Category
-                              </span>
-                              <span className="font-bold text-neutral-900 text-right">{product.category}</span>
-                            </div>
-
-                            <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
-                              <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                                <QrCode size={13} className="text-[#D71920]" /> SKU
-                              </span>
-                              <span className="font-bold text-neutral-900 text-right font-mono">{activeVariant.sku || product.sku}</span>
-                            </div>
-
-                            {/* Delivery Timing Row inside Book Details Grid */}
-                            <div className="p-2.5 rounded-xl bg-[#FFF1F2]/70 border border-[#D71920]/20 flex items-center justify-between gap-2 sm:col-span-2">
-                              <span className="text-neutral-700 font-bold flex items-center gap-1.5">
-                                <Clock size={13} className="text-[#D71920]" /> Delivery Timing (ডেলিভারি সময়)
-                              </span>
-                              <span className="font-black text-[#D71920] text-right">{deliveryTiming.estimateBadge}</span>
-                            </div>
-
-                            {/* Optional Custom Book Details Rows configured by Admin */}
-                            {product.customBookDetails &&
-                              product.customBookDetails.map((detail, idx) => (
-                                <div
-                                  key={idx}
-                                  className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2"
+                            <div className="py-1.5 border-b border-neutral-200/70 flex items-baseline justify-between gap-3">
+                              <dt className="text-neutral-500 shrink-0">Publisher</dt>
+                              <dd className="text-right min-w-0">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSearchQuery(currentProductPublisher.name);
+                                    setActivePage('books');
+                                  }}
+                                  className="font-medium text-neutral-900 hover:text-[#D71920] hover:underline underline-offset-4 transition-colors cursor-pointer text-right"
                                 >
-                                  <span className="text-neutral-500 font-medium flex items-center gap-1.5">
-                                    <Sparkles size={13} className="text-[#D71920]" /> {detail.label}
-                                  </span>
-                                  <span className="font-bold text-neutral-900 text-right">{detail.value}</span>
-                                </div>
-                              ))}
+                                  {currentProductPublisher.name}
+                                </button>
+                              </dd>
+                            </div>
+
+                            {seriesInfo.hasSeries && (
+                              <div className="py-1.5 border-b border-neutral-200/70 flex items-baseline justify-between gap-3">
+                                <dt className="text-neutral-500 shrink-0">Series</dt>
+                                <dd className="text-right min-w-0">
+                                  <button
+                                    type="button"
+                                    onClick={handleViewSeriesBooks}
+                                    className="font-medium text-neutral-900 hover:text-[#D71920] hover:underline underline-offset-4 transition-colors cursor-pointer"
+                                  >
+                                    {seriesInfo.label}
+                                    {seriesBooks.length > 1 ? ` (${seriesBooks.length} books)` : ''}
+                                  </button>
+                                </dd>
+                              </div>
+                            )}
+
+                            <div className="py-1.5 border-b border-neutral-200/70 flex items-baseline justify-between gap-3">
+                              <dt className="text-neutral-500 shrink-0">Edition</dt>
+                              <dd className="font-medium text-neutral-900 text-right">{product.edition || activeVariant.name || 'Standard Edition'}</dd>
+                            </div>
+
+                            <div className="py-1.5 border-b border-neutral-200/70 flex items-baseline justify-between gap-3">
+                              <dt className="text-neutral-500 shrink-0">Pages</dt>
+                              <dd className="font-medium text-neutral-900 text-right tabular-nums">{product.pages ? `${product.pages} Pages` : 'Standard Print'}</dd>
+                            </div>
+
+                            <div className="py-1.5 border-b border-neutral-200/70 flex items-baseline justify-between gap-3">
+                              <dt className="text-neutral-500 shrink-0">Language</dt>
+                              <dd className="font-medium text-neutral-900 text-right">{product.language || 'Bengali'}</dd>
+                            </div>
+
+                            {product.isbn && (
+                              <div className="py-1.5 border-b border-neutral-200/70 flex items-baseline justify-between gap-3">
+                                <dt className="text-neutral-500 shrink-0">ISBN</dt>
+                                <dd className="font-medium text-neutral-900 text-right font-mono tabular-nums">{product.isbn}</dd>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <div className="py-1.5 border-b border-neutral-200/70 flex items-baseline justify-between gap-3">
+                              <dt className="text-neutral-500 shrink-0">Brand</dt>
+                              <dd className="font-medium text-neutral-900 text-right">{product.brand || 'Premium Stationery'}</dd>
+                            </div>
+
+                            {product.material && (
+                              <div className="py-1.5 border-b border-neutral-200/70 flex items-baseline justify-between gap-3">
+                                <dt className="text-neutral-500 shrink-0">Material</dt>
+                                <dd className="font-medium text-neutral-900 text-right">{product.material}</dd>
+                              </div>
+                            )}
+
+                            {product.dimensions && (
+                              <div className="py-1.5 border-b border-neutral-200/70 flex items-baseline justify-between gap-3">
+                                <dt className="text-neutral-500 shrink-0">Dimensions</dt>
+                                <dd className="font-medium text-neutral-900 text-right tabular-nums">{product.dimensions}</dd>
+                              </div>
+                            )}
+
+                            {product.colorModel && (
+                              <div className="py-1.5 border-b border-neutral-200/70 flex items-baseline justify-between gap-3">
+                                <dt className="text-neutral-500 shrink-0">Color / Model</dt>
+                                <dd className="font-medium text-neutral-900 text-right">{product.colorModel}</dd>
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                        <div className="py-1.5 border-b border-neutral-200/70 flex items-baseline justify-between gap-3">
+                          <dt className="text-neutral-500 shrink-0">Category</dt>
+                          <dd className="font-medium text-neutral-900 text-right">{product.category}</dd>
+                        </div>
+
+                        <div className="py-1.5 border-b border-neutral-200/70 last:border-b-0 flex items-baseline justify-between gap-3">
+                          <dt className="text-neutral-500 shrink-0">SKU</dt>
+                          <dd className="font-medium text-neutral-900 text-right font-mono tabular-nums">{activeVariant.sku || product.sku}</dd>
+                        </div>
+
+                        {product.customBookDetails &&
+                          product.customBookDetails.map((detail, idx) => (
+                            <div
+                              key={idx}
+                              className="py-1.5 border-b border-neutral-200/70 last:border-b-0 flex items-baseline justify-between gap-3"
+                            >
+                              <dt className="text-neutral-500 shrink-0">{detail.label}</dt>
+                              <dd className="font-medium text-neutral-900 text-right">{detail.value}</dd>
+                            </div>
+                          ))}
+                      </dl>
+                    </div>
+                  )}
+                </div>
+
+                {/* Section 3: Delivery Timing */}
+                {siteSettings.deliveryTimingDisplay !== false && (() => {
+                  const deliveryTiming = resolveProductDeliveryTiming(product);
+                  const insideFee = product.insideDhakaFee || product.homeDeliveryFee || settings.insideDhakaCharge || 60;
+                  const outsideFee = product.outsideDhakaFee || settings.outsideDhakaCharge || 120;
+                  const subAreaFee = product.subAreaFee || settings.subAreaCharge || 90;
+                  const sundarbanFee = product.sundarbanDeliveryFee || settings.sundarbanDeliveryCharge || 120;
+
+                  return (
+                    <div data-testid="product-detail-delivery-accordion">
+                      <button
+                        type="button"
+                        data-testid="accordion-btn-delivery"
+                        aria-expanded={activeAccordion === 'delivery'}
+                        onClick={() => toggleAccordion('delivery')}
+                        className={`w-full px-3.5 py-2.5 text-left flex items-center justify-between gap-3 transition-colors cursor-pointer group ${
+                          activeAccordion === 'delivery' ? 'bg-neutral-50/70' : 'hover:bg-neutral-50/70'
+                        }`}
+                      >
+                        <div className="shrink-0 flex items-center gap-2">
+                          <Truck size={14} strokeWidth={1.75} className={`shrink-0 ${activeAccordion === 'delivery' ? 'text-[#D71920]' : 'text-neutral-400'}`} />
+                          <span className={`text-[13px] font-semibold tracking-[-0.01em] whitespace-nowrap ${activeAccordion === 'delivery' ? 'text-[#D71920]' : 'text-neutral-900'}`}>
+                            {deliveryTiming.title}
+                          </span>
+                        </div>
+                        <div className="min-w-0 flex items-center justify-end gap-2">
+                          <span className="text-[11px] font-medium text-[#D71920] tabular-nums truncate">
+                            {deliveryTiming.estimateBadge}
+                          </span>
+                          <ChevronRight
+                            size={14}
+                            className={`shrink-0 transition-transform duration-150 ${
+                              activeAccordion === 'delivery' ? 'rotate-90 text-[#D71920]' : 'text-neutral-400 group-hover:text-neutral-600'
+                            }`}
+                          />
+                        </div>
+                      </button>
+
+                      {activeAccordion === 'delivery' && (
+                        <div
+                          data-testid="delivery-timing-panel"
+                          className="px-3.5 pb-3.5 pt-1 border-t border-neutral-100 bg-neutral-50/50 divide-y divide-neutral-200/70 text-xs"
+                        >
+                          {/* Zone Delivery Windows */}
+                          <div className="py-2.5 grid grid-cols-2 gap-4">
+                            <div>
+                              <span className="block text-[11px] text-neutral-500">Inside Dhaka</span>
+                              <span className="block font-semibold text-neutral-900 mt-0.5 tabular-nums">
+                                {deliveryTiming.insideDhaka}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="block text-[11px] text-neutral-500">Outside Dhaka</span>
+                              <span className="block font-semibold text-neutral-900 mt-0.5 tabular-nums">
+                                {deliveryTiming.outsideDhaka}
+                              </span>
+                            </div>
                           </div>
 
-                          {/* Attractive Per-Book Delivery Timing & Schedule Highlight Card */}
-                          <div className="rounded-2xl border border-[#D71920]/25 bg-gradient-to-br from-[#FFF1F2]/90 via-white to-amber-50/50 p-3.5 sm:p-4 shadow-2xs space-y-3">
-                            <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[#D71920]/15">
-                              <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-xl bg-[#D71920] text-white flex items-center justify-center shadow-xs shrink-0">
-                                  <Truck size={16} />
-                                </div>
-                                <div>
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="font-black text-neutral-900 text-xs sm:text-sm">
-                                      {deliveryTiming.title}
-                                    </span>
-                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                                  </div>
-                                  <p className="text-[10px] text-neutral-500 font-medium">
-                                    {presentation.deliveryScheduleSubtitle}
-                                  </p>
-                                </div>
-                              </div>
-
-                              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#D71920] text-white font-black text-[11px] shadow-xs">
-                                <Clock size={12} />
-                                <span>{deliveryTiming.estimateBadge}</span>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                              <div className="p-2.5 sm:p-3 rounded-xl bg-white border border-neutral-200/90 flex items-center justify-between gap-2 shadow-2xs">
-                                <div className="min-w-0">
-                                  <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">
-                                    Inside Dhaka (ঢাকার ভেতরে)
-                                  </span>
-                                  <span className="text-xs font-black text-neutral-900 mt-0.5 block">
-                                    {deliveryTiming.insideDhaka}
-                                  </span>
-                                </div>
-                                <span className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-extrabold text-[10px] border border-emerald-200 shrink-0">
-                                  Fastest
-                                </span>
-                              </div>
-
-                              <div className="p-2.5 sm:p-3 rounded-xl bg-white border border-neutral-200/90 flex items-center justify-between gap-2 shadow-2xs">
-                                <div className="min-w-0">
-                                  <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">
-                                    Outside Dhaka (ঢাকার বাইরে)
-                                  </span>
-                                  <span className="text-xs font-black text-neutral-900 mt-0.5 block">
-                                    {deliveryTiming.outsideDhaka}
-                                  </span>
-                                </div>
-                                <span className="px-2 py-1 rounded-lg bg-blue-50 text-blue-700 font-extrabold text-[10px] border border-blue-200 shrink-0">
-                                  Nationwide
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="p-2.5 rounded-xl bg-white/90 border border-[#D71920]/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px]">
-                              <div className="flex items-start sm:items-center gap-2 text-neutral-700 font-semibold">
-                                <Sparkles size={14} className="text-[#D71920] shrink-0 mt-0.5 sm:mt-0" />
-                                <span>{deliveryTiming.note}</span>
-                              </div>
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-900 border border-amber-200 font-extrabold text-[10px] shrink-0 self-start sm:self-auto">
-                                <Clock size={11} className="text-[#D71920]" />
-                                <span>টার্গেট টাইমার: {deliveryTiming.timerHours} ঘণ্টা</span>
-                              </span>
-                            </div>
-
-                            {/* Free delivery or custom courier rates & weight note */}
+                          {/* Courier & Area Charges */}
+                          <div className="py-2.5">
                             {product.isFreeDelivery ? (
-                              <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 font-bold text-xs flex items-center justify-between shadow-2xs">
-                                <span className="flex items-center gap-1.5">
-                                  <Truck size={14} className="text-emerald-600" />
-                                  <span>Free Delivery Service</span>
-                                </span>
-                                <span className="font-extrabold text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-300">
-                                  ৳0 FREE
-                                </span>
+                              <div className="flex items-baseline justify-between gap-2">
+                                <span className="text-neutral-500">Delivery Charge</span>
+                                <span className="font-semibold text-emerald-700 tabular-nums">Free Delivery (৳0)</span>
                               </div>
                             ) : (
-                              <div className="space-y-2">
-                                <div className="p-2.5 rounded-xl bg-white border border-neutral-200 text-xs grid grid-cols-2 sm:grid-cols-4 gap-2 shadow-2xs">
-                                  <span className="font-bold text-neutral-800">Inside Dhaka: <strong className="text-[#D71920]">৳{product.insideDhakaFee || product.homeDeliveryFee || settings.insideDhakaCharge || 60}</strong></span>
-                                  <span className="font-bold text-neutral-800">Outside Dhaka: <strong className="text-[#D71920]">৳{product.outsideDhakaFee || settings.outsideDhakaCharge || 120}</strong></span>
-                                  <span className="font-bold text-neutral-800">Sub Area: <strong className="text-[#D71920]">৳{product.subAreaFee || settings.subAreaCharge || 90}</strong></span>
-                                  <span className="font-bold text-neutral-800">Sundarban: <strong className="text-[#D71920]">৳{product.sundarbanDeliveryFee || settings.sundarbanDeliveryCharge || 120}</strong></span>
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 text-[11px] tabular-nums">
+                                <div className="flex items-baseline justify-between sm:block">
+                                  <span className="text-neutral-500">Inside Dhaka </span>
+                                  <span className="font-semibold text-neutral-900">৳{insideFee}</span>
                                 </div>
-                                <div className="p-2 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 font-semibold flex items-center gap-1.5">
-                                  <span>ℹ️ Weight Note: Weight-based extra charge: ৳{settings.extraWeightChargePerKg ?? 20} added per extra kg/item when weight increases.</span>
+                                <div className="flex items-baseline justify-between sm:block">
+                                  <span className="text-neutral-500">Outside Dhaka </span>
+                                  <span className="font-semibold text-neutral-900">৳{outsideFee}</span>
+                                </div>
+                                <div className="flex items-baseline justify-between sm:block">
+                                  <span className="text-neutral-500">Sub Area </span>
+                                  <span className="font-semibold text-neutral-900">৳{subAreaFee}</span>
+                                </div>
+                                <div className="flex items-baseline justify-between sm:block">
+                                  <span className="text-neutral-500">Sundarban </span>
+                                  <span className="font-semibold text-neutral-900">৳{sundarbanFee}</span>
                                 </div>
                               </div>
+                            )}
+                          </div>
+
+                          {/* Dispatch Note & Weight Notice */}
+                          <div className="pt-2.5 space-y-1 text-[11px] text-neutral-600 leading-relaxed">
+                            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                              <p>{deliveryTiming.note}</p>
+                              <span className="inline-flex items-center gap-1 font-medium text-neutral-800 tabular-nums shrink-0">
+                                <Clock size={11} className="text-neutral-500" />
+                                Target dispatch: {deliveryTiming.timerHours}h
+                              </span>
+                            </div>
+                            {!product.isFreeDelivery && (
+                              <p className="text-neutral-500">
+                                {product.weightNote && product.weightNote.trim()
+                                  ? product.weightNote
+                                  : `Weight-based extra charge: ৳${settings.extraWeightChargePerKg ?? 20} added per extra kg/item.`}
+                              </p>
                             )}
                           </div>
                         </div>
@@ -1187,43 +1166,38 @@ export function ProductDetail() {
                   );
                 })()}
 
-                {/* Accordion 3: Customer Reviews */}
+                {/* Section 4: Customer Reviews */}
                 {siteSettings.reviewDisplay !== false && (
-                <div data-testid="product-detail-reviews-accordion" className={`rounded-2xl border transition-all duration-200 overflow-hidden bg-white ${
-                  activeAccordion === 'reviews' 
-                    ? 'border-[#D71920]/40 ring-1 ring-[#D71920]/15 shadow-xs' 
-                    : 'border-neutral-200 hover:border-neutral-300 shadow-2xs'
-                }`}>
+                <div data-testid="product-detail-reviews-accordion">
                   <button
                     type="button"
+                    aria-expanded={activeAccordion === 'reviews'}
                     onClick={() => toggleAccordion('reviews')}
-                    className="w-full p-3 sm:p-3.5 text-left flex items-center justify-between gap-2.5 hover:bg-neutral-50/70 transition-colors cursor-pointer group"
+                    className={`w-full px-3.5 py-2.5 text-left flex items-center justify-between gap-3 transition-colors cursor-pointer group ${
+                      activeAccordion === 'reviews' ? 'bg-neutral-50/70' : 'hover:bg-neutral-50/70'
+                    }`}
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <Star size={16} className={activeAccordion === 'reviews' ? 'text-amber-500 fill-amber-500' : 'text-neutral-500'} />
-                        <h3 className={`text-sm sm:text-[15px] font-bold ${activeAccordion === 'reviews' ? 'text-[#D71920]' : 'text-neutral-900 group-hover:text-neutral-950'}`}>
-                          Customer Reviews
-                        </h3>
-                        <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
-                          activeAccordion === 'reviews' ? 'bg-[#FFF1F2] text-[#D71920]' : 'bg-neutral-100 text-neutral-600'
-                        }`}>
-                          {displayReviews.length}
-                        </span>
-                      </div>
-                      <p className="text-[11px] sm:text-xs text-neutral-500 mt-0.5 truncate pl-6">
-                        {avgRating} ★ rated ({displayReviews.length} reviews) · Verified purchaser feedback
-                      </p>
+                    <div className="min-w-0 flex items-center gap-2">
+                      <Star size={14} strokeWidth={1.75} className={`shrink-0 ${activeAccordion === 'reviews' ? 'text-amber-500 fill-amber-500' : 'text-neutral-400'}`} />
+                      <span className={`text-[13px] font-semibold tracking-[-0.01em] ${activeAccordion === 'reviews' ? 'text-[#D71920]' : 'text-neutral-900'}`}>
+                        Customer Reviews
+                      </span>
                     </div>
-                    <div className={`p-1.5 rounded-full transition-all duration-200 shrink-0 ${
-                      activeAccordion === 'reviews' ? 'bg-[#FFF1F2] text-[#D71920] rotate-90' : 'bg-neutral-100 text-neutral-400 group-hover:text-neutral-600'
-                    }`}>
-                      <ChevronRight size={14} className="stroke-[2.5]" />
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[11px] font-medium text-neutral-500 tabular-nums">
+                        {avgRating} ★ ({displayReviews.length})
+                      </span>
+                      <ChevronRight
+                        size={14}
+                        className={`shrink-0 transition-transform duration-150 ${
+                          activeAccordion === 'reviews' ? 'rotate-90 text-[#D71920]' : 'text-neutral-400 group-hover:text-neutral-600'
+                        }`}
+                      />
                     </div>
                   </button>
 
                   {activeAccordion === 'reviews' && (
-                    <div className="px-3.5 sm:px-4 pb-4 pt-1 border-t border-neutral-100 space-y-3.5 text-xs animate-in fade-in duration-200">
+                    <div className="px-3.5 pb-3.5 pt-2 border-t border-neutral-100 bg-neutral-50/50 space-y-3.5 text-xs animate-in fade-in duration-200">
                       
                       {/* Rating summary bar */}
                       <div className="flex items-center justify-between pt-1 pb-2 border-b border-neutral-100 flex-wrap gap-2">
@@ -1497,6 +1471,7 @@ export function ProductDetail() {
                 </div>
                 )}
 
+                </div>
               </div>
             </div>
           </div>

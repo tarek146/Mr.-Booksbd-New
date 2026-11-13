@@ -257,12 +257,17 @@ test('resolveSiteSettings resolves defaults and overrides properly', () => {
   assert.deepEqual(resolveSiteSettings(undefined, undefined), {
     reviewDisplay: true,
     authorInfo: true,
+    deliveryTimingDisplay: true,
     updatedAt: undefined,
   });
 
-  assert.deepEqual(resolveSiteSettings({ reviewDisplay: false }, { showAuthors: false }), {
-    reviewDisplay: false,
-    authorInfo: false,
-    updatedAt: undefined,
-  });
+  assert.deepEqual(
+    resolveSiteSettings({ reviewDisplay: false, deliveryTimingDisplay: false }, { showAuthors: false }),
+    {
+      reviewDisplay: false,
+      authorInfo: false,
+      deliveryTimingDisplay: false,
+      updatedAt: undefined,
+    }
+  );
 });

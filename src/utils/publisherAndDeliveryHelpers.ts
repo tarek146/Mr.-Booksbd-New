@@ -243,20 +243,52 @@ export interface ResolvedProductDeliveryTiming {
   timerHours: number;
 }
 
+const LEGACY_BENGALI_DELIVERY_DEFAULTS: Record<string, string> = {
+  'ডেলিভারি টাইমিং (Delivery Timing)': 'Delivery Timing',
+  'ডেলিভারি টাইমিং': 'Delivery Timing',
+  '২-৩ কার্যদিবস (2-3 Days)': '2-3 Business Days',
+  '২-৩ কার্যদিবস': '2-3 Business Days',
+  '১-২ কার্যদিবস (1-2 Days)': '1-2 Business Days',
+  '১-২ কার্যদিবস': '1-2 Business Days',
+  '২৪ ঘণ্টায় এক্সপ্রেস ডেলিভারি': '24h Express Delivery',
+  '৩-৫ কার্যদিবস (Pre-Order)': '3-5 Days (Pre-Order)',
+  '৩-৫ কার্যদিবস': '3-5 Business Days',
+  '২৪-৪৮ ঘণ্টা (১-২ দিন)': '24-48 Hours (1-2 Days)',
+  '২৪-৪৮ ঘণ্টা': '24-48 Hours',
+  '১২-২৪ ঘণ্টা': '12-24 Hours',
+  '২৪ ঘণ্টা (১ দিন)': '24 Hours (1 Day)',
+  '১-২ দিন': '1-2 Days',
+  '২-৩ দিন': '2-3 Days',
+  '২-৩ কার্যদিবস (সারাদেশে)': '2-3 Business Days (Nationwide)',
+  'আজকে অর্ডার করলে দ্রুততম সময়ে বাবল-র‍্যাপ প্যাকেজিংসহ কুরিয়ারে পাঠানো হবে।':
+    'Order today for fast dispatch with protective bubble-wrap packaging.',
+};
+
+function normalizeDeliveryCopy(value: string | undefined, fallback: string): string {
+  const trimmed = (value || '').trim();
+  if (!trimmed) return fallback;
+  if (LEGACY_BENGALI_DELIVERY_DEFAULTS[trimmed]) {
+    return LEGACY_BENGALI_DELIVERY_DEFAULTS[trimmed];
+  }
+  return trimmed;
+}
+
 /**
- * Resolves customizable per-book delivery timing details with sensible defaults
+ * Resolves customizable per-book delivery timing details with crisp English defaults
  * so every book can have its own custom delivery timing configured from Admin Panel.
  */
 export function resolveProductDeliveryTiming(product: Partial<Product>): ResolvedProductDeliveryTiming {
-  const estimateBadge = (product.deliveryEstimate || '').trim() || '২-৩ কার্যদিবস (2-3 Days)';
-  const title = (product.deliveryTimingTitle || '').trim() || 'ডেলিভারি টাইমিং (Delivery Timing)';
-  const insideDhaka = (product.insideDhakaDelivery || '').trim() || '২৪-৪৮ ঘণ্টা (১-২ দিন)';
-  const outsideDhaka =
-    (product.outsideDhakaDelivery || '').trim() ||
-    ((product.deliveryEstimate || '').trim() ? (product.deliveryEstimate || '').trim() : '২-৩ কার্যদিবস (সারাদেশে)');
-  const note =
-    (product.deliveryTimingNote || '').trim() ||
-    'আজকে অর্ডার করলে দ্রুততম সময়ে বাবল-র‍্যাপ প্যাকেজিংসহ কুরিয়ারে পাঠানো হবে।';
+  const estimateBadge = normalizeDeliveryCopy(product.deliveryEstimate, '2-3 Business Days');
+  const title = normalizeDeliveryCopy(product.deliveryTimingTitle, 'Delivery Timing');
+  const insideDhaka = normalizeDeliveryCopy(product.insideDhakaDelivery, '24-48 Hours (1-2 Days)');
+  const outsideFallback = (product.deliveryEstimate || '').trim()
+    ? estimateBadge
+    : '2-3 Business Days (Nationwide)';
+  const outsideDhaka = normalizeDeliveryCopy(product.outsideDhakaDelivery, outsideFallback);
+  const note = normalizeDeliveryCopy(
+    product.deliveryTimingNote,
+    'Order today for fast dispatch with protective bubble-wrap packaging.'
+  );
   const rawHours = Number(product.deliveryTimerHours);
   const timerHours = Number.isFinite(rawHours) && rawHours > 0 ? rawHours : 48;
 

@@ -583,11 +583,11 @@ export function AdminDashboard() {
   const [prodExtraImages, setProdExtraImages] = useState('');
   const [prodIsOriginal, setProdIsOriginal] = useState(true);
   const [prodPrintVariants, setProdPrintVariants] = useState('Paperback, Hardcover');
-  const [prodDeliveryEstimate, setProdDeliveryEstimate] = useState('২-৩ কার্যদিবস (2-3 Days)');
-  const [prodDeliveryTimingTitle, setProdDeliveryTimingTitle] = useState('ডেলিভারি টাইমিং (Delivery Timing)');
-  const [prodInsideDhakaDelivery, setProdInsideDhakaDelivery] = useState('২৪-৪৮ ঘণ্টা (১-২ দিন)');
-  const [prodOutsideDhakaDelivery, setProdOutsideDhakaDelivery] = useState('২-৩ কার্যদিবস (সারাদেশে)');
-  const [prodDeliveryTimingNote, setProdDeliveryTimingNote] = useState('আজকে অর্ডার করলে দ্রুততম সময়ে বাবল-র‍্যাপ প্যাকেজিংসহ কুরিয়ারে পাঠানো হবে।');
+  const [prodDeliveryEstimate, setProdDeliveryEstimate] = useState('2-3 Business Days');
+  const [prodDeliveryTimingTitle, setProdDeliveryTimingTitle] = useState('Delivery Timing');
+  const [prodInsideDhakaDelivery, setProdInsideDhakaDelivery] = useState('24-48 Hours (1-2 Days)');
+  const [prodOutsideDhakaDelivery, setProdOutsideDhakaDelivery] = useState('2-3 Business Days (Nationwide)');
+  const [prodDeliveryTimingNote, setProdDeliveryTimingNote] = useState('Order today for fast dispatch with protective bubble-wrap packaging.');
   const [prodDeliveryTimerHours, setProdDeliveryTimerHours] = useState<number>(48);
   const [prodPublisher, setProdPublisher] = useState('');
   const [prodIsbn, setProdIsbn] = useState('');
@@ -1202,11 +1202,11 @@ export function AdminDashboard() {
         highlights: p.highlights && p.highlights.length > 0 ? [...p.highlights] : ['১০০% আসল মুদ্রিত বই', 'দ্রুততম ক্যাশ অন ডেলিভারি'],
         deliveryChargeType: p.deliveryChargeType || 'standard',
         customDeliveryFee: p.customDeliveryFee || 60,
-        deliveryEstimate: p.deliveryEstimate || '২-৩ কার্যদিবস (2-3 Days)',
-        deliveryTimingTitle: p.deliveryTimingTitle || 'ডেলিভারি টাইমিং (Delivery Timing)',
-        insideDhakaDelivery: p.insideDhakaDelivery || '২৪-৪৮ ঘণ্টা (১-২ দিন)',
-        outsideDhakaDelivery: p.outsideDhakaDelivery || '২-৩ কার্যদিবস (সারাদেশে)',
-        deliveryTimingNote: p.deliveryTimingNote || 'আজকে অর্ডার করলে দ্রুততম সময়ে বাবল-র‍্যাপ প্যাকেজিংসহ কুরিয়ারে পাঠানো হবে।',
+        deliveryEstimate: p.deliveryEstimate || '2-3 Business Days',
+        deliveryTimingTitle: p.deliveryTimingTitle || 'Delivery Timing',
+        insideDhakaDelivery: p.insideDhakaDelivery || '24-48 Hours (1-2 Days)',
+        outsideDhakaDelivery: p.outsideDhakaDelivery || '2-3 Business Days (Nationwide)',
+        deliveryTimingNote: p.deliveryTimingNote || 'Order today for fast dispatch with protective bubble-wrap packaging.',
         deliveryTimerHours: p.deliveryTimerHours || 48,
         customBookDetails: p.customBookDetails ? [...p.customBookDetails] : [],
         previewHighlightTitle: p.previewHighlightTitle || 'বইয়ের কিছু অংশ পড়ুন (একটু পড়ে দেখুন)',
@@ -1248,11 +1248,11 @@ export function AdminDashboard() {
     setProdBadge('NEW');
     setProdDeliveryChargeType('standard');
     setProdCustomDeliveryFee(60);
-    setProdDeliveryEstimate('২-৩ কার্যদিবস (2-3 Days)');
-    setProdDeliveryTimingTitle('ডেলিভারি টাইমিং (Delivery Timing)');
-    setProdInsideDhakaDelivery('২৪-৪৮ ঘণ্টা (১-২ দিন)');
-    setProdOutsideDhakaDelivery('২-৩ কার্যদিবস (সারাদেশে)');
-    setProdDeliveryTimingNote('আজকে অর্ডার করলে দ্রুততম সময়ে বাবল-র‍্যাপ প্যাকেজিংসহ কুরিয়ারে পাঠানো হবে।');
+    setProdDeliveryEstimate('2-3 Business Days');
+    setProdDeliveryTimingTitle('Delivery Timing');
+    setProdInsideDhakaDelivery('24-48 Hours (1-2 Days)');
+    setProdOutsideDhakaDelivery('2-3 Business Days (Nationwide)');
+    setProdDeliveryTimingNote('Order today for fast dispatch with protective bubble-wrap packaging.');
     setProdDeliveryTimerHours(48);
     setProdBookFormat('original');
     setProdPdfUrl('');
@@ -1402,11 +1402,11 @@ export function AdminDashboard() {
     setGalleryUrlInput('');
     setProdIsOriginal(p.isOriginalBadge !== false);
     setProdPrintVariants(p.variants ? p.variants.map((v: any) => v.name).join(', ') : 'Paperback, Hardcover');
-    setProdDeliveryEstimate(p.deliveryEstimate || '২-৩ কার্যদিবস (2-3 Days)');
-    setProdDeliveryTimingTitle(p.deliveryTimingTitle || 'ডেলিভারি টাইমিং (Delivery Timing)');
-    setProdInsideDhakaDelivery(p.insideDhakaDelivery || '২৪-৪৮ ঘণ্টা (১-২ দিন)');
-    setProdOutsideDhakaDelivery(p.outsideDhakaDelivery || '২-৩ কার্যদিবস (সারাদেশে)');
-    setProdDeliveryTimingNote(p.deliveryTimingNote || 'আজকে অর্ডার করলে দ্রুততম সময়ে বাবল-র‍্যাপ প্যাকেজিংসহ কুরিয়ারে পাঠানো হবে।');
+    setProdDeliveryEstimate(p.deliveryEstimate || '2-3 Business Days');
+    setProdDeliveryTimingTitle(p.deliveryTimingTitle || 'Delivery Timing');
+    setProdInsideDhakaDelivery(p.insideDhakaDelivery || '24-48 Hours (1-2 Days)');
+    setProdOutsideDhakaDelivery(p.outsideDhakaDelivery || '2-3 Business Days (Nationwide)');
+    setProdDeliveryTimingNote(p.deliveryTimingNote || 'Order today for fast dispatch with protective bubble-wrap packaging.');
     setProdDeliveryTimerHours(p.deliveryTimerHours || 48);
 
     // Load customer reviews for this product
@@ -1532,10 +1532,10 @@ export function AdminDashboard() {
       sundarbanDeliveryFee: Number(prodSundarbanDeliveryFee) || 120,
       otherCourierDeliveryFee: Number(prodOtherCourierDeliveryFee) || 100,
       weightNote: prodWeightNote.trim() || 'Weight-based extra charge: ৳20 added per extra kg/item when weight increases.',
-      deliveryEstimate: prodDeliveryEstimate.trim() || '২-৩ কার্যদিবস (2-3 Days)',
-      deliveryTimingTitle: prodDeliveryTimingTitle.trim() || 'ডেলিভারি টাইমিং (Delivery Timing)',
-      insideDhakaDelivery: prodInsideDhakaDelivery.trim() || '২৪-৪৮ ঘণ্টা (১-২ দিন)',
-      outsideDhakaDelivery: prodOutsideDhakaDelivery.trim() || '২-৩ কার্যদিবস (সারাদেশে)',
+      deliveryEstimate: prodDeliveryEstimate.trim() || '2-3 Business Days',
+      deliveryTimingTitle: prodDeliveryTimingTitle.trim() || 'Delivery Timing',
+      insideDhakaDelivery: prodInsideDhakaDelivery.trim() || '24-48 Hours (1-2 Days)',
+      outsideDhakaDelivery: prodOutsideDhakaDelivery.trim() || '2-3 Business Days (Nationwide)',
       deliveryTimingNote: prodDeliveryTimingNote.trim(),
       deliveryTimerHours: Number(prodDeliveryTimerHours) > 0 ? Number(prodDeliveryTimerHours) : 48,
       customBookDetails: parsedCustomDetails,
@@ -6349,14 +6349,14 @@ export function AdminDashboard() {
                       {/* Delivery Timing Presets */}
                       <div className="space-y-1.5 pt-1">
                         <label className="block text-[11px] font-bold text-neutral-600 uppercase">
-                          ডেলিভারি টাইমিং প্রিসেট (Quick Presets)
+                          Delivery Timing Quick Presets
                         </label>
                         <div className="flex flex-wrap gap-1.5">
                           {[
-                            { label: '⚡ ২৪ ঘণ্টা এক্সপ্রেস', est: '২৪ ঘণ্টায় এক্সপ্রেস ডেলিভারি', inDhaka: '১২-২৪ ঘণ্টা', outDhaka: '১-২ দিন', hrs: 24 },
-                            { label: '🚚 ১-২ দিন', est: '১-২ কার্যদিবস (1-2 Days)', inDhaka: '২৪ ঘণ্টা (১ দিন)', outDhaka: '১-২ কার্যদিবস', hrs: 36 },
-                            { label: '📦 ২-৩ দিন (ডিফল্ট)', est: '২-৩ কার্যদিবস (2-3 Days)', inDhaka: '২৪-৪৮ ঘণ্টা (১-২ দিন)', outDhaka: '২-৩ কার্যদিবস (সারাদেশে)', hrs: 48 },
-                            { label: '⏳ ৩-৫ দিন (প্রি-অর্ডার)', est: '৩-৫ কার্যদিবস (Pre-Order)', inDhaka: '২-৩ দিন', outDhaka: '৩-৫ কার্যদিবস', hrs: 96 },
+                            { label: '⚡ 24h Express', est: '24h Express Delivery', inDhaka: '12-24 Hours', outDhaka: '1-2 Days', hrs: 24 },
+                            { label: '🚚 1-2 Days', est: '1-2 Business Days', inDhaka: '24 Hours (1 Day)', outDhaka: '1-2 Business Days', hrs: 36 },
+                            { label: '📦 2-3 Days (Default)', est: '2-3 Business Days', inDhaka: '24-48 Hours (1-2 Days)', outDhaka: '2-3 Business Days (Nationwide)', hrs: 48 },
+                            { label: '⏳ 3-5 Days (Pre-Order)', est: '3-5 Days (Pre-Order)', inDhaka: '2-3 Days', outDhaka: '3-5 Business Days', hrs: 96 },
                           ].map((preset, idx) => (
                             <button
                               key={idx}
@@ -6375,6 +6375,49 @@ export function AdminDashboard() {
                         </div>
                       </div>
 
+                      {/* Timing Section Title & Inside/Outside Dhaka Timeframes */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
+                        <div>
+                          <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
+                            Delivery Timing Section Title
+                          </label>
+                          <input
+                            type="text"
+                            data-testid="admin-input-delivery-timing-title"
+                            placeholder="Delivery Timing"
+                            value={prodDeliveryTimingTitle}
+                            onChange={e => setProdDeliveryTimingTitle(e.target.value)}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
+                            Inside Dhaka Timeframe
+                          </label>
+                          <input
+                            type="text"
+                            data-testid="admin-input-inside-dhaka-delivery"
+                            placeholder="24-48 Hours (1-2 Days)"
+                            value={prodInsideDhakaDelivery}
+                            onChange={e => setProdInsideDhakaDelivery(e.target.value)}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
+                            Outside Dhaka Timeframe
+                          </label>
+                          <input
+                            type="text"
+                            data-testid="admin-input-outside-dhaka-delivery"
+                            placeholder="2-3 Business Days (Nationwide)"
+                            value={prodOutsideDhakaDelivery}
+                            onChange={e => setProdOutsideDhakaDelivery(e.target.value)}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                          />
+                        </div>
+                      </div>
+
                       {/* Timing Badge & Timer Hours & Custom Delivery Note */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
                         <div>
@@ -6383,7 +6426,7 @@ export function AdminDashboard() {
                           </label>
                           <input
                             type="text"
-                            placeholder="e.g. ২-৩ কার্যদিবস / 2-3 Days"
+                            placeholder="e.g. 2-3 Business Days"
                             value={prodDeliveryEstimate}
                             onChange={e => setProdDeliveryEstimate(e.target.value)}
                             className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
@@ -6391,7 +6434,7 @@ export function AdminDashboard() {
                         </div>
                         <div>
                           <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                            Timer Hours (ঘণ্টা)
+                            Timer Hours (Hours)
                           </label>
                           <input
                             type="number"
@@ -6408,7 +6451,7 @@ export function AdminDashboard() {
                           </label>
                           <input
                             type="text"
-                            placeholder="আজকে অর্ডার করলে দ্রুততম সময়ে পাঠানো হবে..."
+                            placeholder="Order today for fast dispatch..."
                             value={prodDeliveryTimingNote}
                             onChange={e => setProdDeliveryTimingNote(e.target.value)}
                             className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
@@ -9280,7 +9323,7 @@ export function AdminDashboard() {
               </div>
 
               {/* Global siteSettings Quick Toggle Bar */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="p-3.5 rounded-xl border border-neutral-200 bg-neutral-50/70 flex items-center justify-between gap-3">
                   <div>
                     <div className="text-xs font-black text-[#171717] flex items-center gap-1.5">
@@ -9350,6 +9393,43 @@ export function AdminDashboard() {
                     <span
                       className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
                         siteSettings.authorInfo !== false ? 'translate-x-6' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <div className="p-3.5 rounded-xl border border-neutral-200 bg-neutral-50/70 flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-black text-[#171717] flex items-center gap-1.5 flex-wrap">
+                      <span>Delivery Timing (Global)</span>
+                      <span className="text-[10px] font-mono text-neutral-500">siteSettings.deliveryTimingDisplay</span>
+                    </div>
+                    <p className="text-[11px] text-[#5F6368] mt-0.5">
+                      Shows/hides the separate Delivery Timing section on Single Product pages
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={siteSettings.deliveryTimingDisplay !== false}
+                    aria-label="Toggle global Delivery Timing section"
+                    data-testid="site-settings-delivery-timing-toggle"
+                    onClick={async () => {
+                      const nextVal = !(siteSettings.deliveryTimingDisplay !== false);
+                      await updateSiteSettings({ deliveryTimingDisplay: nextVal });
+                      setToast({
+                        show: true,
+                        type: 'success',
+                        message: `Global 'Delivery Timing' section saved as ${nextVal ? 'ON' : 'OFF'} in settings/siteSettings!`,
+                      });
+                    }}
+                    className={`relative inline-flex h-7 w-13 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      siteSettings.deliveryTimingDisplay !== false ? 'bg-emerald-600' : 'bg-neutral-300'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                        siteSettings.deliveryTimingDisplay !== false ? 'translate-x-6' : 'translate-x-0'
                       }`}
                     />
                   </button>

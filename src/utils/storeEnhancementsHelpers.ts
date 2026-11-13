@@ -312,7 +312,7 @@ export function resolveVariantFormatDescription(
   if (variant?.description && variant.description.trim()) {
     return {
       formatLabel: name,
-      headline: `${name} — নির্বাচিত এডিশন বিবরণ`,
+      headline: `${name} Edition`,
       detailsText: variant.description.trim(),
       highlights: [
         `Price: ৳${variant.price}`,
@@ -326,12 +326,12 @@ export function resolveVariantFormatDescription(
   if (product.type === 'stationery') {
     return {
       formatLabel: name,
-      headline: `নির্বাচিত ভ্যারিয়েন্ট: ${name}`,
-      detailsText: `আপনি "${product.title}" প্রোডাক্টটির ${name} ভ্যারিয়েন্টটি নির্বাচন করেছেন। প্রিমিয়াম ${product.brand || 'অরিজিনাল'} কোয়ালিটি এবং নিখুঁত ফিনিশিং সহ ডেলিভারির জন্য প্রস্তুত।`,
+      headline: `${name} Variant`,
+      detailsText: `Selected ${name} option for "${product.title}". Authentic ${product.brand || 'premium'} quality, carefully inspected and packed for safe delivery.`,
       highlights: [
-        `ভ্যারিয়েন্ট মূল্য: ৳${variant.price}`,
-        `ব্র্যান্ড: ${product.brand || 'Premium Brand'}`,
-        `কোড (SKU): ${variant.sku || product.sku}`,
+        `Price: ৳${variant.price}`,
+        `Brand: ${product.brand || 'Premium Brand'}`,
+        `SKU: ${variant.sku || product.sku}`,
       ],
       savingsAmount,
     };
@@ -340,12 +340,12 @@ export function resolveVariantFormatDescription(
   if (lower.includes('hardcover') || lower.includes('hard cover')) {
     return {
       formatLabel: name,
-      headline: `${name} (মজবুত হার্ডকভার বাঁধাই)`,
-      detailsText: `${product.title}-এর এই হার্ডকভার সংস্করণটি টেকসই বোর্ড বাইন্ডিং, প্রিমিয়াম ৮০-১০০ জিএসএম অফ-হোয়াইট কাগজ এবং স্পষ্ট ঝকঝকে মুদ্রণে তৈরি — সংগ্রহ ও উপহারের জন্য সেরা।`,
+      headline: `${name} — Hardbound Edition`,
+      detailsText: `Hardcover edition of "${product.title}" with reinforced board binding, crisp offset print, and 80-100 GSM eye-comfort paper — ideal for long-term collecting and gifting.`,
       highlights: [
-        'টেকসই হার্ডবোর্ড ও সেলাই বাইন্ডিং',
-        'প্রিমিয়াম আই-কম্ফোর্ট পেপার কোয়ালিটি',
-        `পৃষ্ঠা: ${product.pages || 'স্ট্যান্ডার্ড'} • সংস্করণ মূল্য: ৳${variant.price}`,
+        'Durable sewn hardboard binding',
+        '80-100 GSM eye-comfort paper',
+        `Pages: ${product.pages || 'Standard'} · ৳${variant.price}`,
       ],
       savingsAmount,
     };
@@ -354,12 +354,12 @@ export function resolveVariantFormatDescription(
   if (lower.includes('premium') || lower.includes('deluxe') || lower.includes('original')) {
     return {
       formatLabel: name,
-      headline: `${name} (অফিসিয়াল প্রিমিয়াম প্রিন্ট)`,
-      detailsText: `${product.title}-এর ${name} সংস্করণটিতে রয়েছে প্রকাশকের মূল অরিজিনাল প্রিন্ট, ক্রিম/হাই-গ্রেড কাগজ ও নিখুঁত ফন্ট ক্লিয়ারিটি।`,
+      headline: `${name} — Official Publisher Print`,
+      detailsText: `Authentic publisher print edition of "${product.title}" featuring high-grade cream paper and sharp typography.`,
       highlights: [
-        `প্রকাশনী: ${product.publisher || 'স্বনামধন্য প্রকাশনী'}`,
-        '১০০% অরিজিনাল পাবলিশার্স এডিশন',
-        `সংস্করণ মূল্য: ৳${variant.price}`,
+        `Publisher: ${product.publisher || 'Official Publisher'}`,
+        '100% Original Publisher Edition',
+        `Price: ৳${variant.price}`,
       ],
       savingsAmount,
     };
@@ -368,12 +368,12 @@ export function resolveVariantFormatDescription(
   if (lower.includes('pdf') || lower.includes('ebook')) {
     return {
       formatLabel: name,
-      headline: `${name} (ডিজিটাল ই-বুক ফরম্যাট)`,
-      detailsText: `এই ফরম্যাটটি অর্ডার করলে মোবাইল, ট্যাব ও কম্পিউটারে পড়ার উপযোগী হাই-রেজোলিউশন ডিজিটাল ফরম্যাট সরবরাহ করা হবে।`,
+      headline: `${name} — Digital Format`,
+      detailsText: `High-resolution digital edition optimized for mobile, tablet, and desktop reading.`,
       highlights: [
-        'যেকোনো ডিভাইসে পড়ার উপযোগী',
-        'দ্রুত ডেলিভারি ও ক্লিয়ার টেক্সট',
-        `মূল্য: ৳${variant.price}`,
+        'Readable across all devices',
+        'Instant digital access & crisp layout',
+        `Price: ৳${variant.price}`,
       ],
       savingsAmount,
     };
@@ -382,12 +382,12 @@ export function resolveVariantFormatDescription(
   // Paperback / Regular Print / Default
   return {
     formatLabel: name,
-    headline: `${name} (স্ট্যান্ডার্ড পেপারব্যাক এডিশন)`,
-    detailsText: `${product.title}-এর ${name} সংস্করণটি হালকা, আরামদায়ক ও হাতে নিয়ে পড়ার জন্য উপযোগী। ঝকঝকে মুদ্রণ এবং সুন্দর ফিনিশিং সহ সরাসরি সংগ্রহ থেকে সরবরাহ করা হয়।`,
+    headline: `${name} — Standard Paperback`,
+    detailsText: `Lightweight ${name} edition of "${product.title}" printed on clean readable paper for comfortable everyday reading.`,
     highlights: [
-      `সহজপাঠ্য ও হালকা পেপারব্যাক বাঁধাই`,
-      `ভাষা: ${product.language || 'Bengali'} • পৃষ্ঠা: ${product.pages || 'স্ট্যান্ডার্ড'}`,
-      `সংস্করণ মূল্য: ৳${variant.price}`,
+      'Lightweight paperback binding',
+      `Language: ${product.language || 'Bengali'} · Pages: ${product.pages || 'Standard'}`,
+      `Price: ৳${variant.price}`,
     ],
     savingsAmount,
   };
@@ -420,11 +420,11 @@ export function resolveProductDetailsPresentation(
     cardBadgeLabel: isStationery ? 'অরিজিনাল প্রোডাক্ট' : 'অরিজিনাল বই',
     detailsHeading: isStationery ? 'Product Specifications' : 'Book Details',
     detailsSubtitle: isStationery
-      ? 'Brand, material, dimensions, model, SKU & delivery timing'
-      : 'Author, publisher, edition, pages, language, ISBN & delivery timing',
+      ? 'Brand, material, dimensions, model & SKU'
+      : 'Author, publisher, edition, pages, language & ISBN',
     deliveryScheduleSubtitle: isStationery
-      ? 'এই প্রোডাক্টটির জন্য নির্ধারিত ডেলিভারি সময়সূচী'
-      : 'এই বইটির জন্য নির্ধারিত ডেলিভারি সময়সূচী',
+      ? 'Estimated shipping schedule for this item'
+      : 'Estimated dispatch & delivery schedule',
     typeTag: isStationery ? 'Stationery' : 'Book',
     creatorLabel: isStationery
       ? product.brand || product.category || 'Premium Stationery'

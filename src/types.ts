@@ -577,6 +577,7 @@ export interface LiveChatSession {
 export interface SiteSettings {
   reviewDisplay: boolean;
   authorInfo: boolean;
+  deliveryTimingDisplay?: boolean;
   updatedAt?: number;
 }
 

@@ -504,7 +504,7 @@ export function transformRowToProduct(
     : `পণ্য: ${title}${brand ? ` | ব্র্যান্ড: ${brand}` : ''}`);
 
   const badge = (rowMap.badge || '').trim() || 'NEW';
-  const deliveryEstimate = (rowMap.deliveryEstimate || '').trim() || '২-৩ কার্যদিবস';
+  const deliveryEstimate = (rowMap.deliveryEstimate || '').trim() || '2-3 Business Days';
 
   const defaultVariant: ProductVariant = {
     id: 'v1',
@@ -544,9 +544,9 @@ export function transformRowToProduct(
     isFeatured: false,
     isOriginalBadge: type === 'book',
     deliveryEstimate,
-    insideDhakaDelivery: '২৪-৪৮ ঘণ্টা',
-    outsideDhakaDelivery: '২-৩ কার্যদিবস',
-    deliveryTimingTitle: 'ডেলিভারি টাইমিং (Delivery Timing)',
+    insideDhakaDelivery: '24-48 Hours (1-2 Days)',
+    outsideDhakaDelivery: '2-3 Business Days (Nationwide)',
+    deliveryTimingTitle: 'Delivery Timing',
     deliveryTimerHours: 48,
     deliveryChargeType: 'standard',
     badge,

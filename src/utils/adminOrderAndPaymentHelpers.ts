@@ -510,6 +510,7 @@ export function filterPaymentRecords(
 export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   reviewDisplay: true,
   authorInfo: true,
+  deliveryTimingDisplay: true,
 };
 
 export function resolveSiteSettings(
@@ -528,6 +529,10 @@ export function resolveSiteSettings(
         ? Boolean(raw.authorInfo)
         : homeConfig?.showAuthors !== undefined
         ? Boolean(homeConfig.showAuthors)
+        : true,
+    deliveryTimingDisplay:
+      raw?.deliveryTimingDisplay !== undefined
+        ? Boolean(raw.deliveryTimingDisplay)
         : true,
     updatedAt: raw?.updatedAt || homeConfig?.updatedAt,
   };

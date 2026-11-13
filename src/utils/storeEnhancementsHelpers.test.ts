@@ -134,15 +134,19 @@ test('calculateCheckoutPricing applies Sub Area, extraWeightChargePerKg, freeShi
   assert.equal(freeRes.total, 700);
 });
 
-test('resolveVariantFormatDescription dynamically updates description content based on selected format', () => {
+test('resolveVariantFormatDescription dynamically updates description content based on selected format in English', () => {
   const pb = resolveVariantFormatDescription(sampleBook, sampleBook.variants[0]);
   const hc = resolveVariantFormatDescription(sampleBook, sampleBook.variants[1]);
 
   assert.equal(pb.formatLabel, 'Paperback');
-  assert.match(pb.headline, /পেপারব্যাক|Paperback/);
+  assert.match(pb.headline, /Paperback/);
   assert.equal(hc.formatLabel, 'Hardcover');
-  assert.match(hc.headline, /হার্ডকভার|Hardcover/);
+  assert.match(hc.headline, /Hardcover/);
   assert.notEqual(pb.detailsText, hc.detailsText);
+  assert.doesNotMatch(pb.headline, /[\u0980-\u09FF]/);
+  assert.doesNotMatch(pb.detailsText, /[\u0980-\u09FF]/);
+  assert.doesNotMatch(hc.headline, /[\u0980-\u09FF]/);
+  assert.doesNotMatch(hc.detailsText, /[\u0980-\u09FF]/);
 });
 
 test('resolveProductDetailsPresentation eliminates Book/Original Copy/Author labels for stationery items', () => {
@@ -156,7 +160,9 @@ test('resolveProductDetailsPresentation eliminates Book/Original Copy/Author lab
   assert.equal(statPres.authenticityBadge, '100% Authentic Stationery');
   assert.equal(statPres.cardBadgeLabel, 'অরিজিনাল প্রোডাক্ট');
   assert.doesNotMatch(statPres.descriptionSubtitle, /book details/i);
-  assert.doesNotMatch(statPres.deliveryScheduleSubtitle, /বইটির/);
+  assert.doesNotMatch(bookPres.detailsSubtitle, /delivery timing/i);
+  assert.doesNotMatch(statPres.deliveryScheduleSubtitle, /[\u0980-\u09FF]/);
+  assert.doesNotMatch(bookPres.deliveryScheduleSubtitle, /[\u0980-\u09FF]/);
 });
 
 test('resolveFooterQuickLinks guarantees Publishers link even on legacy saved link lists', () => {
