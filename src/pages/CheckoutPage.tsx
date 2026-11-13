@@ -105,6 +105,16 @@ export function CheckoutPage() {
   // Phone Number Validation & Repeat-Cancellation Fraud Checker Hook
   const fraudCheck = useCheckoutFraudCheck(phone, orders, settings);
 
+  // Professional Checkout Form Completion Percentage Parameter
+  const completionPercentage = useMemo(() => {
+    let score = 0;
+    if (name.trim().length > 0) score += 25;
+    if (phone.trim().length >= 10) score += 25;
+    if (district.trim().length > 0) score += 25;
+    if (address.trim().length >= 5) score += 25;
+    return Math.min(100, score);
+  }, [name, phone, district, address]);
+
   // Check for saved delivery address from local storage on mount or recent user order
   useEffect(() => {
     try {
@@ -743,6 +753,37 @@ export function CheckoutPage() {
                     )}
                   </div>
                 )}
+              </div>
+
+              {/* Professional Checkout Form Completion Parameter */}
+              <div className="bg-gradient-to-r from-neutral-50 via-rose-50/30 to-neutral-50 dark:from-slate-800/60 dark:via-rose-950/20 dark:to-slate-800/60 border border-neutral-200/80 dark:border-slate-700/80 rounded-xl p-3.5 space-y-2 shadow-2xs">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-neutral-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <span className={`w-2 h-2 rounded-full ${completionPercentage === 100 ? 'bg-emerald-500 animate-bounce' : 'bg-[#D71920] animate-pulse'}`}></span>
+                    Checkout Form Completion
+                  </span>
+                  <span className="font-black text-neutral-900 dark:text-white tabular-nums">
+                    {completionPercentage}%
+                  </span>
+                </div>
+
+                <div className="w-full h-2 rounded-full bg-neutral-200 dark:bg-slate-700 overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-500 ease-out rounded-full ${
+                      completionPercentage === 100
+                        ? 'bg-gradient-to-r from-emerald-500 to-emerald-600'
+                        : 'bg-gradient-to-r from-rose-500 to-[#D71920]'
+                    }`}
+                    style={{ width: `${completionPercentage}%` }}
+                  ></div>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-neutral-500 dark:text-slate-400">
+                  <span>{completionPercentage === 100 ? '✨ All details ready to submit!' : 'Fill in Name, Phone & Address to complete'}</span>
+                  <span className="font-semibold text-neutral-700 dark:text-slate-300">
+                    {completionPercentage === 100 ? '100% Ready' : `${completionPercentage / 25}/4 Steps`}
+                  </span>
+                </div>
               </div>
 
               {/* Returning Customer Phone Lookup / Status Feedback */}
