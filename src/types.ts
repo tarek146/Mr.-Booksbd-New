@@ -414,6 +414,8 @@ export interface StoreSettings {
   sundarbanDeliveryCharge?: number;
   enableSundarbanCourier?: boolean;
   showSundarbanOnCheckout?: boolean;
+  hubDeliveryLabel?: string;
+  hubDeliverySubtitle?: string;
   sundarbanForcesPrepayment?: boolean;
   extraWeightChargePerKg?: number;
   deliveryNote?: string;

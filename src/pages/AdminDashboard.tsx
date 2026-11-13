@@ -7299,7 +7299,7 @@ export function AdminDashboard() {
                       <div className="space-y-2.5 pt-1">
                         {customVariants.map((v, idx) => (
                           <div
-                            key={v.id || idx}
+                            key={`${v.id || 'v'}-${idx}`}
                             className="p-3.5 rounded-xl border border-neutral-200 bg-white space-y-2 shadow-2xs hover:border-neutral-300 transition-all"
                           >
                             <div className="flex items-center justify-between gap-3">
@@ -11383,7 +11383,7 @@ export function AdminDashboard() {
                       />
                     </div>
                     <div className="p-3.5 rounded-xl bg-[#F7F7F8] border border-neutral-200">
-                      <label className="block font-bold uppercase text-[#5F6368] mb-1">Sundarban Courier Fee (৳)</label>
+                      <label className="block font-bold uppercase text-[#5F6368] mb-1">Hub / Point Delivery Fee (৳)</label>
                       <input
                         type="number"
                         value={settingsForm.sundarbanDeliveryCharge ?? 120}
@@ -11432,20 +11432,35 @@ export function AdminDashboard() {
                         </label>
                       </div>
 
-                      {settingsForm.enableUseOldAddress !== false && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {settingsForm.enableUseOldAddress !== false && (
+                          <div>
+                            <label className="block font-bold uppercase text-[#5F6368] mb-1 text-[11px]">
+                              বাটন লেবেল টেক্সট (Button Label / Text)
+                            </label>
+                            <input
+                              type="text"
+                              value={settingsForm.oldAddressButtonLabel ?? 'Use Saved Address'}
+                              onChange={e => setSettingsForm(prev => ({ ...prev, oldAddressButtonLabel: e.target.value }))}
+                              placeholder="Use Saved Address"
+                              className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-[#171717] font-bold text-xs"
+                            />
+                          </div>
+                        )}
+
                         <div>
                           <label className="block font-bold uppercase text-[#5F6368] mb-1 text-[11px]">
-                            বাটন লেবেল টেক্সট (Button Label / Text)
+                            Hub / Point Delivery Option Title
                           </label>
                           <input
                             type="text"
-                            value={settingsForm.oldAddressButtonLabel ?? 'Use Saved Address'}
-                            onChange={e => setSettingsForm(prev => ({ ...prev, oldAddressButtonLabel: e.target.value }))}
-                            placeholder="Use Saved Address"
+                            value={settingsForm.hubDeliveryLabel ?? 'Standard Hub Delivery / Point Delivery'}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, hubDeliveryLabel: e.target.value }))}
+                            placeholder="Standard Hub Delivery / Point Delivery"
                             className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-[#171717] font-bold text-xs"
                           />
                         </div>
-                      )}
+                      </div>
 
                       <div className="flex flex-wrap items-center gap-4 pt-1">
                         <label className="flex items-center gap-2 text-xs font-bold text-neutral-800 cursor-pointer">
@@ -11463,11 +11478,11 @@ export function AdminDashboard() {
                           <input
                             type="checkbox"
                             data-testid="admin-show-sundarban-checkout-checkbox"
-                            checked={settingsForm.showSundarbanOnCheckout === true}
+                            checked={settingsForm.showSundarbanOnCheckout !== false}
                             onChange={e => setSettingsForm(prev => ({ ...prev, showSundarbanOnCheckout: e.target.checked }))}
                             className="w-4 h-4 accent-[#D71920]"
                           />
-                          <span>Show Sundarban Courier Option on Checkout Page</span>
+                          <span>Show Standard Hub Delivery / Point Delivery on Checkout Page</span>
                         </label>
                       </div>
                     </div>

@@ -176,8 +176,8 @@ interface StoreContextType {
   toggleDarkMode: () => void;
   
   addToCart: (product: Product, variantId: string, quantity: number) => void;
-  removeFromCart: (variantId: string) => void;
-  updateCartQuantity: (variantId: string, quantity: number) => void;
+  removeFromCart: (variantId: string, productId?: string) => void;
+  updateCartQuantity: (variantId: string, quantity: number, productId?: string) => void;
   clearCart: () => void;
   
   toggleWishlist: (productId: string) => void;
@@ -704,10 +704,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     keywords: 'bookstore bangladesh, online book shop dhaka, stationery, novel, islamic books, mr books',
     sundarbanDeliveryCharge: 120,
     enableSundarbanCourier: true,
-    showSundarbanOnCheckout: false,
+    showSundarbanOnCheckout: true,
+    hubDeliveryLabel: 'Standard Hub Delivery / Point Delivery',
+    hubDeliverySubtitle: 'Courier hub or point pickup · Advance payment',
     sundarbanForcesPrepayment: true,
     extraWeightChargePerKg: 20,
-    deliveryNote: 'সুন্দরবন কুরিয়ার সার্ভিসের ক্ষেত্রে সম্পূর্ণ পেমেন্ট অগ্রিম প্রযোজ্য।',
+    deliveryNote: 'Standard Hub Delivery / Point Delivery orders require advance online payment.',
     enableUseOldAddress: true,
     oldAddressButtonLabel: 'Use Saved Address',
     showCheckoutCoupons: true,
@@ -1718,16 +1720,30 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const removeFromCart = (variantId: string) => {
-    setCart(prev => prev.filter(item => item.variantId !== variantId));
+  const removeFromCart = (variantId: string, productId?: string) => {
+    setCart(prev =>
+      prev.filter(item => {
+        if (productId) {
+          return !(item.productId === productId && item.variantId === variantId);
+        }
+        return `${item.productId}-${item.variantId}` !== variantId && item.variantId !== variantId;
+      })
+    );
   };
 
-  const updateCartQuantity = (variantId: string, quantity: number) => {
+  const updateCartQuantity = (variantId: string, quantity: number, productId?: string) => {
     if (quantity <= 0) {
-      removeFromCart(variantId);
+      removeFromCart(variantId, productId);
       return;
     }
-    setCart(prev => prev.map(item => item.variantId === variantId ? { ...item, quantity } : item));
+    setCart(prev =>
+      prev.map(item => {
+        const isMatch = productId
+          ? item.productId === productId && item.variantId === variantId
+          : `${item.productId}-${item.variantId}` === variantId || item.variantId === variantId;
+        return isMatch ? { ...item, quantity } : item;
+      })
+    );
   };
 
   const clearCart = () => setCart([]);

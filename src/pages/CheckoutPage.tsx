@@ -494,7 +494,7 @@ export function CheckoutPage() {
       effectiveMethod?.type === 'cod'
     ) {
       setErrorMsg(
-        'Sundarban Courier Delivery requires advance online payment (bKash/Nagad/Rocket/Bank). Cash on Delivery is disabled for Sundarban.'
+        'Standard Hub Delivery / Point Delivery requires advance online payment (bKash/Nagad/Rocket/Bank). Cash on Delivery is disabled for Hub / Point Delivery.'
       );
       return;
     }
@@ -526,8 +526,9 @@ export function CheckoutPage() {
 
     setLoading(true);
     try {
+      const hubTitle = (settings.hubDeliveryLabel || '').trim() || 'Standard Hub Delivery / Point Delivery';
       const deliveryLabel =
-        deliveryType === 'sundarban' ? 'Sundarban Courier (Prepaid)' : 'Standard Home Delivery';
+        deliveryType === 'sundarban' ? `${hubTitle} (Prepaid)` : 'Standard Home Delivery';
       const fullNotes = [
         customerNote.trim() ? `Customer Note: ${customerNote.trim()}` : '',
         cleanOptionalPhone ? `Alt Phone: ${cleanOptionalPhone}` : '',
@@ -661,8 +662,8 @@ export function CheckoutPage() {
 
           {mobileSummaryOpen && (
             <div className="px-4 pb-3 pt-2 border-t border-neutral-100 dark:border-slate-800 space-y-2 text-xs">
-              {cart.map(item => (
-                <div key={item.variantId} className="flex items-center justify-between gap-2">
+              {cart.map((item, idx) => (
+                <div key={`${item.productId}-${item.variantId}-${idx}`} className="flex items-center justify-between gap-2">
                   <span className="text-neutral-700 dark:text-slate-300 truncate">
                     {item.title} ({item.variantName}) × {item.quantity}
                   </span>
@@ -672,7 +673,7 @@ export function CheckoutPage() {
                 </div>
               ))}
               <div className="pt-2 border-t border-neutral-100 dark:border-slate-800 flex justify-between text-neutral-500 dark:text-slate-400">
-                <span>Delivery ({deliveryType === 'sundarban' ? 'Sundarban' : district})</span>
+                <span>Delivery ({deliveryType === 'sundarban' ? 'Hub / Point' : district})</span>
                 <span className="tabular-nums">{hasFreeDelivery ? 'Free' : `৳${deliveryCharge}`}</span>
               </div>
             </div>
@@ -927,21 +928,22 @@ export function CheckoutPage() {
                   Delivery Method
                 </h2>
                 <p className="text-xs text-neutral-500 dark:text-slate-400 mt-0.5">
-                  {settings.showSundarbanOnCheckout === true
-                    ? 'Choose home delivery or Sundarban courier pickup.'
+                  {settings.showSundarbanOnCheckout !== false
+                    ? 'Choose doorstep home delivery or hub / point pickup.'
                     : 'Standard doorstep courier delivery across Bangladesh.'}
                 </p>
               </div>
 
               <div
                 className={
-                  settings.showSundarbanOnCheckout === true
+                  settings.showSundarbanOnCheckout !== false
                     ? 'grid grid-cols-1 sm:grid-cols-2 gap-3'
                     : 'grid grid-cols-1 gap-3'
                 }
               >
                 <button
                   type="button"
+                  data-testid="delivery-card-standard"
                   onClick={() => handleDeliveryTypeChange('standard')}
                   className={`px-3.5 py-3 rounded-lg border text-left transition-colors flex items-center justify-between gap-3 cursor-pointer ${
                     deliveryType === 'standard'
@@ -950,10 +952,10 @@ export function CheckoutPage() {
                   }`}
                 >
                   <div className="min-w-0">
-                    <div className="font-semibold text-xs sm:text-sm text-neutral-900 dark:text-white">
+                    <div className="font-semibold text-xs sm:text-sm text-neutral-900 dark:text-white leading-snug">
                       Standard Home Delivery
                     </div>
-                    <div className="text-[11px] text-neutral-500 dark:text-slate-400 mt-0.5">
+                    <div className="text-[11px] text-neutral-500 dark:text-slate-400 mt-0.5 leading-snug">
                       Inside &amp; Outside Dhaka · Doorstep delivery
                     </div>
                   </div>
@@ -970,9 +972,10 @@ export function CheckoutPage() {
                   </div>
                 </button>
 
-                {settings.showSundarbanOnCheckout === true && (
+                {settings.showSundarbanOnCheckout !== false && (
                   <button
                     type="button"
+                    data-testid="delivery-card-hub"
                     onClick={() => handleDeliveryTypeChange('sundarban')}
                     className={`px-3.5 py-3 rounded-lg border text-left transition-colors flex items-center justify-between gap-3 cursor-pointer ${
                       deliveryType === 'sundarban'
@@ -981,11 +984,13 @@ export function CheckoutPage() {
                     }`}
                   >
                     <div className="min-w-0">
-                      <div className="font-semibold text-xs sm:text-sm text-neutral-900 dark:text-white">
-                        Sundarban Courier
+                      <div className="font-semibold text-xs sm:text-sm text-neutral-900 dark:text-white leading-snug">
+                        {(settings.hubDeliveryLabel || '').trim() ||
+                          'Standard Hub Delivery / Point Delivery'}
                       </div>
-                      <div className="text-[11px] text-neutral-500 dark:text-slate-400 mt-0.5">
-                        Courier branch pickup · Advance payment
+                      <div className="text-[11px] text-neutral-500 dark:text-slate-400 mt-0.5 leading-snug">
+                        {(settings.hubDeliverySubtitle || '').trim() ||
+                          'Courier hub or point pickup · Advance payment'}
                       </div>
                     </div>
                     <div
@@ -1003,11 +1008,13 @@ export function CheckoutPage() {
                 )}
               </div>
 
-              {deliveryType === 'sundarban' && settings.showSundarbanOnCheckout === true && (
+              {deliveryType === 'sundarban' && settings.showSundarbanOnCheckout !== false && (
                 <div className="rounded-lg border border-amber-200 dark:border-amber-800/60 bg-amber-50/70 dark:bg-amber-950/20 px-3.5 py-2.5 text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
-                  <span className="font-semibold">Sundarban Courier Note:</span>{' '}
-                  {settings.deliveryNote ||
-                    'Sundarban courier orders require advance online payment. Cash on Delivery is unavailable.'}
+                  <span className="font-semibold">Hub / Point Delivery Note:</span>{' '}
+                  {settings.deliveryNote &&
+                  !settings.deliveryNote.includes('সুন্দরবন')
+                    ? settings.deliveryNote
+                    : 'Standard Hub Delivery / Point Delivery orders require advance online payment. Cash on Delivery is unavailable.'}
                 </div>
               )}
             </section>
@@ -1148,8 +1155,8 @@ export function CheckoutPage() {
 
               {/* Cart Items */}
               <div className="divide-y divide-neutral-100 dark:divide-slate-800 max-h-60 overflow-y-auto pr-1">
-                {cart.map(item => (
-                  <div key={item.variantId} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3 text-xs">
+                {cart.map((item, idx) => (
+                  <div key={`${item.productId}-${item.variantId}-${idx}`} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3 text-xs">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <img
                         src={item.image}
@@ -1283,7 +1290,7 @@ export function CheckoutPage() {
                 )}
 
                 <div className="flex justify-between text-neutral-600 dark:text-slate-400">
-                  <span>Delivery ({deliveryType === 'sundarban' ? 'Sundarban' : district})</span>
+                  <span>Delivery ({deliveryType === 'sundarban' ? 'Hub / Point' : district})</span>
                   <span className="font-medium text-neutral-900 dark:text-white tabular-nums">
                     {hasFreeDelivery ? (
                       <span className="text-emerald-600 dark:text-emerald-400 font-semibold">

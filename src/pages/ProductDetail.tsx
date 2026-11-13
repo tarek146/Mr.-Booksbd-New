@@ -673,11 +673,11 @@ export function ProductDetail() {
                   {presentation.isStationery ? 'Option / Pack' : 'Edition / Format'}
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                  {product.variants.map(v => {
+                  {product.variants.map((v, idx) => {
                     const isSelectedVariant = activeVariant?.id === v.id;
                     return (
                       <button
-                        key={v.id}
+                        key={`${v.id || 'v'}-${idx}`}
                         type="button"
                         aria-pressed={isSelectedVariant}
                         data-testid={`variant-option-${v.id}`}

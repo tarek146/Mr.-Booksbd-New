@@ -100,9 +100,9 @@ export function CartPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Cart Items List */}
           <div className="lg:col-span-8 space-y-4">
-            {cart.map(item => (
+            {cart.map((item, idx) => (
               <div 
-                key={item.variantId}
+                key={`${item.productId}-${item.variantId}-${idx}`}
                 className="bg-white border border-[#E5E5E5] rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center gap-5 shadow-xs"
               >
                 <img 
@@ -124,7 +124,7 @@ export function CartPage() {
                   {/* Stepper */}
                   <div className="flex items-center border border-[#E5E5E5] rounded-xl overflow-hidden bg-[#F7F7F8]">
                     <button 
-                      onClick={() => updateCartQuantity(item.variantId, item.quantity - 1)}
+                      onClick={() => updateCartQuantity(item.variantId, item.quantity - 1, item.productId)}
                       className="px-3 py-1.5 font-bold hover:bg-[#E5E5E5] text-[#171717] transition-colors cursor-pointer"
                     >
                       -
@@ -133,7 +133,7 @@ export function CartPage() {
                       {item.quantity}
                     </span>
                     <button 
-                      onClick={() => updateCartQuantity(item.variantId, item.quantity + 1)}
+                      onClick={() => updateCartQuantity(item.variantId, item.quantity + 1, item.productId)}
                       className="px-3 py-1.5 font-bold hover:bg-[#E5E5E5] text-[#171717] transition-colors cursor-pointer"
                     >
                       +
@@ -145,7 +145,7 @@ export function CartPage() {
                   </span>
 
                   <button 
-                    onClick={() => removeFromCart(item.variantId)}
+                    onClick={() => removeFromCart(item.variantId, item.productId)}
                     className="p-2 text-[#777777] hover:text-[#D71920] hover:bg-[#FFF1F2] rounded-lg transition-colors cursor-pointer"
                     title="Remove item"
                   >
