@@ -5,7 +5,6 @@ import {
   BookOpen, 
   ShoppingBag, 
   Heart, 
-  Search, 
   ShieldCheck, 
   Menu, 
   X, 
@@ -25,6 +24,7 @@ import {
 } from 'lucide-react';
 import { AuthModal } from './AuthModal';
 import { AnimatedSearchInput } from './AnimatedSearchInput';
+import { SearchResultsDropdown } from './SearchResultsDropdown';
 import { isValidImageUrl } from '../utils/imageCompressor';
 
 export function Navbar() {
@@ -37,10 +37,10 @@ export function Navbar() {
     wishlist, 
     searchQuery, 
     setSearchQuery,
-    products,
     settings,
     darkMode,
     toggleDarkMode,
+    isSearchSpotlightOpen,
     setIsSearchSpotlightOpen
   } = useStore();
   
@@ -59,17 +59,22 @@ export function Navbar() {
   const [mobileShopOpen, setMobileShopOpen] = useState(false);
 
   const searchRef = useRef<HTMLDivElement>(null);
+  const mobileSearchRef = useRef<HTMLDivElement>(null);
+  const mobileSearchInputRef = useRef<HTMLInputElement>(null);
   const categoriesRef = useRef<HTMLDivElement>(null);
   const shopRef = useRef<HTMLDivElement>(null);
 
   const totalCartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const cartSubtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-  const suggestions = searchQuery.trim() ? products.filter(p => 
-    p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (p.author && p.author.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    p.category.toLowerCase().includes(searchQuery.toLowerCase())
-  ).slice(0, 5) : [];
+  useEffect(() => {
+    if (isSearchSpotlightOpen) {
+      const timer = setTimeout(() => {
+        mobileSearchInputRef.current?.focus();
+      }, 60);
+      return () => clearTimeout(timer);
+    }
+  }, [isSearchSpotlightOpen]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -92,6 +97,7 @@ export function Navbar() {
     if (searchQuery.trim()) {
       setActivePage('books');
       setShowSuggestions(false);
+      setIsSearchSpotlightOpen(false);
     }
   };
 
@@ -213,29 +219,28 @@ export function Navbar() {
               </div>
             </div>
 
-            {/* Iconic Search Bar Launcher (Opens Command Spotlight Modal) */}
+            {/* Direct Inline Desktop Search Bar */}
             <div className="hidden md:block flex-1 max-w-xl mx-4 relative" ref={searchRef}>
               <AnimatedSearchInput 
+                inputTestId="desktop-search-input"
                 value={searchQuery}
                 onChange={(val) => { setSearchQuery(val); setShowSuggestions(true); }}
                 onFocus={() => setShowSuggestions(true)}
                 onSubmit={handleSearchSubmit}
-                spotlightTrigger={true}
+                onEscape={() => setShowSuggestions(false)}
+                showSubmitButton={true}
               />
+              {showSuggestions && searchQuery.trim() && (
+                <SearchResultsDropdown
+                  query={searchQuery}
+                  onClose={() => setShowSuggestions(false)}
+                  testId="desktop-search-results"
+                />
+              )}
             </div>
 
-            {/* Actions: Contact Hotline, Mobile Iconic Search, Wishlist, Cart, Auth, Mobile Menu */}
+            {/* Actions: Contact Hotline, Wishlist, Cart, Auth, Mobile Menu */}
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-              {/* Mobile Iconic Search Button */}
-              <button
-                type="button"
-                data-testid="mobile-header-search-btn"
-                onClick={() => setIsSearchSpotlightOpen(true)}
-                aria-label="Open Search Spotlight"
-                className="md:hidden w-9 h-9 rounded-full bg-neutral-100 hover:bg-[#FFF1F2] border border-neutral-200 text-neutral-800 hover:text-[#D71920] flex items-center justify-center transition-all cursor-pointer active:scale-95"
-              >
-                <Search size={16} />
-              </button>
 
               {settings.showHeaderContact !== false && settings.phone && (
                 <a
@@ -636,12 +641,55 @@ export function Navbar() {
           )}
         </div>
 
+        {/* Mobile Expandable Search Bar (Slides out cleanly below header & above banner) */}
+        {isSearchSpotlightOpen && (
+          <div
+            ref={mobileSearchRef}
+            data-testid="mobile-header-search-drawer"
+            className="md:hidden border-t border-neutral-200/80 dark:border-slate-800 bg-white dark:bg-[#0B0F17] px-3 py-2.5 relative shadow-xs animate-in slide-in-from-top-1 duration-150"
+          >
+            <div className="flex items-center gap-2">
+              <div className="flex-1 min-w-0">
+                <AnimatedSearchInput
+                  inputRef={mobileSearchInputRef}
+                  inputTestId="mobile-search-input"
+                  value={searchQuery}
+                  onChange={(val) => setSearchQuery(val)}
+                  onSubmit={handleSearchSubmit}
+                  onEscape={() => setIsSearchSpotlightOpen(false)}
+                  showSubmitButton={true}
+                  autoFocus={true}
+                />
+              </div>
+              <button
+                type="button"
+                data-testid="mobile-search-close-btn"
+                onClick={() => setIsSearchSpotlightOpen(false)}
+                aria-label="Close search bar"
+                className="w-10 h-10 rounded-xl border border-neutral-200 dark:border-slate-700 bg-neutral-50 dark:bg-slate-800 hover:bg-neutral-100 dark:hover:bg-slate-700 text-neutral-600 dark:text-slate-300 flex items-center justify-center shrink-0 cursor-pointer transition-colors"
+              >
+                <X size={17} />
+              </button>
+            </div>
+
+            {searchQuery.trim() && (
+              <div className="relative">
+                <SearchResultsDropdown
+                  query={searchQuery}
+                  onClose={() => setIsSearchSpotlightOpen(false)}
+                  testId="mobile-search-results"
+                />
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Mobile Navigation Drawer (Slides out smoothly when opened) */}
         {mobileMenuOpen && (
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs md:hidden flex justify-end">
             <div className="w-80 max-w-[85vw] bg-white h-full shadow-2xl p-4 sm:p-5 flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-200">
               <div className="space-y-3.5">
-                {/* Drawer Header */}
+                {/* 1. Drawer Header (MR. BOOKS Logo) */}
                 <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
                   <div className="flex items-center gap-2">
                     {hasCustomLogo && (
@@ -668,19 +716,32 @@ export function Navbar() {
                   <button 
                     onClick={() => setMobileMenuOpen(false)}
                     className="p-1.5 text-neutral-500 hover:text-neutral-900 rounded-lg hover:bg-neutral-100 cursor-pointer"
+                    aria-label="Close Navigation Menu"
                   >
                     <X size={20} />
                   </button>
                 </div>
-                {settings.showHeaderContact !== false && settings.phone && (
-                  <a
-                    href={`tel:${settings.phone.replace(/\s+/g, '')}`}
-                    className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/20 text-xs font-bold"
-                  >
-                    <Phone size={14} />
-                    <span>Hotline: {settings.phone}</span>
-                  </a>
-                )}
+
+                {/* 2. Mobile Drawer Search Bar (Immediately below Logo) */}
+                <div className="relative" data-testid="mobile-drawer-search-container">
+                  <AnimatedSearchInput 
+                    inputTestId="mobile-drawer-search-input"
+                    value={searchQuery}
+                    onChange={(val) => setSearchQuery(val)}
+                    onSubmit={(e) => {
+                      handleSearchSubmit(e);
+                      setMobileMenuOpen(false);
+                    }}
+                    showSubmitButton={true}
+                  />
+                  {searchQuery.trim() && (
+                    <SearchResultsDropdown
+                      query={searchQuery}
+                      onClose={() => setMobileMenuOpen(false)}
+                      testId="mobile-drawer-search-results"
+                    />
+                  )}
+                </div>
 
                 {/* Quick Preferences & Wishlist Box for Mobile Menu */}
                 <div className="flex items-center justify-between gap-2 p-3 bg-neutral-50 rounded-2xl border border-neutral-200">
@@ -726,17 +787,6 @@ export function Navbar() {
                     )}
                   </button>
                 </div>
-
-                {/* Mobile Search Input */}
-                <AnimatedSearchInput 
-                  value={searchQuery}
-                  onChange={(val) => setSearchQuery(val)}
-                  onSubmit={(e) => {
-                    handleSearchSubmit(e);
-                    setMobileMenuOpen(false);
-                  }}
-                  showSubmitButton={false}
-                />
 
                 {/* Mobile Drawer Menu Links: Home, Shop (Books & Stationery), Writer/Authors */}
                 <div className="space-y-1 divide-y divide-neutral-100 pt-1">
@@ -866,6 +916,7 @@ export function Navbar() {
                   {/* Track Orders & Payments */}
                   <div className="pt-1">
                     <button 
+                      data-testid="mobile-drawer-track-orders-btn"
                       onClick={() => { setActivePage('my-orders'); setMobileMenuOpen(false); }} 
                       className={`block w-full text-left py-2.5 text-sm font-bold cursor-pointer ${
                         activePage === 'my-orders' ? 'text-[#D71920]' : 'text-neutral-800'
@@ -874,6 +925,20 @@ export function Navbar() {
                       Track Orders & Payments
                     </button>
                   </div>
+
+                  {/* Hotline Number (Directly below Track Orders & Payments) */}
+                  {settings.showHeaderContact !== false && settings.phone && (
+                    <div className="pt-2.5">
+                      <a
+                        data-testid="mobile-drawer-hotline-link"
+                        href={`tel:${settings.phone.replace(/\s+/g, '')}`}
+                        className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/20 text-xs font-bold"
+                      >
+                        <Phone size={14} />
+                        <span>Hotline: {settings.phone}</span>
+                      </a>
+                    </div>
+                  )}
 
                   {/* Theme Switcher in Mobile Drawer */}
                   {settings.enableThemeToggle !== false && (
@@ -911,15 +976,12 @@ export function Navbar() {
               {/* Mobile Drawer Footer Auth Action */}
               <div className="pt-4 border-t border-neutral-100">
                 {currentUser ? (
-                  <div className="space-y-2">
-                    <div className="text-xs text-neutral-500 font-medium">Logged in as {currentUser.email}</div>
-                    <button 
-                      onClick={() => { logout(); setMobileMenuOpen(false); }}
-                      className="w-full py-2 bg-[#FFF1F2] text-[#D71920] text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <LogOut size={14} /> Sign Out
-                    </button>
-                  </div>
+                  <button 
+                    onClick={() => { logout(); setMobileMenuOpen(false); }}
+                    className="w-full py-2.5 bg-[#FFF1F2] text-[#D71920] text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <LogOut size={14} /> Sign Out
+                  </button>
                 ) : (
                   <button 
                     onClick={() => { setAuthMode('signup'); setIsAuthModalOpen(true); setMobileMenuOpen(false); }}

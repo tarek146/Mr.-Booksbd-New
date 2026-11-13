@@ -54,10 +54,14 @@ export function MobileBottomNav() {
           return (
             <button
               key={item.id}
+              type="button"
+              data-testid={item.id === 'search' ? 'mobile-bottom-search-btn' : `mobile-bottom-${item.id}-btn`}
+              aria-expanded={item.id === 'search' ? isSearchSpotlightOpen : undefined}
               onClick={() => {
                 if (item.id === 'search') {
-                  setIsSearchSpotlightOpen(true);
+                  setIsSearchSpotlightOpen(!isSearchSpotlightOpen);
                 } else {
+                  setIsSearchSpotlightOpen(false);
                   setActivePage(item.page);
                 }
               }}
