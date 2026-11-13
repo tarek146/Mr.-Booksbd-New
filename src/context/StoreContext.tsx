@@ -85,6 +85,7 @@ import { applyReviewReaction, ReactionType } from '../utils/reviewHelpers';
 import { dedupeById } from '../utils/videoReelHelpers';
 import { getInitialTheme, persistThemeChoice, applyThemeToDom, toggleTheme as toggleThemeHelper } from '../utils/themeHelpers';
 import { mergeLiveChatMessages } from '../utils/chatSoundAndValidation';
+import { extractSeriesFromSearch, buildBooksPathWithSeries, normalizeSeriesName } from '../utils/bookSeriesHelpers';
 
 function sanitizeStoreSettings<T extends Partial<StoreSettings>>(st: T): T {
   const copy: Partial<StoreSettings> = { ...st };
@@ -148,6 +149,7 @@ interface StoreContextType {
   activePage: string;
   selectedProductId: string | null;
   selectedCategoryFilter: string;
+  selectedSeriesFilter: string;
   searchQuery: string;
   darkMode: boolean;
   isLoading: boolean;
@@ -163,6 +165,7 @@ interface StoreContextType {
   
   setActivePage: (page: string, productId?: string, options?: { exitAdmin?: boolean }) => void;
   setSelectedCategoryFilter: (cat: string) => void;
+  setSelectedSeriesFilter: (series: string) => void;
   setSearchQuery: (query: string) => void;
   setDarkMode: (dark: boolean) => void;
   toggleDarkMode: () => void;
@@ -283,12 +286,13 @@ interface StoreContextType {
   setIsSearchSpotlightOpen: (open: boolean) => void;
 }
 
-function getPageFromLocation(): { page: string; productId: string | null } {
-  if (typeof window === 'undefined') return { page: 'home', productId: null };
+function getPageFromLocation(): { page: string; productId: string | null; series: string } {
+  if (typeof window === 'undefined') return { page: 'home', productId: null, series: '' };
 
   const pathname = window.location.pathname.toLowerCase().replace(/\/+$/, '') || '/';
   const hash = window.location.hash.toLowerCase().replace(/^#\/?/, '').replace(/\/+$/, '');
   const search = window.location.search.toLowerCase();
+  const series = extractSeriesFromSearch(window.location.search);
 
   // Admin routes: /admin, /admin/..., #admin, #/admin, ?page=admin
   if (
@@ -298,67 +302,67 @@ function getPageFromLocation(): { page: string; productId: string | null } {
     hash.startsWith('admin/') ||
     search.includes('page=admin')
   ) {
-    return { page: 'admin', productId: null };
+    return { page: 'admin', productId: null, series: '' };
   }
 
   // Books / Shop routes
   if (pathname === '/books' || pathname === '/shop' || hash === 'books' || hash === 'shop') {
-    return { page: 'books', productId: null };
+    return { page: 'books', productId: null, series };
   }
 
   // Stationery routes
   if (pathname === '/stationery' || hash === 'stationery') {
-    return { page: 'stationery', productId: null };
+    return { page: 'stationery', productId: null, series: '' };
   }
 
   // Cart route
   if (pathname === '/cart' || hash === 'cart') {
-    return { page: 'cart', productId: null };
+    return { page: 'cart', productId: null, series: '' };
   }
 
   // Checkout route
   if (pathname === '/checkout' || hash === 'checkout') {
-    return { page: 'checkout', productId: null };
+    return { page: 'checkout', productId: null, series: '' };
   }
 
   // Order Success route
   if (pathname === '/order-success' || hash === 'order-success') {
-    return { page: 'order-success', productId: null };
+    return { page: 'order-success', productId: null, series: '' };
   }
 
   // My Orders / Tracking route
   if (pathname === '/my-orders' || pathname === '/orders' || hash === 'my-orders' || hash === 'orders') {
-    return { page: 'my-orders', productId: null };
+    return { page: 'my-orders', productId: null, series: '' };
   }
 
   // Track Order route
   if (pathname === '/track' || pathname === '/track-order' || hash === 'track' || hash === 'track-order') {
-    return { page: 'track-order', productId: null };
+    return { page: 'track-order', productId: null, series: '' };
   }
 
   // Authors route
   if (pathname === '/authors' || hash === 'authors') {
-    return { page: 'authors', productId: null };
+    return { page: 'authors', productId: null, series: '' };
   }
 
   // Publishers route
   if (pathname === '/publishers' || hash === 'publishers') {
-    return { page: 'publishers', productId: null };
+    return { page: 'publishers', productId: null, series: '' };
   }
 
   // Product Detail route: /product/:id or /book/:id
   if (pathname.startsWith('/product/') || pathname.startsWith('/book/')) {
     const parts = window.location.pathname.split('/');
     const id = parts[2] ? decodeURIComponent(parts[2]) : null;
-    return { page: 'product-detail', productId: id };
+    return { page: 'product-detail', productId: id, series: '' };
   }
   if (hash.startsWith('product/') || hash.startsWith('book/')) {
     const parts = hash.split('/');
     const id = parts[1] ? decodeURIComponent(parts[1]) : null;
-    return { page: 'product-detail', productId: id };
+    return { page: 'product-detail', productId: id, series: '' };
   }
 
-  return { page: 'home', productId: null };
+  return { page: 'home', productId: null, series: '' };
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -512,6 +516,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [activePage, setActivePageState] = useState<string>(initialRoute.page);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(initialRoute.productId);
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
+  const [selectedSeriesFilter, setSelectedSeriesFilterState] = useState<string>(initialRoute.series);
+  const selectedSeriesFilterRef = React.useRef<string>(initialRoute.series);
+  const setSelectedSeriesFilter = (series: string) => {
+    const normalized = normalizeSeriesName(series);
+    selectedSeriesFilterRef.current = normalized;
+    setSelectedSeriesFilterState(normalized);
+    if (typeof window !== 'undefined' && activePageRef.current === 'books') {
+      const nextPath = buildBooksPathWithSeries(normalized);
+      const currentFull = `${window.location.pathname}${window.location.search}`;
+      if (currentFull !== nextPath) {
+        try {
+          window.history.replaceState({ page: 'books', series: normalized }, '', nextPath);
+        } catch {
+          // ignore
+        }
+      }
+    }
+  };
   const [searchQuery, setSearchQuery] = useState<string>('');
   
   const [darkMode, setDarkModeState] = useState<boolean>(() => {
@@ -813,7 +835,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const devSuffix = currentParams.get('dev') === '1' ? '?dev=1' : '';
       let targetPath = '/';
       if (page === 'admin') targetPath = `/admin${devSuffix}`;
-      else if (page === 'books' || page === 'shop') targetPath = '/books';
+      else if (page === 'books' || page === 'shop') targetPath = buildBooksPathWithSeries(selectedSeriesFilterRef.current);
       else if (page === 'stationery') targetPath = '/stationery';
       else if (page === 'cart') targetPath = '/cart';
       else if (page === 'checkout') targetPath = '/checkout';
@@ -852,6 +874,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
       allowAdminExitRef.current = false;
       setActivePageState(loc.page);
+      selectedSeriesFilterRef.current = loc.series;
+      setSelectedSeriesFilterState(loc.series);
       if (loc.productId) setSelectedProductId(loc.productId);
     };
 
@@ -3035,6 +3059,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       activePage,
       selectedProductId,
       selectedCategoryFilter,
+      selectedSeriesFilter,
       searchQuery,
       darkMode,
       isLoading,
@@ -3044,6 +3069,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       clearLocalStoreCache,
       setActivePage,
       setSelectedCategoryFilter,
+      setSelectedSeriesFilter,
       setSearchQuery,
       setDarkMode,
       toggleDarkMode,

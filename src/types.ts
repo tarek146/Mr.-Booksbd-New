@@ -33,6 +33,8 @@ export interface Product {
   language?: string;
   pages?: number;
   edition?: string;
+  seriesName?: string;
+  seriesNumber?: string;
   brand?: string; // for stationery
   material?: string;
   dimensions?: string;

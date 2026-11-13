@@ -100,6 +100,13 @@ import {
   sanitizePreviewPages,
   toBanglaDigits,
 } from '../utils/bookPreviewHelpers';
+import {
+  normalizeSeriesName,
+  normalizeSeriesNumber,
+  formatSeriesLabel,
+  collectExistingSeriesNames,
+  resolveProductSeriesInfo,
+} from '../utils/bookSeriesHelpers';
 import { extractPdfPreviewPages } from '../utils/pdfPageExtractor';
 import {
   extractYouTubeVideoId,
@@ -585,6 +592,8 @@ export function AdminDashboard() {
   const [prodPublisher, setProdPublisher] = useState('');
   const [prodIsbn, setProdIsbn] = useState('');
   const [prodEdition, setProdEdition] = useState('3rd Edition');
+  const [prodSeriesName, setProdSeriesName] = useState('');
+  const [prodSeriesNumber, setProdSeriesNumber] = useState('');
   const [prodPages, setProdPages] = useState<number>(264);
   const [prodLanguage, setProdLanguage] = useState('Bengali');
   const [prodSku, setProdSku] = useState('');
@@ -1171,6 +1180,8 @@ export function AdminDashboard() {
         publisher: p.publisher || '',
         isbn: p.isbn || '',
         edition: p.edition || '1st Edition',
+        seriesName: p.seriesName || '',
+        seriesNumber: p.seriesNumber || '',
         pages: p.pages || 240,
         language: p.language || 'Bengali',
         brand: p.brand || '',
@@ -1276,6 +1287,8 @@ export function AdminDashboard() {
       setProdPublisher(defaultPub);
       setProdIsbn('');
       setProdEdition('1st Edition');
+      setProdSeriesName('');
+      setProdSeriesNumber('');
       setProdPages(240);
       setProdLanguage('Bengali');
       const genSku = `BK-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -1305,6 +1318,8 @@ export function AdminDashboard() {
       setProdPublisher('');
       setProdIsbn('');
       setProdEdition('');
+      setProdSeriesName('');
+      setProdSeriesNumber('');
       setProdPages(0);
       setProdLanguage('');
       const genSku = `ST-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -1344,6 +1359,8 @@ export function AdminDashboard() {
     setProdPublisher(p.publisher || '');
     setProdIsbn(p.isbn || '');
     setProdEdition(p.edition || '3rd Edition');
+    setProdSeriesName(p.seriesName || '');
+    setProdSeriesNumber(p.seriesNumber || '');
     setProdPages(p.pages || 264);
     setProdLanguage(p.language || 'Bengali');
     setProdSku(p.sku || '');
@@ -1480,6 +1497,8 @@ export function AdminDashboard() {
       publisher: prodType === 'book' ? (prodPublisher || 'MR. BOOKS Publications') : undefined,
       isbn: prodType === 'book' ? prodIsbn : undefined,
       edition: prodType === 'book' ? (prodEdition.trim() || 'Standard Edition') : undefined,
+      seriesName: prodType === 'book' ? normalizeSeriesName(prodSeriesName) : '',
+      seriesNumber: prodType === 'book' && normalizeSeriesName(prodSeriesName) ? normalizeSeriesNumber(prodSeriesNumber) : '',
       pages: prodType === 'book' ? (Number(prodPages) > 0 ? Number(prodPages) : undefined) : undefined,
       language: prodType === 'book' ? (prodLanguage.trim() || 'Bengali') : undefined,
       brand: prodType === 'stationery' ? prodBrand : undefined,
@@ -5026,6 +5045,7 @@ export function AdminDashboard() {
                         p.title.toLowerCase().includes(q) ||
                         (p.author || '').toLowerCase().includes(q) ||
                         (p.publisher || '').toLowerCase().includes(q) ||
+                        (p.seriesName || '').toLowerCase().includes(q) ||
                         (p.category || '').toLowerCase().includes(q)
                       );
                     });
@@ -5134,6 +5154,11 @@ export function AdminDashboard() {
                                           </h4>
                                           <div className="flex items-center gap-1.5 mt-0.5 truncate text-[10px] text-slate-500">
                                             {p.sku && <span className="font-mono">#{p.sku}</span>}
+                                            {resolveProductSeriesInfo(p).hasSeries && (
+                                              <span className="italic text-slate-600 truncate">
+                                                · {resolveProductSeriesInfo(p).label}
+                                              </span>
+                                            )}
                                             {p.previewPages && p.previewPages.length > 0 && (
                                               <span className="font-semibold text-[#D71920]">
                                                 {p.previewPages.length}p preview
@@ -5846,6 +5871,60 @@ export function AdminDashboard() {
                               onChange={e => setProdLanguage(e.target.value)}
                               className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
                             />
+                          </div>
+                        </div>
+
+                        {/* Row 4: Book Series Name & Number (Optional — displays above title like "Royal Elite #3") */}
+                        <div className="p-3.5 rounded-xl border border-neutral-200 bg-neutral-50/70 space-y-2.5">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <span className="text-[11px] font-bold text-neutral-700 uppercase">
+                              Book Series (বইয়ের সিরিজ — ঐচ্ছিক)
+                            </span>
+                            {normalizeSeriesName(prodSeriesName) && (
+                              <span
+                                data-testid="admin-series-preview"
+                                className="text-xs italic text-neutral-600"
+                              >
+                                Preview above title:{' '}
+                                <strong className="not-italic text-neutral-900">
+                                  {formatSeriesLabel(prodSeriesName, prodSeriesNumber)}
+                                </strong>
+                              </span>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div className="sm:col-span-2">
+                              <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">
+                                Series Name (সিরিজের নাম)
+                              </label>
+                              <input
+                                type="text"
+                                list="admin-existing-series-list"
+                                data-testid="admin-input-series-name"
+                                placeholder="e.g. Royal Elite / হিমু সিরিজ"
+                                value={prodSeriesName}
+                                onChange={e => setProdSeriesName(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] shadow-2xs"
+                              />
+                              <datalist id="admin-existing-series-list">
+                                {collectExistingSeriesNames(products).map(seriesTitle => (
+                                  <option key={seriesTitle} value={seriesTitle} />
+                                ))}
+                              </datalist>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">
+                                Book # (সিরিজ নম্বর)
+                              </label>
+                              <input
+                                type="text"
+                                data-testid="admin-input-series-number"
+                                placeholder="e.g. 1, 2, 3"
+                                value={prodSeriesNumber}
+                                onChange={e => setProdSeriesNumber(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs font-mono text-neutral-900 focus:outline-none focus:border-[#D71920] shadow-2xs"
+                              />
+                            </div>
                           </div>
                         </div>
 

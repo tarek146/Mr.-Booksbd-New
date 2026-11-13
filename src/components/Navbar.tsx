@@ -33,6 +33,7 @@ export function Navbar() {
     setActivePage, 
     categories,
     setSelectedCategoryFilter,
+    setSelectedSeriesFilter,
     cart, 
     wishlist, 
     searchQuery, 
@@ -102,6 +103,7 @@ export function Navbar() {
   };
 
   const handleSelectCategory = (catName: string, type: 'book' | 'stationery') => {
+    setSelectedSeriesFilter('');
     setSelectedCategoryFilter(catName);
     setActivePage(type === 'stationery' ? 'stationery' : 'books');
     setCategoriesDropdownOpen(false);
@@ -109,6 +111,7 @@ export function Navbar() {
   };
 
   const handleSelectShopOption = (type: 'books' | 'stationery') => {
+    setSelectedSeriesFilter('');
     setActivePage(type);
     setShopDropdownOpen(false);
     setMobileMenuOpen(false);
@@ -438,7 +441,7 @@ export function Navbar() {
                     <div className="mt-4 pt-3 border-t border-neutral-100 flex items-center justify-between text-xs">
                       <span className="text-neutral-500 font-normal">Explore 1000+ curated titles</span>
                       <button 
-                        onClick={() => { setActivePage('books'); setCategoriesDropdownOpen(false); }}
+                        onClick={() => { setSelectedSeriesFilter(''); setActivePage('books'); setCategoriesDropdownOpen(false); }}
                         className="text-[#D71920] font-bold hover:underline flex items-center gap-1 cursor-pointer"
                       >
                         View Full Catalog <ArrowRight size={12} />

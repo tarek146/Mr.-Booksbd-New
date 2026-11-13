@@ -494,6 +494,7 @@ export function filterSpotlightSearch(
       p.title.toLowerCase().includes(q) ||
       (p.author && p.author.toLowerCase().includes(q)) ||
       (p.publisher && p.publisher.toLowerCase().includes(q)) ||
+      (p.seriesName && p.seriesName.toLowerCase().includes(q)) ||
       (p.brand && p.brand.toLowerCase().includes(q)) ||
       p.category.toLowerCase().includes(q) ||
       p.sku.toLowerCase().includes(q)

@@ -14,6 +14,7 @@ import {
   Building2,
 } from 'lucide-react';
 import { resolveProductDetailsPresentation } from '../utils/storeEnhancementsHelpers';
+import { resolveProductSeriesInfo } from '../utils/bookSeriesHelpers';
 
 interface ProductCardProps {
   product: Product;
@@ -73,6 +74,7 @@ export function ProductCard({ product }: ProductCardProps) {
     : 0;
 
   const currentVariant = product.variants[0] || { id: 'v1', name: 'Standard', price: product.price, stock: product.stock, sku: product.sku };
+  const seriesInfo = resolveProductSeriesInfo(product);
 
   const isOutOfStock = product.stock <= 0;
   const isLowStock = product.stock > 0 && product.stock <= 15;
@@ -239,6 +241,17 @@ export function ProductCard({ product }: ProductCardProps) {
               );
             })()}
           </div>
+
+          {/* Series Label above Title (when part of a series) */}
+          {seriesInfo.hasSeries && (
+            <p
+              data-testid="product-card-series-label"
+              className="text-[10px] sm:text-[11px] italic text-neutral-500 dark:text-slate-400 truncate leading-tight mb-0.5"
+              title={seriesInfo.label}
+            >
+              {seriesInfo.label}
+            </p>
+          )}
 
           {/* Title - Strictly Truncated to 1 Single Line */}
           <h3 

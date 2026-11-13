@@ -1,4 +1,5 @@
 import { Product, ProductType, ProductVariant } from '../types';
+import { normalizeSeriesName, normalizeSeriesNumber } from './bookSeriesHelpers';
 
 export interface CsvFieldDef {
   key: string;
@@ -69,6 +70,22 @@ export const BOOK_SCHEMA_FIELDS: CsvFieldDef[] = [
     type: 'text',
     example: '1st Edition',
     aliases: ['edition', 'print_edition', 'সংস্করণ']
+  },
+  {
+    key: 'seriesName',
+    label: 'Series Name',
+    labelBn: 'সিরিজের নাম',
+    type: 'text',
+    example: 'Royal Elite',
+    aliases: ['series', 'series_name', 'book_series', 'series name', 'সিরিজ', 'সিরিজের নাম']
+  },
+  {
+    key: 'seriesNumber',
+    label: 'Series Book #',
+    labelBn: 'সিরিজ নম্বর',
+    type: 'text',
+    example: '3',
+    aliases: ['series_number', 'series_no', 'book_number', 'series number', 'volume', 'part', 'সিরিজ নম্বর', 'খণ্ড']
   },
   {
     key: 'pages',
@@ -457,6 +474,8 @@ export function transformRowToProduct(
   const category = (rowMap.category || '').trim() || (type === 'book' ? 'General Books' : 'General Stationery');
   const publisher = (rowMap.publisher || '').trim() || (type === 'book' ? 'MR. BOOKS' : undefined);
   const edition = (rowMap.edition || '').trim() || (type === 'book' ? '1st Edition' : undefined);
+  const seriesName = type === 'book' ? normalizeSeriesName(rowMap.seriesName) : '';
+  const seriesNumber = type === 'book' && seriesName ? normalizeSeriesNumber(rowMap.seriesNumber) : '';
   const language = (rowMap.language || '').trim() || (type === 'book' ? 'Bengali' : undefined);
   const isbn = (rowMap.isbn || '').trim() || undefined;
   const pages = rowMap.pages ? parseCleanNumber(rowMap.pages, 1) : undefined;
@@ -505,6 +524,8 @@ export function transformRowToProduct(
     author: type === 'book' ? author : undefined,
     publisher: type === 'book' ? publisher : undefined,
     edition: type === 'book' ? edition : undefined,
+    seriesName: type === 'book' ? (seriesName || '') : undefined,
+    seriesNumber: type === 'book' ? (seriesNumber || '') : undefined,
     pages: type === 'book' ? pages : undefined,
     language: type === 'book' ? language : undefined,
     isbn: type === 'book' ? isbn : undefined,

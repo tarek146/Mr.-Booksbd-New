@@ -26,9 +26,14 @@ import {
   Building2
 } from 'lucide-react';
 import { resolveProductDetailsPresentation } from '../utils/storeEnhancementsHelpers';
+import {
+  normalizeSeriesName,
+  parseSeriesSortOrder,
+  resolveProductSeriesInfo,
+} from '../utils/bookSeriesHelpers';
 
 export function BooksPage() {
-  const { products, categories, isLoading, settings, searchQuery, setSearchQuery, selectedCategoryFilter, setSelectedCategoryFilter, setActivePage, addToCart } = useStore();
+  const { products, categories, isLoading, settings, searchQuery, setSearchQuery, selectedCategoryFilter, setSelectedCategoryFilter, selectedSeriesFilter, setSelectedSeriesFilter, setActivePage, addToCart } = useStore();
 
   // Local filter states for advanced shop page
   const [productTypeFilter, setProductTypeFilter] = useState<'all' | 'book' | 'stationery'>('all');
@@ -42,7 +47,14 @@ export function BooksPage() {
 
   // Filter products based on all conditions
   const filteredProducts = useMemo(() => {
+    const activeSeriesTarget = normalizeSeriesName(selectedSeriesFilter).toLowerCase();
+
     return products.filter(item => {
+      // Series filter
+      if (activeSeriesTarget) {
+        if (normalizeSeriesName(item.seriesName).toLowerCase() !== activeSeriesTarget) return false;
+      }
+
       // Type filter
       if (productTypeFilter !== 'all' && item.type !== productTypeFilter) return false;
 
@@ -55,9 +67,10 @@ export function BooksPage() {
         const matchesTitle = item.title.toLowerCase().includes(q);
         const matchesAuthor = item.author ? item.author.toLowerCase().includes(q) : false;
         const matchesPublisher = item.publisher ? item.publisher.toLowerCase().includes(q) : false;
+        const matchesSeries = item.seriesName ? item.seriesName.toLowerCase().includes(q) : false;
         const matchesCategory = item.category.toLowerCase().includes(q);
         const matchesBrand = item.brand ? item.brand.toLowerCase().includes(q) : false;
-        if (!matchesTitle && !matchesAuthor && !matchesPublisher && !matchesCategory && !matchesBrand) return false;
+        if (!matchesTitle && !matchesAuthor && !matchesPublisher && !matchesSeries && !matchesCategory && !matchesBrand) return false;
       }
 
       // Price filter
@@ -71,19 +84,26 @@ export function BooksPage() {
 
       return true;
     });
-  }, [products, productTypeFilter, selectedCategoryFilter, searchQuery, minPrice, maxPrice, inStockOnly, discountOnly]);
+  }, [products, selectedSeriesFilter, productTypeFilter, selectedCategoryFilter, searchQuery, minPrice, maxPrice, inStockOnly, discountOnly]);
 
-  // Sort products
+  // Sort products (in Series view, default "featured" sorts strictly by series reading order #1, #2, #3...)
   const sortedProducts = useMemo(() => {
+    const isSeriesActive = normalizeSeriesName(selectedSeriesFilter) !== '';
     return [...filteredProducts].sort((a, b) => {
       if (sortBy === 'price-low') return a.price - b.price;
       if (sortBy === 'price-high') return b.price - a.price;
       if (sortBy === 'rating') return b.rating - a.rating;
+      if (isSeriesActive) {
+        const orderDiff = parseSeriesSortOrder(a.seriesNumber) - parseSeriesSortOrder(b.seriesNumber);
+        if (orderDiff !== 0) return orderDiff;
+        return (a.title || '').localeCompare(b.title || '');
+      }
       return 0;
     });
-  }, [filteredProducts, sortBy]);
+  }, [filteredProducts, sortBy, selectedSeriesFilter]);
 
   const handleResetFilters = () => {
+    setSelectedSeriesFilter('');
     setSelectedCategoryFilter('all');
     setSearchQuery('');
     setProductTypeFilter('all');
@@ -95,6 +115,7 @@ export function BooksPage() {
   };
 
   const hasActiveFilters = 
+    selectedSeriesFilter !== '' ||
     selectedCategoryFilter !== 'all' || 
     searchQuery !== '' || 
     productTypeFilter !== 'all' || 
@@ -246,12 +267,47 @@ export function BooksPage() {
           </div>
         </div>
 
+        {/* Minimal Editorial Series Header when browsing a Series */}
+        {selectedSeriesFilter && (
+          <div
+            data-testid="books-series-header"
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-neutral-200 dark:border-slate-800"
+          >
+            <div>
+              <p className="text-[11px] uppercase tracking-wider text-neutral-500 dark:text-slate-400 font-medium">
+                Book Series · Reading Order
+              </p>
+              <h1 className="text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white tracking-tight">
+                {selectedSeriesFilter}{' '}
+                <span className="text-sm font-normal text-neutral-500 dark:text-slate-400">
+                  ({sortedProducts.length} {sortedProducts.length === 1 ? 'book' : 'books'})
+                </span>
+              </h1>
+            </div>
+            <button
+              type="button"
+              data-testid="clear-series-filter-btn"
+              onClick={() => setSelectedSeriesFilter('')}
+              className="self-start sm:self-auto text-xs font-semibold text-neutral-600 dark:text-slate-300 hover:text-[#D71920] underline underline-offset-4 cursor-pointer"
+            >
+              Show all books
+            </button>
+          </div>
+        )}
+
         {/* Active Filters Summary Pills */}
         {hasActiveFilters && (
           <div className="flex items-center gap-2 flex-wrap text-xs bg-[#FFF1F2]/60 p-3 rounded-2xl border border-[#D71920]/20">
             <span className="font-bold text-[#D71920] flex items-center gap-1">
               <Filter size={13} /> Active Filters:
             </span>
+
+            {selectedSeriesFilter && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white text-[#D71920] text-xs font-bold border border-[#D71920]/30 shadow-2xs">
+                Series: {selectedSeriesFilter}
+                <X size={12} className="cursor-pointer hover:scale-125" onClick={() => setSelectedSeriesFilter('')} />
+              </span>
+            )}
 
             {selectedCategoryFilter !== 'all' && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white text-[#D71920] text-xs font-bold border border-[#D71920]/30 shadow-2xs">
@@ -434,6 +490,7 @@ export function BooksPage() {
                 <div data-testid="books-list-container" className="space-y-3">
                   {sortedProducts.map(product => {
                     const presentation = resolveProductDetailsPresentation(product);
+                    const seriesInfo = resolveProductSeriesInfo(product);
                     const defaultVariantId = product.variants[0]?.id || 'v1';
                     return (
                       <div
@@ -464,6 +521,11 @@ export function BooksPage() {
                               </span>
                             )}
                           </div>
+                          {seriesInfo.hasSeries && (
+                            <p className="text-xs italic text-neutral-500 dark:text-slate-400 truncate leading-tight">
+                              {seriesInfo.label}
+                            </p>
+                          )}
                           <h3 className="font-bold text-sm sm:text-base text-[#171717] group-hover:text-[#D71920] transition-colors truncate">
                             {product.title}
                           </h3>

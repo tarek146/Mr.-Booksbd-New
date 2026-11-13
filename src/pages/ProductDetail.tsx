@@ -45,6 +45,10 @@ import {
   resolveVariantFormatDescription,
   resolveProductDetailsPresentation,
 } from '../utils/storeEnhancementsHelpers';
+import {
+  resolveProductSeriesInfo,
+  getSeriesBooksForProduct,
+} from '../utils/bookSeriesHelpers';
 import { trackFacebookConversionEvent, buildProductCustomData } from '../utils/facebookCapiHelpers';
 import { ProductDetailSkeleton } from '../components/SkeletonScreens';
 import { shouldShowSkeletonScreen, resolveFirestoreFetchStrategy } from '../utils/instantStoreCache';
@@ -77,7 +81,7 @@ function MessengerIcon({ className = "w-4 h-4 shrink-0" }: { className?: string 
 }
 
 export function ProductDetail() {
-  const { products, authors, publishers, isLoading, selectedProductId, setActivePage, addToCart, wishlist, toggleWishlist, setSelectedCategoryFilter, setSearchQuery, settings, siteSettings, reviews, visitorId, addProductReview, reactToReview } = useStore();
+  const { products, authors, publishers, isLoading, selectedProductId, setActivePage, addToCart, wishlist, toggleWishlist, setSelectedCategoryFilter, setSelectedSeriesFilter, setSearchQuery, settings, siteSettings, reviews, visitorId, addProductReview, reactToReview } = useStore();
   
   const [directFetchedProduct, setDirectFetchedProduct] = useState<Product | null>(null);
   const inMemoryProduct = products.find(p => p.id === selectedProductId || p.slug === selectedProductId);
@@ -279,6 +283,16 @@ export function ProductDetail() {
   const currentProductPublisher = resolveProductPublisherInfo(product, publishers, products);
   const presentation = resolveProductDetailsPresentation(product);
   const activeVariantDescription = resolveVariantFormatDescription(product, activeVariant);
+  const seriesInfo = resolveProductSeriesInfo(product);
+  const seriesBooks = getSeriesBooksForProduct(products, product);
+
+  const handleViewSeriesBooks = () => {
+    if (!seriesInfo.hasSeries) return;
+    setSelectedSeriesFilter(seriesInfo.seriesName);
+    setSelectedCategoryFilter('all');
+    setSearchQuery('');
+    setActivePage('books');
+  };
 
   // Related products in same category
   const relatedProducts = products
@@ -445,9 +459,22 @@ export function ProductDetail() {
             {/* Title, Byline, Rating & Clean Unboxed Metadata */}
             <div className="space-y-2.5">
               <div className="flex items-start justify-between gap-3">
-                <h1 className="text-xl sm:text-3xl font-bold text-neutral-900 tracking-tight leading-snug text-balance">
-                  {product.title}
-                </h1>
+                <div className="min-w-0 flex-1">
+                  {seriesInfo.hasSeries && (
+                    <button
+                      type="button"
+                      data-testid="product-detail-series-link"
+                      onClick={handleViewSeriesBooks}
+                      title={`${seriesInfo.seriesName} সিরিজের সব বই দেখুন`}
+                      className="inline-block text-[15px] sm:text-base italic font-normal text-neutral-500 dark:text-slate-400 hover:text-[#D71920] dark:hover:text-[#D71920] hover:underline underline-offset-4 transition-colors cursor-pointer text-left mb-1 leading-snug"
+                    >
+                      {seriesInfo.label}
+                    </button>
+                  )}
+                  <h1 className="text-xl sm:text-3xl font-bold text-neutral-900 tracking-tight leading-snug text-balance">
+                    {product.title}
+                  </h1>
+                </div>
 
                 {/* Wishlist & Copy Link Buttons */}
                 <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
@@ -940,6 +967,22 @@ export function ProductDetail() {
                                       : currentProductPublisher.name}
                                   </button>
                                 </div>
+
+                                {seriesInfo.hasSeries && (
+                                  <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
+                                    <span className="text-neutral-500 font-medium flex items-center gap-1.5">
+                                      <Layers size={13} className="text-[#D71920]" /> Series (সিরিজ)
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={handleViewSeriesBooks}
+                                      className="font-bold text-neutral-900 hover:text-[#D71920] text-right cursor-pointer"
+                                    >
+                                      {seriesInfo.label}
+                                      {seriesBooks.length > 1 ? ` (${seriesBooks.length} books)` : ''}
+                                    </button>
+                                  </div>
+                                )}
 
                                 <div className="p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between gap-2">
                                   <span className="text-neutral-500 font-medium flex items-center gap-1.5">
