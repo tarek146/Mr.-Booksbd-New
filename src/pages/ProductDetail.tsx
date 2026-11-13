@@ -752,47 +752,47 @@ export function ProductDetail() {
               </div>
 
               {/* Clean Minimal Direct Support Row */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5">
+              <div className="grid grid-cols-4 gap-1 sm:gap-2 pt-0.5">
                 <a
                   href={`https://wa.me/${(settings?.whatsappNumber || settings?.phone || '8801712345678').replace(/[^0-9]/g, '')}?text=Hello%20MR.%20BOOKS,%20I%20want%20to%20order%20${encodeURIComponent(product.title)}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="py-2 px-2 bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-200 hover:border-neutral-300 rounded-lg font-medium flex items-center justify-center gap-1.5 transition-colors text-center cursor-pointer"
+                  className="py-2 px-1 sm:px-2 bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-200 hover:border-neutral-300 rounded-lg font-medium flex items-center justify-center gap-1 sm:gap-1.5 transition-colors text-center cursor-pointer min-w-0"
                   title="Order via WhatsApp"
                 >
                   <WhatsAppIcon className="w-3.5 h-3.5 text-[#25D366] shrink-0" />
-                  <span className="text-xs leading-none">WhatsApp</span>
+                  <span className="text-[11px] sm:text-xs leading-none truncate">WhatsApp</span>
                 </a>
 
                 <a
                   href={`tel:${(settings?.callNumber || settings?.phone || '01712345678').replace(/[^0-9+]/g, '')}`}
-                  className="py-2 px-2 bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-200 hover:border-neutral-300 rounded-lg font-medium flex items-center justify-center gap-1.5 transition-colors text-center cursor-pointer"
+                  className="py-2 px-1 sm:px-2 bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-200 hover:border-neutral-300 rounded-lg font-medium flex items-center justify-center gap-1 sm:gap-1.5 transition-colors text-center cursor-pointer min-w-0"
                   title="Call Hotline"
                 >
                   <Phone size={13} className="text-[#1D63D8] shrink-0" />
-                  <span className="text-xs leading-none">Call</span>
+                  <span className="text-[11px] sm:text-xs leading-none truncate">Call</span>
                 </a>
 
                 <a
                   href={settings?.instagramUrl?.startsWith('http') ? settings.instagramUrl : (settings?.instagramUrl ? `https://instagram.com/${settings.instagramUrl.replace(/^@/, '')}` : 'https://instagram.com/mrbooksbd')}
                   target="_blank"
                   rel="noreferrer"
-                  className="py-2 px-2 bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-200 hover:border-neutral-300 rounded-lg font-medium flex items-center justify-center gap-1.5 transition-colors text-center cursor-pointer"
+                  className="py-2 px-1 sm:px-2 bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-200 hover:border-neutral-300 rounded-lg font-medium flex items-center justify-center gap-1 sm:gap-1.5 transition-colors text-center cursor-pointer min-w-0"
                   title="Contact on Instagram"
                 >
                   <InstagramIcon className="w-3.5 h-3.5 text-[#E1306C] shrink-0" />
-                  <span className="text-xs leading-none">Instagram</span>
+                  <span className="text-[11px] sm:text-xs leading-none truncate">Instagram</span>
                 </a>
 
                 <a
                   href={settings?.messengerUrl?.startsWith('http') ? settings.messengerUrl : (settings?.messengerUrl ? `https://m.me/${settings.messengerUrl.replace(/^@/, '')}` : 'https://m.me/mrbooksbd')}
                   target="_blank"
                   rel="noreferrer"
-                  className="py-2 px-2 bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-200 hover:border-neutral-300 rounded-lg font-medium flex items-center justify-center gap-1.5 transition-colors text-center cursor-pointer"
+                  className="py-2 px-1 sm:px-2 bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-200 hover:border-neutral-300 rounded-lg font-medium flex items-center justify-center gap-1 sm:gap-1.5 transition-colors text-center cursor-pointer min-w-0"
                   title="Chat on Facebook Messenger"
                 >
                   <MessengerIcon className="w-3.5 h-3.5 text-[#0084FF] shrink-0" />
-                  <span className="text-xs leading-none">Messenger</span>
+                  <span className="text-[11px] sm:text-xs leading-none truncate">Messenger</span>
                 </a>
               </div>
 
