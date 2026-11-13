@@ -420,6 +420,7 @@ export interface StoreSettings {
   // Returning Customer Address Autofill Settings
   enableUseOldAddress?: boolean;
   oldAddressButtonLabel?: string;
+  showCheckoutCoupons?: boolean;
 
   // Bangla QR (বাংলা কিউআর) Settings
   enableBanglaQr?: boolean;

@@ -575,21 +575,23 @@ export function PaymentInstructions({
     }
   };
 
-  // If Cash on Delivery is selected, show a clean COD confirmation strip
+  // If Cash on Delivery is selected, show a clean, minimal COD note
   if (selectedMethod.type === 'cod') {
     return (
-      <div className="bg-emerald-50/80 rounded-2xl p-4 sm:p-5 border border-emerald-200/90 text-xs text-emerald-950 leading-relaxed flex items-start gap-3">
-        <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
-          <CheckCircle2 size={17} />
-        </div>
-        <div className="space-y-0.5">
-          <div className="font-black text-emerald-900 text-sm">
-            ক্যাশ অন ডেলিভারি (হাতে পেয়ে মূল্য পরিশোধ)
-          </div>
-          <p className="text-emerald-800 text-xs">
-            অগ্রিম কোনো পেমেন্ট করার প্রয়োজন নেই! আপনার অর্ডারকৃত বই হাতে পেয়ে ডেলিভারি প্রতিনিধির কাছে নগদ{' '}
-            <strong className="text-emerald-950 font-black">৳{totalAmount}</strong> পরিশোধ করুন।
-          </p>
+      <div className="rounded-lg border border-neutral-200 dark:border-slate-700 bg-neutral-50/70 dark:bg-slate-800/50 px-3.5 py-2.5 text-xs text-neutral-700 dark:text-slate-300 leading-relaxed flex items-start gap-2.5">
+        <CheckCircle2 size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+        <div>
+          <span className="font-semibold text-neutral-900 dark:text-white">
+            Cash on Delivery
+          </span>
+          <span className="mx-1.5 text-neutral-300 dark:text-slate-600">·</span>
+          <span>
+            Pay{' '}
+            <strong className="font-semibold text-neutral-900 dark:text-white tabular-nums">
+              ৳{totalAmount}
+            </strong>{' '}
+            in cash when your order arrives. No advance payment needed.
+          </span>
         </div>
       </div>
     );
@@ -597,40 +599,29 @@ export function PaymentInstructions({
 
   return (
     <>
-      {/* Compact Inline Summary Card on Checkout Page (below payment cards) */}
+      {/* Clean Inline Payment Status Summary below Payment Method Grid */}
       {isPaymentSubmitted && senderNumber && transactionId ? (
         <div
           data-testid="payment-submitted-summary"
-          className="rounded-2xl border-2 border-emerald-500/40 dark:border-emerald-600/50 bg-emerald-50/60 dark:bg-emerald-950/25 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 transition-all"
+          className="rounded-lg border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-950/20 px-3.5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
         >
-          <div className="flex items-start sm:items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-              <CheckCircle2 size={20} />
-            </div>
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-black text-sm text-slate-900 dark:text-white">
-                  {meta.displayTitle} ({activeSubOption?.label || 'সেন্ড মানি'}) পেমেন্ট তথ্য সাবমিট হয়েছে
-                </span>
-                <span className="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 font-bold text-[10px] uppercase tracking-wider">
-                  Ready to Confirm Order
-                </span>
+          <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+            <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5 sm:mt-0" />
+            <div className="min-w-0 space-y-0.5">
+              <div className="text-xs font-semibold text-neutral-900 dark:text-white truncate">
+                {meta.displayTitle} ({activeSubOption?.label || 'সেন্ড মানি'}) · Verified Details Ready
               </div>
-              <div className="text-xs text-slate-600 dark:text-slate-300 flex flex-wrap items-center gap-x-3 gap-y-1 font-medium">
+              <div className="text-[11px] text-neutral-600 dark:text-slate-300 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                 <span>
-                  Option: <strong className="text-slate-900 dark:text-white">{activeSubOption?.label}</strong>
+                  From: <strong className="font-mono text-neutral-900 dark:text-white">{senderNumber}</strong>
                 </span>
-                <span>•</span>
+                <span className="text-neutral-300 dark:text-slate-600">·</span>
                 <span>
-                  Sender: <strong className="font-mono text-slate-900 dark:text-white">{senderNumber}</strong>
+                  TrxID: <strong className="font-mono text-[#D71920] dark:text-rose-400">{transactionId}</strong>
                 </span>
-                <span>•</span>
-                <span>
-                  TrxID: <strong className="font-mono text-[#E2136E] dark:text-pink-400">{transactionId}</strong>
-                </span>
-                <span>•</span>
-                <span>
-                  Amount: <strong className="text-slate-900 dark:text-white">৳{totalAmount}</strong>
+                <span className="text-neutral-300 dark:text-slate-600">·</span>
+                <span className="tabular-nums">
+                  Amount: <strong className="text-neutral-900 dark:text-white">৳{totalAmount}</strong>
                 </span>
               </div>
             </div>
@@ -642,26 +633,29 @@ export function PaymentInstructions({
               setPopupError('');
               setIsModalOpen?.(true);
             }}
-            className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer shrink-0 transition-all"
+            className="px-3 py-1.5 rounded-md bg-white dark:bg-slate-800 hover:bg-neutral-50 dark:hover:bg-slate-700 text-neutral-700 dark:text-slate-200 font-medium text-xs border border-neutral-200 dark:border-slate-700 inline-flex items-center justify-center gap-1.5 cursor-pointer shrink-0 transition-colors"
           >
-            <Edit3 size={13} />
-            <span>Edit Info</span>
+            <Edit3 size={12} />
+            <span>Edit</span>
           </button>
         </div>
       ) : (
         <div
           data-testid="payment-pending-prompt"
-          className="rounded-2xl border border-[#FFADD2] dark:border-rose-900/60 bg-[#FFF5F9]/70 dark:bg-rose-950/20 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5"
+          className="rounded-lg border border-neutral-200 dark:border-slate-700 bg-neutral-50/70 dark:bg-slate-800/50 px-3.5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
         >
-          <div className="flex items-center gap-3">
-            <PaymentBrandIcon method={selectedMethod} size="md" />
-            <div>
-              <h4 className="font-black text-sm text-slate-900 dark:text-white">
-                {meta.displayTitle} ({activeSubOption?.label || 'সেন্ড মানি'}) Payment Instructions
-              </h4>
-              <p className="text-xs text-slate-600 dark:text-slate-300">
-                Please send <strong className="text-slate-900 dark:text-white">৳{totalAmount}</strong> to{' '}
-                <strong className="font-mono text-slate-900 dark:text-white">{activeSubOption?.accountNumber || selectedMethod.accountNumber}</strong> and submit your TrxID in the popup.
+          <div className="flex items-center gap-2.5 min-w-0">
+            <PaymentBrandIcon method={selectedMethod} size="sm" />
+            <div className="min-w-0">
+              <div className="text-xs font-semibold text-neutral-900 dark:text-white">
+                {meta.displayTitle} ({activeSubOption?.label || 'সেন্ড মানি'})
+              </div>
+              <p className="text-[11px] text-neutral-600 dark:text-slate-300">
+                Send <strong className="text-neutral-900 dark:text-white tabular-nums">৳{totalAmount}</strong> to{' '}
+                <strong className="font-mono text-neutral-900 dark:text-white">
+                  {activeSubOption?.accountNumber || selectedMethod.accountNumber}
+                </strong>{' '}
+                &amp; enter TrxID.
               </p>
             </div>
           </div>
@@ -671,10 +665,9 @@ export function PaymentInstructions({
               setPopupError('');
               setIsModalOpen?.(true);
             }}
-            className="px-4 py-2.5 rounded-xl bg-[#E2136E] hover:bg-[#c81060] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm cursor-pointer shrink-0 transition-all"
+            className="px-3.5 py-2 rounded-lg bg-[#D71920] hover:bg-[#B9151B] text-white font-semibold text-xs inline-flex items-center justify-center gap-1.5 cursor-pointer shrink-0 transition-colors whitespace-nowrap"
           >
-            <Sparkles size={14} />
-            <span>পেমেন্ট তথ্য দিন (Open Popup)</span>
+            <span>Enter Payment Details</span>
           </button>
         </div>
       )}

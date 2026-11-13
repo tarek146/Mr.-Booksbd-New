@@ -11439,13 +11439,24 @@ export function AdminDashboard() {
                           </label>
                           <input
                             type="text"
-                            value={settingsForm.oldAddressButtonLabel ?? 'ইউজ ওল্ড এড্রেস (সেম অ্যাড্রেস)'}
+                            value={settingsForm.oldAddressButtonLabel ?? 'Use Saved Address'}
                             onChange={e => setSettingsForm(prev => ({ ...prev, oldAddressButtonLabel: e.target.value }))}
-                            placeholder="ইউজ ওল্ড এড্রেস (সেম অ্যাড্রেস)"
+                            placeholder="Use Saved Address"
                             className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-[#171717] font-bold text-xs"
                           />
                         </div>
                       )}
+
+                      <label className="flex items-center gap-2 pt-1 text-xs font-bold text-neutral-800 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          data-testid="admin-show-checkout-coupons-checkbox"
+                          checked={settingsForm.showCheckoutCoupons !== false}
+                          onChange={e => setSettingsForm(prev => ({ ...prev, showCheckoutCoupons: e.target.checked }))}
+                          className="w-4 h-4 accent-[#D71920]"
+                        />
+                        <span>Show Quick Coupon Suggestions on Checkout Page</span>
+                      </label>
                     </div>
 
                     {/* Bangla QR (বাংলা কিউআর) Settings */}

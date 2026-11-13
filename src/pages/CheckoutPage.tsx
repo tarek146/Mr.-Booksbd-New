@@ -20,11 +20,35 @@ import {
   evaluateCoupon,
   resolveActiveCoupons,
 } from '../utils/storeEnhancementsHelpers';
-import { Truck, CreditCard, Check, ArrowLeft, ArrowRight, Phone, RotateCcw, Search, Sparkles, Tag, TicketPercent, X, CheckCircle2, AlertCircle } from 'lucide-react';
+import {
+  Check,
+  ArrowLeft,
+  ArrowRight,
+  RotateCcw,
+  Search,
+  X,
+  CheckCircle2,
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
+  ShoppingBag,
+} from 'lucide-react';
 
 const BANGLADESH_DISTRICTS = [
-  'Dhaka', 'Sub Area', 'Gazipur', 'Narayanganj', 'Chittagong', 'Sylhet', 'Rajshahi', 
-  'Khulna', 'Barisal', 'Rangpur', 'Mymensingh', 'Comilla', 'Cox\'s Bazar', 'Bogura'
+  'Dhaka',
+  'Sub Area',
+  'Gazipur',
+  'Narayanganj',
+  'Chittagong',
+  'Sylhet',
+  'Rajshahi',
+  'Khulna',
+  'Barisal',
+  'Rangpur',
+  'Mymensingh',
+  'Comilla',
+  "Cox's Bazar",
+  'Bogura',
 ];
 
 export function CheckoutPage() {
@@ -62,6 +86,9 @@ export function CheckoutPage() {
   const [isSearchingOldAddress, setIsSearchingOldAddress] = useState(false);
   const [lookupError, setLookupError] = useState('');
 
+  // Mobile collapsible Order Summary toggle
+  const [mobileSummaryOpen, setMobileSummaryOpen] = useState(false);
+
   // Check for saved delivery address from local storage on mount or recent user order
   useEffect(() => {
     try {
@@ -78,7 +105,6 @@ export function CheckoutPage() {
       // Storage access check
     }
 
-    // Fallback: check if logged-in user has previous orders
     if (currentUser?.uid && orders.length > 0) {
       const pastOrder = orders.find(
         o => o.userId === currentUser.uid || (currentUser.email && o.email === currentUser.email)
@@ -92,7 +118,7 @@ export function CheckoutPage() {
           district: pastOrder.district || 'Dhaka',
           city: pastOrder.city || '',
           address: pastOrder.address || '',
-          customerNote: ''
+          customerNote: '',
         });
       }
     }
@@ -169,7 +195,6 @@ export function CheckoutPage() {
       return;
     }
 
-    // If logged in, check past orders
     if (currentUser?.uid && orders.length > 0) {
       const pastOrder = orders.find(
         o => o.userId === currentUser.uid || (currentUser.email && o.email === currentUser.email)
@@ -183,25 +208,26 @@ export function CheckoutPage() {
           district: pastOrder.district || 'Dhaka',
           city: pastOrder.city || '',
           address: pastOrder.address || '',
-          customerNote: ''
+          customerNote: '',
         };
         setSavedAddressData(obj);
         applyAddressObj(obj);
         try {
           localStorage.setItem('mrb_last_delivery_address', JSON.stringify(obj));
-        } catch {}
+        } catch {
+          // ignore
+        }
         return;
       }
     }
 
-    // If no saved address found on this browser, show phone number lookup
     setShowPhoneLookup(true);
   };
 
   const handleLookupByPhone = async () => {
     const rawDigits = lookupPhone.replace(/[^0-9]/g, '');
     if (rawDigits.length < 10) {
-      setLookupError('অনুগ্রহ করে সঠিক ১১ ডিজিটের মোবাইল নম্বর লিখুন (e.g. 017XXXXXXXX)।');
+      setLookupError('Please enter a valid 11-digit mobile number (e.g. 017XXXXXXXX).');
       return;
     }
     setIsSearchingOldAddress(true);
@@ -217,24 +243,25 @@ export function CheckoutPage() {
           district: found.district || 'Dhaka',
           city: found.city || '',
           address: found.address || '',
-          customerNote: ''
+          customerNote: '',
         };
         setSavedAddressData(obj);
         applyAddressObj(obj);
         try {
           localStorage.setItem('mrb_last_delivery_address', JSON.stringify(obj));
-        } catch {}
+        } catch {
+          // ignore
+        }
         setShowPhoneLookup(false);
       } else {
-        setLookupError('এই নম্বরে কোনো পূর্ববর্তী অর্ডারের ঠিকানা পাওয়া যায়নি। নিচের বক্সে নতুন ঠিকানা পূরণ করুন।');
+        setLookupError('No previous order found for this number. Please fill in your details below.');
       }
     } catch {
-      setLookupError('তথ্য লোড করতে সাময়িক সমস্যা হয়েছে। দয়া করে ম্যানুয়ালি লিখুন।');
+      setLookupError('Could not load saved address right now. Please enter manually.');
     } finally {
       setIsSearchingOldAddress(false);
     }
   };
-
 
   // Payment Verification & Popup Modal State
   const [transactionId, setTransactionId] = useState('');
@@ -323,16 +350,6 @@ export function CheckoutPage() {
     }
   };
 
-  // Calculate form completion percentage parameter (25% each for Name, Phone, Address, District/City)
-  const completionPercentage = useMemo(() => {
-    let score = 0;
-    if (name.trim().length >= 2) score += 25;
-    if (/^(\+?8801|01)[3-9]\d{8}$/.test(phone.trim().replace(/[\s-]/g, ''))) score += 25;
-    if (district) score += 25;
-    if (address.trim().length >= 5) score += 25;
-    return score;
-  }, [name, phone, district, address]);
-
   // Coupon Input State synced with StoreContext
   const [couponInput, setCouponInput] = useState(appliedCouponCode || '');
   const [couponFeedback, setCouponFeedback] = useState<{ valid: boolean; text: string } | null>(null);
@@ -403,12 +420,18 @@ export function CheckoutPage() {
     }
 
     if (!primaryPhoneCheck.valid) {
-      setErrorMsg(primaryPhoneCheck.error || 'Please enter a valid 11-digit Bangladesh mobile number (e.g. 01712345678).');
+      setErrorMsg(
+        primaryPhoneCheck.error ||
+          'Please enter a valid 11-digit Bangladesh mobile number (e.g. 01712345678).'
+      );
       return;
     }
 
     if (!optionalPhoneCheck.valid) {
-      setErrorMsg(optionalPhoneCheck.error || 'Please enter a valid 11-digit optional mobile number or leave it blank.');
+      setErrorMsg(
+        optionalPhoneCheck.error ||
+          'Please enter a valid 11-digit alternate mobile number or leave it blank.'
+      );
       return;
     }
 
@@ -420,12 +443,18 @@ export function CheckoutPage() {
       return;
     }
 
-    if (deliveryType === 'sundarban' && settings.sundarbanForcesPrepayment !== false && selectedMethod?.type === 'cod') {
-      setErrorMsg('Sundarban Courier Delivery requires advance online payment (bKash/Nagad/Card). Cash on Delivery is disabled for Sundarban.');
+    if (
+      deliveryType === 'sundarban' &&
+      settings.sundarbanForcesPrepayment !== false &&
+      selectedMethod?.type === 'cod'
+    ) {
+      setErrorMsg(
+        'Sundarban Courier Delivery requires advance online payment (bKash/Nagad/Rocket/Bank). Cash on Delivery is disabled for Sundarban.'
+      );
       return;
     }
 
-    // For online/manual payment methods, ensure the user submitted their transaction details via the popup Done button
+    // For online/manual payment methods, ensure the user submitted transaction details via popup Done button
     if (selectedMethod && selectedMethod.type !== 'cod') {
       const popupCheck = validatePaymentTransactionPopup(
         selectedMethod.type,
@@ -436,7 +465,7 @@ export function CheckoutPage() {
         setIsPaymentModalOpen(true);
         setErrorMsg(
           popupCheck.error ||
-            'অনুগ্রহ করে পপআপে ট্রানজেকশন তথ্য পূরণ করে "Done" বাটনে ক্লিক করুন, তারপর অর্ডার কনফার্ম করুন।'
+            'Please complete the payment details and click Done in the payment modal before confirming your order.'
         );
         return;
       }
@@ -449,12 +478,15 @@ export function CheckoutPage() {
 
     setLoading(true);
     try {
-      const deliveryLabel = deliveryType === 'sundarban' ? 'Sundarban Courier (Prepaid)' : 'Standard Home Delivery';
+      const deliveryLabel =
+        deliveryType === 'sundarban' ? 'Sundarban Courier (Prepaid)' : 'Standard Home Delivery';
       const fullNotes = [
         customerNote.trim() ? `Customer Note: ${customerNote.trim()}` : '',
         cleanOptionalPhone ? `Alt Phone: ${cleanOptionalPhone}` : '',
-        `Delivery Method: ${deliveryLabel}`
-      ].filter(Boolean).join(' | ');
+        `Delivery Method: ${deliveryLabel}`,
+      ]
+        .filter(Boolean)
+        .join(' | ');
 
       const resolvedPaymentMethodName =
         selectedMethod.type !== 'cod' && selectedSubOptionLabel
@@ -462,7 +494,7 @@ export function CheckoutPage() {
           : selectedMethod.name;
 
       const orderId = await createOrder({
-        userId: currentUser?.uid || ('guest-' + Date.now()),
+        userId: currentUser?.uid || 'guest-' + Date.now(),
         customerName: cleanName,
         phone: cleanPhone,
         ...(cleanOptionalPhone ? { optionalPhone: cleanOptionalPhone } : {}),
@@ -478,7 +510,7 @@ export function CheckoutPage() {
         ...(appliedCouponCode ? { couponCode: appliedCouponCode } : {}),
         total,
         paymentMethodId: selectedMethod.id,
-        paymentMethodName: resolvedPaymentMethodName
+        paymentMethodName: resolvedPaymentMethodName,
       });
 
       // Save delivery address to localStorage for returning customer autofill
@@ -491,7 +523,7 @@ export function CheckoutPage() {
           district,
           city: city.trim(),
           address: cleanAddress,
-          customerNote: customerNote.trim()
+          customerNote: customerNote.trim(),
         };
         localStorage.setItem('mrb_last_delivery_address', JSON.stringify(addrToSave));
         setSavedAddressData(addrToSave);
@@ -499,19 +531,18 @@ export function CheckoutPage() {
         console.warn('Could not cache address:', storageErr);
       }
 
-      // If online payment is selected and transaction details are provided, submit proof immediately
       if (selectedMethod?.type !== 'cod' && transactionId.trim() && senderNumber.trim()) {
         try {
           await submitPaymentProof({
             orderId,
-            userId: currentUser?.uid || ('guest-' + Date.now()),
+            userId: currentUser?.uid || 'guest-' + Date.now(),
             customerName: cleanName,
             customerPhone: cleanPhone,
             providerId: selectedMethod.id,
             providerName: resolvedPaymentMethodName,
             transactionReference: transactionId.trim(),
             senderIdentifier: senderNumber.trim(),
-            claimedAmount: total
+            claimedAmount: total,
           });
         } catch (proofErr) {
           console.warn('Payment proof submission deferred:', proofErr);
@@ -526,111 +557,136 @@ export function CheckoutPage() {
     }
   };
 
+  const totalItemUnits = useMemo(
+    () => cart.reduce((sum, item) => sum + item.quantity, 0),
+    [cart]
+  );
+
+  const inputClass =
+    'w-full h-10 px-3 rounded-lg border border-neutral-200 dark:border-slate-700 bg-white dark:bg-[#0E1420] text-sm text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:border-[#D71920] transition-colors';
+  const labelClass = 'block text-xs font-medium text-neutral-700 dark:text-slate-300 mb-1.5';
+
   return (
-    <div className="min-h-screen bg-white transition-colors py-10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between mb-6">
-          <button 
+    <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0B0F17] py-6 sm:py-9 transition-colors">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-5">
+        {/* Clean Minimal Checkout Header */}
+        <div className="flex items-center justify-between gap-4">
+          <button
+            type="button"
             onClick={() => setActivePage('cart')}
-            className="flex items-center gap-1.5 text-xs font-bold text-[#5F6368] hover:text-[#D71920] transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-neutral-600 dark:text-slate-400 hover:text-[#D71920] transition-colors cursor-pointer"
           >
-            <ArrowLeft size={16} /> Back to Cart
+            <ArrowLeft size={15} />
+            <span>Back to Cart</span>
           </button>
+
+          <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-slate-400">
+            <span className="font-semibold text-neutral-900 dark:text-white">Checkout</span>
+            <span aria-hidden="true">·</span>
+            <span className="tabular-nums">
+              {totalItemUnits} {totalItemUnits === 1 ? 'item' : 'items'}
+            </span>
+          </div>
         </div>
 
-        <form onSubmit={handlePlaceOrder} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left Column (7 cols): Address, Delivery Options & Payment Methods */}
-          <div className="lg:col-span-7 space-y-6">
-            
-            {/* Delivery Address Card */}
-            <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 sm:p-8 shadow-xs space-y-5">
-              <div className="flex items-center justify-between gap-3 pb-4 border-b border-[#EEEEEE] flex-wrap">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-[#FFF1F2] text-[#D71920] rounded-xl flex items-center justify-center">
-                    <Truck size={20} />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-black text-[#171717]">Delivery Address</h2>
-                    <p className="text-xs text-[#5F6368]">Where should we deliver your book parcel?</p>
-                  </div>
-                </div>
+        {/* Mobile & Tablet Compact Summary Toggle (< lg) */}
+        <div className="lg:hidden rounded-xl border border-neutral-200 dark:border-slate-800 bg-white dark:bg-[#121722] overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setMobileSummaryOpen(prev => !prev)}
+            data-testid="mobile-summary-toggle"
+            className="w-full px-4 py-3 flex items-center justify-between text-xs font-medium text-neutral-800 dark:text-slate-200 cursor-pointer"
+          >
+            <span className="inline-flex items-center gap-2">
+              <ShoppingBag size={14} className="text-[#D71920]" />
+              <span>{mobileSummaryOpen ? 'Hide order summary' : 'Show order summary'}</span>
+              {mobileSummaryOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </span>
+            <span className="font-bold text-sm text-[#D71920] tabular-nums">৳{total}</span>
+          </button>
 
-                {/* Checkout Form Completion Parameter Bar */}
-                <div className="bg-neutral-100 border border-neutral-200 px-3.5 py-1.5 rounded-2xl flex items-center gap-2.5">
-                  <div className="text-[11px] font-bold text-neutral-700">
-                    Form Completion: <span className="text-[#D71920] font-black">{completionPercentage}%</span>
-                  </div>
-                  <div className="w-24 sm:w-28 h-2 bg-neutral-200 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-[#D71920] transition-all duration-300 rounded-full"
-                      style={{ width: `${completionPercentage}%` }}
-                    ></div>
-                  </div>
+          {mobileSummaryOpen && (
+            <div className="px-4 pb-3 pt-2 border-t border-neutral-100 dark:border-slate-800 space-y-2 text-xs">
+              {cart.map(item => (
+                <div key={item.variantId} className="flex items-center justify-between gap-2">
+                  <span className="text-neutral-700 dark:text-slate-300 truncate">
+                    {item.title} ({item.variantName}) × {item.quantity}
+                  </span>
+                  <span className="font-medium text-neutral-900 dark:text-white tabular-nums shrink-0">
+                    ৳{item.price * item.quantity}
+                  </span>
                 </div>
+              ))}
+              <div className="pt-2 border-t border-neutral-100 dark:border-slate-800 flex justify-between text-neutral-500 dark:text-slate-400">
+                <span>Delivery ({deliveryType === 'sundarban' ? 'Sundarban' : district})</span>
+                <span className="tabular-nums">{hasFreeDelivery ? 'Free' : `৳${deliveryCharge}`}</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <form onSubmit={handlePlaceOrder} className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+          {/* LEFT COLUMN (7 cols): Single Structured Container with Hairline Dividers */}
+          <div className="lg:col-span-7 bg-white dark:bg-[#121722] border border-neutral-200 dark:border-slate-800 rounded-xl divide-y divide-neutral-200 dark:divide-slate-800">
+            {/* 1. Delivery Information */}
+            <section className="p-5 sm:p-6 space-y-4">
+              <div>
+                <h1 className="text-base font-semibold text-neutral-900 dark:text-white">
+                  Delivery Details
+                </h1>
+                <p className="text-xs text-neutral-500 dark:text-slate-400 mt-0.5">
+                  Enter your contact number and address for courier delivery.
+                </p>
               </div>
 
-              {/* Returning Customer Address Autofill Banner / Action Button */}
+              {/* Quiet Returning Customer Quick-Fill Bar */}
               {settings.enableUseOldAddress !== false && (
-                <div className="bg-linear-to-r from-red-50/70 via-amber-50/50 to-neutral-50/80 border border-red-200/80 rounded-2xl p-3.5 sm:p-4 shadow-2xs">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-start sm:items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-white border border-red-200 text-[#D71920] flex items-center justify-center shrink-0 shadow-2xs">
-                        <RotateCcw size={17} />
+                <div className="rounded-lg border border-neutral-200 dark:border-slate-700 bg-neutral-50/70 dark:bg-slate-800/40 px-3.5 py-2.5 space-y-2.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold text-neutral-900 dark:text-white">
+                        Ordered before?
                       </div>
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-black text-neutral-900">
-                            পুরান কাস্টমার? (Returning Customer)
-                          </span>
-                          {hasSavedAddress && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1">
-                              <Check size={10} /> সেভড অ্যাড্রেস প্রস্তুত
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-neutral-600 mt-0.5">
-                          {savedAddressPreview 
-                            ? `সংরক্ষিত ঠিকানা: ${savedAddressPreview}` 
-                            : 'এক ক্লিকে আপনার পূর্বের নাম, মোবাইল ও ডেলিভারি ঠিকানা পূরণ করুন।'}
-                        </p>
-                      </div>
+                      <p className="text-[11px] text-neutral-500 dark:text-slate-400 truncate mt-0.5">
+                        {savedAddressPreview
+                          ? savedAddressPreview
+                          : 'Fill your previous name, phone and address in one click.'}
+                      </p>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0 self-stretch sm:self-auto">
+                    <div className="flex items-center gap-2 shrink-0">
                       <button
                         type="button"
                         onClick={handleApplyOldAddress}
-                        className="flex-1 sm:flex-initial px-4 py-2.5 bg-[#D71920] hover:bg-[#B9151B] active:scale-95 text-white rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer"
+                        className="px-3 py-1.5 rounded-lg border border-neutral-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-[#D71920] hover:text-[#D71920] text-neutral-800 dark:text-slate-200 text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
                       >
-                        <RotateCcw size={14} className={isSearchingOldAddress ? 'animate-spin' : ''} />
-                        <span>{settings.oldAddressButtonLabel || 'ইউজ ওল্ড এড্রেস (সেম অ্যাড্রেস)'}</span>
+                        <RotateCcw size={12} className={isSearchingOldAddress ? 'animate-spin' : ''} />
+                        <span>{settings.oldAddressButtonLabel || 'Use Saved Address'}</span>
                       </button>
 
                       {!hasSavedAddress && !showPhoneLookup && (
                         <button
                           type="button"
                           onClick={() => setShowPhoneLookup(true)}
-                          title="আগের মোবাইল নম্বর দিয়ে খুঁজুন"
-                          className="px-3 py-2.5 bg-white hover:bg-neutral-100 border border-neutral-300 text-neutral-700 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+                          className="px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-neutral-50 text-neutral-600 dark:text-slate-300 text-xs font-medium inline-flex items-center gap-1 cursor-pointer transition-colors whitespace-nowrap"
                         >
-                          <Search size={13} />
-                          <span className="hidden sm:inline">নম্বর দিয়ে খুঁজুন</span>
+                          <Search size={12} />
+                          <span>Find by Phone</span>
                         </button>
                       )}
                     </div>
                   </div>
 
-                  {/* Inline Phone Lookup Modal/Box when no address in local storage */}
                   {showPhoneLookup && (
-                    <div className="mt-3 pt-3 border-t border-neutral-200/90 space-y-2">
-                      <div className="flex items-center justify-between text-xs font-bold text-neutral-800">
-                        <span>পূর্বে অর্ডার করা ফোন নম্বর দিয়ে ঠিকানা লোড করুন:</span>
+                    <div className="pt-2.5 border-t border-neutral-200 dark:border-slate-700 space-y-2">
+                      <div className="flex items-center justify-between text-xs font-medium text-neutral-700 dark:text-slate-300">
+                        <span>Enter your previous order phone number</span>
                         <button
                           type="button"
                           onClick={() => setShowPhoneLookup(false)}
-                          className="text-neutral-500 hover:text-neutral-800 text-[11px] cursor-pointer"
+                          className="text-neutral-500 hover:text-neutral-900 dark:hover:text-white text-[11px] cursor-pointer"
                         >
-                          ✕ বন্ধ করুন
+                          Cancel
                         </button>
                       </div>
                       <div className="flex gap-2">
@@ -640,280 +696,312 @@ export function CheckoutPage() {
                           onChange={e => setLookupPhone(e.target.value)}
                           onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleLookupByPhone())}
                           placeholder="017XXXXXXXX"
-                          className="flex-1 px-3 py-2 rounded-xl border border-neutral-300 text-xs bg-white text-[#171717] focus:outline-none focus:border-[#D71920]"
+                          className="flex-1 h-9 px-3 rounded-lg border border-neutral-300 dark:border-slate-600 text-xs bg-white dark:bg-[#0E1420] text-neutral-900 dark:text-white focus:outline-none focus:border-[#D71920]"
                         />
                         <button
                           type="button"
                           onClick={handleLookupByPhone}
                           disabled={isSearchingOldAddress}
-                          className="px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                          className="px-3.5 h-9 bg-neutral-900 dark:bg-[#D71920] hover:bg-neutral-800 text-white rounded-lg text-xs font-medium cursor-pointer disabled:opacity-50 whitespace-nowrap"
                         >
-                          {isSearchingOldAddress ? 'খোঁজা হচ্ছে...' : 'খুঁজুন ও পূরণ করুন'}
+                          {isSearchingOldAddress ? 'Searching...' : 'Load Address'}
                         </button>
                       </div>
                       {lookupError && (
-                        <p className="text-[11px] text-red-600 font-bold bg-red-50 p-2 rounded-lg border border-red-200">
+                        <p className="text-[11px] text-red-600 dark:text-red-400 font-medium">
                           {lookupError}
                         </p>
                       )}
                     </div>
                   )}
 
-                  {/* Address auto-filled confirmation feedback */}
                   {addressAutoFilled && (
-                    <div className="mt-3 px-3.5 py-2 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2 animate-in fade-in">
-                      <Check size={14} className="text-emerald-600 shrink-0" />
-                      <span>পূর্বের ডেলিভারি ঠিকানা সফলভাবে পূরণ করা হয়েছে! (Old address auto-filled)</span>
+                    <div className="pt-2 border-t border-neutral-200 dark:border-slate-700 text-emerald-700 dark:text-emerald-400 text-xs font-medium flex items-center gap-1.5">
+                      <Check size={13} className="shrink-0" />
+                      <span>Saved delivery address filled in.</span>
                     </div>
                   )}
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Name & Email */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#5F6368] mb-1">
-                    Full Name *
+                  <label htmlFor="checkout-name" className={labelClass}>
+                    Full Name <span className="text-[#D71920]">*</span>
                   </label>
-                  <input 
-                    type="text" 
-                    required 
-                    value={name} 
+                  <input
+                    id="checkout-name"
+                    type="text"
+                    required
+                    value={name}
                     onChange={e => setName(e.target.value)}
                     placeholder="e.g. Abdullah Al Mamun"
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-sm text-[#171717] focus:outline-none focus:border-[#D71920]"
+                    className={inputClass}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#5F6368] mb-1">
-                    Email Address (Optional)
+                  <label htmlFor="checkout-email" className={labelClass}>
+                    Email <span className="text-neutral-400 font-normal">(Optional)</span>
                   </label>
-                  <input 
-                    type="email" 
-                    value={email} 
+                  <input
+                    id="checkout-email"
+                    type="email"
+                    value={email}
                     onChange={e => setEmail(e.target.value)}
                     placeholder="name@example.com"
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-sm text-[#171717] focus:outline-none focus:border-[#D71920]"
+                    className={inputClass}
                   />
                 </div>
               </div>
 
-              {/* Primary Phone & Optional Secondary Phone Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end p-3.5 rounded-2xl bg-[#FAFAFA] border border-[#EEEEEE]">
+              {/* Primary Phone & Alternate Phone */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-[#171717] mb-1.5 flex items-center gap-1.5">
-                    <Phone size={12} className="text-[#D71920] shrink-0" />
-                    <span>Mobile Phone Number *</span>
+                  <label htmlFor="checkout-phone" className={labelClass}>
+                    Mobile Number <span className="text-[#D71920]">*</span>
                   </label>
-                  <input 
-                    type="tel" 
-                    required 
-                    value={phone} 
+                  <input
+                    id="checkout-phone"
+                    type="tel"
+                    required
+                    value={phone}
                     onChange={e => setPhone(e.target.value)}
-                    placeholder="017XXXXXXXX (Primary)"
+                    placeholder="017XXXXXXXX"
                     aria-label="Mobile Phone Number"
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-sm text-[#171717] font-medium focus:outline-none focus:border-[#D71920]"
+                    className={inputClass}
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-[#5F6368] mb-1.5 flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-1.5 truncate">
-                      <Phone size={12} className="text-neutral-400 shrink-0" />
-                      <span className="truncate">Optional Phone (অপশনাল নাম্বার)</span>
-                    </span>
-                    <span className="text-[10px] font-semibold bg-neutral-200/80 text-neutral-600 px-1.5 py-0.5 rounded shrink-0">Optional</span>
+                  <label htmlFor="checkout-alt-phone" className={labelClass}>
+                    Alternate Phone <span className="text-neutral-400 font-normal">(Optional)</span>
                   </label>
-                  <input 
-                    type="tel" 
-                    value={optionalPhone} 
+                  <input
+                    id="checkout-alt-phone"
+                    type="tel"
+                    value={optionalPhone}
                     onChange={e => setOptionalPhone(e.target.value)}
-                    placeholder="018XXXXXXXX (বিকল্প নাম্বার - অপশনাল)"
+                    placeholder="018XXXXXXXX"
                     aria-label="Optional Phone Number"
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-sm text-[#171717] font-medium focus:outline-none focus:border-[#D71920]"
+                    className={inputClass}
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* District & Area/Thana */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#5F6368] mb-1">
-                    District *
+                  <label htmlFor="checkout-district" className={labelClass}>
+                    District <span className="text-[#D71920]">*</span>
                   </label>
-                  <select 
-                    value={district} 
+                  <select
+                    id="checkout-district"
+                    value={district}
                     onChange={e => setDistrict(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-sm text-[#171717] focus:outline-none focus:border-[#D71920]"
+                    className={inputClass}
                   >
                     {BANGLADESH_DISTRICTS.map(d => (
-                      <option key={d} value={d}>{d}</option>
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#5F6368] mb-1">
-                    Thana / City / Area *
+                  <label htmlFor="checkout-city" className={labelClass}>
+                    Thana / Area <span className="text-[#D71920]">*</span>
                   </label>
-                  <input 
-                    type="text" 
-                    required 
-                    value={city} 
+                  <input
+                    id="checkout-city"
+                    type="text"
+                    required
+                    value={city}
                     onChange={e => setCity(e.target.value)}
                     placeholder="e.g. Mirpur, Dhaka"
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-sm text-[#171717] focus:outline-none focus:border-[#D71920]"
+                    className={inputClass}
                   />
                 </div>
               </div>
 
+              {/* Full Street Address */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#5F6368] mb-1">
-                  Full Street Address & Landmark *
+                <label htmlFor="checkout-address" className={labelClass}>
+                  Street Address &amp; Landmark <span className="text-[#D71920]">*</span>
                 </label>
-                <textarea 
-                  rows={2} 
-                  required 
-                  value={address} 
+                <textarea
+                  id="checkout-address"
+                  rows={2}
+                  required
+                  value={address}
                   onChange={e => setAddress(e.target.value)}
-                  placeholder="House number, Road number, Flat, Landmark"
-                  className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-sm text-[#171717] focus:outline-none focus:border-[#D71920]"
-                ></textarea>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#5F6368] mb-1">
-                  Customer Note (কাস্টমার নোট - Optional)
-                </label>
-                <input 
-                  type="text" 
-                  value={customerNote} 
-                  onChange={e => setCustomerNote(e.target.value)}
-                  placeholder="Any special instruction for delivery..."
-                  className="w-full px-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-sm text-[#171717] focus:outline-none focus:border-[#D71920]"
+                  placeholder="House, road, flat number or nearby landmark"
+                  className="w-full px-3 py-2 rounded-lg border border-neutral-200 dark:border-slate-700 bg-white dark:bg-[#0E1420] text-sm text-neutral-900 dark:text-white placeholder:text-neutral-400 focus:outline-none focus:border-[#D71920] resize-none transition-colors"
                 />
               </div>
-            </div>
 
-            {/* Delivery Method Selection: Standard vs Sundarban Courier */}
-            <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
-              <div className="flex items-center gap-3 pb-3 border-b border-[#EEEEEE]">
-                <div className="w-10 h-10 bg-[#FFF1F2] text-[#D71920] rounded-xl flex items-center justify-center">
-                  <Truck size={20} />
-                </div>
-                <div>
-                  <h2 className="text-lg font-black text-[#171717]">Select Delivery Method</h2>
-                  <p className="text-xs text-[#5F6368]">Choose between Standard Home Delivery or Sundarban Courier</p>
-                </div>
+              {/* Optional Delivery Note */}
+              <div>
+                <label htmlFor="checkout-note" className={labelClass}>
+                  Delivery Note <span className="text-neutral-400 font-normal">(Optional)</span>
+                </label>
+                <input
+                  id="checkout-note"
+                  type="text"
+                  value={customerNote}
+                  onChange={e => setCustomerNote(e.target.value)}
+                  placeholder="Any special instruction for delivery..."
+                  className={inputClass}
+                />
               </div>
+            </section>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div 
-                  onClick={() => handleDeliveryTypeChange('standard')}
-                  className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between ${
-                    deliveryType === 'standard' ? 'border-[#D71920] bg-[#FFF1F2] shadow-xs' : 'border-[#E5E5E5] bg-white hover:border-zinc-400'
-                  }`}
-                >
-                  <div>
-                    <h4 className="font-bold text-sm text-[#171717]">Standard Home Delivery</h4>
-                    <p className="text-[11px] text-[#5F6368]">Inside/Outside Dhaka (COD available)</p>
-                  </div>
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                    deliveryType === 'standard' ? 'border-[#D71920] bg-[#D71920] text-white' : 'border-[#CCCCCC]'
-                  }`}>
-                    {deliveryType === 'standard' && <div className="w-2 h-2 bg-white rounded-full"></div>}
-                  </div>
-                </div>
-
-                <div 
-                  onClick={() => handleDeliveryTypeChange('sundarban')}
-                  className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between ${
-                    deliveryType === 'sundarban' ? 'border-[#D71920] bg-[#FFF1F2] shadow-xs' : 'border-[#E5E5E5] bg-white hover:border-zinc-400'
-                  }`}
-                >
-                  <div>
-                    <h4 className="font-bold text-sm text-[#171717]">Sundarban Courier Delivery</h4>
-                    <p className="text-[11px] text-[#5F6368]">Prepayment required (COD disabled)</p>
-                  </div>
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                    deliveryType === 'sundarban' ? 'border-[#D71920] bg-[#D71920] text-white' : 'border-[#CCCCCC]'
-                  }`}>
-                    {deliveryType === 'sundarban' && <div className="w-2 h-2 bg-white rounded-full"></div>}
-                  </div>
-                </div>
-              </div>
-
-              {deliveryType === 'sundarban' && (
-                <div className="p-3.5 bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl text-xs font-semibold leading-relaxed space-y-1">
-                  <p className="font-bold">⚠️ Sundarban Courier Notice:</p>
-                  <p>{settings.deliveryNote || 'সুন্দরবন কুরিয়ার সার্ভিসের ক্ষেত্রে সম্পূর্ণ পেমেন্ট অগ্রিম প্রযোজ্য। ক্যাশ অন ডেলিভারি প্রযোজ্য নয়।'}</p>
-                </div>
-              )}
-            </div>
-
-            {/* Payment Method Selection (Ordered: COD -> bKash -> Nagad -> Rocket -> Others) */}
-            <div className="bg-white border border-[#E5E5E5] rounded-3xl p-6 sm:p-8 shadow-xs space-y-5">
-              <div className="space-y-1 pb-3 border-b border-[#EEEEEE]">
-                <div className="flex items-center gap-2.5">
-                  <CreditCard size={20} className="text-[#F15A24] shrink-0" />
-                  <h2 className="text-lg font-black text-[#171717]">Select Payment Method</h2>
-                </div>
-                <p className="text-xs text-[#5F6368]">
-                  {deliveryType === 'sundarban'
-                    ? 'Select Online Payment Method (Sundarban Courier requires advance payment)'
-                    : 'Cash on Delivery or Mobile Banking (bKash / Nagad / Rocket)'}
+            {/* 2. Delivery Method */}
+            <section className="p-5 sm:p-6 space-y-3.5">
+              <div>
+                <h2 className="text-base font-semibold text-neutral-900 dark:text-white">
+                  Delivery Method
+                </h2>
+                <p className="text-xs text-neutral-500 dark:text-slate-400 mt-0.5">
+                  Choose home delivery or Sundarban courier pickup.
                 </p>
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleDeliveryTypeChange('standard')}
+                  className={`p-3.5 rounded-lg border text-left transition-colors flex items-center justify-between gap-3 cursor-pointer ${
+                    deliveryType === 'standard'
+                      ? 'border-[#D71920] bg-[#FFF1F2]/50 dark:bg-[#D71920]/10'
+                      : 'border-neutral-200 dark:border-slate-700 bg-white dark:bg-[#121722] hover:border-neutral-300'
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <div className="font-semibold text-sm text-neutral-900 dark:text-white">
+                      Standard Home Delivery
+                    </div>
+                    <div className="text-xs text-neutral-500 dark:text-slate-400 mt-0.5">
+                      Inside / Outside Dhaka · COD available
+                    </div>
+                  </div>
+                  <div
+                    className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                      deliveryType === 'standard'
+                        ? 'border-[#D71920] bg-[#D71920]'
+                        : 'border-neutral-300 dark:border-slate-600'
+                    }`}
+                  >
+                    {deliveryType === 'standard' && (
+                      <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                    )}
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleDeliveryTypeChange('sundarban')}
+                  className={`p-3.5 rounded-lg border text-left transition-colors flex items-center justify-between gap-3 cursor-pointer ${
+                    deliveryType === 'sundarban'
+                      ? 'border-[#D71920] bg-[#FFF1F2]/50 dark:bg-[#D71920]/10'
+                      : 'border-neutral-200 dark:border-slate-700 bg-white dark:bg-[#121722] hover:border-neutral-300'
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <div className="font-semibold text-sm text-neutral-900 dark:text-white">
+                      Sundarban Courier
+                    </div>
+                    <div className="text-xs text-neutral-500 dark:text-slate-400 mt-0.5">
+                      Courier pickup · Advance payment required
+                    </div>
+                  </div>
+                  <div
+                    className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                      deliveryType === 'sundarban'
+                        ? 'border-[#D71920] bg-[#D71920]'
+                        : 'border-neutral-300 dark:border-slate-600'
+                    }`}
+                  >
+                    {deliveryType === 'sundarban' && (
+                      <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                    )}
+                  </div>
+                </button>
+              </div>
+
+              {deliveryType === 'sundarban' && (
+                <div className="rounded-lg border border-amber-200 dark:border-amber-800/60 bg-amber-50/70 dark:bg-amber-950/20 px-3.5 py-2.5 text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
+                  <span className="font-semibold">Sundarban Courier Note:</span>{' '}
+                  {settings.deliveryNote ||
+                    'Sundarban courier orders require advance online payment. Cash on Delivery is unavailable.'}
+                </div>
+              )}
+            </section>
+
+            {/* 3. Payment Method */}
+            <section className="p-5 sm:p-6 space-y-3.5">
+              <div>
+                <h2 className="text-base font-semibold text-neutral-900 dark:text-white">
+                  Payment Method
+                </h2>
+                <p className="text-xs text-neutral-500 dark:text-slate-400 mt-0.5">
+                  {deliveryType === 'sundarban'
+                    ? 'Select an online payment method to complete your courier order.'
+                    : 'Choose Cash on Delivery or mobile banking (bKash, Nagad, Rocket).'}
+                </p>
+              </div>
+
+              {/* Clean 2-col (mobile) / 3-col (tablet & desktop) grid with zero title truncation */}
               <div
                 data-testid="payment-methods-grid"
-                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 pt-1"
+                className="grid grid-cols-2 sm:grid-cols-3 gap-2.5"
               >
                 {sortedPaymentMethods.map(method => {
                   const isSelected = selectedPaymentId === method.id;
                   const meta = getPaymentMethodDisplayMeta(method);
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={method.id}
                       data-testid={`payment-card-${method.type}`}
                       onClick={() => handleSelectPaymentMethod(method)}
-                      className={`relative p-2.5 rounded-xl border-2 cursor-pointer transition-all flex flex-col justify-between gap-2 ${
+                      className={`relative p-3 rounded-lg border text-left transition-colors flex flex-col justify-between gap-2 cursor-pointer ${
                         isSelected
-                          ? 'border-[#D71920] bg-[#FFF1F2]/70 shadow-2xs ring-2 ring-[#D71920]/10'
-                          : 'border-slate-200/90 bg-white hover:border-slate-300'
+                          ? 'border-[#D71920] bg-[#FFF1F2]/50 dark:bg-[#D71920]/10'
+                          : 'border-neutral-200 dark:border-slate-700 bg-white dark:bg-[#121722] hover:border-neutral-300'
                       }`}
                     >
-                      {/* Optional Top-right Promo Badge (only if set from Admin Panel) */}
-                      {meta.badgeText && (
-                        <span className="absolute -top-2 right-2 px-1.5 py-0.5 rounded-full bg-gradient-to-r from-[#FF8A00] via-[#F15A24] to-[#E2136E] text-white text-[9px] font-black tracking-wide shadow-2xs flex items-center gap-0.5 z-10">
-                          <span>🔥</span>
-                          <span>{meta.badgeText}</span>
-                        </span>
-                      )}
-
-                      <div className="flex items-center justify-between gap-1.5">
+                      <div className="flex items-center justify-between gap-2 w-full">
                         <PaymentBrandIcon method={method} size="sm" />
                         <div
-                          className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                          className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition-colors ${
                             isSelected
                               ? 'border-[#D71920] bg-[#D71920] text-white'
-                              : 'border-slate-300 bg-white'
+                              : 'border-neutral-300 dark:border-slate-600 bg-white dark:bg-slate-800'
                           }`}
                         >
                           {isSelected && <Check size={10} strokeWidth={3} />}
                         </div>
                       </div>
 
-                      <div className="min-w-0">
-                        <h4 className="font-black text-xs text-slate-900 leading-tight truncate">
+                      <div className="min-w-0 w-full">
+                        <div className="font-semibold text-xs text-neutral-900 dark:text-white leading-snug">
                           {meta.displayTitle}
-                        </h4>
-                        <p className="text-[10px] text-slate-500 leading-tight truncate mt-0.5">
+                        </div>
+                        <div className="text-[11px] text-neutral-500 dark:text-slate-400 leading-snug mt-0.5">
                           {meta.displaySubtitle}
-                        </p>
+                        </div>
+                        {meta.badgeText && (
+                          <div className="text-[10px] font-semibold text-[#D71920] mt-0.5">
+                            {meta.badgeText}
+                          </div>
+                        )}
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
 
-              {/* Dynamic Payment Instructions Popup Modal & Status Summary */}
+              {/* Clean Inline Payment Status Summary & Modal */}
               {selectedMethod && (
                 <PaymentInstructions
                   selectedMethod={selectedMethod}
@@ -931,64 +1019,77 @@ export function CheckoutPage() {
                   setIsPaymentSubmitted={setIsPaymentSubmitted}
                 />
               )}
-            </div>
+            </section>
           </div>
 
-          {/* Right Column (5 cols): Order Summary & Confirm Order */}
-          <div className="lg:col-span-5 sticky top-28">
-            <div className="bg-[#F7F7F8] border border-[#E5E5E5] rounded-3xl p-6 sm:p-7 shadow-xs space-y-5">
-              <h3 className="text-base font-black text-[#171717] pb-3 border-b border-[#E5E5E5]">
-                Order Review ({cart.length} items)
-              </h3>
+          {/* RIGHT COLUMN (5 cols): Calm Sticky Order Summary & Primary Submit CTA */}
+          <aside className="lg:col-span-5 lg:sticky lg:top-24">
+            <div className="bg-white dark:bg-[#121722] border border-neutral-200 dark:border-slate-800 rounded-xl p-5 sm:p-6 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-slate-800">
+                <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
+                  Order Summary
+                </h3>
+                <span className="text-xs text-neutral-500 dark:text-slate-400 tabular-nums">
+                  {cart.length} {cart.length === 1 ? 'item' : 'items'}
+                </span>
+              </div>
 
-              <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+              {/* Cart Items */}
+              <div className="divide-y divide-neutral-100 dark:divide-slate-800 max-h-60 overflow-y-auto pr-1">
                 {cart.map(item => (
-                  <div key={item.variantId} className="flex items-center justify-between text-xs gap-3">
+                  <div key={item.variantId} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3 text-xs">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <img src={item.image} alt="" className="w-9 h-11 object-contain bg-white rounded-lg p-0.5 border border-[#E5E5E5] shrink-0" />
-                      <div className="truncate">
-                        <p className="font-bold text-[#171717] truncate">{item.title}</p>
-                        <p className="text-[#777777]">{item.variantName} × {item.quantity}</p>
+                      <img
+                        src={item.image}
+                        alt={item.title}
+                        referrerPolicy="no-referrer"
+                        className="w-10 h-12 object-contain bg-neutral-50 dark:bg-slate-800 rounded-md p-0.5 border border-neutral-200 dark:border-slate-700 shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <p className="font-medium text-neutral-900 dark:text-white truncate">
+                          {item.title}
+                        </p>
+                        <p className="text-[11px] text-neutral-500 dark:text-slate-400 tabular-nums mt-0.5">
+                          {item.variantName} · Qty {item.quantity}
+                        </p>
                       </div>
                     </div>
-                    <span className="font-bold text-[#171717] shrink-0">
+                    <span className="font-semibold text-neutral-900 dark:text-white tabular-nums shrink-0">
                       ৳{item.price * item.quantity}
                     </span>
                   </div>
                 ))}
               </div>
 
-              {/* Coupon Code Application Section */}
-              <div className="pt-3 border-t border-[#E5E5E5] space-y-2">
-                <label className="block text-[11px] font-black uppercase tracking-wider text-neutral-600 flex items-center gap-1.5">
-                  <TicketPercent size={13} className="text-[#D71920]" /> Have a Coupon Code?
+              {/* Minimal Coupon Input */}
+              <div className="pt-3.5 border-t border-neutral-100 dark:border-slate-800 space-y-2">
+                <label htmlFor="checkout-coupon" className="block text-xs font-medium text-neutral-700 dark:text-slate-300">
+                  Promo Code
                 </label>
                 <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Tag className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={13} />
-                    <input
-                      type="text"
-                      data-testid="checkout-coupon-input"
-                      value={couponInput}
-                      onChange={e => {
-                        setCouponInput(e.target.value);
-                        setCouponFeedback(null);
-                      }}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleApplyCheckoutCoupon();
-                        }
-                      }}
-                      placeholder="Enter code (e.g. MRBOOKS10)"
-                      className="w-full pl-8 pr-3 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-neutral-900 uppercase focus:outline-none focus:border-[#D71920]"
-                    />
-                  </div>
+                  <input
+                    id="checkout-coupon"
+                    type="text"
+                    data-testid="checkout-coupon-input"
+                    value={couponInput}
+                    onChange={e => {
+                      setCouponInput(e.target.value);
+                      setCouponFeedback(null);
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleApplyCheckoutCoupon();
+                      }
+                    }}
+                    placeholder="Enter promo code"
+                    className="flex-1 h-9 px-3 rounded-lg border border-neutral-200 dark:border-slate-700 bg-neutral-50/70 dark:bg-[#0E1420] text-xs font-medium text-neutral-900 dark:text-white uppercase focus:outline-none focus:border-[#D71920] focus:bg-white transition-colors"
+                  />
                   <button
                     type="button"
                     data-testid="checkout-coupon-apply-btn"
                     onClick={() => handleApplyCheckoutCoupon()}
-                    className="px-3.5 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-bold rounded-xl cursor-pointer transition-colors"
+                    className="h-9 px-3.5 rounded-lg bg-neutral-900 dark:bg-slate-700 hover:bg-neutral-800 text-white text-xs font-medium cursor-pointer transition-colors shrink-0"
                   >
                     Apply
                   </button>
@@ -1001,97 +1102,131 @@ export function CheckoutPage() {
                         setCouponFeedback(null);
                       }}
                       aria-label="Clear applied coupon"
-                      className="px-2.5 py-2 bg-white border border-neutral-300 text-neutral-600 hover:text-red-600 rounded-xl cursor-pointer"
+                      className="h-9 px-2.5 rounded-lg border border-neutral-200 dark:border-slate-700 text-neutral-500 hover:text-red-600 cursor-pointer shrink-0"
                     >
                       <X size={13} />
                     </button>
                   )}
                 </div>
 
-                {activeCouponsList.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {activeCouponsList.slice(0, 3).map(c => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => handleApplyCheckoutCoupon(c.code)}
-                        className={`px-2 py-0.5 rounded-lg border text-[10px] font-extrabold cursor-pointer transition-colors ${
-                          appliedCouponCode === c.code
-                            ? 'bg-emerald-600 text-white border-emerald-600'
-                            : 'bg-white text-neutral-700 border-neutral-200 hover:border-[#D71920]'
-                        }`}
-                      >
-                        {c.code} • {c.badgeText || (c.discountType === 'percentage' ? `${c.discountValue}% OFF` : c.discountType === 'free_delivery' ? 'FREE DEL' : `৳${c.discountValue}`)}
-                      </button>
-                    ))}
+                {/* Clean Inline Coupon Suggestions (Managed from Admin) */}
+                {settings.showCheckoutCoupons !== false && activeCouponsList.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-neutral-500 dark:text-slate-400">
+                    <span>Available:</span>
+                    {activeCouponsList.slice(0, 3).map(c => {
+                      const isApplied = appliedCouponCode === c.code;
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => handleApplyCheckoutCoupon(c.code)}
+                          className={`font-medium cursor-pointer transition-colors ${
+                            isApplied
+                              ? 'text-emerald-600 dark:text-emerald-400 underline underline-offset-2'
+                              : 'text-neutral-700 dark:text-slate-300 hover:text-[#D71920] underline decoration-neutral-300 underline-offset-2'
+                          }`}
+                        >
+                          {c.code}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
 
                 {couponFeedback && (
-                  <div className={`p-2 rounded-xl text-[11px] font-bold flex items-center gap-1.5 border ${
-                    couponFeedback.valid
-                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                      : 'bg-red-50 border-red-200 text-red-700'
-                  }`}>
-                    {couponFeedback.valid ? <CheckCircle2 size={13} className="shrink-0" /> : <AlertCircle size={13} className="shrink-0" />}
+                  <div
+                    className={`rounded-lg px-2.5 py-1.5 text-[11px] font-medium flex items-center gap-1.5 border ${
+                      couponFeedback.valid
+                        ? 'bg-emerald-50/80 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/50 text-emerald-700 dark:text-emerald-300'
+                        : 'bg-red-50/80 dark:bg-red-950/20 border-red-200 dark:border-red-800/50 text-red-700 dark:text-red-300'
+                    }`}
+                  >
+                    {couponFeedback.valid ? (
+                      <CheckCircle2 size={13} className="shrink-0" />
+                    ) : (
+                      <AlertCircle size={13} className="shrink-0" />
+                    )}
                     <span>{couponFeedback.text}</span>
                   </div>
                 )}
               </div>
 
-              <div className="space-y-2.5 pt-4 border-t border-[#E5E5E5] text-xs">
-                <div className="flex justify-between text-[#5F6368]">
+              {/* Totals Breakdown */}
+              <div className="space-y-2 pt-3.5 border-t border-neutral-100 dark:border-slate-800 text-xs">
+                <div className="flex justify-between text-neutral-600 dark:text-slate-400">
                   <span>Subtotal</span>
-                  <span className="font-bold text-[#171717]">৳{subtotal}</span>
+                  <span className="font-medium text-neutral-900 dark:text-white tabular-nums">
+                    ৳{subtotal}
+                  </span>
                 </div>
+
                 {discount > 0 && (
-                  <div data-testid="checkout-discount-row" className="flex justify-between text-emerald-700 font-bold">
-                    <span>Coupon Discount ({appliedCouponCode})</span>
-                    <span>-৳{discount}</span>
+                  <div
+                    data-testid="checkout-discount-row"
+                    className="flex justify-between text-emerald-700 dark:text-emerald-400 font-medium"
+                  >
+                    <span>Discount ({appliedCouponCode})</span>
+                    <span className="tabular-nums">-৳{discount}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-[#5F6368]">
+
+                <div className="flex justify-between text-neutral-600 dark:text-slate-400">
                   <span>Delivery ({deliveryType === 'sundarban' ? 'Sundarban' : district})</span>
-                  <span className="font-bold text-[#171717]">
+                  <span className="font-medium text-neutral-900 dark:text-white tabular-nums">
                     {hasFreeDelivery ? (
-                      <span className="text-emerald-600 font-extrabold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                        FREE (৳0)
+                      <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                        Free (৳0)
                       </span>
                     ) : (
                       `৳${baseDelivery}`
                     )}
                   </span>
                 </div>
+
                 {extraWeightCharge > 0 && (
-                  <div className="flex justify-between text-[#5F6368]">
-                    <span>Extra Weight/Items Charge</span>
-                    <span className="font-bold text-[#171717]">৳{extraWeightCharge}</span>
+                  <div className="flex justify-between text-neutral-600 dark:text-slate-400">
+                    <span>Extra Weight Charge</span>
+                    <span className="font-medium text-neutral-900 dark:text-white tabular-nums">
+                      ৳{extraWeightCharge}
+                    </span>
                   </div>
                 )}
-                <div className="pt-2 border-t border-[#E5E5E5] flex justify-between text-sm font-black text-[#171717]">
-                  <span>Total Payable</span>
-                  <span data-testid="checkout-total-payable" className="text-[#D71920] text-xl">৳{total}</span>
+
+                <div className="pt-3 border-t border-neutral-200 dark:border-slate-800 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-neutral-900 dark:text-white">
+                    Total Payable
+                  </span>
+                  <span
+                    data-testid="checkout-total-payable"
+                    className="text-xl font-bold text-[#D71920] tabular-nums"
+                  >
+                    ৳{total}
+                  </span>
                 </div>
               </div>
+
               {errorMsg && (
-                <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold leading-relaxed">
-                  ⚠️ {errorMsg}
+                <div className="rounded-lg bg-red-50 dark:bg-red-950/25 border border-red-200 dark:border-red-800/50 px-3 py-2.5 text-xs text-red-700 dark:text-red-300 flex items-start gap-2 leading-relaxed">
+                  <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                  <span>{errorMsg}</span>
                 </div>
               )}
 
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={loading}
-                className="w-full py-4 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl shadow-lg shadow-[#D71920]/25 transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider disabled:opacity-50 cursor-pointer"
+                data-testid="checkout-confirm-btn"
+                className="w-full h-11 rounded-lg bg-[#D71920] hover:bg-[#B9151B] active:scale-[0.99] text-white font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
               >
-                {loading ? 'Placing Order...' : 'Confirm Order Now'} <ArrowRight size={16} />
+                <span>{loading ? 'Placing Order...' : 'Confirm Order'}</span>
+                <ArrowRight size={16} />
               </button>
 
-              <p className="text-[11px] text-center text-[#777777]">
-                By clicking Confirm, you accept MR. BOOKS delivery and payment verification policy.
+              <p className="text-[11px] text-center text-neutral-500 dark:text-slate-400 leading-normal">
+                By confirming, you agree to MR. BOOKS delivery and payment verification terms.
               </p>
             </div>
-          </div>
+          </aside>
         </form>
       </div>
     </div>
