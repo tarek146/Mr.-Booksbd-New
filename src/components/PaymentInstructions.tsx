@@ -916,7 +916,7 @@ export function PaymentInstructions({
               }
             }}
           >
-            <div className="w-full max-w-md bg-white dark:bg-[#121722] rounded-xl border border-neutral-200 dark:border-slate-800 shadow-xl overflow-hidden my-auto animate-in zoom-in-95 duration-150">
+            <div className="w-full max-w-sm sm:max-w-md mx-2 bg-white dark:bg-[#121722] rounded-xl border border-neutral-200 dark:border-slate-800 shadow-xl overflow-hidden my-auto max-h-[92vh] overflow-y-auto animate-in zoom-in-95 duration-150">
               {/* 1. Compact Header with Payable Amount Badge */}
               <div className="px-4 py-3 border-b border-neutral-200 dark:border-slate-800 flex items-center justify-between gap-3 bg-neutral-50/50 dark:bg-slate-900/40">
                 <div className="min-w-0">
@@ -943,7 +943,7 @@ export function PaymentInstructions({
                 </div>
               </div>
 
-              <div className="p-4 space-y-3">
+              <div className="p-3 sm:p-4 space-y-2 sm:space-y-3">
                 {/* 2. Compact Payment Gateway Selector Strip */}
                 <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
                   {activeOnlineMethods.map(method => {
@@ -1004,7 +1004,7 @@ export function PaymentInstructions({
                 )}
 
                 {/* 4. Unified Account Number, Copy & Compact QR Box */}
-                <div className="rounded-lg border border-neutral-200 dark:border-slate-700 bg-neutral-50/70 dark:bg-[#161D2B] p-3 space-y-2.5">
+                <div className="rounded-lg border border-neutral-200 dark:border-slate-700 bg-neutral-50/70 dark:bg-[#161D2B] p-2.5 sm:p-3 space-y-2">
                   <div className="flex items-center justify-between gap-3">
                     {/* Left: Account Number & Copy */}
                     <div className="min-w-0 flex-1 space-y-1">
@@ -1061,7 +1061,7 @@ export function PaymentInstructions({
                           })
                         }
                         title="Click to enlarge QR Code"
-                        className="w-14 h-14 rounded-lg bg-white border border-neutral-200 dark:border-slate-700 p-1 flex items-center justify-center shrink-0 cursor-pointer hover:border-neutral-400 transition-colors"
+                        className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-white border border-neutral-200 dark:border-slate-700 p-1 flex items-center justify-center shrink-0 cursor-pointer hover:border-neutral-400 transition-colors"
                       >
                         <img
                           src={activeQrSrc}
