@@ -185,8 +185,12 @@ export async function executeCacheFirstDocFetch<T>(
     }
   }
 
-  const networkData = await getFromNetworkFn();
-  return { data: networkData, source: 'server' };
+  try {
+    const networkData = await getFromNetworkFn();
+    return { data: networkData, source: 'server' };
+  } catch {
+    return { data: null, source: 'cache' };
+  }
 }
 
 /**
@@ -209,8 +213,12 @@ export async function executeCacheFirstQueryFetch<T>(
     }
   }
 
-  const networkItems = await getFromNetworkFn();
-  return { items: networkItems, source: 'server' };
+  try {
+    const networkItems = await getFromNetworkFn();
+    return { items: networkItems, source: 'server' };
+  } catch {
+    return { items: [], source: 'cache' };
+  }
 }
 
 export const KNOWN_CACHE_SLICES = [

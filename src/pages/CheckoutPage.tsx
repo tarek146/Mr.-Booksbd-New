@@ -630,55 +630,66 @@ export function CheckoutPage() {
           <div className="lg:col-span-7 bg-white dark:bg-[#121722] border border-neutral-200 dark:border-slate-800 rounded-xl divide-y divide-neutral-200 dark:divide-slate-800">
             {/* 1. Delivery Information */}
             <section className="p-5 sm:p-6 space-y-4">
-              <div>
-                <h1 className="text-base font-semibold text-neutral-900 dark:text-white">
-                  Delivery Details
-                </h1>
-                <p className="text-xs text-neutral-500 dark:text-slate-400 mt-0.5">
-                  Enter your contact number and address for courier delivery.
-                </p>
-              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div>
+                  <h1 className="text-base font-semibold text-neutral-900 dark:text-white">
+                    Delivery Details
+                  </h1>
+                  <p className="text-xs text-neutral-500 dark:text-slate-400 mt-0.5">
+                    Enter your contact number and address for courier delivery.
+                  </p>
+                </div>
 
-              {/* Quiet Returning Customer Quick-Fill Bar */}
-              {settings.enableUseOldAddress !== false && (
-                <div className="rounded-lg border border-neutral-200 dark:border-slate-700 bg-neutral-50/70 dark:bg-slate-800/40 px-3.5 py-2.5 space-y-2.5">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                    <div className="min-w-0">
-                      <div className="text-xs font-semibold text-neutral-900 dark:text-white">
-                        Ordered before?
-                      </div>
-                      <p className="text-[11px] text-neutral-500 dark:text-slate-400 truncate mt-0.5">
-                        {savedAddressPreview
-                          ? savedAddressPreview
-                          : 'Fill your previous name, phone and address in one click.'}
-                      </p>
-                    </div>
+                {settings.enableUseOldAddress !== false && (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={handleApplyOldAddress}
+                      title={savedAddressPreview || 'Auto-fill your saved delivery address'}
+                      className="h-8 px-2.5 rounded-lg border border-neutral-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-[#D71920] hover:text-[#D71920] text-neutral-700 dark:text-slate-200 text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+                    >
+                      <RotateCcw size={12} className={isSearchingOldAddress ? 'animate-spin' : ''} />
+                      <span>
+                        {settings.oldAddressButtonLabel &&
+                        settings.oldAddressButtonLabel !== 'ইউজ ওল্ড এড্রেস (সেম অ্যাড্রেস)'
+                          ? settings.oldAddressButtonLabel
+                          : 'Use Saved Address'}
+                      </span>
+                    </button>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    {!hasSavedAddress && !showPhoneLookup && (
                       <button
                         type="button"
-                        onClick={handleApplyOldAddress}
-                        className="px-3 py-1.5 rounded-lg border border-neutral-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-[#D71920] hover:text-[#D71920] text-neutral-800 dark:text-slate-200 text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+                        onClick={() => setShowPhoneLookup(true)}
+                        title="Look up previous address by phone number"
+                        className="h-8 px-2.5 rounded-lg border border-neutral-200 dark:border-slate-700 bg-neutral-50 dark:bg-slate-800 hover:border-neutral-300 text-neutral-600 dark:text-slate-300 text-xs font-medium inline-flex items-center gap-1 cursor-pointer transition-colors whitespace-nowrap"
                       >
-                        <RotateCcw size={12} className={isSearchingOldAddress ? 'animate-spin' : ''} />
-                        <span>{settings.oldAddressButtonLabel || 'Use Saved Address'}</span>
+                        <Search size={12} />
+                        <span>Find by Phone</span>
                       </button>
-
-                      {!hasSavedAddress && !showPhoneLookup && (
-                        <button
-                          type="button"
-                          onClick={() => setShowPhoneLookup(true)}
-                          className="px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-neutral-50 text-neutral-600 dark:text-slate-300 text-xs font-medium inline-flex items-center gap-1 cursor-pointer transition-colors whitespace-nowrap"
-                        >
-                          <Search size={12} />
-                          <span>Find by Phone</span>
-                        </button>
-                      )}
-                    </div>
+                    )}
                   </div>
+                )}
+              </div>
+
+              {/* Returning Customer Phone Lookup / Status Feedback */}
+              {settings.enableUseOldAddress !== false && (showPhoneLookup || addressAutoFilled || savedAddressPreview) && (
+                <div className="rounded-lg border border-neutral-200 dark:border-slate-700 bg-neutral-50/70 dark:bg-slate-800/40 px-3.5 py-2.5 space-y-2">
+                  {savedAddressPreview && !showPhoneLookup && !addressAutoFilled && (
+                    <div className="text-[11px] text-neutral-600 dark:text-slate-300 flex items-center justify-between gap-2">
+                      <span className="truncate">Saved: {savedAddressPreview}</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowPhoneLookup(true)}
+                        className="text-neutral-500 hover:text-[#D71920] font-medium shrink-0 cursor-pointer"
+                      >
+                        Change phone
+                      </button>
+                    </div>
+                  )}
 
                   {showPhoneLookup && (
-                    <div className="pt-2.5 border-t border-neutral-200 dark:border-slate-700 space-y-2">
+                    <div className="space-y-2">
                       <div className="flex items-center justify-between text-xs font-medium text-neutral-700 dark:text-slate-300">
                         <span>Enter your previous order phone number</span>
                         <button
@@ -716,7 +727,7 @@ export function CheckoutPage() {
                   )}
 
                   {addressAutoFilled && (
-                    <div className="pt-2 border-t border-neutral-200 dark:border-slate-700 text-emerald-700 dark:text-emerald-400 text-xs font-medium flex items-center gap-1.5">
+                    <div className="text-emerald-700 dark:text-emerald-400 text-xs font-medium flex items-center gap-1.5">
                       <Check size={13} className="shrink-0" />
                       <span>Saved delivery address filled in.</span>
                     </div>

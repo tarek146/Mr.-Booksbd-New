@@ -43,15 +43,12 @@ export const auth = getAuth(app);
 export const db = (() => {
   if (typeof window !== 'undefined') {
     try {
-      setLogLevel('error');
+      setLogLevel('silent');
       return initializeFirestore(app, {
         localCache: persistentLocalCache({
           tabManager: persistentMultipleTabManager()
         }),
-        experimentalForceLongPolling: true,
-        experimentalLongPollingOptions: {
-          timeoutSeconds: 30
-        }
+        experimentalAutoDetectLongPolling: true,
       });
     } catch {
       return getFirestore(app);

@@ -158,4 +158,31 @@ test('executeCacheFirstQueryFetch and query limit resolvers: uses getDocsFromCac
   assert.equal(networkQuery.items.length, 3);
 });
 
+test('executeCacheFirstDocFetch and executeCacheFirstQueryFetch: gracefully resolve when both cache and network fail offline', async () => {
+  const offlineDoc = await executeCacheFirstDocFetch(
+    async () => {
+      throw new Error('Failed to get document from cache');
+    },
+    async () => {
+      throw new Error('Could not reach Cloud Firestore backend');
+    },
+    'cache-first'
+  );
+  assert.equal(offlineDoc.data, null);
+  assert.equal(offlineDoc.source, 'cache');
+
+  const offlineQuery = await executeCacheFirstQueryFetch(
+    async () => {
+      throw new Error('Failed to get documents from cache');
+    },
+    async () => {
+      throw new Error('Could not reach Cloud Firestore backend');
+    },
+    'cache-first'
+  );
+  assert.deepEqual(offlineQuery.items, []);
+  assert.equal(offlineQuery.source, 'cache');
+});
+
+
 
