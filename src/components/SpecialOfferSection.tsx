@@ -3,7 +3,7 @@ import { useStore } from '../context/StoreContext';
 import { Flame, ChevronLeft, ChevronRight, Zap } from 'lucide-react';
 
 export function SpecialOfferSection() {
-  const { products, settings, addToCart, setActivePage } = useStore();
+  const { products, settings, setActivePage, startDirectCheckout } = useStore();
   const specialOfferConfig = settings.specialOffer;
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -210,8 +210,7 @@ export function SpecialOfferSection() {
 
                   <button
                     onClick={() => {
-                      addToCart(p, p.variants[0]?.id || 'v1', 1);
-                      setActivePage('checkout');
+                      startDirectCheckout(p, p.variants[0]?.id || 'v1', 1);
                     }}
                     className="w-full py-1.5 px-2 bg-gradient-to-r from-[#D71920] to-[#B9151B] hover:from-[#B9151B] hover:to-[#921015] text-white rounded-lg text-[10px] sm:text-[11px] font-black flex items-center justify-center gap-1 shadow-xs transition-all cursor-pointer active:scale-95 uppercase tracking-wider"
                   >

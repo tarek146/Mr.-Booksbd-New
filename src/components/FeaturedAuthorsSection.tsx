@@ -5,7 +5,7 @@ import { Author } from '../types';
 import { countBooksForAuthor } from '../utils/publisherAndDeliveryHelpers';
 
 export function FeaturedAuthorsSection() {
-  const { authors, products, setActivePage, setSelectedCategoryFilter, setSearchQuery, addToCart } = useStore();
+  const { authors, products, setActivePage, setSelectedCategoryFilter, setSearchQuery, startDirectCheckout } = useStore();
   const [authorImgErrors, setAuthorImgErrors] = useState<Record<string, boolean>>({});
   const [selectedModalAuthor, setSelectedModalAuthor] = useState<Author | null>(null);
   const authorsScrollRef = useRef<HTMLDivElement>(null);
@@ -265,9 +265,8 @@ export function FeaturedAuthorsSection() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            addToCart(book, book.variants[0]?.id || 'v1', 1);
                             setSelectedModalAuthor(null);
-                            setActivePage('checkout');
+                            startDirectCheckout(book, book.variants[0]?.id || 'v1', 1);
                           }}
                           className="px-2.5 py-1 rounded-lg bg-[#D71920] hover:bg-[#B9151B] text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer shadow-2xs"
                         >

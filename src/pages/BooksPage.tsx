@@ -33,7 +33,7 @@ import {
 } from '../utils/bookSeriesHelpers';
 
 export function BooksPage() {
-  const { products, categories, isLoading, settings, searchQuery, setSearchQuery, selectedCategoryFilter, setSelectedCategoryFilter, selectedSeriesFilter, setSelectedSeriesFilter, setActivePage, addToCart } = useStore();
+  const { products, categories, isLoading, settings, searchQuery, setSearchQuery, selectedCategoryFilter, setSelectedCategoryFilter, selectedSeriesFilter, setSelectedSeriesFilter, setActivePage, addToCart, startDirectCheckout } = useStore();
 
   // Local filter states for advanced shop page
   const [productTypeFilter, setProductTypeFilter] = useState<'all' | 'book' | 'stationery'>('all');
@@ -545,8 +545,7 @@ export function BooksPage() {
                               type="button"
                               onClick={e => {
                                 e.stopPropagation();
-                                addToCart(product, defaultVariantId, 1);
-                                setActivePage('cart');
+                                startDirectCheckout(product, defaultVariantId, 1);
                               }}
                               className="px-2.5 sm:px-3 py-1.5 bg-[#D71920] hover:bg-[#b8141a] text-white rounded-xl text-[11px] font-bold flex items-center gap-1 cursor-pointer"
                             >

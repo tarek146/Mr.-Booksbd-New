@@ -44,7 +44,7 @@ export function renderGreenReviewIcon(
 }
 
 export function ProductCard({ product }: ProductCardProps) {
-  const { setActivePage, addToCart, wishlist, toggleWishlist, settings, siteSettings } = useStore();
+  const { setActivePage, addToCart, startDirectCheckout, wishlist, toggleWishlist, settings, siteSettings } = useStore();
   const isWishlisted = wishlist.includes(product.id);
 
   const [currentImgIdx, setCurrentImgIdx] = useState(0);
@@ -83,8 +83,7 @@ export function ProductCard({ product }: ProductCardProps) {
   const handleOrderNow = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isOutOfStock) return;
-    addToCart(product, currentVariant.id, 1);
-    setActivePage('cart');
+    startDirectCheckout(product, currentVariant.id, 1);
   };
 
   const handleAddToCart = (e: React.MouseEvent) => {

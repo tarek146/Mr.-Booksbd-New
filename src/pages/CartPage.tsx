@@ -13,6 +13,7 @@ export function CartPage() {
     products,
     updateCartQuantity,
     removeFromCart,
+    clearDirectCheckout,
     setActivePage,
     settings,
     coupons,
@@ -271,7 +272,10 @@ export function CartPage() {
               </div>
 
               <button 
-                onClick={() => setActivePage('checkout')}
+                onClick={() => {
+                  clearDirectCheckout();
+                  setActivePage('checkout');
+                }}
                 className="w-full py-4 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl shadow-lg shadow-[#D71920]/25 transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider cursor-pointer"
               >
                 Proceed to Checkout <ArrowRight size={16} />

@@ -472,6 +472,8 @@ export interface StoreSettings {
   oldAddressButtonLabel?: string;
   showCheckoutCoupons?: boolean;
   showCheckoutProgress?: boolean;
+  directOrderIsolatesCart?: boolean;
+  allowCheckoutItemRemoval?: boolean;
 
   // Bangla QR (বাংলা কিউআর) Settings
   enableBanglaQr?: boolean;

@@ -5,7 +5,7 @@ import { Reel } from '../types';
 import { extractYouTubeVideoId, isDirectVideoUrl } from '../utils/videoReelHelpers';
 
 export function ReelsSection() {
-  const { reels, products, setActivePage, addToCart } = useStore();
+  const { reels, products, startDirectCheckout } = useStore();
   const activeReels = reels.filter(r => r.isActive !== false);
 
   const [activeModalReel, setActiveModalReel] = useState<Reel | null>(null);
@@ -168,8 +168,7 @@ export function ReelsSection() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        addToCart(linkedProduct, linkedProduct.variants[0]?.id || 'v1', 1);
-                        setActivePage('checkout');
+                        startDirectCheckout(linkedProduct, linkedProduct.variants[0]?.id || 'v1', 1);
                       }}
                       className="w-full py-1 px-2 bg-[#D71920] hover:bg-[#B9151B] text-white rounded-lg text-[10px] font-black flex items-center justify-center gap-1 shadow-md transition-all cursor-pointer"
                     >
@@ -224,9 +223,8 @@ export function ReelsSection() {
                       </div>
                       <button
                         onClick={() => {
-                          addToCart(p, p.variants[0]?.id || 'v1', 1);
                           setActiveModalReel(null);
-                          setActivePage('checkout');
+                          startDirectCheckout(p, p.variants[0]?.id || 'v1', 1);
                         }}
                         className="px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md cursor-pointer shrink-0"
                       >

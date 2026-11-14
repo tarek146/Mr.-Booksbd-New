@@ -19,7 +19,7 @@ import {
 import { resolveProductDetailsPresentation } from '../utils/storeEnhancementsHelpers';
 
 export function StationeryPage() {
-  const { products, categories, isLoading, settings, searchQuery, setSearchQuery, selectedCategoryFilter, setSelectedCategoryFilter, setActivePage, addToCart } = useStore();
+  const { products, categories, isLoading, settings, searchQuery, setSearchQuery, selectedCategoryFilter, setSelectedCategoryFilter, setActivePage, addToCart, startDirectCheckout } = useStore();
 
   // Local filter states for stationery page
   const [minPrice, setMinPrice] = useState<number>(0);
@@ -486,8 +486,7 @@ export function StationeryPage() {
                               type="button"
                               onClick={e => {
                                 e.stopPropagation();
-                                addToCart(product, defaultVariantId, 1);
-                                setActivePage('cart');
+                                startDirectCheckout(product, defaultVariantId, 1);
                               }}
                               className="px-2.5 sm:px-3 py-1.5 bg-[#D71920] hover:bg-[#b8141a] text-white rounded-xl text-[11px] font-bold flex items-center gap-1 cursor-pointer"
                             >

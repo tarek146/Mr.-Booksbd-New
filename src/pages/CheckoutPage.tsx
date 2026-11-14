@@ -47,6 +47,7 @@ import {
 } from '../utils/steadfastCourierService';
 import { useCheckoutFraudCheck } from '../hooks/useCheckoutFraudCheck';
 import { computeCheckoutCompletion } from '../utils/checkoutProgressHelpers';
+import { getUnincludedCartItems } from '../utils/directCheckoutHelpers';
 
 const BANGLADESH_DISTRICTS = [
   'Dhaka',
@@ -68,6 +69,11 @@ const BANGLADESH_DISTRICTS = [
 export function CheckoutPage() {
   const {
     cart,
+    directCheckoutItems,
+    removeFromCart,
+    removeDirectCheckoutItem,
+    includeCartInDirectCheckout,
+    clearDirectCheckout,
     products,
     paymentMethods,
     settings,
@@ -82,6 +88,32 @@ export function CheckoutPage() {
     setAppliedCouponCode,
   } = useStore();
   const { currentUser } = useAuth();
+
+  const isDirectCheckout =
+    settings.directOrderIsolatesCart !== false && directCheckoutItems !== null;
+  const checkoutItems = isDirectCheckout ? directCheckoutItems : cart;
+
+  const unincludedCartItems = useMemo(
+    () => (isDirectCheckout ? getUnincludedCartItems(cart, checkoutItems) : []),
+    [isDirectCheckout, cart, checkoutItems]
+  );
+
+  const unincludedCartUnits = useMemo(
+    () => unincludedCartItems.reduce((sum, item) => sum + item.quantity, 0),
+    [unincludedCartItems]
+  );
+
+  const canRemoveCheckoutItems = settings.allowCheckoutItemRemoval !== false;
+
+  const handleRemoveCheckoutItem = (productId: string, variantId: string) => {
+    if (!canRemoveCheckoutItems) return;
+    setErrorMsg('');
+    if (isDirectCheckout) {
+      removeDirectCheckoutItem(variantId, productId);
+    } else {
+      removeFromCart(variantId, productId);
+    }
+  };
 
   const [name, setName] = useState(currentUser?.displayName || '');
   const [phone, setPhone] = useState('');
@@ -147,13 +179,13 @@ export function CheckoutPage() {
     }
   }, [currentUser, orders]);
 
-  // Fire Facebook InitiateCheckout when entering Checkout Page with items in cart
+  // Fire Facebook InitiateCheckout when entering Checkout Page with active items
   useEffect(() => {
-    if (!cart || cart.length === 0) return;
+    if (!checkoutItems || checkoutItems.length === 0) return;
     void trackFacebookConversionEvent({
       eventName: 'InitiateCheckout',
       settings,
-      customData: buildCartCustomData(cart),
+      customData: buildCartCustomData(checkoutItems),
       customerProfile: {
         fullName: name || savedAddressData?.name || currentUser?.displayName || undefined,
         phone: phone || savedAddressData?.phone || undefined,
@@ -162,9 +194,9 @@ export function CheckoutPage() {
         state: district || savedAddressData?.district || 'Dhaka',
         externalId: currentUser?.uid || visitorId,
       },
-      uniqueKey: cart.map(i => `${i.productId}_${i.quantity}`).join('-'),
+      uniqueKey: checkoutItems.map(i => `${i.productId}_${i.quantity}`).join('-'),
     });
-  }, [cart.length]);
+  }, [checkoutItems.length]);
 
   // Keep customer match profile continuously enriched as customer fills checkout fields
   useEffect(() => {
@@ -336,7 +368,7 @@ export function CheckoutPage() {
     void trackFacebookConversionEvent({
       eventName: 'AddPaymentInfo',
       settings,
-      customData: buildCartCustomData(cart, { paymentType: method.name }),
+      customData: buildCartCustomData(checkoutItems, { paymentType: method.name }),
       customerProfile: {
         fullName: name || savedAddressData?.name || currentUser?.displayName || undefined,
         phone: phone || savedAddressData?.phone || undefined,
@@ -345,7 +377,7 @@ export function CheckoutPage() {
         state: district || savedAddressData?.district || 'Dhaka',
         externalId: currentUser?.uid || visitorId,
       },
-      uniqueKey: `${method.id}_${cart.length}`,
+      uniqueKey: `${method.id}_${checkoutItems.length}`,
     });
 
     if (method.type === 'cod') {
@@ -392,7 +424,7 @@ export function CheckoutPage() {
   const pricingSummary = useMemo(
     () =>
       calculateCheckoutPricing({
-        cart,
+        cart: checkoutItems,
         products,
         district,
         deliveryType,
@@ -400,7 +432,7 @@ export function CheckoutPage() {
         couponCode: appliedCouponCode,
         coupons: activeCouponsList,
       }),
-    [cart, products, district, deliveryType, settings, appliedCouponCode, activeCouponsList]
+    [checkoutItems, products, district, deliveryType, settings, appliedCouponCode, activeCouponsList]
   );
 
   const subtotal = pricingSummary.subtotal;
@@ -539,11 +571,11 @@ export function CheckoutPage() {
       }
     }
 
-    if (cart.length === 0) {
+    if (checkoutItems.length === 0) {
       if (overridePayment) {
         setIsPaymentModalOpen(false);
       }
-      setErrorMsg('Your shopping cart is currently empty.');
+      setErrorMsg('No items selected for this order. Add a product or load your Cart items.');
       return;
     }
 
@@ -577,7 +609,7 @@ export function CheckoutPage() {
         city: city.trim(),
         address: cleanAddress,
         notes: fullNotes,
-        items: cart,
+        items: checkoutItems,
         subtotal,
         deliveryCharge,
         discount,
@@ -638,8 +670,8 @@ export function CheckoutPage() {
   };
 
   const totalItemUnits = useMemo(
-    () => cart.reduce((sum, item) => sum + item.quantity, 0),
-    [cart]
+    () => checkoutItems.reduce((sum, item) => sum + item.quantity, 0),
+    [checkoutItems]
   );
 
   const inputClass =
@@ -709,16 +741,73 @@ export function CheckoutPage() {
 
           {mobileSummaryOpen && (
             <div className="px-4 pb-3 pt-2 border-t border-neutral-100 dark:border-slate-800 space-y-2 text-xs">
-              {cart.map((item, idx) => (
-                <div key={`${item.productId}-${item.variantId}-${idx}`} className="flex items-center justify-between gap-2">
-                  <span className="text-neutral-700 dark:text-slate-300 truncate">
-                    {item.title} ({item.variantName}) × {item.quantity}
-                  </span>
-                  <span className="font-medium text-neutral-900 dark:text-white tabular-nums shrink-0">
-                    ৳{item.price * item.quantity}
-                  </span>
+              {checkoutItems.length === 0 ? (
+                <div className="py-2 text-center space-y-2 text-neutral-500 dark:text-slate-400">
+                  <p>No items selected for this order.</p>
+                  <div className="flex items-center justify-center gap-2">
+                    {cart.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={clearDirectCheckout}
+                        className="px-2.5 py-1 rounded-md border border-neutral-300 dark:border-slate-600 text-neutral-800 dark:text-slate-200 font-medium cursor-pointer"
+                      >
+                        Load Cart ({cart.reduce((s, i) => s + i.quantity, 0)})
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setActivePage('books')}
+                      className="px-2.5 py-1 rounded-md bg-[#D71920] text-white font-medium cursor-pointer"
+                    >
+                      Browse Books
+                    </button>
+                  </div>
                 </div>
-              ))}
+              ) : (
+                checkoutItems.map((item, idx) => (
+                  <div
+                    key={`${item.productId}-${item.variantId}-${idx}`}
+                    data-testid={`mobile-checkout-item-${item.productId}`}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <span className="text-neutral-700 dark:text-slate-300 truncate min-w-0 flex-1">
+                      {item.title} ({item.variantName}) × {item.quantity}
+                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="font-medium text-neutral-900 dark:text-white tabular-nums">
+                        ৳{item.price * item.quantity}
+                      </span>
+                      {canRemoveCheckoutItems && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCheckoutItem(item.productId, item.variantId)}
+                          aria-label={`Remove ${item.title}`}
+                          title="Cancel / remove item"
+                          className="p-1 rounded text-neutral-400 hover:text-[#D71920] hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+                        >
+                          <X size={13} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+
+              {isDirectCheckout && unincludedCartItems.length > 0 && (
+                <div className="pt-2 border-t border-neutral-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-neutral-600 dark:text-slate-300 truncate">
+                    {unincludedCartUnits} {unincludedCartUnits === 1 ? 'item' : 'items'} in Cart
+                  </span>
+                  <button
+                    type="button"
+                    onClick={includeCartInDirectCheckout}
+                    className="px-2.5 py-1 rounded-md border border-neutral-300 dark:border-slate-600 bg-neutral-50 dark:bg-slate-800 hover:border-[#D71920] hover:text-[#D71920] text-[11px] font-semibold text-neutral-800 dark:text-slate-200 cursor-pointer shrink-0"
+                  >
+                    Include Cart
+                  </button>
+                </div>
+              )}
+
               <div className="pt-2 border-t border-neutral-100 dark:border-slate-800 flex justify-between text-neutral-500 dark:text-slate-400">
                 <span>Delivery ({deliveryType === 'sundarban' ? 'Hub / Point' : district})</span>
                 <span className="tabular-nums">{hasFreeDelivery ? 'Free' : `৳${deliveryCharge}`}</span>
@@ -1255,37 +1344,111 @@ export function CheckoutPage() {
                 <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
                   Order Summary
                 </h3>
-                <span className="text-xs text-neutral-500 dark:text-slate-400 tabular-nums">
-                  {cart.length} {cart.length === 1 ? 'item' : 'items'}
+                <span
+                  data-testid="checkout-summary-item-count"
+                  className="text-xs text-neutral-500 dark:text-slate-400 tabular-nums"
+                >
+                  {checkoutItems.length} {checkoutItems.length === 1 ? 'item' : 'items'}
                 </span>
               </div>
 
-              {/* Cart Items */}
-              <div className="divide-y divide-neutral-100 dark:divide-slate-800 max-h-60 overflow-y-auto pr-1">
-                {cart.map((item, idx) => (
-                  <div key={`${item.productId}-${item.variantId}-${idx}`} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3 text-xs">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <img
-                        src={item.image}
-                        alt={item.title}
-                        referrerPolicy="no-referrer"
-                        className="w-10 h-12 object-contain bg-neutral-50 dark:bg-slate-800 rounded-md p-0.5 border border-neutral-200 dark:border-slate-700 shrink-0"
-                      />
-                      <div className="min-w-0">
-                        <p className="font-medium text-neutral-900 dark:text-white truncate">
-                          {item.title}
-                        </p>
-                        <p className="text-[11px] text-neutral-500 dark:text-slate-400 tabular-nums mt-0.5">
-                          {item.variantName} · Qty {item.quantity}
-                        </p>
+              {/* Active Checkout Items */}
+              {checkoutItems.length === 0 ? (
+                <div
+                  data-testid="checkout-empty-summary"
+                  className="py-5 text-center space-y-2.5 text-xs text-neutral-500 dark:text-slate-400"
+                >
+                  <p>No items selected for this order.</p>
+                  <div className="flex items-center justify-center gap-2">
+                    {cart.length > 0 && (
+                      <button
+                        type="button"
+                        data-testid="checkout-load-cart-btn"
+                        onClick={clearDirectCheckout}
+                        className="h-8 px-3 rounded-lg border border-neutral-300 dark:border-slate-600 bg-white dark:bg-[#0E1420] hover:border-[#D71920] hover:text-[#D71920] text-neutral-800 dark:text-slate-200 font-medium transition-colors cursor-pointer"
+                      >
+                        Load Cart Items ({cart.reduce((s, i) => s + i.quantity, 0)})
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setActivePage('books')}
+                      className="h-8 px-3 rounded-lg bg-[#D71920] hover:bg-[#B9151B] text-white font-medium transition-colors cursor-pointer"
+                    >
+                      Browse Books
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="divide-y divide-neutral-100 dark:divide-slate-800 max-h-60 overflow-y-auto pr-1">
+                  {checkoutItems.map((item, idx) => (
+                    <div
+                      key={`${item.productId}-${item.variantId}-${idx}`}
+                      data-testid={`checkout-summary-item-${item.productId}`}
+                      className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-2.5 text-xs"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <img
+                          src={item.image}
+                          alt={item.title}
+                          referrerPolicy="no-referrer"
+                          className="w-10 h-12 object-contain bg-neutral-50 dark:bg-slate-800 rounded-md p-0.5 border border-neutral-200 dark:border-slate-700 shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <p className="font-medium text-neutral-900 dark:text-white truncate">
+                            {item.title}
+                          </p>
+                          <p className="text-[11px] text-neutral-500 dark:text-slate-400 tabular-nums mt-0.5">
+                            {item.variantName} · Qty {item.quantity}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="font-semibold text-neutral-900 dark:text-white tabular-nums">
+                          ৳{item.price * item.quantity}
+                        </span>
+                        {canRemoveCheckoutItems && (
+                          <button
+                            type="button"
+                            data-testid={`checkout-remove-item-${item.productId}`}
+                            onClick={() => handleRemoveCheckoutItem(item.productId, item.variantId)}
+                            aria-label={`Remove ${item.title}`}
+                            title="Cancel / remove item from order"
+                            className="p-1 rounded-md text-neutral-400 hover:text-[#D71920] hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <span className="font-semibold text-neutral-900 dark:text-white tabular-nums shrink-0">
-                      ৳{item.price * item.quantity}
-                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Optional prompt to include existing Cart items during isolated direct checkout */}
+              {isDirectCheckout && unincludedCartItems.length > 0 && (
+                <div
+                  data-testid="checkout-include-cart-prompt"
+                  className="rounded-lg border border-neutral-200 dark:border-slate-700/80 bg-neutral-50/80 dark:bg-slate-800/40 px-3 py-2 flex items-center justify-between gap-2.5 text-xs"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium text-neutral-800 dark:text-slate-200 truncate">
+                      {unincludedCartUnits} {unincludedCartUnits === 1 ? 'item' : 'items'} saved in Cart
+                    </p>
+                    <p className="text-[11px] text-neutral-500 dark:text-slate-400 truncate">
+                      Include {unincludedCartItems.length === 1 ? 'it' : 'them'} with this order?
+                    </p>
                   </div>
-                ))}
-              </div>
+                  <button
+                    type="button"
+                    data-testid="checkout-include-cart-btn"
+                    onClick={includeCartInDirectCheckout}
+                    className="px-2.5 py-1.5 rounded-md border border-neutral-300 dark:border-slate-600 bg-white dark:bg-[#0E1420] hover:border-[#D71920] hover:text-[#D71920] text-neutral-800 dark:text-slate-200 text-[11px] font-semibold transition-colors cursor-pointer shrink-0"
+                  >
+                    Include Cart
+                  </button>
+                </div>
+              )}
 
               {/* Minimal Coupon Input */}
               <div className="pt-3.5 border-t border-neutral-100 dark:border-slate-800 space-y-2">

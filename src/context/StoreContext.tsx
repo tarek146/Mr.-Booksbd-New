@@ -51,6 +51,12 @@ import {
   buildOrderPurchaseCustomData,
   saveCustomerMatchProfile,
 } from '../utils/facebookCapiHelpers';
+import {
+  buildDirectCartItem,
+  computeRemainingCartAfterOrder,
+  mergeCheckoutItems,
+  removeCheckoutItem,
+} from '../utils/directCheckoutHelpers';
 import { 
   db, 
   seedInitialDataIfNeeded,
@@ -179,6 +185,12 @@ interface StoreContextType {
   removeFromCart: (variantId: string, productId?: string) => void;
   updateCartQuantity: (variantId: string, quantity: number, productId?: string) => void;
   clearCart: () => void;
+
+  directCheckoutItems: CartItem[] | null;
+  startDirectCheckout: (product: Product, variantId: string, quantity: number) => void;
+  clearDirectCheckout: () => void;
+  removeDirectCheckoutItem: (variantId: string, productId: string) => void;
+  includeCartInDirectCheckout: () => void;
   
   toggleWishlist: (productId: string) => void;
   
@@ -555,6 +567,42 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       // ignore storage errors
     }
   }, [cart]);
+
+  const [directCheckoutItems, setDirectCheckoutItems] = useState<CartItem[] | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = window.sessionStorage.getItem('mr_books_direct_checkout');
+      if (!raw || raw === 'null') return null;
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return null;
+      return parsed.filter(
+        (item: any) =>
+          item &&
+          typeof item.productId === 'string' &&
+          typeof item.variantId === 'string' &&
+          typeof item.title === 'string' &&
+          Number(item.quantity) > 0
+      );
+    } catch {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      if (directCheckoutItems === null) {
+        window.sessionStorage.removeItem('mr_books_direct_checkout');
+      } else {
+        window.sessionStorage.setItem(
+          'mr_books_direct_checkout',
+          JSON.stringify(directCheckoutItems)
+        );
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, [directCheckoutItems]);
   
   const initialRoute = getPageFromLocation();
   const [activePage, setActivePageState] = useState<string>(initialRoute.page);
@@ -745,6 +793,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     oldAddressButtonLabel: 'Use Saved Address',
     showCheckoutCoupons: true,
     showCheckoutProgress: true,
+    directOrderIsolatesCart: true,
+    allowCheckoutItemRemoval: true,
     enableBanglaQr: true,
     banglaQrImageUrl: '',
     banglaQrAccountName: 'MR. BOOKS BD',
@@ -1780,6 +1830,48 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const clearCart = () => setCart([]);
 
+  const startDirectCheckout = (product: Product, variantId: string, quantity: number) => {
+    if (settings.directOrderIsolatesCart === false) {
+      addToCart(product, variantId, quantity);
+      setDirectCheckoutItems(null);
+      setActivePage('checkout');
+      return;
+    }
+
+    const directItem = buildDirectCartItem(product, variantId, quantity);
+    setDirectCheckoutItems([directItem]);
+
+    void trackFacebookConversionEvent({
+      eventName: 'AddToCart',
+      settings,
+      customData: buildProductCustomData(product, directItem.quantity, directItem.variantId),
+      customerProfile: {
+        externalId: currentUser?.uid || visitorId,
+        email: currentUser?.email || undefined,
+        fullName: currentUser?.displayName || undefined,
+      },
+      uniqueKey: `direct_${product.id}_${directItem.variantId}_${directItem.quantity}`,
+    });
+
+    setActivePage('checkout');
+  };
+
+  const clearDirectCheckout = () => setDirectCheckoutItems(null);
+
+  const removeDirectCheckoutItem = (variantId: string, productId: string) => {
+    setDirectCheckoutItems(prev => {
+      if (prev === null) return null;
+      return removeCheckoutItem(prev, productId, variantId);
+    });
+  };
+
+  const includeCartInDirectCheckout = () => {
+    setDirectCheckoutItems(prev => {
+      const base = prev ?? [];
+      return mergeCheckoutItems(base, cart);
+    });
+  };
+
   const toggleWishlist = (productId: string) => {
     const isAdding = !wishlist.includes(productId);
     setWishlist(prev => 
@@ -1974,7 +2066,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
 
     setOrders(prev => [newOrder, ...prev]);
-    clearCart();
+    const isDirectOrderMode =
+      directCheckoutItems !== null && settings.directOrderIsolatesCart !== false;
+    if (isDirectOrderMode) {
+      setCart(prev => computeRemainingCartAfterOrder(prev, verifiedItems, true));
+      setDirectCheckoutItems(null);
+    } else {
+      clearCart();
+      setDirectCheckoutItems(null);
+    }
     return orderId;
   };
 
@@ -3236,6 +3336,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       removeFromCart,
       updateCartQuantity,
       clearCart,
+      directCheckoutItems,
+      startDirectCheckout,
+      clearDirectCheckout,
+      removeDirectCheckoutItem,
+      includeCartInDirectCheckout,
       toggleWishlist,
       createOrder,
       submitPaymentProof,

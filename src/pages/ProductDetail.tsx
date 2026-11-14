@@ -75,7 +75,7 @@ function MessengerIcon({ className = "w-4 h-4 shrink-0" }: { className?: string 
 }
 
 export function ProductDetail() {
-  const { products, authors, publishers, isLoading, selectedProductId, setActivePage, addToCart, wishlist, toggleWishlist, setSelectedCategoryFilter, setSelectedSeriesFilter, setSearchQuery, settings, siteSettings, reviews, visitorId, addProductReview, reactToReview } = useStore();
+  const { products, authors, publishers, isLoading, selectedProductId, setActivePage, addToCart, startDirectCheckout, wishlist, toggleWishlist, setSelectedCategoryFilter, setSelectedSeriesFilter, setSearchQuery, settings, siteSettings, reviews, visitorId, addProductReview, reactToReview } = useStore();
   
   const [directFetchedProduct, setDirectFetchedProduct] = useState<Product | null>(null);
   const inMemoryProduct = products.find(p => p.id === selectedProductId || p.slug === selectedProductId);
@@ -304,8 +304,7 @@ export function ProductDetail() {
   const handleBuyNow = () => {
     if (product.stock <= 0) return;
     const safeQty = Math.max(1, Math.min(quantity, activeVariant.stock || product.stock));
-    addToCart(product, activeVariant.id, safeQty);
-    setActivePage('checkout');
+    startDirectCheckout(product, activeVariant.id, safeQty);
   };
 
   const handleCopyLink = () => {
@@ -1750,8 +1749,7 @@ export function ProductDetail() {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                addToCart(bookItem, bookItem.variants[0]?.id || 'v1', 1);
-                                setActivePage('checkout');
+                                startDirectCheckout(bookItem, bookItem.variants[0]?.id || 'v1', 1);
                               }}
                               className="px-2.5 py-1 rounded-md border border-neutral-200 dark:border-[#263347] hover:border-[#D71920] hover:bg-[#D71920] hover:text-white text-neutral-700 text-[11px] font-semibold transition-colors cursor-pointer shrink-0"
                             >

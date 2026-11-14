@@ -11624,6 +11624,28 @@ export function AdminDashboard() {
                           />
                           <span>Show Checkout Form Completion Progress Indicator</span>
                         </label>
+
+                        <label className="flex items-center gap-2 text-xs font-bold text-neutral-800 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            data-testid="admin-direct-order-isolates-cart-checkbox"
+                            checked={settingsForm.directOrderIsolatesCart !== false}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, directOrderIsolatesCart: e.target.checked }))}
+                            className="w-4 h-4 accent-[#D71920]"
+                          />
+                          <span>Isolate &ldquo;Order Now&rdquo; Product from Existing Cart Items</span>
+                        </label>
+
+                        <label className="flex items-center gap-2 text-xs font-bold text-neutral-800 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            data-testid="admin-allow-checkout-item-removal-checkbox"
+                            checked={settingsForm.allowCheckoutItemRemoval !== false}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, allowCheckoutItemRemoval: e.target.checked }))}
+                            className="w-4 h-4 accent-[#D71920]"
+                          />
+                          <span>Allow Removing / Cancelling Items Directly on Checkout</span>
+                        </label>
                       </div>
                     </div>
 
