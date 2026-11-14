@@ -12103,6 +12103,129 @@ export function AdminDashboard() {
                       </div>
                     </div>
 
+                    {/* Shipping Label & Customer Invoice Settings */}
+                    <div
+                      data-testid="admin-label-invoice-settings-card"
+                      className="p-4 rounded-xl bg-slate-50 border border-slate-200 col-span-1 sm:col-span-3 space-y-3"
+                    >
+                      <div>
+                        <span className="font-black text-neutral-900 block text-xs uppercase">
+                          Shipping Label &amp; Customer Invoice Settings (Firebase Synced)
+                        </span>
+                        <span className="text-[11px] text-neutral-600 block mt-0.5">
+                          Manage Merchant ID, default print paper sizes, product thumbnails, and offer/COD breakdown visibility for Order Labels &amp; Invoices.
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+                        <div>
+                          <label className="block font-bold uppercase text-[#5F6368] mb-1 text-[11px]">
+                            Merchant ID
+                          </label>
+                          <input
+                            type="text"
+                            data-testid="admin-merchant-id-input"
+                            value={settingsForm.merchantId ?? 'KUSXCIG'}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, merchantId: e.target.value }))}
+                            placeholder="KUSXCIG"
+                            className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-[#171717] font-mono font-bold text-xs"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block font-bold uppercase text-[#5F6368] mb-1 text-[11px]">
+                            Default Label Size
+                          </label>
+                          <select
+                            data-testid="admin-default-label-size-select"
+                            value={settingsForm.defaultLabelSize ?? '3x3'}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, defaultLabelSize: e.target.value as '3x3' | '2x3' }))}
+                            className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-[#171717] font-bold text-xs"
+                          >
+                            <option value="3x3">3 × 3 in</option>
+                            <option value="2x3">2 × 3 in</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block font-bold uppercase text-[#5F6368] mb-1 text-[11px]">
+                            Default Invoice Size
+                          </label>
+                          <select
+                            data-testid="admin-default-invoice-size-select"
+                            value={settingsForm.defaultInvoiceSize ?? 'A4'}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, defaultInvoiceSize: e.target.value as 'A4' | 'A5' | '3in' }))}
+                            className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-[#171717] font-bold text-xs"
+                          >
+                            <option value="A4">A4 Sheet</option>
+                            <option value="A5">A5 Half Sheet</option>
+                            <option value="3in">3in Thermal</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block font-bold uppercase text-[#5F6368] mb-1 text-[11px]">
+                            Label Courier Footer Tag
+                          </label>
+                          <input
+                            type="text"
+                            value={settingsForm.labelLogisticsText ?? 'steadfast.com.bd'}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, labelLogisticsText: e.target.value }))}
+                            placeholder="steadfast.com.bd"
+                            className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-[#171717] font-medium text-xs"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block font-bold uppercase text-[#5F6368] mb-1 text-[11px]">
+                          Invoice Footer / Thank-You Note (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={settingsForm.invoiceFooterNote ?? ''}
+                          onChange={e => setSettingsForm(prev => ({ ...prev, invoiceFooterNote: e.target.value }))}
+                          placeholder="e.g. Thank you for shopping with MR. BOOKS BD!"
+                          className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-[#171717] font-medium text-xs"
+                        />
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-4 pt-1">
+                        <label className="flex items-center gap-2 text-xs font-bold text-neutral-800 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            data-testid="admin-invoice-show-images-checkbox"
+                            checked={settingsForm.invoiceShowProductImage !== false}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, invoiceShowProductImage: e.target.checked }))}
+                            className="w-4 h-4 accent-[#D71920]"
+                          />
+                          <span>Show Product Images on Invoice</span>
+                        </label>
+
+                        <label className="flex items-center gap-2 text-xs font-bold text-neutral-800 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            data-testid="admin-invoice-show-breakdown-checkbox"
+                            checked={settingsForm.invoiceShowPricingBreakdown !== false}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, invoiceShowPricingBreakdown: e.target.checked }))}
+                            className="w-4 h-4 accent-[#D71920]"
+                          />
+                          <span>Show Offer Discount, Delivery &amp; COD Breakdown on Invoice</span>
+                        </label>
+
+                        <label className="flex items-center gap-2 text-xs font-bold text-neutral-800 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            data-testid="admin-label-show-items-checkbox"
+                            checked={settingsForm.labelShowItemDetails !== false}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, labelShowItemDetails: e.target.checked }))}
+                            className="w-4 h-4 accent-[#D71920]"
+                          />
+                          <span>Show Product Summary on Shipping Label</span>
+                        </label>
+                      </div>
+                    </div>
+
                     {/* Bangla QR (বাংলা কিউআর) Settings */}
                     <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 col-span-1 sm:col-span-3 space-y-3">
                       <div className="flex items-center justify-between">

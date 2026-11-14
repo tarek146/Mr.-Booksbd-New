@@ -90,6 +90,7 @@ export interface CartItem {
   variantName: string;
   price: number;
   image: string;
+  originalPrice?: number;
   quantity: number;
   stock: number;
   type: ProductType;
@@ -133,6 +134,8 @@ export interface Order {
   courierSentAt?: number;
   courierLastSyncedAt?: number;
   courierTrackingSteps?: CourierTrackingStep[];
+  weightKg?: number;
+  codCharge?: number;
   isTrashed?: boolean;
   trashedAt?: number;
 }
@@ -467,6 +470,16 @@ export interface StoreSettings {
   steadfastSecretKey?: string;
   steadfastBaseUrl?: string;
   steadfastSandboxMode?: boolean;
+
+  // Shipping Label & Customer Invoice Settings (Admin-managed via Firebase)
+  merchantId?: string;
+  defaultLabelSize?: '3x3' | '2x3';
+  defaultInvoiceSize?: 'A4' | 'A5' | '3in';
+  invoiceShowProductImage?: boolean;
+  invoiceShowPricingBreakdown?: boolean;
+  labelShowItemDetails?: boolean;
+  invoiceFooterNote?: string;
+  labelLogisticsText?: string;
 
   // Returning Customer Address Autofill Settings
   enableUseOldAddress?: boolean;
