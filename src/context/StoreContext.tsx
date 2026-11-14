@@ -806,6 +806,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       enabled: true,
       title: 'Special Offer',
       endTime: Date.now() + 48 * 60 * 60 * 1000,
+      autoRemoveExpired: true,
+      showItemCountdown: true,
       items: [
         { productId: 'prod-1', discountPercentage: 23, soldPercentage: 64, onlinePaymentOnly: false },
         { productId: 'prod-2', discountPercentage: 15, soldPercentage: 89, onlinePaymentOnly: true },

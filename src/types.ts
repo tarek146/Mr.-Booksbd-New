@@ -523,12 +523,16 @@ export interface SpecialOfferItem {
   discountPercentage: number;
   soldPercentage: number;
   onlinePaymentOnly?: boolean;
+  startTime?: number;
+  endTime?: number;
 }
 
 export interface SpecialOfferConfig {
   enabled: boolean;
   title: string;
   endTime: number;
+  autoRemoveExpired?: boolean;
+  showItemCountdown?: boolean;
   items: SpecialOfferItem[];
 }
 

@@ -123,6 +123,13 @@ import {
   collectExistingSeriesNames,
   resolveProductSeriesInfo,
 } from '../utils/bookSeriesHelpers';
+import {
+  getSpecialOfferItemStatus,
+  formatCompactDuration,
+  toDateTimeLocalInputValue,
+  fromDateTimeLocalInputValue,
+  formatLocalDateTimeLabel,
+} from '../utils/specialOfferHelpers';
 import { extractPdfPreviewPages } from '../utils/pdfPageExtractor';
 import {
   extractYouTubeVideoId,
@@ -579,10 +586,18 @@ export function AdminDashboard() {
   const [settingsSuccess, setSettingsSuccess] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSubTab, setSettingsSubTab] = useState<'header' | 'footer' | 'shipping' | 'social' | 'seo' | 'homepage'>('header');
+  const [specialOfferTickNow, setSpecialOfferTickNow] = useState<number>(() => Date.now());
 
   useEffect(() => {
     setSettingsForm(settings);
   }, [settings]);
+
+  useEffect(() => {
+    if (activeTab !== 'special-offer') return;
+    setSpecialOfferTickNow(Date.now());
+    const id = setInterval(() => setSpecialOfferTickNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [activeTab]);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.location.search.includes('dev=1')) {
@@ -3552,221 +3567,611 @@ export function AdminDashboard() {
         )}
 
         {/* TAB: SPECIAL OFFER DEALS */}
-        {activeTab === 'special-offer' && (
-          <div className="space-y-5">
-            {/* Clean Page Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
-              <div className="space-y-1">
-                <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
-                  Special Offer Deals
-                </h2>
-                <p className="text-xs sm:text-[13px] text-slate-500">
-                  Manage homepage special offer banner, discount rates, and stock progress
-                </p>
-              </div>
-              <button 
-                type="button"
-                onClick={async () => {
-                  try {
-                    setSettingsSaving(true);
-                    await updateSettings({ specialOffer: settingsForm.specialOffer });
-                    setToast({ show: true, type: 'success', message: 'Special Offer configuration saved successfully!' });
-                  } catch (err: any) {
-                    setToast({ show: true, type: 'error', message: 'Failed to save: ' + err.message });
-                  } finally {
-                    setSettingsSaving(false);
-                  }
-                }}
-                className="w-full sm:w-auto px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-semibold rounded-lg text-xs cursor-pointer transition-colors flex items-center justify-center gap-1.5 shrink-0"
-              >
-                <Check size={14} /> <span>{settingsSaving ? 'Saving...' : 'Save Changes'}</span>
-              </button>
-            </div>
+        {activeTab === 'special-offer' && (() => {
+          const specialCfg = settingsForm.specialOffer || {
+            enabled: true,
+            title: 'Special Offer',
+            endTime: Date.now() + 48 * 3600 * 1000,
+            autoRemoveExpired: true,
+            showItemCountdown: true,
+            items: [],
+          };
+          const dealItems = specialCfg.items || [];
+          const nowMs = specialOfferTickNow;
+          const itemStatuses = dealItems.map(it =>
+            getSpecialOfferItemStatus(it, specialCfg, nowMs)
+          );
+          const activeDealsCount = itemStatuses.filter(s => s.status === 'active').length;
+          const expiredDealsCount = itemStatuses.filter(s => s.status === 'expired').length;
+          const scheduledDealsCount = itemStatuses.filter(s => s.status === 'scheduled').length;
+          const globalRemainingMs = Math.max(0, (specialCfg.endTime || 0) - nowMs);
+          const isGlobalExpired = !specialCfg.endTime || specialCfg.endTime <= nowMs;
 
-            {/* Homepage Enable & Heading Config */}
-            <div className="bg-white border border-slate-200 rounded-xl p-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-              <label className="md:col-span-5 flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-200 cursor-pointer">
-                <div>
-                  <span className="font-semibold text-xs text-slate-900 block">Show Special Offer on Homepage</span>
-                  <span className="text-[11px] text-slate-500">Toggle visibility on storefront</span>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={settingsForm.specialOffer?.enabled !== false}
-                  onChange={e => {
-                    const val = e.target.checked;
-                    setSettingsForm(prev => ({
-                      ...prev,
-                      specialOffer: {
-                        ...(prev.specialOffer || { title: 'Special Offer', endTime: Date.now() + 48*3600*1000, items: [] }),
-                        enabled: val
-                      }
-                    }));
-                  }}
-                  className="w-4 h-4 accent-[#D71920] rounded cursor-pointer"
-                />
-              </label>
+          const patchSpecialOffer = (
+            updater: (prevCfg: typeof specialCfg) => typeof specialCfg
+          ) => {
+            setSettingsForm(prev => {
+              const base = prev.specialOffer || {
+                enabled: true,
+                title: 'Special Offer',
+                endTime: Date.now() + 48 * 3600 * 1000,
+                autoRemoveExpired: true,
+                showItemCountdown: true,
+                items: [],
+              };
+              return {
+                ...prev,
+                specialOffer: updater(base),
+              };
+            });
+          };
 
-              <div className="md:col-span-7 flex flex-col sm:flex-row sm:items-center gap-2">
-                <label className="font-semibold text-slate-600 text-xs shrink-0 sm:w-32">Section Heading:</label>
-                <input
-                  type="text"
-                  value={settingsForm.specialOffer?.title || 'Special Offer'}
-                  onChange={e => {
-                    const val = e.target.value;
-                    setSettingsForm(prev => ({
-                      ...prev,
-                      specialOffer: {
-                        ...(prev.specialOffer || { enabled: true, endTime: Date.now() + 48*3600*1000, items: [] }),
-                        title: val
-                      }
-                    }));
-                  }}
-                  placeholder="e.g. Special Offer"
-                  className="w-full px-3.5 py-2 rounded-lg border border-slate-300 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
-                />
-              </div>
-            </div>
-
-            {/* Offer Products Grid */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-xs text-slate-700 uppercase tracking-wider">
-                    Featured Deal Items
-                  </h3>
-                  <span className="px-2 py-0.5 rounded bg-slate-200/80 text-slate-700 font-semibold text-[11px] tabular-nums">
-                    {settingsForm.specialOffer?.items?.length || 0}
-                  </span>
+          return (
+            <div className="space-y-5">
+              {/* Clean Page Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+                      Special Offer Deals
+                    </h2>
+                    <button
+                      type="button"
+                      onClick={() => setSpecialOfferTickNow(Date.now())}
+                      title="Refresh live timer status"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-[11px] font-semibold text-slate-600 cursor-pointer"
+                    >
+                      <RefreshCw size={11} />
+                      <span>Refresh</span>
+                    </button>
+                  </div>
+                  <p className="text-xs sm:text-[13px] text-slate-500">
+                    Set global or per-product end date &amp; time. Expired products are automatically removed from the storefront Special Offer section.
+                  </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (products.length === 0) return;
-                    const firstProd = products[0];
-                    const currentItems = settingsForm.specialOffer?.items || [];
-                    setSettingsForm(prev => ({
-                      ...prev,
-                      specialOffer: {
-                        ...(prev.specialOffer || { enabled: true, title: 'Special Offer', endTime: Date.now() + 48*3600*1000 }),
-                        items: [...currentItems, { productId: firstProd.id, discountPercentage: 20, soldPercentage: 50, onlinePaymentOnly: false }]
-                      }
-                    }));
+                  data-testid="admin-save-special-offer-btn"
+                  onClick={async () => {
+                    try {
+                      setSettingsSaving(true);
+                      await updateSettings({ specialOffer: settingsForm.specialOffer });
+                      setToast({
+                        show: true,
+                        type: 'success',
+                        message: 'Special Offer configuration saved to Firebase!',
+                      });
+                    } catch (err: any) {
+                      setToast({
+                        show: true,
+                        type: 'error',
+                        message: 'Failed to save: ' + err.message,
+                      });
+                    } finally {
+                      setSettingsSaving(false);
+                    }
                   }}
-                  className="px-3.5 py-2 bg-slate-900 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer hover:bg-slate-800 transition-colors"
+                  className="w-full sm:w-auto px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-semibold rounded-lg text-xs cursor-pointer transition-colors flex items-center justify-center gap-1.5 shrink-0"
                 >
-                  <Plus size={13} /> <span>Add Deal Product</span>
+                  <Check size={14} /> <span>{settingsSaving ? 'Saving...' : 'Save Changes'}</span>
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5">
-                {(settingsForm.specialOffer?.items || []).map((item, idx) => {
-                  const prod = products.find(p => p.id === item.productId);
-                  return (
-                    <div key={idx} className="p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors flex flex-col gap-3">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={prod?.images[0] || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=100'}
-                          alt=""
-                          className="w-11 h-14 rounded-lg object-cover border border-slate-200 shrink-0 bg-slate-50"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <label className="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Select Product</label>
-                          <select
-                            value={item.productId}
-                            onChange={e => {
-                              const newId = e.target.value;
-                              setSettingsForm(prev => {
-                                const items = [...(prev.specialOffer?.items || [])];
-                                items[idx] = { ...items[idx], productId: newId };
-                                return { ...prev, specialOffer: { ...prev.specialOffer!, items } };
-                              });
+              {/* Live Status Overview Bar */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" data-special-tick={specialOfferTickNow}>
+                <div className="bg-white border border-slate-200 rounded-xl p-3.5">
+                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+                    Live on Storefront
+                  </div>
+                  <div className="mt-1 flex items-baseline justify-between">
+                    <span className="text-xl font-bold text-emerald-600 tabular-nums">
+                      {activeDealsCount}
+                    </span>
+                    <span className="text-[11px] font-medium text-slate-500">
+                      of {dealItems.length} items
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-white border border-slate-200 rounded-xl p-3.5">
+                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+                    Expired / Auto-Hidden
+                  </div>
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <span
+                      className={`text-xl font-bold tabular-nums ${
+                        expiredDealsCount > 0 ? 'text-red-600' : 'text-slate-700'
+                      }`}
+                    >
+                      {expiredDealsCount}
+                    </span>
+                    {expiredDealsCount > 0 && (
+                      <button
+                        type="button"
+                        data-testid="admin-clean-expired-deals-btn"
+                        onClick={() => {
+                          patchSpecialOffer(cfg => ({
+                            ...cfg,
+                            items: (cfg.items || []).filter(
+                              it => getSpecialOfferItemStatus(it, cfg, Date.now()).status !== 'expired'
+                            ),
+                          }));
+                          setToast({
+                            show: true,
+                            type: 'success',
+                            message: 'Cleared expired deal items from list. Click Save Changes to persist.',
+                          });
+                        }}
+                        className="px-2 py-1 rounded-md bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-[10px] font-bold cursor-pointer transition-colors"
+                      >
+                        Clear Expired
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-white border border-slate-200 rounded-xl p-3.5">
+                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+                    Global Timer Status
+                  </div>
+                  <div className="mt-1 flex items-center justify-between gap-1.5">
+                    <span
+                      className={`text-sm font-bold font-mono tabular-nums ${
+                        isGlobalExpired ? 'text-red-600' : 'text-slate-900'
+                      }`}
+                    >
+                      {isGlobalExpired ? 'Expired' : formatCompactDuration(globalRemainingMs)}
+                    </span>
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                        isGlobalExpired
+                          ? 'bg-red-50 text-red-700 border border-red-200'
+                          : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      }`}
+                    >
+                      {isGlobalExpired ? 'Ended' : 'Running'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-white border border-slate-200 rounded-xl p-3.5">
+                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+                    Scheduled Upcoming
+                  </div>
+                  <div className="mt-1 flex items-baseline justify-between">
+                    <span className="text-xl font-bold text-blue-600 tabular-nums">
+                      {scheduledDealsCount}
+                    </span>
+                    <span className="text-[11px] font-medium text-slate-500">
+                      auto-starts on time
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Campaign Heading, Visibility & Global Schedule Config */}
+              <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                  <label className="md:col-span-4 flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-200 cursor-pointer">
+                    <div>
+                      <span className="font-semibold text-xs text-slate-900 block">
+                        Show Special Offer on Home
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        Master visibility switch
+                      </span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={specialCfg.enabled !== false}
+                      onChange={e => {
+                        const val = e.target.checked;
+                        patchSpecialOffer(cfg => ({ ...cfg, enabled: val }));
+                      }}
+                      className="w-4 h-4 accent-[#D71920] rounded cursor-pointer"
+                    />
+                  </label>
+
+                  <label className="md:col-span-4 flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-200 cursor-pointer">
+                    <div>
+                      <span className="font-semibold text-xs text-slate-900 block">
+                        Auto-Remove When Timer Ends
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        Hide expired products automatically
+                      </span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      data-testid="admin-special-offer-autoremove-checkbox"
+                      checked={specialCfg.autoRemoveExpired !== false}
+                      onChange={e => {
+                        const val = e.target.checked;
+                        patchSpecialOffer(cfg => ({ ...cfg, autoRemoveExpired: val }));
+                      }}
+                      className="w-4 h-4 accent-[#D71920] rounded cursor-pointer"
+                    />
+                  </label>
+
+                  <label className="md:col-span-4 flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-200 cursor-pointer">
+                    <div>
+                      <span className="font-semibold text-xs text-slate-900 block">
+                        Show Item Countdown Badge
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        Display timer on custom-timed cards
+                      </span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={specialCfg.showItemCountdown !== false}
+                      onChange={e => {
+                        const val = e.target.checked;
+                        patchSpecialOffer(cfg => ({ ...cfg, showItemCountdown: val }));
+                      }}
+                      className="w-4 h-4 accent-[#D71920] rounded cursor-pointer"
+                    />
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 pt-3 border-t border-slate-100 items-end">
+                  <div className="lg:col-span-5 space-y-1.5">
+                    <label className="block font-semibold text-slate-700 text-xs">
+                      Section Heading
+                    </label>
+                    <input
+                      type="text"
+                      value={specialCfg.title || 'Special Offer'}
+                      onChange={e => {
+                        const val = e.target.value;
+                        patchSpecialOffer(cfg => ({ ...cfg, title: val }));
+                      }}
+                      placeholder="e.g. Special Offer"
+                      className="w-full px-3.5 py-2 rounded-lg border border-slate-300 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
+                    />
+                  </div>
+
+                  <div className="lg:col-span-7 space-y-1.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <label className="font-semibold text-slate-700 text-xs flex items-center gap-1.5">
+                        <Calendar size={13} className="text-[#D71920]" />
+                        <span>Global Campaign End Date &amp; Time</span>
+                      </label>
+                      <span className="text-[11px] text-slate-500 font-medium">
+                        Ends: <strong className="text-slate-800">{formatLocalDateTimeLabel(specialCfg.endTime)}</strong>
+                      </span>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="datetime-local"
+                        data-testid="admin-special-offer-global-endtime"
+                        value={toDateTimeLocalInputValue(specialCfg.endTime)}
+                        onChange={e => {
+                          const nextTs = fromDateTimeLocalInputValue(e.target.value);
+                          if (nextTs) {
+                            patchSpecialOffer(cfg => ({ ...cfg, endTime: nextTs }));
+                          }
+                        }}
+                        className="flex-1 px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:border-[#D71920]"
+                      />
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {[
+                          { label: '+1h', ms: 1 * 3600 * 1000 },
+                          { label: '+6h', ms: 6 * 3600 * 1000 },
+                          { label: '+24h', ms: 24 * 3600 * 1000 },
+                          { label: '+48h', ms: 48 * 3600 * 1000 },
+                          { label: '+7d', ms: 7 * 24 * 3600 * 1000 },
+                        ].map(preset => (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => {
+                              patchSpecialOffer(cfg => ({
+                                ...cfg,
+                                endTime: Date.now() + preset.ms,
+                              }));
                             }}
-                            className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-900 focus:outline-none focus:bg-white focus:border-[#D71920]"
+                            className="px-2.5 py-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-[11px] font-bold text-slate-700 cursor-pointer transition-colors"
                           >
-                            {products.map(p => (
-                              <option key={p.id} value={p.id}>{p.title} (৳{p.price})</option>
-                            ))}
-                          </select>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSettingsForm(prev => {
-                              const items = (prev.specialOffer?.items || []).filter((_, i) => i !== idx);
-                              return { ...prev, specialOffer: { ...prev.specialOffer!, items } };
-                            });
-                          }}
-                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer transition-colors shrink-0 self-end mb-0.5"
-                          title="Remove Deal"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-3 border-t border-slate-100 items-center">
-                        <div>
-                          <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Discount %</label>
-                          <input
-                            type="number"
-                            min="1"
-                            max="90"
-                            value={item.discountPercentage}
-                            onChange={e => {
-                              const val = Number(e.target.value) || 20;
-                              setSettingsForm(prev => {
-                                const items = [...(prev.specialOffer?.items || [])];
-                                items[idx] = { ...items[idx], discountPercentage: val };
-                                return { ...prev, specialOffer: { ...prev.specialOffer!, items } };
-                              });
-                            }}
-                            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white text-xs font-semibold text-slate-900 tabular-nums focus:outline-none focus:border-[#D71920]"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Sold Progress %</label>
-                          <input
-                            type="number"
-                            min="1"
-                            max="100"
-                            value={item.soldPercentage}
-                            onChange={e => {
-                              const val = Number(e.target.value) || 50;
-                              setSettingsForm(prev => {
-                                const items = [...(prev.specialOffer?.items || [])];
-                                items[idx] = { ...items[idx], soldPercentage: val };
-                                return { ...prev, specialOffer: { ...prev.specialOffer!, items } };
-                              });
-                            }}
-                            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white text-xs font-semibold text-slate-900 tabular-nums focus:outline-none focus:border-[#D71920]"
-                          />
-                        </div>
-
-                        <label className="col-span-2 sm:col-span-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 cursor-pointer sm:mt-4">
-                          <input
-                            type="checkbox"
-                            checked={!!item.onlinePaymentOnly}
-                            onChange={e => {
-                              const val = e.target.checked;
-                              setSettingsForm(prev => {
-                                const items = [...(prev.specialOffer?.items || [])];
-                                items[idx] = { ...items[idx], onlinePaymentOnly: val };
-                                return { ...prev, specialOffer: { ...prev.specialOffer!, items } };
-                              });
-                            }}
-                            className="w-3.5 h-3.5 accent-[#D71920] rounded"
-                          />
-                          <span className="truncate">Online Pay Only</span>
-                        </label>
+                            {preset.label}
+                          </button>
+                        ))}
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Offer Products Grid */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-xs text-slate-700 uppercase tracking-wider">
+                      Featured Deal Items &amp; Per-Product Timings
+                    </h3>
+                    <span className="px-2 py-0.5 rounded bg-slate-200/80 text-slate-700 font-semibold text-[11px] tabular-nums">
+                      {dealItems.length}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    data-testid="admin-add-special-offer-item-btn"
+                    onClick={() => {
+                      if (products.length === 0) return;
+                      const firstProd = products[0];
+                      patchSpecialOffer(cfg => ({
+                        ...cfg,
+                        items: [
+                          ...(cfg.items || []),
+                          {
+                            productId: firstProd.id,
+                            discountPercentage: 20,
+                            soldPercentage: 50,
+                            onlinePaymentOnly: false,
+                          },
+                        ],
+                      }));
+                    }}
+                    className="px-3.5 py-2 bg-slate-900 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer hover:bg-slate-800 transition-colors"
+                  >
+                    <Plus size={13} /> <span>Add Deal Product</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5">
+                  {dealItems.map((item, idx) => {
+                    const prod = products.find(p => p.id === item.productId);
+                    const statusInfo = getSpecialOfferItemStatus(item, specialCfg, nowMs);
+                    return (
+                      <div
+                        key={idx}
+                        data-testid={`admin-special-offer-item-${idx}`}
+                        className={`p-4 rounded-xl border bg-white transition-colors flex flex-col gap-3 ${
+                          statusInfo.status === 'expired'
+                            ? 'border-red-200 bg-red-50/20'
+                            : statusInfo.status === 'scheduled'
+                            ? 'border-blue-200'
+                            : 'border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {statusInfo.status === 'expired' ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-50 border border-red-200 text-red-700 text-[10px] font-bold">
+                                <Clock size={10} />
+                                <span>Expired · Hidden from Storefront</span>
+                              </span>
+                            ) : statusInfo.status === 'scheduled' ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-blue-700 text-[10px] font-bold">
+                                <Clock size={10} />
+                                <span>Scheduled · Starts in {formatCompactDuration(statusInfo.remainingMs)}</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold tabular-nums">
+                                <Clock size={10} />
+                                <span>Active · {formatCompactDuration(statusInfo.remainingMs)} left</span>
+                              </span>
+                            )}
+                            <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-semibold">
+                              {statusInfo.usesCustomEndTime ? 'Custom End Date' : 'Global Timer'}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              patchSpecialOffer(cfg => ({
+                                ...cfg,
+                                items: (cfg.items || []).filter((_, i) => i !== idx),
+                              }));
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer transition-colors shrink-0"
+                            title="Remove Deal"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={
+                              prod?.images[0] ||
+                              'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=100'
+                            }
+                            alt=""
+                            className="w-12 h-12 rounded-lg object-cover border border-slate-200 shrink-0 bg-slate-50"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <label className="block text-[10px] font-semibold text-slate-400 uppercase mb-1">
+                              Select Product
+                            </label>
+                            <select
+                              value={item.productId}
+                              onChange={e => {
+                                const newId = e.target.value;
+                                patchSpecialOffer(cfg => {
+                                  const items = [...(cfg.items || [])];
+                                  items[idx] = { ...items[idx], productId: newId };
+                                  return { ...cfg, items };
+                                });
+                              }}
+                              className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-900 focus:outline-none focus:bg-white focus:border-[#D71920]"
+                            >
+                              {products.map(p => (
+                                <option key={p.id} value={p.id}>
+                                  {p.title} (৳{p.price})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-2 border-t border-slate-100 items-center">
+                          <div>
+                            <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">
+                              Discount %
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              max="90"
+                              value={item.discountPercentage}
+                              onChange={e => {
+                                const val = Number(e.target.value) || 20;
+                                patchSpecialOffer(cfg => {
+                                  const items = [...(cfg.items || [])];
+                                  items[idx] = { ...items[idx], discountPercentage: val };
+                                  return { ...cfg, items };
+                                });
+                              }}
+                              className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white text-xs font-semibold text-slate-900 tabular-nums focus:outline-none focus:border-[#D71920]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">
+                              Sold Progress %
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              max="100"
+                              value={item.soldPercentage}
+                              onChange={e => {
+                                const val = Number(e.target.value) || 50;
+                                patchSpecialOffer(cfg => {
+                                  const items = [...(cfg.items || [])];
+                                  items[idx] = { ...items[idx], soldPercentage: val };
+                                  return { ...cfg, items };
+                                });
+                              }}
+                              className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white text-xs font-semibold text-slate-900 tabular-nums focus:outline-none focus:border-[#D71920]"
+                            />
+                          </div>
+
+                          <label className="col-span-2 sm:col-span-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 cursor-pointer sm:mt-4">
+                            <input
+                              type="checkbox"
+                              checked={!!item.onlinePaymentOnly}
+                              onChange={e => {
+                                const val = e.target.checked;
+                                patchSpecialOffer(cfg => {
+                                  const items = [...(cfg.items || [])];
+                                  items[idx] = { ...items[idx], onlinePaymentOnly: val };
+                                  return { ...cfg, items };
+                                });
+                              }}
+                              className="w-3.5 h-3.5 accent-[#D71920] rounded"
+                            />
+                            <span className="truncate">Online Pay Only</span>
+                          </label>
+                        </div>
+
+                        {/* Per-Product Start & End Date/Time Controls */}
+                        <div className="p-3 rounded-lg bg-slate-50 border border-slate-200/80 space-y-2.5">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="text-[11px] font-semibold text-slate-700 flex items-center gap-1">
+                              <Calendar size={12} className="text-[#D71920]" />
+                              <span>Product Expiry Date &amp; Time</span>
+                            </span>
+                            <div className="flex items-center gap-1">
+                              {[
+                                { label: '+1h', ms: 3600 * 1000 },
+                                { label: '+12h', ms: 12 * 3600 * 1000 },
+                                { label: '+24h', ms: 24 * 3600 * 1000 },
+                              ].map(preset => (
+                                <button
+                                  key={preset.label}
+                                  type="button"
+                                  onClick={() => {
+                                    patchSpecialOffer(cfg => {
+                                      const items = [...(cfg.items || [])];
+                                      items[idx] = {
+                                        ...items[idx],
+                                        endTime: Date.now() + preset.ms,
+                                      };
+                                      return { ...cfg, items };
+                                    });
+                                  }}
+                                  className="px-2 py-0.5 rounded bg-white border border-slate-200 hover:border-[#D71920] text-[10px] font-bold text-slate-700 cursor-pointer"
+                                >
+                                  {preset.label}
+                                </button>
+                              ))}
+                              {item.endTime ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    patchSpecialOffer(cfg => {
+                                      const items = [...(cfg.items || [])];
+                                      items[idx] = { ...items[idx], endTime: undefined };
+                                      return { ...cfg, items };
+                                    });
+                                  }}
+                                  className="px-2 py-0.5 rounded bg-white border border-slate-200 hover:text-red-600 text-[10px] font-bold text-slate-500 cursor-pointer"
+                                >
+                                  Use Global
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[10px] font-medium text-slate-500 mb-1">
+                                Start Time (Optional)
+                              </label>
+                              <input
+                                type="datetime-local"
+                                data-testid={`admin-special-offer-item-starttime-${idx}`}
+                                value={toDateTimeLocalInputValue(item.startTime)}
+                                onChange={e => {
+                                  const nextTs = fromDateTimeLocalInputValue(e.target.value);
+                                  patchSpecialOffer(cfg => {
+                                    const items = [...(cfg.items || [])];
+                                    items[idx] = { ...items[idx], startTime: nextTs };
+                                    return { ...cfg, items };
+                                  });
+                                }}
+                                className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] font-semibold text-slate-800 focus:outline-none focus:border-[#D71920]"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-medium text-slate-500 mb-1">
+                                End Date &amp; Time (Auto-Removes After)
+                              </label>
+                              <input
+                                type="datetime-local"
+                                data-testid={`admin-special-offer-item-endtime-${idx}`}
+                                value={toDateTimeLocalInputValue(item.endTime)}
+                                onChange={e => {
+                                  const nextTs = fromDateTimeLocalInputValue(e.target.value);
+                                  patchSpecialOffer(cfg => {
+                                    const items = [...(cfg.items || [])];
+                                    items[idx] = { ...items[idx], endTime: nextTs };
+                                    return { ...cfg, items };
+                                  });
+                                }}
+                                className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] font-semibold text-slate-800 focus:outline-none focus:border-[#D71920]"
+                              />
+                            </div>
+                          </div>
+
+                          <p className="text-[10px] text-slate-500">
+                            Effective removal time:{' '}
+                            <strong className="text-slate-700">
+                              {formatLocalDateTimeLabel(statusInfo.effectiveEndTime)}
+                            </strong>
+                            {!item.endTime && ' (inherited from Global Campaign End Time)'}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* TAB: BOOK VIDEO REELS */}
         {activeTab === 'reels' && (
