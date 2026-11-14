@@ -10,8 +10,10 @@ import {
   resolveSiteSettings,
   computePaymentChannelDistribution,
   buildCustomerOrderHistorySummary,
+  computeTopSellingProducts,
+  filterActiveNonTrashedOrders,
 } from './adminOrderAndPaymentHelpers';
-import type { Order, PaymentSubmission, PaymentMethodConfig } from '../types';
+import type { Order, PaymentSubmission, PaymentMethodConfig, Product } from '../types';
 
 function makeOrder(overrides: Partial<Order> = {}): Order {
   return {
@@ -386,5 +388,129 @@ test('buildCustomerOrderHistorySummary computes total orders, ratios, and exclud
   assert.equal(firstTimeSummary.isFirstTimeCustomer, true);
   assert.equal(firstTimeSummary.customerRankLabel, '1st Order (New Customer)');
 });
+
+function makeProduct(overrides: Partial<Product> = {}): Product {
+  return {
+    id: overrides.id || 'p1',
+    type: 'book',
+    title: overrides.title || 'Sample Book',
+    slug: overrides.slug || 'sample-book',
+    description: '',
+    category: 'Books',
+    images: [],
+    price: overrides.price ?? 300,
+    stock: overrides.stock ?? 25,
+    sku: 'SKU-1',
+    variants: [],
+    rating: 5,
+    reviewCount: 0,
+    createdAt: 1_700_000_000_000,
+    ...overrides,
+  };
+}
+
+test('computeTopSellingProducts ranks real sales, merges variants into one row, excludes deleted products & trashed/cancelled orders', () => {
+  const now = new Date('2026-11-14T12:00:00Z').getTime();
+  const twoDaysAgo = now - 2 * 24 * 60 * 60 * 1000;
+  const twentyDaysAgo = now - 20 * 24 * 60 * 60 * 1000;
+
+  // Live catalog: p1 and p2 exist; p-deleted has been deleted from catalog!
+  const catalog: Product[] = [
+    makeProduct({ id: 'p1', title: 'প্যারাডক্সিক্যাল সাজিদ ১', price: 320, stock: 18 }),
+    makeProduct({ id: 'p2', title: 'হিমু সমগ্র', price: 650, stock: 12 }),
+  ];
+
+  const orders: Order[] = [
+    // Valid recent order buying BOTH Paperback and Hardcover of p1 (must merge into 1 canonical row!)
+    makeOrder({
+      id: 'MRB-101',
+      orderStatus: 'confirmed',
+      paymentStatus: 'approved',
+      createdAt: twoDaysAgo,
+      items: [
+        { productId: 'p1', variantId: 'v-pb', title: 'প্যারাডক্সিক্যাল সাজিদ ১', variantName: 'Paperback', price: 320, image: '', quantity: 2, stock: 18, type: 'book' },
+        { productId: 'p1', variantId: 'v-hc', title: 'প্যারাডক্সিক্যাল সাজিদ ১', variantName: 'Hardcover', price: 420, image: '', quantity: 1, stock: 10, type: 'book' },
+      ],
+    }),
+    // Second valid order for p1 (older, within 30d) + p2
+    makeOrder({
+      id: 'MRB-102',
+      orderStatus: 'delivered',
+      paymentStatus: 'approved',
+      createdAt: twentyDaysAgo,
+      items: [
+        { productId: 'p1', variantId: 'v-pb', title: 'প্যারাডক্সিক্যাল সাজিদ ১', variantName: 'Paperback', price: 320, image: '', quantity: 1, stock: 18, type: 'book' },
+        { productId: 'p2', variantId: 'v-hc', title: 'হিমু সমগ্র', variantName: 'Hardcover', price: 650, image: '', quantity: 2, stock: 12, type: 'book' },
+      ],
+    }),
+    // Order for DELETED product -> MUST NOT appear!
+    makeOrder({
+      id: 'MRB-103',
+      orderStatus: 'delivered',
+      createdAt: twoDaysAgo,
+      items: [
+        { productId: 'p-deleted', variantId: 'v1', title: 'Paradoxical Sajid 2', variantName: 'Paperback', price: 350, image: '', quantity: 10, stock: 0, type: 'book' },
+      ],
+    }),
+    // Trashed order -> MUST NOT count!
+    makeOrder({
+      id: 'MRB-104-TRASH',
+      isTrashed: true,
+      orderStatus: 'delivered',
+      createdAt: twoDaysAgo,
+      items: [
+        { productId: 'p2', variantId: 'v-hc', title: 'হিমু সমগ্র', variantName: 'Hardcover', price: 650, image: '', quantity: 50, stock: 12, type: 'book' },
+      ],
+    }),
+    // Cancelled order -> MUST NOT count!
+    makeOrder({
+      id: 'MRB-105-CANCEL',
+      orderStatus: 'cancelled',
+      createdAt: twoDaysAgo,
+      items: [
+        { productId: 'p2', variantId: 'v-hc', title: 'হিমু সমগ্র', variantName: 'Hardcover', price: 650, image: '', quantity: 25, stock: 12, type: 'book' },
+      ],
+    }),
+    // Refunded order -> MUST NOT count!
+    makeOrder({
+      id: 'MRB-106-REFUND',
+      orderStatus: 'delivered',
+      paymentStatus: 'refunded',
+      createdAt: twoDaysAgo,
+      items: [
+        { productId: 'p2', variantId: 'v-hc', title: 'হিমু সমগ্র', variantName: 'Hardcover', price: 650, image: '', quantity: 20, stock: 12, type: 'book' },
+      ],
+    }),
+  ];
+
+  // Filter helper excludes trashed order
+  assert.equal(filterActiveNonTrashedOrders(orders).length, 5);
+
+  const allTimeTop = computeTopSellingProducts(orders, catalog, { range: 'all', limit: 5, now });
+  assert.equal(allTimeTop.length, 2);
+  // #1: p1 -> 2+1+1 = 4 units across 2 orders, revenue = 640 + 420 + 320 = 1380
+  assert.equal(allTimeTop[0].productId, 'p1');
+  assert.equal(allTimeTop[0].unitsSold, 4);
+  assert.equal(allTimeTop[0].ordersCount, 2);
+  assert.equal(allTimeTop[0].revenue, 1380);
+  assert.equal(allTimeTop[0].variantsSummary, 'Paperback, Hardcover');
+  // #2: p2 -> 2 units across 1 order, revenue = 1300
+  assert.equal(allTimeTop[1].productId, 'p2');
+  assert.equal(allTimeTop[1].unitsSold, 2);
+  assert.equal(allTimeTop[1].ordersCount, 1);
+
+  // 7days window excludes MRB-102 (20 days old) -> only p1 appears with 3 units, 1 order, 1060 revenue
+  const sevenDayTop = computeTopSellingProducts(orders, catalog, { range: '7days', limit: 5, now });
+  assert.equal(sevenDayTop.length, 1);
+  assert.equal(sevenDayTop[0].productId, 'p1');
+  assert.equal(sevenDayTop[0].unitsSold, 3);
+  assert.equal(sevenDayTop[0].ordersCount, 1);
+  assert.equal(sevenDayTop[0].revenue, 1060);
+
+  // When catalog becomes empty (all products deleted) -> returns [] immediately (no ghost cache items!)
+  const emptyCatalogTop = computeTopSellingProducts(orders, [], { range: 'all', now });
+  assert.deepEqual(emptyCatalogTop, []);
+});
+
 
 

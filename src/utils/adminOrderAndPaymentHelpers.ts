@@ -5,6 +5,7 @@ import {
   Order,
   PaymentMethodConfig,
   PaymentSubmission,
+  Product,
   SiteSettings,
 } from '../types';
 import { normalizePhoneLast10 } from './chatSoundAndValidation';
@@ -834,4 +835,183 @@ export function computePaymentChannelDistribution(
     },
   };
 }
+
+export type TopProductsTimeRange = 'today' | 'yesterday' | '7days' | '30days' | 'all';
+
+export interface TopSellingProductRow {
+  productId: string;
+  title: string;
+  author?: string;
+  category: string;
+  thumbnail: string;
+  currentPrice: number;
+  currentStock: number;
+  unitsSold: number;
+  ordersCount: number;
+  revenue: number;
+  variantsSummary: string;
+  isBook: boolean;
+}
+
+export function filterActiveNonTrashedOrders(orders: Order[]): Order[] {
+  return (orders || []).filter(o => Boolean(o) && !o.isTrashed);
+}
+
+/**
+ * Computes real best-selling products from active (non-trashed, non-cancelled, non-refunded) orders.
+ * - Matches strictly against the live `products` catalog by `productId` so deleted products never linger.
+ * - Aggregates multiple variants (e.g., Paperback + Hardcover) and repeated line items for the same product
+ *   into a single canonical row so no book appears duplicated.
+ */
+export function computeTopSellingProducts(
+  orders: Order[],
+  products: Product[],
+  options: {
+    range?: TopProductsTimeRange;
+    limit?: number;
+    now?: number;
+    includeDeletedCatalog?: boolean;
+  } = {}
+): TopSellingProductRow[] {
+  const {
+    range = 'all',
+    limit = 5,
+    now = Date.now(),
+    includeDeletedCatalog = false,
+  } = options;
+
+  const catalogById = new Map<string, Product>();
+  for (const prod of products || []) {
+    if (prod && prod.id && !catalogById.has(prod.id)) {
+      catalogById.set(prod.id, prod);
+    }
+  }
+
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+  const todayMs = startOfToday.getTime();
+  const yesterdayMs = todayMs - 24 * 60 * 60 * 1000;
+
+  const isInRange = (ts: number): boolean => {
+    if (range === 'all') return true;
+    if (range === 'today') return ts >= todayMs;
+    if (range === 'yesterday') return ts >= yesterdayMs && ts < todayMs;
+    if (range === '7days') return ts >= now - 7 * 24 * 60 * 60 * 1000;
+    if (range === '30days') return ts >= now - 30 * 24 * 60 * 60 * 1000;
+    return true;
+  };
+
+  interface Accumulator {
+    productId: string;
+    title: string;
+    author?: string;
+    category: string;
+    thumbnail: string;
+    currentPrice: number;
+    currentStock: number;
+    unitsSold: number;
+    ordersCount: number;
+    revenue: number;
+    variants: Set<string>;
+    isBook: boolean;
+  }
+
+  const aggregated = new Map<string, Accumulator>();
+
+  for (const order of orders || []) {
+    if (!order || order.isTrashed) continue;
+    if (order.orderStatus === 'cancelled') continue;
+    if (order.paymentStatus === 'refunded') continue;
+
+    const createdMs = toNumericTimestamp(order.createdAt, 0);
+    if (!isInRange(createdMs)) continue;
+
+    const seenInThisOrder = new Set<string>();
+
+    for (const item of order.items || []) {
+      if (!item) continue;
+      const prodId = (item.productId || '').trim();
+      const catalogProd = prodId ? catalogById.get(prodId) : undefined;
+
+      if (!includeDeletedCatalog && !catalogProd) {
+        continue;
+      }
+
+      const canonicalId = catalogProd ? catalogProd.id : prodId;
+      if (!canonicalId) continue;
+
+      const qty = Math.max(1, Math.floor(Number(item.quantity) || 1));
+      const unitPrice = Math.max(0, Number(item.price) || Number(catalogProd?.price) || 0);
+      const lineRevenue = unitPrice * qty;
+
+      const existing = aggregated.get(canonicalId);
+      const variantLabel = (item.variantName || '').trim();
+
+      if (existing) {
+        existing.unitsSold += qty;
+        existing.revenue += lineRevenue;
+        if (!seenInThisOrder.has(canonicalId)) {
+          existing.ordersCount += 1;
+          seenInThisOrder.add(canonicalId);
+        }
+        if (variantLabel) {
+          existing.variants.add(variantLabel);
+        }
+      } else {
+        const variants = new Set<string>();
+        if (variantLabel) {
+          variants.add(variantLabel);
+        }
+        const liveThumbnail =
+          (catalogProd?.images && catalogProd.images[0]) ||
+          (typeof item.image === 'string' ? item.image : '') ||
+          '';
+
+        const catalogStock = catalogProd
+          ? Math.max(0, Number(catalogProd.stock) || 0)
+          : Math.max(0, Number(item.stock) || 0);
+
+        aggregated.set(canonicalId, {
+          productId: canonicalId,
+          title: catalogProd?.title || item.title || 'Untitled Product',
+          author: catalogProd?.author || catalogProd?.brand,
+          category: catalogProd?.category || (item.type === 'stationery' ? 'Stationery' : 'Book'),
+          thumbnail: liveThumbnail,
+          currentPrice: Number(catalogProd?.price ?? unitPrice) || 0,
+          currentStock: catalogStock,
+          unitsSold: qty,
+          ordersCount: 1,
+          revenue: lineRevenue,
+          variants,
+          isBook: (catalogProd?.type || item.type) !== 'stationery',
+        });
+        seenInThisOrder.add(canonicalId);
+      }
+    }
+  }
+
+  return Array.from(aggregated.values())
+    .map(entry => ({
+      productId: entry.productId,
+      title: entry.title,
+      author: entry.author,
+      category: entry.category,
+      thumbnail: entry.thumbnail,
+      currentPrice: entry.currentPrice,
+      currentStock: entry.currentStock,
+      unitsSold: entry.unitsSold,
+      ordersCount: entry.ordersCount,
+      revenue: entry.revenue,
+      variantsSummary: Array.from(entry.variants).join(', '),
+      isBook: entry.isBook,
+    }))
+    .sort((a, b) => {
+      if (b.unitsSold !== a.unitsSold) return b.unitsSold - a.unitsSold;
+      if (b.revenue !== a.revenue) return b.revenue - a.revenue;
+      if (b.ordersCount !== a.ordersCount) return b.ordersCount - a.ordersCount;
+      return a.title.localeCompare(b.title);
+    })
+    .slice(0, Math.max(1, limit));
+}
+
 

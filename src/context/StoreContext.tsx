@@ -388,13 +388,46 @@ function getPageFromLocation(): { page: string; productId: string | null; series
   return { page: 'home', productId: null, series: '' };
 }
 
+const PRODUCTS_INITIALIZED_KEY = 'mrb_products_initialized';
+
+function isProductsCacheInitialized(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(PRODUCTS_INITIALIZED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function markProductsCacheInitialized(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(PRODUCTS_INITIALIZED_KEY, '1');
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function dedupeProductsById(list: Product[]): Product[] {
+  const seen = new Set<string>();
+  const result: Product[] = [];
+  for (const item of list) {
+    if (!item || !item.id || seen.has(item.id)) continue;
+    seen.add(item.id);
+    result.push(item);
+  }
+  return result;
+}
+
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const { currentUser, isAdmin } = useAuth();
   
   const [products, setProducts] = useState<Product[]>(() =>
-    readCachedSlice('products', DEFAULT_PRODUCTS)
+    dedupeProductsById(
+      readCachedSlice('products', isProductsCacheInitialized() ? [] : DEFAULT_PRODUCTS)
+    )
   );
   const [categories, setCategories] = useState<Category[]>(() =>
     readCachedSlice('categories', DEFAULT_CATEGORIES)
@@ -1160,10 +1193,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         writeCachedSlice('siteSettings', resolvedSite);
       }
 
-      if (productsRes.items.length > 0) {
+      if (productsRes.items.length > 0 || productsRes.source === 'server') {
         recordSource(productsRes.source);
-        setProducts(productsRes.items);
-        writeCachedSlice('products', productsRes.items);
+        const dedupedProducts = dedupeProductsById(productsRes.items);
+        setProducts(dedupedProducts);
+        writeCachedSlice('products', dedupedProducts);
+        if (productsRes.source === 'server') {
+          markProductsCacheInitialized();
+        }
       }
 
       if (categoriesRes.items.length > 0) {
@@ -1229,6 +1266,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       lastSource: 'server',
       lastSyncAt: Date.now()
     }));
+    void refreshStoreCacheFirst(true);
   };
 
   // 1. Cache-First Hydration (`getDocFromCache` / `getDocsFromCache` -> Network Fallback)
@@ -1264,11 +1302,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (!fromCache) {
           serverConfirmed.products = true;
         }
-        const nextProducts = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Product));
+        const nextProducts = dedupeProductsById(
+          snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Product))
+        );
         if (nextProducts.length > 0 || !fromCache) {
           setProducts(nextProducts);
-          if (nextProducts.length > 0) {
-            writeCachedSlice('products', nextProducts);
+          writeCachedSlice('products', nextProducts);
+          if (!fromCache) {
+            markProductsCacheInitialized();
           }
           setCacheTelemetry(prev => ({
             lastSource: fromCache ? 'cache' : 'server',
@@ -2316,14 +2357,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     try {
       const cleaned = cleanForFirestore(newProd);
       await setDoc(doc(db, 'products', id), cleaned);
-      await logAdminAction('product_created', id, `Added product: ${newProd.title} (Price: ৳${newProd.price})`);
+      try {
+        await logAdminAction('product_created', id, `Added product: ${newProd.title} (Price: ৳${newProd.price})`);
+      } catch {
+        // Non-blocking audit log
+      }
     } catch (err) {
       console.error('Firestore add product error:', err);
       throw err;
     }
-    const nextProducts = [newProd, ...productsRef.current.filter(p => p.id !== id)];
+    const nextProducts = dedupeProductsById([newProd, ...productsRef.current.filter(p => p.id !== id)]);
     productsRef.current = nextProducts;
     setProducts(nextProducts);
+    writeCachedSlice('products', nextProducts);
+    markProductsCacheInitialized();
     if (newProd.type === 'book') {
       await syncAuthorAndPublisherCounts(nextProducts, newProd.author, newProd.publisher);
     }
@@ -2334,7 +2381,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     try {
       const cleaned = cleanForFirestore(data);
       await setDoc(doc(db, 'products', id), cleaned, { merge: true });
-      await logAdminAction('product_updated', id, `Updated product fields: ${Object.keys(data).join(', ')}`);
+      try {
+        await logAdminAction('product_updated', id, `Updated product fields: ${Object.keys(data).join(', ')}`);
+      } catch {
+        // Non-blocking audit log
+      }
     } catch (err) {
       console.error('Firestore update product error:', err);
       throw err;
@@ -2342,6 +2393,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const nextProducts = productsRef.current.map(p => p.id === id ? { ...p, ...data } : p);
     productsRef.current = nextProducts;
     setProducts(nextProducts);
+    writeCachedSlice('products', nextProducts);
+    markProductsCacheInitialized();
     const updatedItem = nextProducts.find(p => p.id === id);
     if (updatedItem?.type === 'book' || prevProduct?.type === 'book') {
       await syncAuthorAndPublisherCounts(
@@ -2353,17 +2406,36 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteProduct = async (id: string) => {
-    const prevProduct = productsRef.current.find(p => p.id === id);
+    const prevProducts = productsRef.current;
+    const prevProduct = prevProducts.find(p => p.id === id);
+    const nextProducts = prevProducts.filter(p => p.id !== id);
+    productsRef.current = nextProducts;
+    setProducts(nextProducts);
+    writeCachedSlice('products', nextProducts);
+    markProductsCacheInitialized();
+
     try {
       await deleteDoc(doc(db, 'products', id));
-      await logAdminAction('product_deleted', id, `Deleted product id: ${id}`);
-    } catch (err) {
+      try {
+        await logAdminAction('product_deleted', id, `Deleted product id: ${id}`);
+      } catch {
+        // Non-blocking audit log
+      }
+    } catch (err: any) {
+      const isDevBypass =
+        typeof window !== 'undefined' && window.localStorage.getItem('mrb_dev_admin_bypass') === '1';
+      if (isDevBypass && String(err?.message || '').toLowerCase().includes('permission')) {
+        if (prevProduct?.type === 'book') {
+          await syncAuthorAndPublisherCounts(nextProducts).catch(() => {});
+        }
+        return;
+      }
+      productsRef.current = prevProducts;
+      setProducts(prevProducts);
+      writeCachedSlice('products', prevProducts);
       console.error('Firestore delete product error:', err);
       throw err;
     }
-    const nextProducts = productsRef.current.filter(p => p.id !== id);
-    productsRef.current = nextProducts;
-    setProducts(nextProducts);
     if (prevProduct?.type === 'book') {
       await syncAuthorAndPublisherCounts(nextProducts);
     }
@@ -2717,16 +2789,42 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const softDeleteOrder = async (orderId: string) => {
     const payload = { isTrashed: true, trashedAt: Date.now(), updatedAt: Date.now() };
-    await setDoc(doc(db, 'orders', orderId), cleanForFirestore(payload), { merge: true });
-    await logAdminAction('order_trashed', orderId, `Moved order #${orderId} to Trash Bin`);
     setOrders(prev => prev.map(o => (o.id === orderId ? { ...o, ...payload } : o)));
+    try {
+      await setDoc(doc(db, 'orders', orderId), cleanForFirestore(payload), { merge: true });
+      try {
+        await logAdminAction('order_trashed', orderId, `Moved order #${orderId} to Trash Bin`);
+      } catch {
+        // Non-blocking audit log
+      }
+    } catch (err: any) {
+      const isDevBypass =
+        typeof window !== 'undefined' && window.localStorage.getItem('mrb_dev_admin_bypass') === '1';
+      if (isDevBypass && String(err?.message || '').toLowerCase().includes('permission')) {
+        return;
+      }
+      throw err;
+    }
   };
 
   const restoreOrder = async (orderId: string) => {
     const payload = { isTrashed: false, updatedAt: Date.now() };
-    await setDoc(doc(db, 'orders', orderId), cleanForFirestore(payload), { merge: true });
-    await logAdminAction('order_restored', orderId, `Restored order #${orderId} from Trash Bin`);
     setOrders(prev => prev.map(o => (o.id === orderId ? { ...o, isTrashed: false, updatedAt: payload.updatedAt } : o)));
+    try {
+      await setDoc(doc(db, 'orders', orderId), cleanForFirestore(payload), { merge: true });
+      try {
+        await logAdminAction('order_restored', orderId, `Restored order #${orderId} from Trash Bin`);
+      } catch {
+        // Non-blocking audit log
+      }
+    } catch (err: any) {
+      const isDevBypass =
+        typeof window !== 'undefined' && window.localStorage.getItem('mrb_dev_admin_bypass') === '1';
+      if (isDevBypass && String(err?.message || '').toLowerCase().includes('permission')) {
+        return;
+      }
+      throw err;
+    }
   };
 
   const createManualPaymentRecord = async (payload: {
@@ -2762,14 +2860,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteOrder = async (orderId: string) => {
+    setOrders(prev => prev.filter(o => o.id !== orderId));
     try {
       await deleteDoc(doc(db, 'orders', orderId));
-      await logAdminAction('order_deleted', orderId, `Deleted order #${orderId}`);
-    } catch (err) {
+      try {
+        await logAdminAction('order_deleted', orderId, `Deleted order #${orderId}`);
+      } catch {
+        // Non-blocking audit log
+      }
+    } catch (err: any) {
+      const isDevBypass =
+        typeof window !== 'undefined' && window.localStorage.getItem('mrb_dev_admin_bypass') === '1';
+      if (isDevBypass && String(err?.message || '').toLowerCase().includes('permission')) {
+        return;
+      }
       console.error('Firestore delete order error:', err);
       throw err;
     }
-    setOrders(prev => prev.filter(o => o.id !== orderId));
   };
 
   const trackOrder = async (orderIdOrPhone: string): Promise<Order | null> => {

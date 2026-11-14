@@ -26,7 +26,12 @@ import {
 } from 'lucide-react';
 import { Order, Product, PaymentSubmission, PaymentMethodConfig } from '../../types';
 import { useStore } from '../../context/StoreContext';
-import { computePaymentChannelDistribution } from '../../utils/adminOrderAndPaymentHelpers';
+import {
+  computePaymentChannelDistribution,
+  computeTopSellingProducts,
+  filterActiveNonTrashedOrders,
+  TopProductsTimeRange,
+} from '../../utils/adminOrderAndPaymentHelpers';
 import { 
   ResponsiveContainer, 
   AreaChart, 
@@ -71,25 +76,47 @@ export function AdminAnalytics({
   const [selectedYear, setSelectedYear] = useState<string>('2026');
   const [selectedMonth, setSelectedMonth] = useState<string>('October');
 
+  // Top Products filter & image fallback state
+  const [topProductsRange, setTopProductsRange] = useState<'all' | '30days' | '7days'>('all');
+  const [failedThumbIds, setFailedThumbIds] = useState<Record<string, boolean>>({});
+
   // Hourly Report AM/PM
   const [hourlyAmPm, setHourlyAmPm] = useState<'AM' | 'PM'>('AM');
+
+  // Exclude trashed orders across all analytics calculations
+  const activeOrders = useMemo(() => filterActiveNonTrashedOrders(orders), [orders]);
+
+  // Real Top Selling Products ranked strictly from live catalog + non-cancelled/non-trashed orders
+  const topProducts = useMemo(
+    () =>
+      computeTopSellingProducts(activeOrders, products, {
+        range: topProductsRange as TopProductsTimeRange,
+        limit: 5,
+      }),
+    [activeOrders, products, topProductsRange]
+  );
+
+  const totalTopUnits = useMemo(
+    () => topProducts.reduce((sum, item) => sum + item.unitsSold, 0),
+    [topProducts]
+  );
 
   // Metrics calculation
   const metrics = useMemo(() => {
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     
-    const pendingOrders = orders.filter(o => o.orderStatus === 'pending');
-    const confirmedOrders = orders.filter(o => o.orderStatus === 'confirmed');
-    const processingOrders = orders.filter(o => o.orderStatus === 'processing');
-    const shippedOrders = orders.filter(o => o.orderStatus === 'shipped');
-    const deliveredOrders = orders.filter(o => o.orderStatus === 'delivered');
-    const cancelledOrders = orders.filter(o => o.orderStatus === 'cancelled');
+    const pendingOrders = activeOrders.filter(o => o.orderStatus === 'pending');
+    const confirmedOrders = activeOrders.filter(o => o.orderStatus === 'confirmed');
+    const processingOrders = activeOrders.filter(o => o.orderStatus === 'processing');
+    const shippedOrders = activeOrders.filter(o => o.orderStatus === 'shipped');
+    const deliveredOrders = activeOrders.filter(o => o.orderStatus === 'delivered');
+    const cancelledOrders = activeOrders.filter(o => o.orderStatus === 'cancelled');
 
-    const toShipOrders = orders.filter(o => o.orderStatus === 'confirmed' || o.orderStatus === 'processing');
-    const paymentDueOrders = orders.filter(o => o.paymentStatus === 'pending_verification' || o.paymentStatus === 'unpaid');
+    const toShipOrders = activeOrders.filter(o => o.orderStatus === 'confirmed' || o.orderStatus === 'processing');
+    const paymentDueOrders = activeOrders.filter(o => o.paymentStatus === 'pending_verification' || o.paymentStatus === 'unpaid');
     
-    const todayOrders = orders.filter(o => o.createdAt >= startOfToday);
+    const todayOrders = activeOrders.filter(o => o.createdAt >= startOfToday);
     const todayPending = todayOrders.filter(o => o.orderStatus === 'pending');
     const todayConfirmed = todayOrders.filter(o => o.orderStatus === 'confirmed' || o.orderStatus === 'processing' || o.orderStatus === 'delivered');
     const todayRevenue = todayOrders.reduce((sum, o) => sum + o.total, 0);
@@ -97,15 +124,15 @@ export function AdminAnalytics({
     const todayConfirmedRev = todayConfirmed.reduce((sum, o) => sum + o.total, 0);
 
     const deliveredRevenue = deliveredOrders.reduce((sum, o) => sum + o.total, 0);
-    const returnsOrders = orders.filter(o => o.orderStatus === 'cancelled' || o.paymentStatus === 'refunded');
+    const returnsOrders = activeOrders.filter(o => o.orderStatus === 'cancelled' || o.paymentStatus === 'refunded');
     const returnsRevenue = returnsOrders.reduce((sum, o) => sum + o.total, 0);
 
-    const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
-    const cancellationRate = orders.length > 0 ? ((cancelledOrders.length / orders.length) * 100).toFixed(0) : '0';
+    const totalRevenue = activeOrders.reduce((sum, o) => sum + o.total, 0);
+    const cancellationRate = activeOrders.length > 0 ? ((cancelledOrders.length / activeOrders.length) * 100).toFixed(0) : '0';
 
     // Dynamic Payment Method distribution across all active payment methods in Admin Panel
     const paymentDistribution = computePaymentChannelDistribution(
-      orders,
+      activeOrders,
       effectivePaymentMethods,
       settings.enableBanglaQr !== false,
       paymentSubmissions
@@ -127,7 +154,7 @@ export function AdminAnalytics({
       { month: 'Dec', orders: 0, revenue: 0 },
     ];
 
-    orders.forEach(o => {
+    activeOrders.forEach(o => {
       const d = new Date(o.createdAt);
       const mIdx = d.getMonth();
       if (mIdx >= 0 && mIdx < 12) {
@@ -155,13 +182,13 @@ export function AdminAnalytics({
       deliveredRevenue,
       returnsCount: returnsOrders.length,
       returnsRevenue,
-      totalOrdersCount: orders.length,
+      totalOrdersCount: activeOrders.length,
       totalRevenue,
       cancellationRate,
       paymentDistribution,
       monthlyData
     };
-  }, [orders, effectivePaymentMethods, settings.enableBanglaQr, paymentSubmissions]);
+  }, [activeOrders, effectivePaymentMethods, settings.enableBanglaQr, paymentSubmissions]);
 
   // Weekly Revenue (Last 7 days)
   const weeklyRevenueData = useMemo(() => {
@@ -174,7 +201,7 @@ export function AdminAnalytics({
       dayStart.setHours(0, 0, 0, 0);
       const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
 
-      const dayOrders = orders.filter(o => o.createdAt >= dayStart.getTime() && o.createdAt <= dayEnd.getTime());
+      const dayOrders = activeOrders.filter(o => o.createdAt >= dayStart.getTime() && o.createdAt <= dayEnd.getTime());
       const rev = dayOrders.reduce((sum, o) => sum + o.total, 0);
       totalWeekRev += rev;
 
@@ -184,13 +211,13 @@ export function AdminAnalytics({
       });
     }
     return { data: result, totalWeekRev };
-  }, [orders]);
+  }, [activeOrders]);
 
   // Daily Report (Days 1-31 of current month)
   const dailyReportDays = useMemo(() => {
     const result = [];
     for (let day = 1; day <= 31; day++) {
-      const dayOrders = orders.filter(o => {
+      const dayOrders = activeOrders.filter(o => {
         const d = new Date(o.createdAt);
         return d.getDate() === day;
       });
@@ -201,13 +228,13 @@ export function AdminAnalytics({
       });
     }
     return result;
-  }, [orders]);
+  }, [activeOrders]);
 
   // Hourly Report (AM/PM)
   const hourlyReportData = useMemo(() => {
     const hours = hourlyAmPm === 'AM' ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] : [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23];
     return hours.map(h => {
-      const hourOrders = orders.filter(o => {
+      const hourOrders = activeOrders.filter(o => {
         const d = new Date(o.createdAt);
         return d.getHours() === h;
       });
@@ -217,15 +244,15 @@ export function AdminAnalytics({
         count: hourOrders.length
       };
     });
-  }, [orders, hourlyAmPm]);
+  }, [activeOrders, hourlyAmPm]);
 
   // Filtered Recent Orders for table tab
   const filteredRecentOrders = useMemo(() => {
-    if (recentOrdersTab === 'pending') return orders.filter(o => o.orderStatus === 'pending');
-    if (recentOrdersTab === 'toship') return orders.filter(o => o.orderStatus === 'confirmed' || o.orderStatus === 'processing');
-    if (recentOrdersTab === 'paymentdue') return orders.filter(o => o.paymentStatus === 'pending_verification' || o.paymentStatus === 'unpaid');
-    return orders.slice(0, 10);
-  }, [orders, recentOrdersTab]);
+    if (recentOrdersTab === 'pending') return activeOrders.filter(o => o.orderStatus === 'pending');
+    if (recentOrdersTab === 'toship') return activeOrders.filter(o => o.orderStatus === 'confirmed' || o.orderStatus === 'processing');
+    if (recentOrdersTab === 'paymentdue') return activeOrders.filter(o => o.paymentStatus === 'pending_verification' || o.paymentStatus === 'unpaid');
+    return activeOrders.slice(0, 10);
+  }, [activeOrders, recentOrdersTab]);
 
   // Daily Trend Chart data
   const chartData = useMemo(() => {
@@ -238,7 +265,7 @@ export function AdminAnalytics({
       dayStart.setHours(0, 0, 0, 0);
       const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
 
-      const dayOrders = orders.filter(o => o.createdAt >= dayStart.getTime() && o.createdAt <= dayEnd.getTime());
+      const dayOrders = activeOrders.filter(o => o.createdAt >= dayStart.getTime() && o.createdAt <= dayEnd.getTime());
       const rev = dayOrders.reduce((sum, o) => sum + o.total, 0);
       const count = dayOrders.length;
 
@@ -249,7 +276,7 @@ export function AdminAnalytics({
       });
     }
     return result;
-  }, [orders, selectedRange]);
+  }, [activeOrders, selectedRange]);
 
   return (
     <div className="space-y-6">
@@ -771,42 +798,169 @@ export function AdminAnalytics({
         <div className="lg:col-span-5 space-y-5">
           
           {/* Top Products */}
-          <div className="bg-white border border-[#E5E5E5] rounded-3xl p-5 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
+          <div
+            data-testid="admin-top-products-card"
+            className="bg-white border border-[#E5E5E5] rounded-3xl p-5 shadow-xs space-y-4"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-neutral-100">
               <div>
-                <h3 className="font-black text-sm text-neutral-900">Top Products</h3>
-                <p className="text-[11px] text-neutral-500">Best selling items</p>
+                <h3 className="font-bold text-sm text-neutral-900">Top Products</h3>
+                <p className="text-[11px] text-neutral-500 mt-0.5 tabular-nums">
+                  Best selling by units · {topProductsRange === '7days' ? 'Last 7 days' : topProductsRange === '30days' ? 'Last 30 days' : 'All time'}
+                </p>
               </div>
-              <span className="text-xs font-bold text-[#D71920] cursor-pointer hover:underline">•••</span>
+              <div className="flex items-center gap-0.5 bg-neutral-100 p-0.5 rounded-lg shrink-0">
+                {(
+                  [
+                    { id: 'all', label: 'All' },
+                    { id: '30days', label: '30d' },
+                    { id: '7days', label: '7d' },
+                  ] as const
+                ).map(opt => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setTopProductsRange(opt.id)}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                      topProductsRange === opt.id
+                        ? 'bg-white text-neutral-900 shadow-2xs'
+                        : 'text-neutral-500 hover:text-neutral-900'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="space-y-3">
-              {products.slice(0, 2).map((prod, idx) => (
-                <div key={prod.id || idx} className="bg-neutral-50 border border-neutral-200/80 rounded-2xl p-3 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <img 
-                      src={prod.images?.[0] || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=100&auto=format&fit=crop&q=80'} 
-                      alt={prod.title} 
-                      className="w-11 h-11 rounded-xl object-cover border border-neutral-200 shrink-0"
-                    />
-                    <div className="min-w-0">
-                      <div className="font-black text-xs text-neutral-900 truncate">{prod.title}</div>
-                      <div className="text-[11px] text-neutral-500 mt-0.5">1 sales</div>
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <span className="font-black text-xs text-[#D71920]">৳{prod.price}</span>
-                  </div>
+            {topProducts.length === 0 ? (
+              <div
+                data-testid="admin-top-products-empty"
+                className="py-7 px-3 text-center space-y-2"
+              >
+                <div className="w-10 h-10 rounded-xl bg-neutral-100 text-neutral-400 mx-auto flex items-center justify-center">
+                  <ShoppingBag size={18} />
                 </div>
-              ))}
-            </div>
+                <div className="text-xs font-bold text-neutral-800">
+                  No product sales recorded
+                </div>
+                <p className="text-[11px] text-neutral-500 max-w-[240px] mx-auto leading-relaxed">
+                  {topProductsRange === 'all'
+                    ? 'Active orders for products in your live catalog will rank here automatically.'
+                    : 'No valid orders matched this period.'}
+                </p>
+                <div className="pt-1 flex items-center justify-center gap-3">
+                  {topProductsRange !== 'all' && (
+                    <button
+                      type="button"
+                      onClick={() => setTopProductsRange('all')}
+                      className="text-xs font-semibold text-[#D71920] hover:underline cursor-pointer whitespace-nowrap"
+                    >
+                      Show All Time
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onSelectTab?.('products')}
+                    className="text-xs font-semibold text-neutral-600 hover:text-neutral-900 hover:underline cursor-pointer whitespace-nowrap"
+                  >
+                    Manage Catalog
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="divide-y divide-neutral-100">
+                  {topProducts.map((item, idx) => {
+                    const showThumb = Boolean(item.thumbnail && !failedThumbIds[item.productId]);
+                    return (
+                      <button
+                        key={item.productId}
+                        type="button"
+                        data-testid={`top-product-row-${item.productId}`}
+                        onClick={() => onSelectTab?.('products')}
+                        className="w-full py-2.5 first:pt-0.5 last:pb-0.5 flex items-center justify-between gap-3 text-left hover:bg-neutral-50/80 -mx-2 px-2 rounded-xl transition-colors cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <span
+                            className={`w-5 text-center text-[11px] font-bold tabular-nums shrink-0 ${
+                              idx === 0 ? 'text-[#D71920]' : 'text-neutral-400'
+                            }`}
+                          >
+                            {String(idx + 1).padStart(2, '0')}
+                          </span>
+                          <div className="w-9 h-11 rounded-lg overflow-hidden border border-neutral-200 bg-neutral-50 shrink-0 flex items-center justify-center">
+                            {showThumb ? (
+                              <img
+                                src={item.thumbnail}
+                                alt={item.title}
+                                referrerPolicy="no-referrer"
+                                onError={() =>
+                                  setFailedThumbIds(prev => ({ ...prev, [item.productId]: true }))
+                                }
+                                className="w-full h-full object-cover"
+                              />
+                            ) : item.isBook ? (
+                              <BookOpen size={15} className="text-neutral-400" />
+                            ) : (
+                              <Package size={15} className="text-neutral-400" />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div
+                              className="font-semibold text-xs text-neutral-900 group-hover:text-[#D71920] transition-colors truncate"
+                              title={item.title}
+                            >
+                              {item.title}
+                            </div>
+                            <div className="text-[11px] text-neutral-500 mt-0.5 truncate tabular-nums">
+                              {item.unitsSold} sold · {item.ordersCount}{' '}
+                              {item.ordersCount === 1 ? 'order' : 'orders'}
+                              {item.variantsSummary ? ` · ${item.variantsSummary}` : ''}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0 tabular-nums">
+                          <div className="font-bold text-xs text-neutral-900">
+                            ৳{item.revenue.toLocaleString()}
+                          </div>
+                          <div
+                            className={`text-[10px] font-medium mt-0.5 ${
+                              item.currentStock > 0 ? 'text-neutral-500' : 'text-[#D71920]'
+                            }`}
+                          >
+                            ৳{item.currentPrice.toLocaleString()} ·{' '}
+                            {item.currentStock > 0 ? `${item.currentStock} left` : 'Out of stock'}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center justify-between pt-3 border-t border-neutral-100 text-[11px]">
+                  <span className="text-neutral-500 font-medium tabular-nums">
+                    {totalTopUnits} units across top {topProducts.length}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onSelectTab?.('products')}
+                    className="font-semibold text-[#D71920] hover:underline flex items-center gap-0.5 cursor-pointer whitespace-nowrap"
+                  >
+                    <span>View Inventory</span>
+                    <ChevronRight size={13} />
+                  </button>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Traffic Source */}
           <div className="bg-white border border-[#E5E5E5] rounded-3xl p-5 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-black text-sm text-neutral-900">Traffic Source</h3>
-              <span className="text-xs font-bold text-neutral-400">•••</span>
+              <h3 className="font-bold text-sm text-neutral-900">Traffic Source</h3>
+              <span className="text-[11px] font-medium text-neutral-400">Channel share</span>
             </div>
 
             <div className="space-y-3">
@@ -854,7 +1008,7 @@ export function AdminAnalytics({
                       : 'text-[#5F6368] hover:text-neutral-900'
                   }`}
                 >
-                  {range === 'today' ? 'Today' : range === '7days' ? 'Last 7 Days' : range === '30days' ? 'Last 7 Days' : 'All Time'}
+                  {range === 'today' ? 'Today' : range === '7days' ? 'Last 7 Days' : range === '30days' ? 'Last 30 Days' : 'All Time'}
                 </button>
               ))}
             </div>
