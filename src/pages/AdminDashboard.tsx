@@ -3608,214 +3608,160 @@ export function AdminDashboard() {
 
           return (
             <div className="space-y-5">
-              {/* Clean Page Header */}
+              {/* Page Header */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
-                      Special Offer Deals
-                    </h2>
-                    <button
-                      type="button"
-                      onClick={() => setSpecialOfferTickNow(Date.now())}
-                      title="Refresh live timer status"
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-[11px] font-semibold text-slate-600 cursor-pointer"
-                    >
-                      <RefreshCw size={11} />
-                      <span>Refresh</span>
-                    </button>
-                  </div>
-                  <p className="text-xs sm:text-[13px] text-slate-500">
-                    Set global or per-product end date &amp; time. Expired products are automatically removed from the storefront Special Offer section.
+                <div>
+                  <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+                    Special Offer Deals
+                  </h2>
+                  <p className="text-xs sm:text-[13px] text-slate-500 mt-0.5">
+                    Manage campaign visibility, global countdown schedule, and per-product flash deal timings.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  data-testid="admin-save-special-offer-btn"
-                  onClick={async () => {
-                    try {
-                      setSettingsSaving(true);
-                      await updateSettings({ specialOffer: settingsForm.specialOffer });
-                      setToast({
-                        show: true,
-                        type: 'success',
-                        message: 'Special Offer configuration saved to Firebase!',
-                      });
-                    } catch (err: any) {
-                      setToast({
-                        show: true,
-                        type: 'error',
-                        message: 'Failed to save: ' + err.message,
-                      });
-                    } finally {
-                      setSettingsSaving(false);
-                    }
-                  }}
-                  className="w-full sm:w-auto px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-semibold rounded-lg text-xs cursor-pointer transition-colors flex items-center justify-center gap-1.5 shrink-0"
-                >
-                  <Check size={14} /> <span>{settingsSaving ? 'Saving...' : 'Save Changes'}</span>
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setSpecialOfferTickNow(Date.now())}
+                    title="Refresh live timer status"
+                    className="px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 cursor-pointer transition-colors inline-flex items-center gap-1.5"
+                  >
+                    <RefreshCw size={13} className="text-slate-500" />
+                    <span>Refresh</span>
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="admin-save-special-offer-btn"
+                    onClick={async () => {
+                      try {
+                        setSettingsSaving(true);
+                        await updateSettings({ specialOffer: settingsForm.specialOffer });
+                        setToast({
+                          show: true,
+                          type: 'success',
+                          message: 'Special Offer configuration saved to Firebase!',
+                        });
+                      } catch (err: any) {
+                        setToast({
+                          show: true,
+                          type: 'error',
+                          message: 'Failed to save: ' + err.message,
+                        });
+                      } finally {
+                        setSettingsSaving(false);
+                      }
+                    }}
+                    className="px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-semibold rounded-lg text-xs cursor-pointer transition-colors inline-flex items-center justify-center gap-1.5"
+                  >
+                    <Check size={14} />
+                    <span>{settingsSaving ? 'Saving...' : 'Save Changes'}</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Live Status Overview Bar */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" data-special-tick={specialOfferTickNow}>
-                <div className="bg-white border border-slate-200 rounded-xl p-3.5">
-                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-                    Live on Storefront
+              {/* Unified Single-Elevation Telemetry Strip */}
+              <div
+                className="bg-white border border-slate-200 rounded-xl grid grid-cols-2 lg:grid-cols-4 overflow-hidden"
+                data-special-tick={specialOfferTickNow}
+              >
+                <div className="px-4 py-3.5 flex items-center justify-between gap-3 border-b lg:border-b-0 border-r border-slate-200">
+                  <div>
+                    <div className="text-[11px] font-medium text-slate-500">Live on Storefront</div>
+                    <div className="mt-0.5 flex items-baseline gap-1.5">
+                      <span className="text-lg font-bold text-slate-900 tabular-nums">
+                        {activeDealsCount}
+                      </span>
+                      <span className="text-xs text-slate-400 tabular-nums">
+                        / {dealItems.length} items
+                      </span>
+                    </div>
                   </div>
-                  <div className="mt-1 flex items-baseline justify-between">
-                    <span className="text-xl font-bold text-emerald-600 tabular-nums">
-                      {activeDealsCount}
-                    </span>
-                    <span className="text-[11px] font-medium text-slate-500">
-                      of {dealItems.length} items
-                    </span>
-                  </div>
+                  <span
+                    className={`w-2 h-2 rounded-full shrink-0 ${
+                      activeDealsCount > 0 && specialCfg.enabled !== false
+                        ? 'bg-emerald-500'
+                        : 'bg-slate-300'
+                    }`}
+                  />
                 </div>
 
-                <div className="bg-white border border-slate-200 rounded-xl p-3.5">
-                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-                    Expired / Auto-Hidden
-                  </div>
-                  <div className="mt-1 flex items-center justify-between gap-2">
-                    <span
-                      className={`text-xl font-bold tabular-nums ${
-                        expiredDealsCount > 0 ? 'text-red-600' : 'text-slate-700'
-                      }`}
-                    >
-                      {expiredDealsCount}
-                    </span>
-                    {expiredDealsCount > 0 && (
-                      <button
-                        type="button"
-                        data-testid="admin-clean-expired-deals-btn"
-                        onClick={() => {
-                          patchSpecialOffer(cfg => ({
-                            ...cfg,
-                            items: (cfg.items || []).filter(
-                              it => getSpecialOfferItemStatus(it, cfg, Date.now()).status !== 'expired'
-                            ),
-                          }));
-                          setToast({
-                            show: true,
-                            type: 'success',
-                            message: 'Cleared expired deal items from list. Click Save Changes to persist.',
-                          });
-                        }}
-                        className="px-2 py-1 rounded-md bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-[10px] font-bold cursor-pointer transition-colors"
+                <div className="px-4 py-3.5 flex items-center justify-between gap-3 border-b lg:border-b-0 lg:border-r border-slate-200">
+                  <div>
+                    <div className="text-[11px] font-medium text-slate-500">Global Timer</div>
+                    <div className="mt-0.5 flex items-baseline gap-2">
+                      <span
+                        className={`text-sm sm:text-base font-bold font-mono tabular-nums ${
+                          isGlobalExpired ? 'text-red-600' : 'text-slate-900'
+                        }`}
                       >
-                        Clear Expired
-                      </button>
-                    )}
+                        {isGlobalExpired ? 'Expired' : formatCompactDuration(globalRemainingMs)}
+                      </span>
+                    </div>
+                  </div>
+                  <span
+                    className={`text-[11px] font-semibold ${
+                      isGlobalExpired ? 'text-red-600' : 'text-emerald-600'
+                    }`}
+                  >
+                    {isGlobalExpired ? 'Ended' : 'Running'}
+                  </span>
+                </div>
+
+                <div className="px-4 py-3.5 flex items-center justify-between gap-3 border-r border-slate-200">
+                  <div>
+                    <div className="text-[11px] font-medium text-slate-500">Scheduled</div>
+                    <div className="mt-0.5 flex items-baseline gap-1.5">
+                      <span className="text-lg font-bold text-slate-900 tabular-nums">
+                        {scheduledDealsCount}
+                      </span>
+                      <span className="text-[11px] text-slate-400">upcoming</span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="bg-white border border-slate-200 rounded-xl p-3.5">
-                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-                    Global Timer Status
+                <div className="px-4 py-3.5 flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] font-medium text-slate-500">Expired / Hidden</div>
+                    <div className="mt-0.5 flex items-baseline gap-1.5">
+                      <span
+                        className={`text-lg font-bold tabular-nums ${
+                          expiredDealsCount > 0 ? 'text-red-600' : 'text-slate-900'
+                        }`}
+                      >
+                        {expiredDealsCount}
+                      </span>
+                      <span className="text-[11px] text-slate-400">auto-hidden</span>
+                    </div>
                   </div>
-                  <div className="mt-1 flex items-center justify-between gap-1.5">
-                    <span
-                      className={`text-sm font-bold font-mono tabular-nums ${
-                        isGlobalExpired ? 'text-red-600' : 'text-slate-900'
-                      }`}
+                  {expiredDealsCount > 0 && (
+                    <button
+                      type="button"
+                      data-testid="admin-clean-expired-deals-btn"
+                      onClick={() => {
+                        patchSpecialOffer(cfg => ({
+                          ...cfg,
+                          items: (cfg.items || []).filter(
+                            it => getSpecialOfferItemStatus(it, cfg, Date.now()).status !== 'expired'
+                          ),
+                        }));
+                        setToast({
+                          show: true,
+                          type: 'success',
+                          message: 'Cleared expired deal items from list. Click Save Changes to persist.',
+                        });
+                      }}
+                      className="px-2.5 py-1 rounded-md bg-red-50 hover:bg-red-100 text-red-700 text-[11px] font-semibold cursor-pointer transition-colors shrink-0"
                     >
-                      {isGlobalExpired ? 'Expired' : formatCompactDuration(globalRemainingMs)}
-                    </span>
-                    <span
-                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                        isGlobalExpired
-                          ? 'bg-red-50 text-red-700 border border-red-200'
-                          : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                      }`}
-                    >
-                      {isGlobalExpired ? 'Ended' : 'Running'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="bg-white border border-slate-200 rounded-xl p-3.5">
-                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-                    Scheduled Upcoming
-                  </div>
-                  <div className="mt-1 flex items-baseline justify-between">
-                    <span className="text-xl font-bold text-blue-600 tabular-nums">
-                      {scheduledDealsCount}
-                    </span>
-                    <span className="text-[11px] font-medium text-slate-500">
-                      auto-starts on time
-                    </span>
-                  </div>
+                      Clear Expired
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {/* Campaign Heading, Visibility & Global Schedule Config */}
-              <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-                  <label className="md:col-span-4 flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-200 cursor-pointer">
-                    <div>
-                      <span className="font-semibold text-xs text-slate-900 block">
-                        Show Special Offer on Home
-                      </span>
-                      <span className="text-[11px] text-slate-500">
-                        Master visibility switch
-                      </span>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={specialCfg.enabled !== false}
-                      onChange={e => {
-                        const val = e.target.checked;
-                        patchSpecialOffer(cfg => ({ ...cfg, enabled: val }));
-                      }}
-                      className="w-4 h-4 accent-[#D71920] rounded cursor-pointer"
-                    />
-                  </label>
-
-                  <label className="md:col-span-4 flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-200 cursor-pointer">
-                    <div>
-                      <span className="font-semibold text-xs text-slate-900 block">
-                        Auto-Remove When Timer Ends
-                      </span>
-                      <span className="text-[11px] text-slate-500">
-                        Hide expired products automatically
-                      </span>
-                    </div>
-                    <input
-                      type="checkbox"
-                      data-testid="admin-special-offer-autoremove-checkbox"
-                      checked={specialCfg.autoRemoveExpired !== false}
-                      onChange={e => {
-                        const val = e.target.checked;
-                        patchSpecialOffer(cfg => ({ ...cfg, autoRemoveExpired: val }));
-                      }}
-                      className="w-4 h-4 accent-[#D71920] rounded cursor-pointer"
-                    />
-                  </label>
-
-                  <label className="md:col-span-4 flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-200 cursor-pointer">
-                    <div>
-                      <span className="font-semibold text-xs text-slate-900 block">
-                        Show Item Countdown Badge
-                      </span>
-                      <span className="text-[11px] text-slate-500">
-                        Display timer on custom-timed cards
-                      </span>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={specialCfg.showItemCountdown !== false}
-                      onChange={e => {
-                        const val = e.target.checked;
-                        patchSpecialOffer(cfg => ({ ...cfg, showItemCountdown: val }));
-                      }}
-                      className="w-4 h-4 accent-[#D71920] rounded cursor-pointer"
-                    />
-                  </label>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 pt-3 border-t border-slate-100 items-end">
-                  <div className="lg:col-span-5 space-y-1.5">
+              {/* Consolidated Campaign Configuration Panel */}
+              <div className="bg-white border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-200">
+                {/* Schedule & Section Heading Row */}
+                <div className="p-4 sm:p-5 grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
+                  <div className="lg:col-span-4 space-y-1.5">
                     <label className="block font-semibold text-slate-700 text-xs">
                       Section Heading
                     </label>
@@ -3827,18 +3773,18 @@ export function AdminDashboard() {
                         patchSpecialOffer(cfg => ({ ...cfg, title: val }));
                       }}
                       placeholder="e.g. Special Offer"
-                      className="w-full px-3.5 py-2 rounded-lg border border-slate-300 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
                     />
                   </div>
 
-                  <div className="lg:col-span-7 space-y-1.5">
+                  <div className="lg:col-span-8 space-y-1.5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <label className="font-semibold text-slate-700 text-xs flex items-center gap-1.5">
-                        <Calendar size={13} className="text-[#D71920]" />
+                        <Calendar size={13} className="text-slate-400" />
                         <span>Global Campaign End Date &amp; Time</span>
                       </label>
-                      <span className="text-[11px] text-slate-500 font-medium">
-                        Ends: <strong className="text-slate-800">{formatLocalDateTimeLabel(specialCfg.endTime)}</strong>
+                      <span className="text-[11px] text-slate-500 tabular-nums">
+                        Ends: <strong className="font-semibold text-slate-800">{formatLocalDateTimeLabel(specialCfg.endTime)}</strong>
                       </span>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2">
@@ -3852,9 +3798,9 @@ export function AdminDashboard() {
                             patchSpecialOffer(cfg => ({ ...cfg, endTime: nextTs }));
                           }
                         }}
-                        className="flex-1 px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:border-[#D71920]"
+                        className="flex-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 tabular-nums focus:outline-none focus:border-[#D71920]"
                       />
-                      <div className="flex items-center gap-1.5 flex-wrap">
+                      <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 self-start sm:self-auto">
                         {[
                           { label: '+1h', ms: 1 * 3600 * 1000 },
                           { label: '+6h', ms: 6 * 3600 * 1000 },
@@ -3871,7 +3817,7 @@ export function AdminDashboard() {
                                 endTime: Date.now() + preset.ms,
                               }));
                             }}
-                            className="px-2.5 py-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-[11px] font-bold text-slate-700 cursor-pointer transition-colors"
+                            className="px-2.5 py-1.5 rounded-md hover:bg-white hover:text-slate-900 text-[11px] font-semibold text-slate-600 cursor-pointer transition-colors tabular-nums"
                           >
                             {preset.label}
                           </button>
@@ -3880,18 +3826,87 @@ export function AdminDashboard() {
                     </div>
                   </div>
                 </div>
+
+                {/* Clean Inline Visibility & Automation Switches (No nested card borders) */}
+                <div className="bg-slate-50/60 px-4 sm:px-5 py-3 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-0 md:divide-x divide-slate-200">
+                  <label className="flex items-center justify-between gap-3 md:pr-5 cursor-pointer">
+                    <div>
+                      <span className="font-semibold text-xs text-slate-800 block">
+                        Show Special Offer on Home
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        Master storefront visibility switch
+                      </span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={specialCfg.enabled !== false}
+                      onChange={e => {
+                        const val = e.target.checked;
+                        patchSpecialOffer(cfg => ({ ...cfg, enabled: val }));
+                      }}
+                      className="w-4 h-4 accent-[#D71920] rounded cursor-pointer shrink-0"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between gap-3 md:px-5 cursor-pointer">
+                    <div>
+                      <span className="font-semibold text-xs text-slate-800 block">
+                        Auto-Remove When Timer Ends
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        Hide expired products automatically
+                      </span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      data-testid="admin-special-offer-autoremove-checkbox"
+                      checked={specialCfg.autoRemoveExpired !== false}
+                      onChange={e => {
+                        const val = e.target.checked;
+                        patchSpecialOffer(cfg => ({ ...cfg, autoRemoveExpired: val }));
+                      }}
+                      className="w-4 h-4 accent-[#D71920] rounded cursor-pointer shrink-0"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between gap-3 md:pl-5 cursor-pointer">
+                    <div>
+                      <span className="font-semibold text-xs text-slate-800 block">
+                        Show Item Countdown Badge
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        Display timer on custom-timed cards
+                      </span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={specialCfg.showItemCountdown !== false}
+                      onChange={e => {
+                        const val = e.target.checked;
+                        patchSpecialOffer(cfg => ({ ...cfg, showItemCountdown: val }));
+                      }}
+                      className="w-4 h-4 accent-[#D71920] rounded cursor-pointer shrink-0"
+                    />
+                  </label>
+                </div>
               </div>
 
-              {/* Offer Products Grid */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-xs text-slate-700 uppercase tracking-wider">
-                      Featured Deal Items &amp; Per-Product Timings
-                    </h3>
-                    <span className="px-2 py-0.5 rounded bg-slate-200/80 text-slate-700 font-semibold text-[11px] tabular-nums">
-                      {dealItems.length}
-                    </span>
+              {/* Featured Deal Items — Structured Single-Elevation Table/List */}
+              <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                <div className="px-4 sm:px-5 py-3.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-sm text-slate-900">
+                        Featured Deal Products
+                      </h3>
+                      <span className="text-xs font-medium text-slate-400 tabular-nums">
+                        ({dealItems.length})
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Assign products, discount rates, and optional per-item start or expiry overrides.
+                    </p>
                   </div>
                   <button
                     type="button"
@@ -3912,262 +3927,324 @@ export function AdminDashboard() {
                         ],
                       }));
                     }}
-                    className="px-3.5 py-2 bg-slate-900 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer hover:bg-slate-800 transition-colors"
+                    className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors shrink-0"
                   >
-                    <Plus size={13} /> <span>Add Deal Product</span>
+                    <Plus size={13} />
+                    <span>Add Deal Product</span>
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5">
-                  {dealItems.map((item, idx) => {
-                    const prod = products.find(p => p.id === item.productId);
-                    const statusInfo = getSpecialOfferItemStatus(item, specialCfg, nowMs);
-                    return (
-                      <div
-                        key={idx}
-                        data-testid={`admin-special-offer-item-${idx}`}
-                        className={`p-4 rounded-xl border bg-white transition-colors flex flex-col gap-3 ${
-                          statusInfo.status === 'expired'
-                            ? 'border-red-200 bg-red-50/20'
-                            : statusInfo.status === 'scheduled'
-                            ? 'border-blue-200'
-                            : 'border-slate-200 hover:border-slate-300'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            {statusInfo.status === 'expired' ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-50 border border-red-200 text-red-700 text-[10px] font-bold">
-                                <Clock size={10} />
-                                <span>Expired · Hidden from Storefront</span>
-                              </span>
-                            ) : statusInfo.status === 'scheduled' ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-blue-700 text-[10px] font-bold">
-                                <Clock size={10} />
-                                <span>Scheduled · Starts in {formatCompactDuration(statusInfo.remainingMs)}</span>
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold tabular-nums">
-                                <Clock size={10} />
-                                <span>Active · {formatCompactDuration(statusInfo.remainingMs)} left</span>
-                              </span>
-                            )}
-                            <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-semibold">
-                              {statusInfo.usesCustomEndTime ? 'Custom End Date' : 'Global Timer'}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              patchSpecialOffer(cfg => ({
-                                ...cfg,
-                                items: (cfg.items || []).filter((_, i) => i !== idx),
-                              }));
-                            }}
-                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer transition-colors shrink-0"
-                            title="Remove Deal"
+                {dealItems.length === 0 ? (
+                  <div className="p-8 text-center space-y-2.5">
+                    <p className="text-xs font-medium text-slate-500">
+                      No products are currently assigned to the Special Offer campaign.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (products.length === 0) return;
+                        const firstProd = products[0];
+                        patchSpecialOffer(cfg => ({
+                          ...cfg,
+                          items: [
+                            {
+                              productId: firstProd.id,
+                              discountPercentage: 20,
+                              soldPercentage: 50,
+                              onlinePaymentOnly: false,
+                            },
+                          ],
+                        }));
+                      }}
+                      className="px-3.5 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                    >
+                      <Plus size={13} />
+                      <span>Add First Deal Product</span>
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {/* Desktop Column Headers */}
+                    <div className="hidden xl:grid xl:grid-cols-12 gap-4 px-5 py-2.5 bg-slate-50/80 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                      <div className="col-span-4">Product</div>
+                      <div className="col-span-3">Discount &amp; Terms</div>
+                      <div className="col-span-4">Schedule Override (Optional)</div>
+                      <div className="col-span-1 text-right">Status</div>
+                    </div>
+
+                    <div className="divide-y divide-slate-200">
+                      {dealItems.map((item, idx) => {
+                        const prod = products.find(p => p.id === item.productId);
+                        const statusInfo = getSpecialOfferItemStatus(item, specialCfg, nowMs);
+                        const regularPrice = prod?.price || 0;
+                        const dealPrice = Math.max(
+                          0,
+                          Math.round(regularPrice * (1 - (item.discountPercentage || 0) / 100))
+                        );
+
+                        return (
+                          <div
+                            key={idx}
+                            data-testid={`admin-special-offer-item-${idx}`}
+                            className={`p-4 sm:px-5 sm:py-4 transition-colors grid grid-cols-1 xl:grid-cols-12 gap-4 items-start xl:items-center ${
+                              statusInfo.status === 'expired'
+                                ? 'bg-red-50/20'
+                                : 'bg-white hover:bg-slate-50/40'
+                            }`}
                           >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={
-                              prod?.images[0] ||
-                              'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=100'
-                            }
-                            alt=""
-                            className="w-12 h-12 rounded-lg object-cover border border-slate-200 shrink-0 bg-slate-50"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <label className="block text-[10px] font-semibold text-slate-400 uppercase mb-1">
-                              Select Product
-                            </label>
-                            <select
-                              value={item.productId}
-                              onChange={e => {
-                                const newId = e.target.value;
-                                patchSpecialOffer(cfg => {
-                                  const items = [...(cfg.items || [])];
-                                  items[idx] = { ...items[idx], productId: newId };
-                                  return { ...cfg, items };
-                                });
-                              }}
-                              className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-900 focus:outline-none focus:bg-white focus:border-[#D71920]"
-                            >
-                              {products.map(p => (
-                                <option key={p.id} value={p.id}>
-                                  {p.title} (৳{p.price})
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-2 border-t border-slate-100 items-center">
-                          <div>
-                            <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">
-                              Discount %
-                            </label>
-                            <input
-                              type="number"
-                              min="1"
-                              max="90"
-                              value={item.discountPercentage}
-                              onChange={e => {
-                                const val = Number(e.target.value) || 20;
-                                patchSpecialOffer(cfg => {
-                                  const items = [...(cfg.items || [])];
-                                  items[idx] = { ...items[idx], discountPercentage: val };
-                                  return { ...cfg, items };
-                                });
-                              }}
-                              className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white text-xs font-semibold text-slate-900 tabular-nums focus:outline-none focus:border-[#D71920]"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">
-                              Sold Progress %
-                            </label>
-                            <input
-                              type="number"
-                              min="1"
-                              max="100"
-                              value={item.soldPercentage}
-                              onChange={e => {
-                                const val = Number(e.target.value) || 50;
-                                patchSpecialOffer(cfg => {
-                                  const items = [...(cfg.items || [])];
-                                  items[idx] = { ...items[idx], soldPercentage: val };
-                                  return { ...cfg, items };
-                                });
-                              }}
-                              className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white text-xs font-semibold text-slate-900 tabular-nums focus:outline-none focus:border-[#D71920]"
-                            />
-                          </div>
-
-                          <label className="col-span-2 sm:col-span-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 cursor-pointer sm:mt-4">
-                            <input
-                              type="checkbox"
-                              checked={!!item.onlinePaymentOnly}
-                              onChange={e => {
-                                const val = e.target.checked;
-                                patchSpecialOffer(cfg => {
-                                  const items = [...(cfg.items || [])];
-                                  items[idx] = { ...items[idx], onlinePaymentOnly: val };
-                                  return { ...cfg, items };
-                                });
-                              }}
-                              className="w-3.5 h-3.5 accent-[#D71920] rounded"
-                            />
-                            <span className="truncate">Online Pay Only</span>
-                          </label>
-                        </div>
-
-                        {/* Per-Product Start & End Date/Time Controls */}
-                        <div className="p-3 rounded-lg bg-slate-50 border border-slate-200/80 space-y-2.5">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <span className="text-[11px] font-semibold text-slate-700 flex items-center gap-1">
-                              <Calendar size={12} className="text-[#D71920]" />
-                              <span>Product Expiry Date &amp; Time</span>
-                            </span>
-                            <div className="flex items-center gap-1">
-                              {[
-                                { label: '+1h', ms: 3600 * 1000 },
-                                { label: '+12h', ms: 12 * 3600 * 1000 },
-                                { label: '+24h', ms: 24 * 3600 * 1000 },
-                              ].map(preset => (
-                                <button
-                                  key={preset.label}
-                                  type="button"
-                                  onClick={() => {
+                            {/* 1. Product Info & Selector */}
+                            <div className="xl:col-span-4 flex items-center gap-3 min-w-0">
+                              <span className="text-xs font-mono font-semibold text-slate-400 tabular-nums w-5 shrink-0">
+                                {String(idx + 1).padStart(2, '0')}
+                              </span>
+                              <img
+                                src={
+                                  prod?.images[0] ||
+                                  'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=100'
+                                }
+                                alt=""
+                                className="w-11 h-11 rounded-lg object-cover border border-slate-200 shrink-0 bg-slate-50"
+                              />
+                              <div className="flex-1 min-w-0 space-y-1">
+                                <select
+                                  value={item.productId}
+                                  onChange={e => {
+                                    const newId = e.target.value;
                                     patchSpecialOffer(cfg => {
                                       const items = [...(cfg.items || [])];
-                                      items[idx] = {
-                                        ...items[idx],
-                                        endTime: Date.now() + preset.ms,
-                                      };
+                                      items[idx] = { ...items[idx], productId: newId };
                                       return { ...cfg, items };
                                     });
                                   }}
-                                  className="px-2 py-0.5 rounded bg-white border border-slate-200 hover:border-[#D71920] text-[10px] font-bold text-slate-700 cursor-pointer"
+                                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:border-[#D71920]"
                                 >
-                                  {preset.label}
-                                </button>
-                              ))}
-                              {item.endTime ? (
-                                <button
-                                  type="button"
-                                  onClick={() => {
+                                  {products.map(p => (
+                                    <option key={p.id} value={p.id}>
+                                      {p.title} (৳{p.price})
+                                    </option>
+                                  ))}
+                                </select>
+                                <div className="flex items-center gap-2 text-[11px] text-slate-500 tabular-nums">
+                                  <span>
+                                    Regular: <span className="line-through">৳{regularPrice}</span>
+                                  </span>
+                                  <span>·</span>
+                                  <span className="font-semibold text-slate-800">
+                                    Deal: ৳{dealPrice}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 2. Discount, Sold % & Online Pay Toggle */}
+                            <div className="xl:col-span-3 flex flex-wrap sm:flex-nowrap items-end gap-2.5">
+                              <div className="w-20 shrink-0">
+                                <label className="block text-[10px] font-medium text-slate-500 mb-1">
+                                  Discount %
+                                </label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="90"
+                                  value={item.discountPercentage}
+                                  onChange={e => {
+                                    const val = Number(e.target.value) || 20;
                                     patchSpecialOffer(cfg => {
                                       const items = [...(cfg.items || [])];
-                                      items[idx] = { ...items[idx], endTime: undefined };
+                                      items[idx] = { ...items[idx], discountPercentage: val };
                                       return { ...cfg, items };
                                     });
                                   }}
-                                  className="px-2 py-0.5 rounded bg-white border border-slate-200 hover:text-red-600 text-[10px] font-bold text-slate-500 cursor-pointer"
+                                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-900 tabular-nums focus:outline-none focus:border-[#D71920]"
+                                />
+                              </div>
+
+                              <div className="w-20 shrink-0">
+                                <label className="block text-[10px] font-medium text-slate-500 mb-1">
+                                  Sold Bar %
+                                </label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="100"
+                                  value={item.soldPercentage}
+                                  onChange={e => {
+                                    const val = Number(e.target.value) || 50;
+                                    patchSpecialOffer(cfg => {
+                                      const items = [...(cfg.items || [])];
+                                      items[idx] = { ...items[idx], soldPercentage: val };
+                                      return { ...cfg, items };
+                                    });
+                                  }}
+                                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-900 tabular-nums focus:outline-none focus:border-[#D71920]"
+                                />
+                              </div>
+
+                              <label className="flex items-center gap-1.5 pb-2 text-xs font-medium text-slate-700 cursor-pointer select-none whitespace-nowrap">
+                                <input
+                                  type="checkbox"
+                                  checked={!!item.onlinePaymentOnly}
+                                  onChange={e => {
+                                    const val = e.target.checked;
+                                    patchSpecialOffer(cfg => {
+                                      const items = [...(cfg.items || [])];
+                                      items[idx] = { ...items[idx], onlinePaymentOnly: val };
+                                      return { ...cfg, items };
+                                    });
+                                  }}
+                                  className="w-3.5 h-3.5 accent-[#D71920] rounded cursor-pointer shrink-0"
+                                />
+                                <span>Online Pay</span>
+                              </label>
+                            </div>
+
+                            {/* 3. Per-Product Start & End Time Controls */}
+                            <div className="xl:col-span-4 space-y-1.5">
+                              <div className="flex flex-wrap items-center justify-between gap-1.5">
+                                <span className="text-[10px] font-medium text-slate-500">
+                                  {statusInfo.usesCustomEndTime
+                                    ? `Custom ends ${formatLocalDateTimeLabel(statusInfo.effectiveEndTime)}`
+                                    : 'Global Campaign Timer'}
+                                </span>
+                                <div className="flex items-center gap-1">
+                                  {[
+                                    { label: '+1h', ms: 3600 * 1000 },
+                                    { label: '+12h', ms: 12 * 3600 * 1000 },
+                                    { label: '+24h', ms: 24 * 3600 * 1000 },
+                                  ].map(preset => (
+                                    <button
+                                      key={preset.label}
+                                      type="button"
+                                      onClick={() => {
+                                        patchSpecialOffer(cfg => {
+                                          const items = [...(cfg.items || [])];
+                                          items[idx] = {
+                                            ...items[idx],
+                                            endTime: Date.now() + preset.ms,
+                                          };
+                                          return { ...cfg, items };
+                                        });
+                                      }}
+                                      className="px-1.5 py-0.5 rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 text-[10px] font-semibold text-slate-600 cursor-pointer tabular-nums"
+                                    >
+                                      {preset.label}
+                                    </button>
+                                  ))}
+                                  {(item.endTime || item.startTime) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        patchSpecialOffer(cfg => {
+                                          const items = [...(cfg.items || [])];
+                                          items[idx] = {
+                                            ...items[idx],
+                                            startTime: undefined,
+                                            endTime: undefined,
+                                          };
+                                          return { ...cfg, items };
+                                        });
+                                      }}
+                                      className="px-1.5 py-0.5 rounded border border-slate-200 bg-white hover:text-red-600 text-[10px] font-semibold text-slate-500 cursor-pointer"
+                                    >
+                                      Reset
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <div className="flex items-center rounded-lg border border-slate-200 bg-white px-2 py-1 focus-within:border-[#D71920]">
+                                  <span className="text-[10px] font-semibold text-slate-400 mr-1.5 shrink-0">
+                                    Start
+                                  </span>
+                                  <input
+                                    type="datetime-local"
+                                    title="Optional Start Time"
+                                    data-testid={`admin-special-offer-item-starttime-${idx}`}
+                                    value={toDateTimeLocalInputValue(item.startTime)}
+                                    onChange={e => {
+                                      const nextTs = fromDateTimeLocalInputValue(e.target.value);
+                                      patchSpecialOffer(cfg => {
+                                        const items = [...(cfg.items || [])];
+                                        items[idx] = { ...items[idx], startTime: nextTs };
+                                        return { ...cfg, items };
+                                      });
+                                    }}
+                                    className="w-full bg-transparent text-[11px] font-medium text-slate-700 tabular-nums focus:outline-none min-w-0"
+                                  />
+                                </div>
+                                <div className="flex items-center rounded-lg border border-slate-200 bg-white px-2 py-1 focus-within:border-[#D71920]">
+                                  <span className="text-[10px] font-semibold text-slate-400 mr-1.5 shrink-0">
+                                    End
+                                  </span>
+                                  <input
+                                    type="datetime-local"
+                                    title="Custom End Date & Time"
+                                    data-testid={`admin-special-offer-item-endtime-${idx}`}
+                                    value={toDateTimeLocalInputValue(item.endTime)}
+                                    onChange={e => {
+                                      const nextTs = fromDateTimeLocalInputValue(e.target.value);
+                                      patchSpecialOffer(cfg => {
+                                        const items = [...(cfg.items || [])];
+                                        items[idx] = { ...items[idx], endTime: nextTs };
+                                        return { ...cfg, items };
+                                      });
+                                    }}
+                                    className="w-full bg-transparent text-[11px] font-medium text-slate-700 tabular-nums focus:outline-none min-w-0"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 4. Status & Delete Action */}
+                            <div className="xl:col-span-1 flex xl:flex-col items-center xl:items-end justify-between xl:justify-center gap-2 pt-2 xl:pt-0 border-t xl:border-t-0 border-slate-100">
+                              <div className="flex items-center gap-1.5">
+                                <span
+                                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                    statusInfo.status === 'expired'
+                                      ? 'bg-red-500'
+                                      : statusInfo.status === 'scheduled'
+                                      ? 'bg-blue-500'
+                                      : 'bg-emerald-500'
+                                  }`}
+                                />
+                                <span
+                                  className={`text-[11px] font-semibold tabular-nums whitespace-nowrap ${
+                                    statusInfo.status === 'expired'
+                                      ? 'text-red-600'
+                                      : statusInfo.status === 'scheduled'
+                                      ? 'text-blue-600'
+                                      : 'text-emerald-700'
+                                  }`}
                                 >
-                                  Use Global
-                                </button>
-                              ) : null}
+                                  {statusInfo.status === 'expired'
+                                    ? 'Expired'
+                                    : statusInfo.status === 'scheduled'
+                                    ? `In ${formatCompactDuration(statusInfo.remainingMs)}`
+                                    : formatCompactDuration(statusInfo.remainingMs)}
+                                </span>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  patchSpecialOffer(cfg => ({
+                                    ...cfg,
+                                    items: (cfg.items || []).filter((_, i) => i !== idx),
+                                  }));
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer transition-colors shrink-0"
+                                title="Remove Deal Product"
+                              >
+                                <Trash2 size={14} />
+                              </button>
                             </div>
                           </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <div>
-                              <label className="block text-[10px] font-medium text-slate-500 mb-1">
-                                Start Time (Optional)
-                              </label>
-                              <input
-                                type="datetime-local"
-                                data-testid={`admin-special-offer-item-starttime-${idx}`}
-                                value={toDateTimeLocalInputValue(item.startTime)}
-                                onChange={e => {
-                                  const nextTs = fromDateTimeLocalInputValue(e.target.value);
-                                  patchSpecialOffer(cfg => {
-                                    const items = [...(cfg.items || [])];
-                                    items[idx] = { ...items[idx], startTime: nextTs };
-                                    return { ...cfg, items };
-                                  });
-                                }}
-                                className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] font-semibold text-slate-800 focus:outline-none focus:border-[#D71920]"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-medium text-slate-500 mb-1">
-                                End Date &amp; Time (Auto-Removes After)
-                              </label>
-                              <input
-                                type="datetime-local"
-                                data-testid={`admin-special-offer-item-endtime-${idx}`}
-                                value={toDateTimeLocalInputValue(item.endTime)}
-                                onChange={e => {
-                                  const nextTs = fromDateTimeLocalInputValue(e.target.value);
-                                  patchSpecialOffer(cfg => {
-                                    const items = [...(cfg.items || [])];
-                                    items[idx] = { ...items[idx], endTime: nextTs };
-                                    return { ...cfg, items };
-                                  });
-                                }}
-                                className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] font-semibold text-slate-800 focus:outline-none focus:border-[#D71920]"
-                              />
-                            </div>
-                          </div>
-
-                          <p className="text-[10px] text-slate-500">
-                            Effective removal time:{' '}
-                            <strong className="text-slate-700">
-                              {formatLocalDateTimeLabel(statusInfo.effectiveEndTime)}
-                            </strong>
-                            {!item.endTime && ' (inherited from Global Campaign End Time)'}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           );
