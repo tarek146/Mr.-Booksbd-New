@@ -1693,24 +1693,6 @@ export function AdminOrdersManager({
                         <Eye size={13} />
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={() => onOpenTrackingModal(order)}
-                        className="p-2 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-600 cursor-pointer"
-                        title="Edit Courier / Tracking"
-                      >
-                        <Edit2 size={13} />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setEditingOrderId(order.id)}
-                        className="p-2 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-600 cursor-pointer"
-                        title="Edit Full Order Details Page"
-                      >
-                        <FileText size={13} />
-                      </button>
-
                       {order.isTrashed ? (
                         <>
                           <button
