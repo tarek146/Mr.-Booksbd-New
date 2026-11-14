@@ -744,6 +744,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     enableUseOldAddress: true,
     oldAddressButtonLabel: 'Use Saved Address',
     showCheckoutCoupons: true,
+    showCheckoutProgress: true,
     enableBanglaQr: true,
     banglaQrImageUrl: '',
     banglaQrAccountName: 'MR. BOOKS BD',

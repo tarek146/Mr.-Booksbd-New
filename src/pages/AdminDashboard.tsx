@@ -11613,6 +11613,17 @@ export function AdminDashboard() {
                           />
                           <span>Show Standard Hub Delivery / Point Delivery on Checkout Page</span>
                         </label>
+
+                        <label className="flex items-center gap-2 text-xs font-bold text-neutral-800 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            data-testid="admin-show-checkout-progress-checkbox"
+                            checked={settingsForm.showCheckoutProgress !== false}
+                            onChange={e => setSettingsForm(prev => ({ ...prev, showCheckoutProgress: e.target.checked }))}
+                            className="w-4 h-4 accent-[#D71920]"
+                          />
+                          <span>Show Checkout Form Completion Progress Indicator</span>
+                        </label>
                       </div>
                     </div>
 

@@ -471,6 +471,7 @@ export interface StoreSettings {
   enableUseOldAddress?: boolean;
   oldAddressButtonLabel?: string;
   showCheckoutCoupons?: boolean;
+  showCheckoutProgress?: boolean;
 
   // Bangla QR (বাংলা কিউআর) Settings
   enableBanglaQr?: boolean;

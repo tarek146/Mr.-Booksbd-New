@@ -46,6 +46,7 @@ import {
   SteadfastFraudCheckReport,
 } from '../utils/steadfastCourierService';
 import { useCheckoutFraudCheck } from '../hooks/useCheckoutFraudCheck';
+import { computeCheckoutCompletion } from '../utils/checkoutProgressHelpers';
 
 const BANGLADESH_DISTRICTS = [
   'Dhaka',
@@ -105,15 +106,11 @@ export function CheckoutPage() {
   // Phone Number Validation & Repeat-Cancellation Fraud Checker Hook
   const fraudCheck = useCheckoutFraudCheck(phone, orders, settings);
 
-  // Professional Checkout Form Completion Percentage Parameter
-  const completionPercentage = useMemo(() => {
-    let score = 0;
-    if (name.trim().length > 0) score += 25;
-    if (phone.trim().length >= 10) score += 25;
-    if (district.trim().length > 0) score += 25;
-    if (address.trim().length >= 5) score += 25;
-    return Math.min(100, score);
-  }, [name, phone, district, address]);
+  // Checkout form completion metric driven by required delivery fields
+  const checkoutProgress = useMemo(
+    () => computeCheckoutCompletion({ name, phone, district, city, address }),
+    [name, phone, district, city, address]
+  );
 
   // Check for saved delivery address from local storage on mount or recent user order
   useEffect(() => {
@@ -669,6 +666,28 @@ export function CheckoutPage() {
             <span className="tabular-nums">
               {totalItemUnits} {totalItemUnits === 1 ? 'item' : 'items'}
             </span>
+            {settings.showCheckoutProgress !== false && (
+              <>
+                <span aria-hidden="true">·</span>
+                <div
+                  data-testid="checkout-header-progress"
+                  className="inline-flex items-center gap-1.5"
+                  title={checkoutProgress.statusLabel}
+                >
+                  <div className="w-12 sm:w-16 h-1 rounded-full bg-neutral-200 dark:bg-slate-800 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ease-out ${
+                        checkoutProgress.isComplete ? 'bg-emerald-600' : 'bg-[#D71920]'
+                      }`}
+                      style={{ width: `${checkoutProgress.percentage}%` }}
+                    />
+                  </div>
+                  <span className="tabular-nums font-semibold text-neutral-800 dark:text-slate-200">
+                    {checkoutProgress.percentage}%
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -753,37 +772,6 @@ export function CheckoutPage() {
                     )}
                   </div>
                 )}
-              </div>
-
-              {/* Professional Checkout Form Completion Parameter */}
-              <div className="bg-gradient-to-r from-neutral-50 via-rose-50/30 to-neutral-50 dark:from-slate-800/60 dark:via-rose-950/20 dark:to-slate-800/60 border border-neutral-200/80 dark:border-slate-700/80 rounded-xl p-3.5 space-y-2 shadow-2xs">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-neutral-800 dark:text-slate-200 flex items-center gap-1.5">
-                    <span className={`w-2 h-2 rounded-full ${completionPercentage === 100 ? 'bg-emerald-500 animate-bounce' : 'bg-[#D71920] animate-pulse'}`}></span>
-                    Checkout Form Completion
-                  </span>
-                  <span className="font-black text-neutral-900 dark:text-white tabular-nums">
-                    {completionPercentage}%
-                  </span>
-                </div>
-
-                <div className="w-full h-2 rounded-full bg-neutral-200 dark:bg-slate-700 overflow-hidden">
-                  <div
-                    className={`h-full transition-all duration-500 ease-out rounded-full ${
-                      completionPercentage === 100
-                        ? 'bg-gradient-to-r from-emerald-500 to-emerald-600'
-                        : 'bg-gradient-to-r from-rose-500 to-[#D71920]'
-                    }`}
-                    style={{ width: `${completionPercentage}%` }}
-                  ></div>
-                </div>
-
-                <div className="flex items-center justify-between text-[11px] text-neutral-500 dark:text-slate-400">
-                  <span>{completionPercentage === 100 ? '✨ All details ready to submit!' : 'Fill in Name, Phone & Address to complete'}</span>
-                  <span className="font-semibold text-neutral-700 dark:text-slate-300">
-                    {completionPercentage === 100 ? '100% Ready' : `${completionPercentage / 25}/4 Steps`}
-                  </span>
-                </div>
               </div>
 
               {/* Returning Customer Phone Lookup / Status Feedback */}
@@ -1447,6 +1435,30 @@ export function CheckoutPage() {
                 <div className="rounded-lg bg-red-50 dark:bg-red-950/25 border border-red-200 dark:border-red-800/50 px-3 py-2.5 text-xs text-red-700 dark:text-red-300 flex items-start gap-2 leading-relaxed">
                   <AlertCircle size={14} className="shrink-0 mt-0.5" />
                   <span>{errorMsg}</span>
+                </div>
+              )}
+
+              {settings.showCheckoutProgress !== false && (
+                <div
+                  data-testid="checkout-completion-meter"
+                  className="pt-3 border-t border-neutral-100 dark:border-slate-800 space-y-1.5"
+                >
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-neutral-500 dark:text-slate-400 font-medium truncate pr-2">
+                      {checkoutProgress.statusLabel}
+                    </span>
+                    <span className="font-semibold text-neutral-900 dark:text-white tabular-nums shrink-0">
+                      {checkoutProgress.percentage}%
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full bg-neutral-100 dark:bg-slate-800 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ease-out ${
+                        checkoutProgress.isComplete ? 'bg-emerald-600' : 'bg-[#D71920]'
+                      }`}
+                      style={{ width: `${checkoutProgress.percentage}%` }}
+                    />
+                  </div>
                 </div>
               )}
 
