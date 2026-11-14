@@ -37,6 +37,7 @@ import {
   DEFAULT_FOOTER_QUICK_LINKS,
   resolveActiveCoupons,
   calculateCheckoutPricing,
+  normalizeCouponPhoneLast10,
 } from '../utils/storeEnhancementsHelpers';
 import {
   DEFAULT_PUBLISHERS_LIST,
@@ -284,6 +285,11 @@ interface StoreContextType {
   addCoupon: (coupon: Omit<Coupon, 'id' | 'createdAt'>) => Promise<void>;
   updateCoupon: (id: string, data: Partial<Coupon>) => Promise<void>;
   deleteCoupon: (id: string) => Promise<void>;
+  fetchCustomerCouponProfile: (
+    phone?: string,
+    userId?: string
+  ) => Promise<{ orderCount: number; usedCoupons: string[] } | null>;
+  getLocalCustomerCouponHistory: () => { phones: string[]; usedCoupons: string[] };
 
   customerChatSession: LiveChatSession | null;
   liveChatSessions: LiveChatSession[];
@@ -427,9 +433,31 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     readCachedSlice('reels', [])
   );
   const [staffMembers, setStaffMembers] = useState<AdminStaffMember[]>([]);
-  const [coupons, setCoupons] = useState<Coupon[]>(() =>
-    resolveActiveCoupons(readCachedSlice<Coupon[]>('coupons', DEFAULT_COUPONS))
-  );
+  const [coupons, setCoupons] = useState<Coupon[]>(() => {
+    const initialized =
+      typeof window !== 'undefined' &&
+      window.localStorage.getItem('mrb_coupons_initialized') === '1';
+    let dismissed: string[] = [];
+    if (typeof window !== 'undefined') {
+      try {
+        const rawDismissed = window.localStorage.getItem('mrb_dismissed_default_coupons');
+        if (rawDismissed) dismissed = JSON.parse(rawDismissed);
+      } catch {
+        dismissed = [];
+      }
+    }
+    const cached = readCachedSlice<Coupon[] | null>('coupons', null);
+    if (cached !== null) {
+      return resolveActiveCoupons(cached, {
+        allowFallbackDefaults: !initialized,
+        dismissedIds: dismissed,
+      });
+    }
+    return resolveActiveCoupons(undefined, {
+      allowFallbackDefaults: !initialized,
+      dismissedIds: dismissed,
+    });
+  });
   const [appliedCouponCode, setAppliedCouponCode] = useState<string>('');
   const [customerChatSession, setCustomerChatSession] = useState<LiveChatSession | null>(null);
   const [liveChatSessions, setLiveChatSessions] = useState<LiveChatSession[]>([]);
@@ -807,6 +835,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     ordersDefaultDensity: 'comfortable',
     ordersShowFraudCheckButton: true,
     ordersShowItemThumbnails: true,
+    couponsInitialized: false,
+    dismissedDefaultCouponIds: [],
+    enableCouponPopup: true,
+    couponPopupDelaySeconds: 1.5,
+    couponPopupFrequency: 'once_per_session',
     enableBanglaQr: true,
     banglaQrImageUrl: '',
     banglaQrAccountName: 'MR. BOOKS BD',
@@ -1552,12 +1585,40 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       buildIndexedQuery(collection(db, 'coupons'), enableIndexing, queryLimit),
       { includeMetadataChanges: true },
       (snapshot) => {
+        const fromCache = snapshot.metadata.fromCache;
         if (!snapshot.empty) {
-          const loaded = resolveActiveCoupons(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Coupon)));
+          const rawDocs = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Coupon));
+          rawDocs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+          const loaded = resolveActiveCoupons(rawDocs, { allowFallbackDefaults: false });
           setCoupons(loaded);
           writeCachedSlice('coupons', loaded);
-        } else if (!snapshot.metadata.fromCache) {
-          setCoupons(DEFAULT_COUPONS);
+        } else if (!fromCache) {
+          let isInit = false;
+          let dismissed: string[] = [];
+          try {
+            if (typeof window !== 'undefined') {
+              isInit = window.localStorage.getItem('mrb_coupons_initialized') === '1';
+              const rawDismissed = window.localStorage.getItem('mrb_dismissed_default_coupons');
+              if (rawDismissed) dismissed = JSON.parse(rawDismissed);
+            }
+          } catch {
+            // ignore
+          }
+          if (settingsRef.current?.couponsInitialized) isInit = true;
+          if (Array.isArray(settingsRef.current?.dismissedDefaultCouponIds)) {
+            dismissed = Array.from(new Set([...dismissed, ...settingsRef.current.dismissedDefaultCouponIds]));
+          }
+          if (isInit) {
+            setCoupons([]);
+            writeCachedSlice('coupons', []);
+          } else {
+            const fallback = resolveActiveCoupons(undefined, {
+              allowFallbackDefaults: true,
+              dismissedIds: dismissed,
+            });
+            setCoupons(fallback);
+            writeCachedSlice('coupons', fallback);
+          }
         }
       },
       (err) => {
@@ -1988,6 +2049,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // 2. Calculate verified subtotal, delivery fee, & coupon discount using unified checkout pricing helper
     const deliveryMode =
       (orderData.notes || '').toLowerCase().includes('sundarban') ? 'sundarban' : 'standard';
+    const remoteCouponProfile = orderData.couponCode
+      ? await fetchCustomerCouponProfile(orderData.phone, currentUser?.uid)
+      : null;
+    const localHistory = getLocalCustomerCouponHistory();
     const pricing = calculateCheckoutPricing({
       cart: verifiedItems,
       products,
@@ -1996,6 +2061,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       settings,
       couponCode: orderData.couponCode,
       coupons,
+      customerContext: {
+        phone: orderData.phone,
+        userId: currentUser?.uid,
+        email: orderData.email || currentUser?.email || '',
+        orders,
+        remoteProfile: remoteCouponProfile,
+        localOrderHistoryPhones: localHistory.phones,
+        localUsedCoupons: localHistory.usedCoupons,
+      },
     });
     const verifiedSubtotal = pricing.subtotal;
     const verifiedDeliveryFee = pricing.deliveryCharge;
@@ -2080,6 +2154,59 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
 
     setOrders(prev => [newOrder, ...prev]);
+
+    // Record customer coupon history locally & in Firebase customer_coupon_profiles (best-effort)
+    const redeemedCode = pricing.appliedCoupon?.valid ? pricing.appliedCoupon.code : undefined;
+    const redeemedCouponObj = pricing.appliedCoupon?.valid ? pricing.appliedCoupon.coupon : undefined;
+    try {
+      if (typeof window !== 'undefined') {
+        const prevHist = getLocalCustomerCouponHistory();
+        const normP = normalizeCouponPhoneLast10(newOrder.phone);
+        const nextPhones = normP ? Array.from(new Set([normP, ...prevHist.phones])).slice(0, 50) : prevHist.phones;
+        const nextUsed = redeemedCode
+          ? Array.from(new Set([redeemedCode, ...prevHist.usedCoupons])).slice(0, 100)
+          : prevHist.usedCoupons;
+        window.localStorage.setItem(
+          'mrb_customer_order_history',
+          JSON.stringify({ phones: nextPhones, usedCoupons: nextUsed })
+        );
+      }
+    } catch {
+      // ignore storage errors
+    }
+    const normLast10 = normalizeCouponPhoneLast10(newOrder.phone);
+    if (normLast10) {
+      const profileKey = `p_${normLast10}`;
+      getDoc(doc(db, 'customer_coupon_profiles', profileKey))
+        .then(snap => {
+          const existing = snap.exists() ? (snap.data() as { orderCount?: number; usedCoupons?: string[] }) : {};
+          const nextCount = (Number(existing.orderCount) || 0) + 1;
+          const prevCodes = Array.isArray(existing.usedCoupons) ? existing.usedCoupons : [];
+          const nextCodes = redeemedCode
+            ? Array.from(new Set([...prevCodes, redeemedCode])).slice(0, 100)
+            : prevCodes;
+          return setDoc(
+            doc(db, 'customer_coupon_profiles', profileKey),
+            { orderCount: nextCount, usedCoupons: nextCodes, updatedAt: Date.now() },
+            { merge: true }
+          );
+        })
+        .catch(() => {});
+    }
+    if (redeemedCouponObj && redeemedCouponObj.id) {
+      const nextUsageCount = (redeemedCouponObj.usageCount || 0) + 1;
+      setCoupons(prev => {
+        const next = prev.map(c => (c.id === redeemedCouponObj.id ? { ...c, usageCount: nextUsageCount } : c));
+        writeCachedSlice('coupons', next);
+        return next;
+      });
+      setDoc(
+        doc(db, 'coupons', redeemedCouponObj.id),
+        { usageCount: nextUsageCount, updatedAt: Date.now() },
+        { merge: true }
+      ).catch(() => {});
+    }
+
     const isDirectOrderMode =
       directCheckoutItems !== null && settings.directOrderIsolatesCart !== false;
     if (isDirectOrderMode) {
@@ -3021,48 +3148,271 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setStaffMembers(prev => prev.filter(s => s.id !== id));
   };
 
+  const couponsRef = useRef<Coupon[]>(coupons);
+  useEffect(() => {
+    couponsRef.current = coupons;
+  }, [coupons]);
+
+  const settingsRef = useRef<StoreSettings>(settings);
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+
+  const getLocalCustomerCouponHistory = (): { phones: string[]; usedCoupons: string[] } => {
+    if (typeof window === 'undefined') return { phones: [], usedCoupons: [] };
+    try {
+      const raw = window.localStorage.getItem('mrb_customer_order_history');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return {
+          phones: Array.isArray(parsed?.phones) ? parsed.phones : [],
+          usedCoupons: Array.isArray(parsed?.usedCoupons) ? parsed.usedCoupons : [],
+        };
+      }
+    } catch {
+      // ignore
+    }
+    return { phones: [], usedCoupons: [] };
+  };
+
+  const fetchCustomerCouponProfile = async (
+    phone?: string,
+    userId?: string
+  ): Promise<{ orderCount: number; usedCoupons: string[] } | null> => {
+    const normLast10 = normalizeCouponPhoneLast10(phone);
+    const cleanUid = (userId || '').trim();
+    const keys: string[] = [];
+    if (normLast10) keys.push(`p_${normLast10}`);
+    if (cleanUid && !cleanUid.startsWith('guest-')) keys.push(`u_${cleanUid}`);
+    if (keys.length === 0) return null;
+
+    let maxOrderCount = 0;
+    const usedSet = new Set<string>();
+    let foundAny = false;
+
+    for (const key of keys) {
+      try {
+        const snap = await getDoc(doc(db, 'customer_coupon_profiles', key));
+        if (snap.exists()) {
+          foundAny = true;
+          const data = snap.data() as { orderCount?: number; usedCoupons?: string[] };
+          maxOrderCount = Math.max(maxOrderCount, Number(data.orderCount) || 0);
+          if (Array.isArray(data.usedCoupons)) {
+            data.usedCoupons.forEach(c => usedSet.add(String(c).trim().toUpperCase()));
+          }
+        }
+      } catch {
+        // Gracefully ignore when offline or rules haven't been re-deployed
+      }
+    }
+
+    return foundAny ? { orderCount: maxOrderCount, usedCoupons: Array.from(usedSet) } : null;
+  };
+
+  const markCouponsInitializedFlag = (dismissedIds?: string[]) => {
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem('mrb_coupons_initialized', '1');
+        if (dismissedIds) {
+          window.localStorage.setItem('mrb_dismissed_default_coupons', JSON.stringify(dismissedIds));
+        }
+      } catch {
+        // ignore
+      }
+    }
+  };
+
   const addCoupon = async (couponData: Omit<Coupon, 'id' | 'createdAt'>) => {
     const id = 'cpn-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
+    const now = Date.now();
     const newCoupon: Coupon = {
       ...couponData,
       id,
       code: couponData.code.trim().toUpperCase(),
-      createdAt: Date.now(),
+      usageCount: couponData.usageCount ?? 0,
+      createdAt: now,
+      updatedAt: now,
     };
+
+    markCouponsInitializedFlag();
+    const prevList = couponsRef.current;
+    const nextList = resolveActiveCoupons([newCoupon, ...prevList.filter(c => c.id !== id)], {
+      allowFallbackDefaults: false,
+    });
+    setCoupons(nextList);
+    writeCachedSlice('coupons', nextList);
+
     try {
+      // If defaults were visible locally and not yet seeded to Firestore, persist them alongside the new coupon
+      if (!settingsRef.current?.couponsInitialized) {
+        for (const existing of prevList) {
+          if (DEFAULT_COUPONS.some(d => d.id === existing.id)) {
+            await setDoc(doc(db, 'coupons', existing.id), cleanForFirestore(existing), {
+              merge: true,
+            }).catch(() => {});
+          }
+        }
+      }
       await setDoc(doc(db, 'coupons', id), cleanForFirestore(newCoupon));
-      await logAdminAction('coupon_created', id, `Created coupon ${newCoupon.code}`);
-    } catch (err) {
+      setDoc(
+        doc(db, 'settings', 'general'),
+        { couponsInitialized: true, updatedAt: now },
+        { merge: true }
+      ).catch(() => {});
+      setSettings(prev => {
+        const merged = { ...prev, couponsInitialized: true };
+        writeCachedSlice('settings', merged);
+        return merged;
+      });
+      try {
+        await logAdminAction('coupon_created', id, `Created coupon ${newCoupon.code}`);
+      } catch {
+        // Non-blocking audit log
+      }
+    } catch (err: any) {
+      const isDevBypass =
+        typeof window !== 'undefined' && window.localStorage.getItem('mrb_dev_admin_bypass') === '1';
+      if (isDevBypass && String(err?.message || '').toLowerCase().includes('permission')) {
+        return;
+      }
+      setCoupons(prevList);
+      writeCachedSlice('coupons', prevList);
       console.error('Error adding coupon:', err);
       throw err;
     }
-    setCoupons(prev => resolveActiveCoupons([newCoupon, ...prev.filter(c => c.id !== id)]));
   };
 
   const updateCoupon = async (id: string, data: Partial<Coupon>) => {
-    const payload = {
+    const now = Date.now();
+    const prevList = couponsRef.current;
+    const existing = prevList.find(c => c.id === id);
+    const mergedCoupon: Coupon = {
+      ...(existing || ({ id, code: '', title: '', description: '', discountType: 'percentage', discountValue: 0, minOrderAmount: 0, isActive: true } as Coupon)),
       ...data,
+      id,
       ...(data.code ? { code: data.code.trim().toUpperCase() } : {}),
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
     };
+
+    markCouponsInitializedFlag();
+    const nextList = resolveActiveCoupons(
+      prevList.map(c => (c.id === id ? mergedCoupon : c)),
+      { allowFallbackDefaults: false }
+    );
+    setCoupons(nextList);
+    writeCachedSlice('coupons', nextList);
+
     try {
-      await setDoc(doc(db, 'coupons', id), cleanForFirestore(payload), { merge: true });
-      await logAdminAction('coupon_updated', id, `Updated coupon ${id}`);
-    } catch (err) {
+      if (!settingsRef.current?.couponsInitialized) {
+        for (const item of prevList) {
+          if (item.id !== id && DEFAULT_COUPONS.some(d => d.id === item.id)) {
+            await setDoc(doc(db, 'coupons', item.id), cleanForFirestore(item), {
+              merge: true,
+            }).catch(() => {});
+          }
+        }
+      }
+      await setDoc(doc(db, 'coupons', id), cleanForFirestore(mergedCoupon), { merge: true });
+      setDoc(
+        doc(db, 'settings', 'general'),
+        { couponsInitialized: true, updatedAt: now },
+        { merge: true }
+      ).catch(() => {});
+      setSettings(prev => {
+        const merged = { ...prev, couponsInitialized: true };
+        writeCachedSlice('settings', merged);
+        return merged;
+      });
+      try {
+        await logAdminAction('coupon_updated', id, `Updated coupon ${mergedCoupon.code || id}`);
+      } catch {
+        // Non-blocking audit log
+      }
+    } catch (err: any) {
+      const isDevBypass =
+        typeof window !== 'undefined' && window.localStorage.getItem('mrb_dev_admin_bypass') === '1';
+      if (isDevBypass && String(err?.message || '').toLowerCase().includes('permission')) {
+        return;
+      }
+      setCoupons(prevList);
+      writeCachedSlice('coupons', prevList);
       console.error('Error updating coupon:', err);
       throw err;
     }
-    setCoupons(prev => resolveActiveCoupons(prev.map(c => (c.id === id ? { ...c, ...payload } : c))));
   };
 
   const deleteCoupon = async (id: string) => {
+    const prevList = couponsRef.current;
+    const nextList = prevList.filter(c => c.id !== id);
+    const prevDismissed = Array.isArray(settingsRef.current?.dismissedDefaultCouponIds)
+      ? settingsRef.current.dismissedDefaultCouponIds
+      : [];
+    const nextDismissed = DEFAULT_COUPONS.some(d => d.id === id)
+      ? Array.from(new Set([...prevDismissed, id]))
+      : prevDismissed;
+
+    markCouponsInitializedFlag(nextDismissed);
+    setCoupons(nextList);
+    writeCachedSlice('coupons', nextList);
+
     try {
       await deleteDoc(doc(db, 'coupons', id));
-      await logAdminAction('coupon_deleted', id, `Deleted coupon ${id}`);
-    } catch (err) {
+
+      // If deleting from unseeded defaults while keeping others, persist remaining coupons to Firestore so snapshot stays consistent
+      if (!settingsRef.current?.couponsInitialized && nextList.length > 0) {
+        for (const rem of nextList) {
+          if (DEFAULT_COUPONS.some(d => d.id === rem.id)) {
+            await setDoc(doc(db, 'coupons', rem.id), cleanForFirestore(rem), { merge: true }).catch(() => {});
+          }
+        }
+      }
+
+      await setDoc(
+        doc(db, 'settings', 'general'),
+        cleanForFirestore({
+          couponsInitialized: true,
+          dismissedDefaultCouponIds: nextDismissed,
+          updatedAt: Date.now(),
+        }),
+        { merge: true }
+      ).catch(() => {});
+
+      setSettings(prev => {
+        const merged = {
+          ...prev,
+          couponsInitialized: true,
+          dismissedDefaultCouponIds: nextDismissed,
+        };
+        writeCachedSlice('settings', merged);
+        return merged;
+      });
+
+      try {
+        await logAdminAction('coupon_deleted', id, `Deleted coupon ${id}`);
+      } catch {
+        // Non-blocking audit log
+      }
+    } catch (err: any) {
+      const isDevBypass =
+        typeof window !== 'undefined' && window.localStorage.getItem('mrb_dev_admin_bypass') === '1';
+      if (isDevBypass && String(err?.message || '').toLowerCase().includes('permission')) {
+        setSettings(prev => {
+          const merged = {
+            ...prev,
+            couponsInitialized: true,
+            dismissedDefaultCouponIds: nextDismissed,
+          };
+          writeCachedSlice('settings', merged);
+          return merged;
+        });
+        return;
+      }
+      setCoupons(prevList);
+      writeCachedSlice('coupons', prevList);
       console.error('Error deleting coupon:', err);
       throw err;
     }
-    setCoupons(prev => prev.filter(c => c.id !== id));
   };
 
   const broadcastChatUpdate = (session: LiveChatSession) => {
@@ -3412,6 +3762,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       addCoupon,
       updateCoupon,
       deleteCoupon,
+      fetchCustomerCouponProfile,
+      getLocalCustomerCouponHistory,
       customerChatSession,
       liveChatSessions,
       liveChatsHydrated,

@@ -54,7 +54,25 @@ service cloud.firestore {
 
     match /coupons/{couponId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usageCount', 'updatedAt']) &&
+        request.resource.data.usageCount is number &&
+        request.resource.data.usageCount == resource.data.get('usageCount', 0) + 1
+      );
+    }
+
+    // Non-PII customer coupon eligibility ledger (keyed by p_<last10> or u_<uid>, zero name/address PII)
+    match /customer_coupon_profiles/{profileKey} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create, update: if isAdmin() || (
+        request.resource.data.orderCount is number &&
+        request.resource.data.orderCount >= 1 &&
+        request.resource.data.usedCoupons is list &&
+        request.resource.data.usedCoupons.size() <= 100
+      );
+      allow delete: if isAdmin();
     }
 
     match /reels/{reelId} {

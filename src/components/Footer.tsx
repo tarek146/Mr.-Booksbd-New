@@ -27,6 +27,7 @@ import { Order } from '../types';
 import { isValidImageUrl } from '../utils/imageCompressor';
 import {
   DEFAULT_CANCEL_EXCHANGE_POLICY,
+  getCouponScheduleState,
   resolveActiveCoupons,
   resolveFooterQuickLinks,
 } from '../utils/storeEnhancementsHelpers';
@@ -165,7 +166,9 @@ export function Footer() {
   const showCoupons = settings.showFooterCoupons !== false;
   const showPolicy = settings.showFooterPolicy !== false;
 
-  const activeCouponsList = resolveActiveCoupons(coupons).filter(c => c.isActive !== false);
+  const activeCouponsList = resolveActiveCoupons(coupons, { allowFallbackDefaults: false }).filter(
+    c => getCouponScheduleState(c).isLive
+  );
   const resolvedQuickLinks = resolveFooterQuickLinks(settings.footerQuickLinks);
 
   const visibleOptionCount =
@@ -779,66 +782,80 @@ export function Footer() {
                 </div>
 
                 <div className="space-y-2.5">
-                  {activeCouponsList.map(coupon => {
-                    const isApplied = appliedCouponCode.toUpperCase() === coupon.code.toUpperCase();
-                    return (
-                      <div
-                        key={coupon.id}
-                        data-testid={`coupon-offer-${coupon.code}`}
-                        className="p-3.5 rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/60 via-white to-rose-50/40 space-y-2"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-black text-xs px-2.5 py-1 rounded-lg bg-neutral-900 text-white tracking-wider">
-                              {coupon.code}
-                            </span>
-                            <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 text-[10px] font-black">
-                              {coupon.badgeText ||
-                                (coupon.discountType === 'percentage'
-                                  ? `${coupon.discountValue}% OFF`
-                                  : coupon.discountType === 'free_delivery'
-                                  ? 'FREE DELIVERY'
-                                  : `৳${coupon.discountValue} OFF`)}
-                            </span>
+                  {activeCouponsList.length === 0 ? (
+                    <div className="py-8 text-center rounded-2xl border border-dashed border-neutral-200 bg-neutral-50/70">
+                      <p className="text-xs font-semibold text-neutral-700">No active promo offers right now</p>
+                      <p className="text-[11px] text-neutral-500 mt-1">নতুন অফার যুক্ত হলে এখানে দেখতে পাবেন।</p>
+                    </div>
+                  ) : (
+                    activeCouponsList.map(coupon => {
+                      const isApplied = appliedCouponCode.toUpperCase() === coupon.code.toUpperCase();
+                      const schedule = getCouponScheduleState(coupon);
+                      return (
+                        <div
+                          key={coupon.id}
+                          data-testid={`coupon-offer-${coupon.code}`}
+                          className="p-3.5 rounded-2xl border border-neutral-200 bg-white space-y-2 shadow-2xs"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-mono font-black text-xs px-2.5 py-1 rounded-lg bg-neutral-900 text-white tracking-wider">
+                                {coupon.code}
+                              </span>
+                              <span className="text-[11px] font-bold text-[#D71920]">
+                                {coupon.badgeText ||
+                                  (coupon.discountType === 'percentage'
+                                    ? `${coupon.discountValue}% OFF`
+                                    : coupon.discountType === 'free_delivery'
+                                    ? 'FREE DELIVERY'
+                                    : `৳${coupon.discountValue} OFF`)}
+                              </span>
+                              {coupon.firstOrderOnly && (
+                                <span className="text-[10px] font-semibold text-amber-700">
+                                  · 1st Order Only
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyCoupon(coupon.code)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-neutral-200 bg-white hover:border-[#D71920] text-[11px] font-bold text-neutral-700 cursor-pointer shrink-0"
+                            >
+                              {copiedCouponCode === coupon.code ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                              <span>{copiedCouponCode === coupon.code ? 'Copied' : 'Copy'}</span>
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => handleCopyCoupon(coupon.code)}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-neutral-200 bg-white hover:border-[#D71920] text-[11px] font-bold text-neutral-700 cursor-pointer"
-                          >
-                            {copiedCouponCode === coupon.code ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
-                            <span>{copiedCouponCode === coupon.code ? 'Copied' : 'Copy'}</span>
-                          </button>
-                        </div>
 
-                        <div>
-                          <h4 className="font-bold text-xs text-neutral-900">{coupon.title}</h4>
-                          <p className="text-[11px] text-neutral-600 mt-0.5 leading-snug">{coupon.description}</p>
-                        </div>
+                          <div>
+                            <h4 className="font-bold text-xs text-neutral-900">{coupon.title}</h4>
+                            <p className="text-[11px] text-neutral-600 mt-0.5 leading-snug">{coupon.description}</p>
+                          </div>
 
-                        <div className="flex items-center justify-between gap-2 pt-1">
-                          <span className="text-[10px] font-semibold text-neutral-500">
-                            {coupon.minOrderAmount ? `Min order: ৳${coupon.minOrderAmount}` : 'No minimum order'}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setAppliedCouponCode(coupon.code);
-                              setActiveStripModal(null);
-                              setActivePage('checkout');
-                            }}
-                            className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                              isApplied
-                                ? 'bg-emerald-600 text-white'
-                                : 'bg-[#D71920] hover:bg-[#b8141a] text-white'
-                            }`}
-                          >
-                            {isApplied ? '✓ Selected for Checkout' : 'Apply & Checkout →'}
-                          </button>
+                          <div className="flex items-center justify-between gap-2 pt-1 border-t border-neutral-100">
+                            <span className="text-[10px] font-semibold text-neutral-500 tabular-nums">
+                              {coupon.minOrderAmount ? `Min order: ৳${coupon.minOrderAmount}` : 'No minimum order'}
+                              {coupon.expiresAt ? ` · ${schedule.countdownLabel}` : ''}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAppliedCouponCode(coupon.code);
+                                setActiveStripModal(null);
+                                setActivePage('checkout');
+                              }}
+                              className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
+                                isApplied
+                                  ? 'bg-emerald-600 text-white'
+                                  : 'bg-[#D71920] hover:bg-[#b8141a] text-white'
+                              }`}
+                            >
+                              {isApplied ? '✓ Selected for Checkout' : 'Apply & Checkout →'}
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  )}
                 </div>
               </div>
             )}

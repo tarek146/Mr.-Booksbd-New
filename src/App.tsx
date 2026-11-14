@@ -16,6 +16,7 @@ import { AuthorsPage } from './pages/AuthorsPage';
 import { PublishersPage } from './pages/PublishersPage';
 import { TrackOrderPage } from './pages/TrackOrderPage';
 import { LiveChatWidget } from './components/LiveChatWidget';
+import { CouponPromoPopup } from './components/CouponPromoPopup';
 
 // Code-split AdminDashboard so customers don't download admin code on homepage
 const AdminDashboard = React.lazy(() => 
@@ -56,6 +57,7 @@ function MainRouter() {
           <Footer />
           <MobileBottomNav />
           <LiveChatWidget />
+          <CouponPromoPopup />
         </div>
       )}
     </>

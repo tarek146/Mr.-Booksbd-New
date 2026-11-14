@@ -486,6 +486,13 @@ export interface StoreSettings {
   ordersShowFraudCheckButton?: boolean;
   ordersShowItemThumbnails?: boolean;
 
+  // Coupons & Storefront Entry Popup Settings (Admin-managed via Firebase)
+  couponsInitialized?: boolean;
+  dismissedDefaultCouponIds?: string[];
+  enableCouponPopup?: boolean;
+  couponPopupDelaySeconds?: number;
+  couponPopupFrequency?: 'once_per_session' | 'once_per_day' | 'always';
+
   // Returning Customer Address Autofill Settings
   enableUseOldAddress?: boolean;
   oldAddressButtonLabel?: string;
@@ -624,8 +631,18 @@ export interface Coupon {
   maxDiscountAmount?: number;
   badgeText?: string;
   isActive: boolean;
+  startsAt?: number;
   expiresAt?: number;
+  firstOrderOnly?: boolean;
+  perCustomerLimit?: number;
+  usageLimit?: number;
+  usageCount?: number;
+  showAsPopup?: boolean;
+  popupHeadline?: string;
+  popupSubtitle?: string;
+  popupCtaText?: string;
   createdAt?: number;
+  updatedAt?: number;
 }
 
 export interface LiveChatMessage {

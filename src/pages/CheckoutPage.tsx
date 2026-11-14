@@ -22,6 +22,8 @@ import {
 import {
   calculateCheckoutPricing,
   evaluateCoupon,
+  getCouponScheduleState,
+  normalizeCouponPhoneLast10,
   resolveActiveCoupons,
 } from '../utils/storeEnhancementsHelpers';
 import {
@@ -91,6 +93,8 @@ export function CheckoutPage() {
     coupons,
     appliedCouponCode,
     setAppliedCouponCode,
+    fetchCustomerCouponProfile,
+    getLocalCustomerCouponHistory,
   } = useStore();
   const { currentUser } = useAuth();
   const imageLayout = getProductImageLayoutClasses(
@@ -416,6 +420,10 @@ export function CheckoutPage() {
   // Coupon Input State synced with StoreContext
   const [couponInput, setCouponInput] = useState(appliedCouponCode || '');
   const [couponFeedback, setCouponFeedback] = useState<{ valid: boolean; text: string } | null>(null);
+  const [remoteCouponProfile, setRemoteCouponProfile] = useState<{
+    orderCount: number;
+    usedCoupons: string[];
+  } | null>(null);
 
   useEffect(() => {
     if (appliedCouponCode) {
@@ -423,10 +431,50 @@ export function CheckoutPage() {
     }
   }, [appliedCouponCode]);
 
-  const activeCouponsList = useMemo(
-    () => resolveActiveCoupons(coupons).filter(c => c.isActive !== false),
-    [coupons]
+  useEffect(() => {
+    let active = true;
+    const normPhone = normalizeCouponPhoneLast10(phone);
+    if (!normPhone && !currentUser?.uid) {
+      setRemoteCouponProfile(null);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      fetchCustomerCouponProfile(phone, currentUser?.uid)
+        .then(profile => {
+          if (active) setRemoteCouponProfile(profile);
+        })
+        .catch(() => {});
+    }, 200);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [phone, currentUser?.uid]);
+
+  const localCouponHistory = useMemo(
+    () => getLocalCustomerCouponHistory(),
+    [orders.length, phone]
   );
+
+  const couponCustomerContext = useMemo(
+    () => ({
+      orders,
+      phone,
+      email,
+      userId: currentUser?.uid,
+      remoteProfile: remoteCouponProfile,
+      localOrderHistoryPhones: localCouponHistory.phones,
+      localUsedCoupons: localCouponHistory.usedCoupons,
+    }),
+    [orders, phone, email, currentUser?.uid, remoteCouponProfile, localCouponHistory]
+  );
+
+  const activeCouponsList = useMemo(() => {
+    const nowTs = Date.now();
+    return resolveActiveCoupons(coupons, { allowFallbackDefaults: false }).filter(
+      c => getCouponScheduleState(c, nowTs).isLive
+    );
+  }, [coupons]);
 
   // Dynamic Pricing, Delivery, Free Threshold & Coupon Calculation
   const pricingSummary = useMemo(
@@ -439,8 +487,18 @@ export function CheckoutPage() {
         settings,
         couponCode: appliedCouponCode,
         coupons: activeCouponsList,
+        customerContext: couponCustomerContext,
       }),
-    [checkoutItems, products, district, deliveryType, settings, appliedCouponCode, activeCouponsList]
+    [
+      checkoutItems,
+      products,
+      district,
+      deliveryType,
+      settings,
+      appliedCouponCode,
+      activeCouponsList,
+      couponCustomerContext,
+    ]
   );
 
   const subtotal = pricingSummary.subtotal;
@@ -451,14 +509,47 @@ export function CheckoutPage() {
   const discount = pricingSummary.discount;
   const total = pricingSummary.total;
 
+  // Auto re-validate applied coupon when phone/profile/subtotal changes (e.g. firstOrderOnly check)
+  useEffect(() => {
+    if (!appliedCouponCode) return;
+    const check = evaluateCoupon(
+      appliedCouponCode,
+      activeCouponsList,
+      subtotal,
+      baseDelivery + extraWeightCharge,
+      couponCustomerContext
+    );
+    if (!check.valid) {
+      setAppliedCouponCode('');
+      setCouponFeedback({ valid: false, text: check.message });
+    }
+  }, [
+    appliedCouponCode,
+    activeCouponsList,
+    subtotal,
+    baseDelivery,
+    extraWeightCharge,
+    couponCustomerContext,
+    setAppliedCouponCode,
+  ]);
+
   const handleApplyCheckoutCoupon = (codeToApply?: string) => {
     const raw = typeof codeToApply === 'string' ? codeToApply : couponInput;
-    const res = evaluateCoupon(raw, activeCouponsList, subtotal, baseDelivery + extraWeightCharge);
+    const res = evaluateCoupon(
+      raw,
+      activeCouponsList,
+      subtotal,
+      baseDelivery + extraWeightCharge,
+      couponCustomerContext
+    );
     if (res.valid) {
       setCouponInput(res.code);
       setAppliedCouponCode(res.code);
       setCouponFeedback({ valid: true, text: res.message });
     } else {
+      if (appliedCouponCode && raw.trim().toUpperCase() === appliedCouponCode.toUpperCase()) {
+        setAppliedCouponCode('');
+      }
       setCouponFeedback({ valid: false, text: res.message });
     }
   };
@@ -585,6 +676,29 @@ export function CheckoutPage() {
       }
       setErrorMsg('No items selected for this order. Add a product or load your Cart items.');
       return;
+    }
+
+    if (appliedCouponCode) {
+      const freshCouponCheck = evaluateCoupon(
+        appliedCouponCode,
+        activeCouponsList,
+        subtotal,
+        baseDelivery + extraWeightCharge,
+        {
+          ...couponCustomerContext,
+          phone: cleanPhone,
+          email: email.trim(),
+        }
+      );
+      if (!freshCouponCheck.valid) {
+        if (overridePayment) {
+          setIsPaymentModalOpen(false);
+        }
+        setAppliedCouponCode('');
+        setCouponFeedback({ valid: false, text: freshCouponCheck.message });
+        setErrorMsg(freshCouponCheck.message);
+        return;
+      }
     }
 
     setLoading(true);
@@ -1524,6 +1638,7 @@ export function CheckoutPage() {
                           }`}
                         >
                           {c.code}
+                          {c.firstOrderOnly ? ' (1st Order)' : ''}
                         </button>
                       );
                     })}

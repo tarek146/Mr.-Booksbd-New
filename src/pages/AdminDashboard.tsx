@@ -2186,7 +2186,7 @@ export function AdminDashboard() {
       id: 'coupons',
       label: 'Coupons & Promo Codes',
       icon: TicketPercent,
-      count: coupons.length || 3,
+      count: coupons.length,
     },
     reels: {
       id: 'reels',
@@ -12788,6 +12788,9 @@ export function AdminDashboard() {
           >
             <AdminCouponsManager
               coupons={coupons}
+              orders={orders}
+              settings={settings}
+              onUpdateSettings={updateSettings}
               onAddCoupon={addCoupon}
               onUpdateCoupon={updateCoupon}
               onDeleteCoupon={deleteCoupon}

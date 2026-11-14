@@ -63,9 +63,196 @@ export interface CouponEvaluationResult {
   freeDelivery: boolean;
   message: string;
   coupon?: Coupon;
+  pendingPhoneVerification?: boolean;
+  ineligibleReason?:
+    | 'empty'
+    | 'not_found'
+    | 'inactive'
+    | 'scheduled'
+    | 'expired'
+    | 'usage_limit'
+    | 'first_order_only'
+    | 'per_customer_limit'
+    | 'min_order';
 }
 
-export function resolveActiveCoupons(storedCoupons?: Coupon[]): Coupon[] {
+export interface CouponCustomerOrderRef {
+  id?: string;
+  phone?: string;
+  optionalPhone?: string;
+  userId?: string;
+  email?: string;
+  orderStatus?: string;
+  isTrashed?: boolean;
+  couponCode?: string;
+}
+
+export interface CouponCustomerContext {
+  now?: number;
+  phone?: string;
+  userId?: string;
+  email?: string;
+  orders?: CouponCustomerOrderRef[];
+  remoteProfile?: {
+    orderCount?: number;
+    usedCoupons?: string[];
+  } | null;
+  localOrderHistoryPhones?: string[];
+  localUsedCoupons?: string[];
+}
+
+export type CouponScheduleStatus = 'active' | 'scheduled' | 'expired' | 'paused' | 'exhausted';
+
+export interface CouponScheduleState {
+  status: CouponScheduleStatus;
+  isLive: boolean;
+  remainingMs: number | null;
+  startsInMs: number | null;
+  label: string;
+  countdownLabel: string;
+  timeSummary: string;
+}
+
+export function normalizeCouponPhoneLast10(phone?: string): string {
+  const digits = (phone || '').replace(/[^0-9]/g, '');
+  if (digits.length < 10) return '';
+  return digits.slice(-10);
+}
+
+export function formatCouponScheduleDate(ts?: number): string {
+  if (!ts || ts <= 0 || Number.isNaN(ts)) return '';
+  try {
+    return new Date(ts).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  } catch {
+    return '';
+  }
+}
+
+export function formatDurationCompact(ms: number): string {
+  if (!ms || ms <= 0) return '00m 00s';
+  const totalSeconds = Math.floor(ms / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  if (days > 0) {
+    return `${days}d ${pad(hours)}h ${pad(minutes)}m`;
+  }
+  if (hours > 0) {
+    return `${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
+  }
+  return `${pad(minutes)}m ${pad(seconds)}s`;
+}
+
+export function toDateTimeLocalValue(ts?: number): string {
+  if (!ts || ts <= 0 || Number.isNaN(ts)) return '';
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+export function fromDateTimeLocalValue(value?: string): number | undefined {
+  const trimmed = (value || '').trim();
+  if (!trimmed) return undefined;
+  const parsed = new Date(trimmed).getTime();
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+export function getCouponScheduleState(
+  coupon: Coupon,
+  now: number = Date.now()
+): CouponScheduleState {
+  const hasStart = Boolean(coupon.startsAt && coupon.startsAt > 0);
+  const hasEnd = Boolean(coupon.expiresAt && coupon.expiresAt > 0);
+  const startStr = hasStart ? formatCouponScheduleDate(coupon.startsAt) : '';
+  const endStr = hasEnd ? formatCouponScheduleDate(coupon.expiresAt) : '';
+
+  const timeSummary =
+    hasStart && hasEnd
+      ? `${startStr} → ${endStr}`
+      : hasStart
+      ? `Starts ${startStr}`
+      : hasEnd
+      ? `Ends ${endStr}`
+      : 'Always Active (No Expiry)';
+
+  if (coupon.isActive === false) {
+    return {
+      status: 'paused',
+      isLive: false,
+      remainingMs: null,
+      startsInMs: null,
+      label: 'Paused',
+      countdownLabel: 'Manually paused',
+      timeSummary,
+    };
+  }
+
+  if (
+    typeof coupon.usageLimit === 'number' &&
+    coupon.usageLimit > 0 &&
+    (coupon.usageCount || 0) >= coupon.usageLimit
+  ) {
+    return {
+      status: 'exhausted',
+      isLive: false,
+      remainingMs: 0,
+      startsInMs: null,
+      label: 'Limit Reached',
+      countdownLabel: `${coupon.usageCount || 0}/${coupon.usageLimit} redeemed`,
+      timeSummary,
+    };
+  }
+
+  if (hasStart && coupon.startsAt! > now) {
+    const startsInMs = coupon.startsAt! - now;
+    return {
+      status: 'scheduled',
+      isLive: false,
+      remainingMs: hasEnd ? coupon.expiresAt! - coupon.startsAt! : null,
+      startsInMs,
+      label: 'Scheduled',
+      countdownLabel: `Starts in ${formatDurationCompact(startsInMs)}`,
+      timeSummary,
+    };
+  }
+
+  if (hasEnd && now > coupon.expiresAt!) {
+    return {
+      status: 'expired',
+      isLive: false,
+      remainingMs: 0,
+      startsInMs: null,
+      label: 'Expired',
+      countdownLabel: 'Expired',
+      timeSummary,
+    };
+  }
+
+  const remainingMs = hasEnd ? Math.max(0, coupon.expiresAt! - now) : null;
+  return {
+    status: 'active',
+    isLive: true,
+    remainingMs,
+    startsInMs: null,
+    label: 'Live',
+    countdownLabel: remainingMs !== null ? `${formatDurationCompact(remainingMs)} left` : 'Ongoing',
+    timeSummary,
+  };
+}
+
+export function resolveActiveCoupons(
+  storedCoupons?: Coupon[],
+  options?: { allowFallbackDefaults?: boolean; dismissedIds?: string[] }
+): Coupon[] {
   const map = new Map<string, Coupon>();
   if (storedCoupons && storedCoupons.length > 0) {
     for (const c of storedCoupons) {
@@ -78,14 +265,88 @@ export function resolveActiveCoupons(storedCoupons?: Coupon[]): Coupon[] {
     }
     return Array.from(map.values());
   }
-  return DEFAULT_COUPONS;
+  if (options?.allowFallbackDefaults) {
+    const dismissedSet = new Set(options.dismissedIds || []);
+    return DEFAULT_COUPONS.filter(c => !dismissedSet.has(c.id));
+  }
+  return [];
+}
+
+export function getCustomerOrderHistorySignals(
+  customerContext?: CouponCustomerContext,
+  couponCode?: string
+): {
+  priorNonCancelledOrders: number;
+  couponUsesCount: number;
+  hasIdentitySignal: boolean;
+} {
+  if (!customerContext) {
+    return { priorNonCancelledOrders: 0, couponUsesCount: 0, hasIdentitySignal: false };
+  }
+
+  const normPhone = normalizeCouponPhoneLast10(customerContext.phone);
+  const normEmail = (customerContext.email || '').trim().toLowerCase();
+  const uid = (customerContext.userId || '').trim();
+  const isRealUid = Boolean(uid && !uid.startsWith('guest-'));
+  const targetCode = (couponCode || '').trim().toUpperCase();
+
+  const matchingOrders = (customerContext.orders || []).filter(o => {
+    if (!o || o.isTrashed || o.orderStatus === 'cancelled') return false;
+    const oPhone = normalizeCouponPhoneLast10(o.phone);
+    const oAltPhone = normalizeCouponPhoneLast10(o.optionalPhone);
+    const oEmail = (o.email || '').trim().toLowerCase();
+    const oUid = (o.userId || '').trim();
+
+    if (normPhone && (oPhone === normPhone || oAltPhone === normPhone)) return true;
+    if (isRealUid && oUid && oUid === uid) return true;
+    if (normEmail && oEmail && oEmail === normEmail) return true;
+    return false;
+  });
+
+  const remoteCount = Math.max(0, Number(customerContext.remoteProfile?.orderCount) || 0);
+  const localPhoneMatch = Boolean(
+    normPhone &&
+      (customerContext.localOrderHistoryPhones || []).some(
+        p => normalizeCouponPhoneLast10(p) === normPhone
+      )
+  );
+
+  const priorNonCancelledOrders = Math.max(
+    matchingOrders.length,
+    remoteCount,
+    localPhoneMatch ? 1 : 0
+  );
+
+  const orderUsesCount = targetCode
+    ? matchingOrders.filter(o => (o.couponCode || '').trim().toUpperCase() === targetCode).length
+    : 0;
+  const remoteUsed = Boolean(
+    targetCode &&
+      (customerContext.remoteProfile?.usedCoupons || []).some(
+        c => c.trim().toUpperCase() === targetCode
+      )
+  );
+  const localUsed = Boolean(
+    targetCode &&
+      (customerContext.localUsedCoupons || []).some(c => c.trim().toUpperCase() === targetCode)
+  );
+
+  const couponUsesCount = Math.max(orderUsesCount, remoteUsed ? 1 : 0, localUsed ? 1 : 0);
+  const hasIdentitySignal = Boolean(normPhone || isRealUid || normEmail);
+
+  return {
+    priorNonCancelledOrders,
+    couponUsesCount,
+    hasIdentitySignal,
+  };
 }
 
 export function evaluateCoupon(
   rawCode: string,
-  coupons: Coupon[],
-  subtotal: number,
-  currentDeliveryFee: number = 0
+  coupons?: Coupon[],
+  subtotal: number = 0,
+  currentDeliveryFee: number = 0,
+  customerContext?: CouponCustomerContext
 ): CouponEvaluationResult {
   const cleanCode = (rawCode || '').trim().toUpperCase();
   if (!cleanCode) {
@@ -94,14 +355,14 @@ export function evaluateCoupon(
       code: '',
       discount: 0,
       freeDelivery: false,
+      ineligibleReason: 'empty',
       message: 'অনুগ্রহ করে একটি কুপন কোড লিখুন।',
     };
   }
 
-  // Backward-compatible alias BOOKFAIR -> 10% off if not explicitly in stored list
-  const activePool = coupons && coupons.length > 0 ? coupons : DEFAULT_COUPONS;
+  const activePool = coupons !== undefined ? coupons : DEFAULT_COUPONS;
   let matched = activePool.find(c => c.code.trim().toUpperCase() === cleanCode);
-  if (!matched && cleanCode === 'BOOKFAIR') {
+  if (!matched && cleanCode === 'BOOKFAIR' && coupons === undefined) {
     matched = {
       id: 'coupon-bookfair-alias',
       code: 'BOOKFAIR',
@@ -116,23 +377,90 @@ export function evaluateCoupon(
     };
   }
 
-  if (!matched || matched.isActive === false) {
+  if (!matched) {
     return {
       valid: false,
       code: cleanCode,
       discount: 0,
       freeDelivery: false,
-      message: `কুপন কোড "${cleanCode}" সঠিক নয় অথবা মেয়াদ শেষ হয়েছে।`,
+      ineligibleReason: 'not_found',
+      message: `কুপন কোড "${cleanCode}" সঠিক নয় অথবা আর উপলব্ধ নেই।`,
     };
   }
 
-  if (matched.expiresAt && matched.expiresAt > 0 && Date.now() > matched.expiresAt) {
+  if (matched.isActive === false) {
     return {
       valid: false,
       code: cleanCode,
       discount: 0,
       freeDelivery: false,
+      ineligibleReason: 'inactive',
+      message: `কুপন কোড "${cleanCode}" বর্তমানে বন্ধ বা নিষ্ক্রিয় রয়েছে।`,
+    };
+  }
+
+  const now = customerContext?.now ?? Date.now();
+  if (matched.startsAt && matched.startsAt > 0 && now < matched.startsAt) {
+    return {
+      valid: false,
+      code: cleanCode,
+      discount: 0,
+      freeDelivery: false,
+      ineligibleReason: 'scheduled',
+      message: `কুপন "${cleanCode}" এখনও চালু হয়নি (${formatCouponScheduleDate(matched.startsAt)} থেকে শুরু হবে)।`,
+    };
+  }
+
+  if (matched.expiresAt && matched.expiresAt > 0 && now > matched.expiresAt) {
+    return {
+      valid: false,
+      code: cleanCode,
+      discount: 0,
+      freeDelivery: false,
+      ineligibleReason: 'expired',
       message: `কুপন কোড "${cleanCode}"-এর মেয়াদ শেষ হয়ে গেছে।`,
+    };
+  }
+
+  if (
+    typeof matched.usageLimit === 'number' &&
+    matched.usageLimit > 0 &&
+    (matched.usageCount || 0) >= matched.usageLimit
+  ) {
+    return {
+      valid: false,
+      code: cleanCode,
+      discount: 0,
+      freeDelivery: false,
+      ineligibleReason: 'usage_limit',
+      message: `কুপন "${cleanCode}"-এর সর্বোচ্চ ব্যবহার সীমা পূর্ণ হয়ে গেছে।`,
+    };
+  }
+
+  const history = getCustomerOrderHistorySignals(customerContext, cleanCode);
+  if (matched.firstOrderOnly && history.priorNonCancelledOrders > 0) {
+    return {
+      valid: false,
+      code: cleanCode,
+      discount: 0,
+      freeDelivery: false,
+      ineligibleReason: 'first_order_only',
+      message: `"${cleanCode}" শুধুমাত্র প্রথম অর্ডারের (First Purchase) জন্য প্রযোজ্য। আপনার আগে থেকেই অর্ডার রয়েছে।`,
+    };
+  }
+
+  if (
+    typeof matched.perCustomerLimit === 'number' &&
+    matched.perCustomerLimit > 0 &&
+    history.couponUsesCount >= matched.perCustomerLimit
+  ) {
+    return {
+      valid: false,
+      code: cleanCode,
+      discount: 0,
+      freeDelivery: false,
+      ineligibleReason: 'per_customer_limit',
+      message: `আপনি ইতোমধ্যে "${cleanCode}" কুপনটি সর্বোচ্চ সীমা অনুযায়ী ব্যবহার করেছেন।`,
     };
   }
 
@@ -143,9 +471,12 @@ export function evaluateCoupon(
       code: cleanCode,
       discount: 0,
       freeDelivery: false,
+      ineligibleReason: 'min_order',
       message: `এই কুপনটি ব্যবহার করতে কমপক্ষে ৳${minOrder} টাকার অর্ডার হতে হবে (আরো ৳${minOrder - subtotal} যোগ করুন)।`,
     };
   }
+
+  const pendingPhoneVerification = Boolean(matched.firstOrderOnly && !normalizeCouponPhoneLast10(customerContext?.phone));
 
   if (matched.discountType === 'free_delivery') {
     return {
@@ -154,14 +485,18 @@ export function evaluateCoupon(
       discount: 0,
       freeDelivery: true,
       coupon: matched,
-      message: `🎉 "${cleanCode}" কুপন অ্যাপ্লাই হয়েছে — সম্পূর্ণ ফ্রি ডেলিভারি (৳${currentDeliveryFee} সেভ)!`,
+      pendingPhoneVerification,
+      message: pendingPhoneVerification
+        ? `"${cleanCode}" অ্যাপ্লাই হয়েছে — সম্পূর্ণ ফ্রি ডেলিভারি (৳${currentDeliveryFee} সেভ)। মোবাইল নম্বর দিলে ১ম অর্ডার যাচাই হবে।`
+        : `"${cleanCode}" কুপন অ্যাপ্লাই হয়েছে — সম্পূর্ণ ফ্রি ডেলিভারি (৳${currentDeliveryFee} সেভ)!`,
     };
   }
 
   let discount = 0;
   if (matched.discountType === 'percentage') {
     const rawPct = Math.round((subtotal * (Number(matched.discountValue) || 0)) / 100);
-    const cap = matched.maxDiscountAmount && matched.maxDiscountAmount > 0 ? matched.maxDiscountAmount : rawPct;
+    const cap =
+      matched.maxDiscountAmount && matched.maxDiscountAmount > 0 ? matched.maxDiscountAmount : rawPct;
     discount = Math.min(subtotal, Math.min(rawPct, cap));
   } else if (matched.discountType === 'fixed') {
     discount = Math.min(subtotal, Math.max(0, Number(matched.discountValue) || 0));
@@ -173,7 +508,74 @@ export function evaluateCoupon(
     discount,
     freeDelivery: false,
     coupon: matched,
-    message: `🎉 "${cleanCode}" কুপন অ্যাপ্লাই হয়েছে — ৳${discount} ডিসকাউন্ট পাওয়া গেছে!`,
+    pendingPhoneVerification,
+    message: pendingPhoneVerification
+      ? `"${cleanCode}" অ্যাপ্লাই হয়েছে — ৳${discount} ছাড়! (চেকআউটে মোবাইল নম্বর দিলে ১ম অর্ডার যাচাই হবে)`
+      : `"${cleanCode}" কুপন অ্যাপ্লাই হয়েছে — ৳${discount} ডিসকাউন্ট পাওয়া গেছে!`,
+  };
+}
+
+export function resolvePopupCoupons(coupons: Coupon[], now: number = Date.now()): Coupon[] {
+  return (coupons || [])
+    .filter(c => c && c.showAsPopup === true && getCouponScheduleState(c, now).isLive)
+    .sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
+}
+
+export function shouldDisplayCouponPopup(params: {
+  coupons: Coupon[];
+  settings?: Partial<StoreSettings>;
+  activePage: string;
+  now?: number;
+  sessionDismissedKey?: string | null;
+  lastDismissedAt?: number | null;
+  lastDismissedKey?: string | null;
+}): { show: boolean; primaryCoupon: Coupon | null; allPopupCoupons: Coupon[]; popupKey: string } {
+  const {
+    coupons,
+    settings,
+    activePage,
+    now = Date.now(),
+    sessionDismissedKey,
+    lastDismissedAt,
+    lastDismissedKey,
+  } = params;
+
+  if (settings?.enableCouponPopup === false) {
+    return { show: false, primaryCoupon: null, allPopupCoupons: [], popupKey: '' };
+  }
+
+  const allowedPages = ['home', 'books', 'shop', 'stationery', 'product-detail', 'authors', 'publishers'];
+  if (!allowedPages.includes(activePage)) {
+    return { show: false, primaryCoupon: null, allPopupCoupons: [], popupKey: '' };
+  }
+
+  const livePopupCoupons = resolvePopupCoupons(coupons, now);
+  if (livePopupCoupons.length === 0) {
+    return { show: false, primaryCoupon: null, allPopupCoupons: [], popupKey: '' };
+  }
+
+  const primaryCoupon = livePopupCoupons[0];
+  const popupKey = `${primaryCoupon.id}:${primaryCoupon.updatedAt || primaryCoupon.createdAt || 0}`;
+  const frequency = settings?.couponPopupFrequency || 'once_per_session';
+
+  if (frequency === 'once_per_session' && sessionDismissedKey === popupKey) {
+    return { show: false, primaryCoupon, allPopupCoupons: livePopupCoupons, popupKey };
+  }
+
+  if (
+    frequency === 'once_per_day' &&
+    lastDismissedKey === popupKey &&
+    lastDismissedAt &&
+    now - lastDismissedAt < 86400000
+  ) {
+    return { show: false, primaryCoupon, allPopupCoupons: livePopupCoupons, popupKey };
+  }
+
+  return {
+    show: true,
+    primaryCoupon,
+    allPopupCoupons: livePopupCoupons,
+    popupKey,
   };
 }
 
@@ -185,6 +587,7 @@ export interface CheckoutPricingInput {
   settings: Partial<StoreSettings>;
   couponCode?: string;
   coupons?: Coupon[];
+  customerContext?: CouponCustomerContext;
 }
 
 export interface CheckoutPricingSummary {
@@ -208,6 +611,7 @@ export function calculateCheckoutPricing({
   settings,
   couponCode,
   coupons,
+  customerContext,
 }: CheckoutPricingInput): CheckoutPricingSummary {
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -257,7 +661,13 @@ export function calculateCheckoutPricing({
 
   let appliedCoupon: CouponEvaluationResult | null = null;
   if (couponCode && couponCode.trim()) {
-    appliedCoupon = evaluateCoupon(couponCode, coupons || DEFAULT_COUPONS, subtotal, rawDeliveryTotal);
+    appliedCoupon = evaluateCoupon(
+      couponCode,
+      coupons !== undefined ? coupons : DEFAULT_COUPONS,
+      subtotal,
+      rawDeliveryTotal,
+      customerContext
+    );
   }
 
   const couponFreeDelivery = Boolean(appliedCoupon?.valid && appliedCoupon.freeDelivery);

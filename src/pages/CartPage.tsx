@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
+import { useAuth } from '../context/AuthContext';
 import { ShoppingBag, Trash2, ArrowRight, ArrowLeft, ShieldCheck, Tag, X, AlertCircle, CheckCircle2 } from 'lucide-react';
 import {
   calculateCheckoutPricing,
   evaluateCoupon,
+  getCouponScheduleState,
   resolveActiveCoupons,
 } from '../utils/storeEnhancementsHelpers';
 import {
@@ -24,7 +26,10 @@ export function CartPage() {
     coupons,
     appliedCouponCode,
     setAppliedCouponCode,
+    orders,
+    getLocalCustomerCouponHistory,
   } = useStore();
+  const { currentUser } = useAuth();
   const imageLayout = getProductImageLayoutClasses(
     resolveProductImageFitMode(settings, homeConfig)
   );
@@ -37,7 +42,25 @@ export function CartPage() {
     }
   }, [appliedCouponCode]);
 
-  const activeCoupons = resolveActiveCoupons(coupons).filter(c => c.isActive !== false);
+  const localHistory = useMemo(() => getLocalCustomerCouponHistory(), [orders.length]);
+  const customerContext = useMemo(
+    () => ({
+      orders,
+      userId: currentUser?.uid,
+      email: currentUser?.email || undefined,
+      localOrderHistoryPhones: localHistory.phones,
+      localUsedCoupons: localHistory.usedCoupons,
+    }),
+    [orders, currentUser?.uid, currentUser?.email, localHistory]
+  );
+
+  const activeCoupons = useMemo(() => {
+    const nowTs = Date.now();
+    return resolveActiveCoupons(coupons, { allowFallbackDefaults: false }).filter(
+      c => getCouponScheduleState(c, nowTs).isLive
+    );
+  }, [coupons]);
+
   const pricing = calculateCheckoutPricing({
     cart,
     products,
@@ -46,13 +69,20 @@ export function CartPage() {
     settings,
     couponCode: appliedCouponCode,
     coupons: activeCoupons,
+    customerContext,
   });
 
   const totalCartCount = pricing.totalQuantity;
 
   const handleApplyPromo = (e: React.FormEvent) => {
     e.preventDefault();
-    const res = evaluateCoupon(promoCode, activeCoupons, pricing.subtotal, settings.insideDhakaCharge ?? 60);
+    const res = evaluateCoupon(
+      promoCode,
+      activeCoupons,
+      pricing.subtotal,
+      settings.insideDhakaCharge ?? 60,
+      customerContext
+    );
     if (res.valid) {
       setAppliedCouponCode(res.code);
       setPromoStatus({ valid: true, text: res.message });
@@ -217,24 +247,30 @@ export function CartPage() {
                       <button
                         key={c.id}
                         type="button"
-                        onClick={() => {
-                          setPromoCode(c.code);
-                          const res = evaluateCoupon(c.code, activeCoupons, pricing.subtotal, settings.insideDhakaCharge ?? 60);
-                          if (res.valid) {
-                            setAppliedCouponCode(res.code);
-                            setPromoStatus({ valid: true, text: res.message });
-                          } else {
-                            setPromoStatus({ valid: false, text: res.message });
-                          }
-                        }}
-                        className={`px-2 py-1 rounded-lg border text-[10px] font-extrabold cursor-pointer transition-colors ${
-                          appliedCouponCode === c.code
-                            ? 'bg-emerald-600 text-white border-emerald-600'
-                            : 'bg-white text-neutral-700 border-neutral-200 hover:border-[#D71920]'
-                        }`}
-                      >
-                        {c.code} ({c.badgeText || (c.discountType === 'percentage' ? `${c.discountValue}%` : c.discountType === 'free_delivery' ? 'FREE DEL' : `৳${c.discountValue}`)})
-                      </button>
+                          onClick={() => {
+                            setPromoCode(c.code);
+                            const res = evaluateCoupon(
+                              c.code,
+                              activeCoupons,
+                              pricing.subtotal,
+                              settings.insideDhakaCharge ?? 60,
+                              customerContext
+                            );
+                            if (res.valid) {
+                              setAppliedCouponCode(res.code);
+                              setPromoStatus({ valid: true, text: res.message });
+                            } else {
+                              setPromoStatus({ valid: false, text: res.message });
+                            }
+                          }}
+                          className={`px-2 py-1 rounded-lg border text-[10px] font-extrabold cursor-pointer transition-colors ${
+                            appliedCouponCode === c.code
+                              ? 'bg-emerald-600 text-white border-emerald-600'
+                              : 'bg-white text-neutral-700 border-neutral-200 hover:border-[#D71920]'
+                          }`}
+                        >
+                          {c.code} ({c.badgeText || (c.discountType === 'percentage' ? `${c.discountValue}%` : c.discountType === 'free_delivery' ? 'FREE DEL' : `৳${c.discountValue}`)}){c.firstOrderOnly ? ' · 1st Order' : ''}
+                        </button>
                     ))}
                   </div>
                 )}

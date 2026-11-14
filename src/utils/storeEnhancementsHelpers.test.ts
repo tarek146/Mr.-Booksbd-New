@@ -8,8 +8,15 @@ import {
   resolveProductDetailsPresentation,
   resolveFooterQuickLinks,
   filterSpotlightSearch,
+  getCouponScheduleState,
+  formatDurationCompact,
+  resolveActiveCoupons,
+  resolvePopupCoupons,
+  shouldDisplayCouponPopup,
+  toDateTimeLocalValue,
+  fromDateTimeLocalValue,
 } from './storeEnhancementsHelpers.ts';
-import type { Product, StoreSettings, CartItem } from '../types.ts';
+import type { Coupon, Product, StoreSettings, CartItem } from '../types.ts';
 
 const sampleBook: Product = {
   id: 'prod-1',
@@ -75,6 +82,184 @@ test('evaluateCoupon supports percentage, fixed, and free_delivery coupons with 
 
   const belowMin = evaluateCoupon('BOOKFEST50', DEFAULT_COUPONS, 200, 60);
   assert.equal(belowMin.valid, false);
+});
+
+test('evaluateCoupon enforces startsAt, expiresAt, firstOrderOnly, perCustomerLimit, and usageLimit accurately', () => {
+  const now = 1_760_000_000_000;
+  const scheduledCoupon: Coupon = {
+    id: 'c-sched',
+    code: 'FUTURE20',
+    title: 'Upcoming Offer',
+    description: 'Starts later',
+    discountType: 'percentage',
+    discountValue: 20,
+    minOrderAmount: 0,
+    isActive: true,
+    startsAt: now + 3_600_000,
+    expiresAt: now + 86_400_000,
+  };
+  const expiredCoupon: Coupon = {
+    ...scheduledCoupon,
+    id: 'c-exp',
+    code: 'EXPIRED10',
+    startsAt: now - 86_400_000,
+    expiresAt: now - 1_000,
+  };
+  const firstOrderCoupon: Coupon = {
+    id: 'c-first',
+    code: 'WELCOME15',
+    title: 'First Order 15%',
+    description: 'Only for first purchase',
+    discountType: 'percentage',
+    discountValue: 15,
+    minOrderAmount: 200,
+    maxDiscountAmount: 250,
+    isActive: true,
+    firstOrderOnly: true,
+    perCustomerLimit: 1,
+    usageLimit: 50,
+    usageCount: 10,
+    startsAt: now - 10_000,
+    expiresAt: now + 3_600_000,
+  };
+
+  assert.equal(
+    evaluateCoupon('FUTURE20', [scheduledCoupon], 500, 60, { now }).ineligibleReason,
+    'scheduled'
+  );
+  assert.equal(
+    evaluateCoupon('EXPIRED10', [expiredCoupon], 500, 60, { now }).ineligibleReason,
+    'expired'
+  );
+
+  // First-time customer (no matching orders, only cancelled order allowed)
+  const okFirst = evaluateCoupon('WELCOME15', [firstOrderCoupon], 1000, 60, {
+    now,
+    phone: '01711223344',
+    orders: [
+      { phone: '01711223344', orderStatus: 'cancelled' },
+      { phone: '01999999999', orderStatus: 'delivered' },
+    ],
+  });
+  assert.equal(okFirst.valid, true);
+  assert.equal(okFirst.discount, 150);
+
+  // Returning customer blocked by prior non-cancelled order (matches last 10 digits +880)
+  const blockedRepeat = evaluateCoupon('WELCOME15', [firstOrderCoupon], 1000, 60, {
+    now,
+    phone: '+8801711223344',
+    orders: [{ phone: '01711223344', orderStatus: 'confirmed' }],
+  });
+  assert.equal(blockedRepeat.valid, false);
+  assert.equal(blockedRepeat.ineligibleReason, 'first_order_only');
+
+  // Returning customer blocked via remoteProfile or localOrderHistoryPhones
+  const blockedRemote = evaluateCoupon('WELCOME15', [firstOrderCoupon], 1000, 60, {
+    now,
+    phone: '01800001111',
+    remoteProfile: { orderCount: 1, usedCoupons: [] },
+  });
+  assert.equal(blockedRemote.valid, false);
+  assert.equal(blockedRemote.ineligibleReason, 'first_order_only');
+
+  // Exhausted global usage limit
+  const exhausted = evaluateCoupon(
+    'WELCOME15',
+    [{ ...firstOrderCoupon, usageCount: 50 }],
+    1000,
+    60,
+    { now, phone: '01600001111' }
+  );
+  assert.equal(exhausted.valid, false);
+  assert.equal(exhausted.ineligibleReason, 'usage_limit');
+
+  // Deleted/empty pool must return invalid instead of reviving DEFAULT_COUPONS
+  const deletedPool = evaluateCoupon('MRBOOKS10', [], 500, 60, { now });
+  assert.equal(deletedPool.valid, false);
+  assert.equal(deletedPool.ineligibleReason, 'not_found');
+});
+
+test('getCouponScheduleState, resolveActiveCoupons, and popup eligibility helpers work accurately', () => {
+  const now = 1_760_000_000_000;
+  assert.equal(formatDurationCompact(2 * 86_400_000 + 3 * 3_600_000 + 5 * 60_000), '2d 03h 05m');
+  assert.equal(formatDurationCompact(3_600_000 + 65_000), '01h 01m 05s');
+
+  const livePopup: Coupon = {
+    id: 'c-pop',
+    code: 'POP20',
+    title: 'Flash Popup 20%',
+    description: 'Enjoy 20% off today',
+    discountType: 'percentage',
+    discountValue: 20,
+    minOrderAmount: 0,
+    isActive: true,
+    showAsPopup: true,
+    startsAt: now - 5_000,
+    expiresAt: now + 7_200_000,
+    createdAt: 100,
+    updatedAt: 200,
+  };
+  const expiredPopup: Coupon = {
+    ...livePopup,
+    id: 'c-pop-old',
+    code: 'OLD20',
+    expiresAt: now - 1_000,
+  };
+
+  const stateLive = getCouponScheduleState(livePopup, now);
+  assert.equal(stateLive.status, 'active');
+  assert.equal(stateLive.isLive, true);
+  assert.equal(stateLive.countdownLabel, '02h 00m 00s left');
+
+  const stateExp = getCouponScheduleState(expiredPopup, now);
+  assert.equal(stateExp.status, 'expired');
+  assert.equal(stateExp.isLive, false);
+
+  // resolveActiveCoupons respects allowFallbackDefaults=false when admin deleted all coupons
+  assert.deepEqual(resolveActiveCoupons([], { allowFallbackDefaults: false }), []);
+  assert.equal(
+    resolveActiveCoupons([], {
+      allowFallbackDefaults: true,
+      dismissedIds: ['coupon-mrbooks10'],
+    }).some(c => c.id === 'coupon-mrbooks10'),
+    false
+  );
+
+  // Popup coupons only include live showAsPopup coupons
+  const popups = resolvePopupCoupons([expiredPopup, livePopup], now);
+  assert.equal(popups.length, 1);
+  assert.equal(popups[0].code, 'POP20');
+
+  const homeShow = shouldDisplayCouponPopup({
+    coupons: [livePopup],
+    settings: { enableCouponPopup: true, couponPopupFrequency: 'once_per_session' },
+    activePage: 'home',
+    now,
+    sessionDismissedKey: null,
+  });
+  assert.equal(homeShow.show, true);
+  assert.equal(homeShow.primaryCoupon?.code, 'POP20');
+
+  const dismissedSameSession = shouldDisplayCouponPopup({
+    coupons: [livePopup],
+    settings: { enableCouponPopup: true, couponPopupFrequency: 'once_per_session' },
+    activePage: 'home',
+    now,
+    sessionDismissedKey: homeShow.popupKey,
+  });
+  assert.equal(dismissedSameSession.show, false);
+
+  const checkoutBlocked = shouldDisplayCouponPopup({
+    coupons: [livePopup],
+    settings: { enableCouponPopup: true },
+    activePage: 'checkout',
+    now,
+  });
+  assert.equal(checkoutBlocked.show, false);
+
+  // Round-trip datetime-local conversion
+  const roundTrip = fromDateTimeLocalValue(toDateTimeLocalValue(1_760_000_020_000));
+  assert.ok(roundTrip && Math.abs(roundTrip - 1_760_000_000_000) < 60_000);
 });
 
 test('calculateCheckoutPricing applies Sub Area, extraWeightChargePerKg, freeShippingThreshold, and coupon discount accurately', () => {
