@@ -17,9 +17,16 @@ import {
   Zap
 } from 'lucide-react';
 import { resolveProductDetailsPresentation } from '../utils/storeEnhancementsHelpers';
+import {
+  resolveProductImageFitMode,
+  getProductImageLayoutClasses,
+} from '../utils/productImageLayoutHelpers';
 
 export function StationeryPage() {
-  const { products, categories, isLoading, settings, searchQuery, setSearchQuery, selectedCategoryFilter, setSelectedCategoryFilter, setActivePage, addToCart, startDirectCheckout } = useStore();
+  const { products, categories, isLoading, settings, homeConfig, searchQuery, setSearchQuery, selectedCategoryFilter, setSelectedCategoryFilter, setActivePage, addToCart, startDirectCheckout } = useStore();
+  const imageLayout = getProductImageLayoutClasses(
+    resolveProductImageFitMode(settings, homeConfig)
+  );
 
   // Local filter states for stationery page
   const [minPrice, setMinPrice] = useState<number>(0);
@@ -450,11 +457,11 @@ export function StationeryPage() {
                         onClick={() => setActivePage('product-detail', product.id)}
                         className="bg-white rounded-2xl border border-neutral-200/90 hover:border-[#D71920]/40 p-3 sm:p-4 flex items-center gap-3.5 sm:gap-5 shadow-2xs hover:shadow-md transition-all cursor-pointer group"
                       >
-                        <div className="w-20 h-24 sm:w-24 sm:h-28 rounded-xl bg-[#F8F9FA] border border-neutral-100 p-2 flex items-center justify-center shrink-0 overflow-hidden">
+                        <div className={imageLayout.listThumbFrameClass}>
                           <img
                             src={product.images[0] || 'https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?w=400'}
                             alt={product.title}
-                            className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                            className={imageLayout.listThumbImgClass}
                           />
                         </div>
 

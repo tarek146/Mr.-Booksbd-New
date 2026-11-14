@@ -8498,6 +8498,32 @@ export function AdminDashboard() {
                     Control whether book cards display the Writer name, Publisher/Category info, or remain hidden.
                   </p>
                 </div>
+
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2 sm:col-span-2">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-700">
+                    3. Product Image Ratio &amp; Zoom Fit (Cards, Detail Gallery &amp; Lists)
+                  </label>
+                  <select
+                    data-testid="product-image-fit-mode-select"
+                    value={settings.productImageFitMode || homeConfig.productImageFitMode || 'cover'}
+                    onChange={async e => {
+                      const val = e.target.value as 'cover' | 'contain';
+                      await updateSettings({ productImageFitMode: val });
+                      setToast({
+                        show: true,
+                        type: 'success',
+                        message: `Product image layout updated to ${val === 'cover' ? '1:1 Square Full-Bleed Zoom' : 'Padded Uncropped Fit'}!`,
+                      });
+                    }}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:border-[#D71920]"
+                  >
+                    <option value="cover">1:1 Square Full-Bleed Zoom (No Empty Gaps - Default)</option>
+                    <option value="contain">Padded Uncropped Fit (Letterboxed)</option>
+                  </select>
+                  <p className="text-[11px] text-slate-500">
+                    Fill every 1:1 square card and product detail gallery edge-to-edge without blank top/side borders, or preserve uncropped letterbox margins.
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -9947,6 +9973,29 @@ export function AdminDashboard() {
                         Apply Heading
                       </button>
                     </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-neutral-100">
+                    <label className="block text-[10px] font-black uppercase text-neutral-600 mb-1">
+                      Product Image Display Ratio &amp; Zoom (Firebase: productImageFitMode)
+                    </label>
+                    <select
+                      data-testid="home-config-image-fit-select"
+                      value={homeConfig.productImageFitMode || settings.productImageFitMode || 'cover'}
+                      onChange={async e => {
+                        const mode = e.target.value as 'cover' | 'contain';
+                        await updateHomeConfig({ productImageFitMode: mode });
+                        setToast({
+                          show: true,
+                          type: 'success',
+                          message: `Saved product image mode: ${mode === 'cover' ? '1:1 Square Full-Bleed Zoom' : 'Padded Uncropped Fit'}`,
+                        });
+                      }}
+                      className="w-full px-2.5 py-1.5 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-neutral-900"
+                    >
+                      <option value="cover">1:1 Square Full-Bleed Zoom (No Empty Gaps - Default)</option>
+                      <option value="contain">Padded Uncropped Fit (Letterboxed)</option>
+                    </select>
                   </div>
                 </div>
               </div>

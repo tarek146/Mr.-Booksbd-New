@@ -6,6 +6,10 @@ import {
   evaluateCoupon,
   resolveActiveCoupons,
 } from '../utils/storeEnhancementsHelpers';
+import {
+  resolveProductImageFitMode,
+  getProductImageLayoutClasses,
+} from '../utils/productImageLayoutHelpers';
 
 export function CartPage() {
   const {
@@ -16,10 +20,14 @@ export function CartPage() {
     clearDirectCheckout,
     setActivePage,
     settings,
+    homeConfig,
     coupons,
     appliedCouponCode,
     setAppliedCouponCode,
   } = useStore();
+  const imageLayout = getProductImageLayoutClasses(
+    resolveProductImageFitMode(settings, homeConfig)
+  );
   const [promoCode, setPromoCode] = useState(appliedCouponCode || '');
   const [promoStatus, setPromoStatus] = useState<{ valid: boolean; text: string } | null>(null);
 
@@ -109,7 +117,7 @@ export function CartPage() {
                 <img 
                   src={item.image} 
                   alt={item.title} 
-                  className="w-20 h-24 object-contain bg-[#F7F7F8] rounded-xl p-2 shrink-0 border border-[#E5E5E5]"
+                  className={imageLayout.cartThumbClass}
                 />
 
                 <div className="flex-1 text-center sm:text-left">

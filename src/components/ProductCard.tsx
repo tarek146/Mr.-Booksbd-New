@@ -15,6 +15,10 @@ import {
 } from 'lucide-react';
 import { resolveProductDetailsPresentation } from '../utils/storeEnhancementsHelpers';
 import { resolveProductSeriesInfo } from '../utils/bookSeriesHelpers';
+import {
+  resolveProductImageFitMode,
+  getProductImageLayoutClasses,
+} from '../utils/productImageLayoutHelpers';
 
 interface ProductCardProps {
   product: Product;
@@ -44,7 +48,7 @@ export function renderGreenReviewIcon(
 }
 
 export function ProductCard({ product }: ProductCardProps) {
-  const { setActivePage, addToCart, startDirectCheckout, wishlist, toggleWishlist, settings, siteSettings } = useStore();
+  const { setActivePage, addToCart, startDirectCheckout, wishlist, toggleWishlist, settings, homeConfig, siteSettings } = useStore();
   const isWishlisted = wishlist.includes(product.id);
 
   const [currentImgIdx, setCurrentImgIdx] = useState(0);
@@ -79,6 +83,9 @@ export function ProductCard({ product }: ProductCardProps) {
   const isOutOfStock = product.stock <= 0;
   const isLowStock = product.stock > 0 && product.stock <= 15;
   const skeletonAnimClass = settings.skeletonAnimationStyle === 'pulse' ? 'skeleton-pulse' : 'skeleton-shimmer';
+  const imageLayout = getProductImageLayoutClasses(
+    resolveProductImageFitMode(settings, homeConfig)
+  );
 
   const handleOrderNow = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -100,7 +107,7 @@ export function ProductCard({ product }: ProductCardProps) {
     >
       {/* 1:1 Perfectly Square-Rounded Image Thumbnail Box */}
       <div className="p-2 sm:p-2.5 shrink-0">
-        <div className="w-full aspect-square relative bg-[#F8F9FA] rounded-xl p-2 flex items-center justify-center overflow-hidden border border-neutral-100">
+        <div className={imageLayout.cardFrameClass}>
           {!imgLoaded && settings.enableSkeletonLoading !== false && (
             <div
               aria-hidden="true"
@@ -117,7 +124,7 @@ export function ProductCard({ product }: ProductCardProps) {
               setImgLoaded(true);
               (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400';
             }}
-            className="relative z-1 h-full w-full object-contain filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.06)] group-hover:scale-105 transition-transform duration-300 ease-out"
+            className={imageLayout.cardImgClass}
           />
 
           {/* Top-Left: Status Badges (Low Stock / Out of Stock / NEW / Discount) */}

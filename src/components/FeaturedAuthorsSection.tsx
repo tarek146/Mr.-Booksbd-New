@@ -3,9 +3,16 @@ import { useStore } from '../context/StoreContext';
 import { ArrowRight, BookOpen, UserCheck, ChevronLeft, ChevronRight, X, Star, ShoppingBag, CheckCircle2 } from 'lucide-react';
 import { Author } from '../types';
 import { countBooksForAuthor } from '../utils/publisherAndDeliveryHelpers';
+import {
+  resolveProductImageFitMode,
+  getProductImageLayoutClasses,
+} from '../utils/productImageLayoutHelpers';
 
 export function FeaturedAuthorsSection() {
-  const { authors, products, setActivePage, setSelectedCategoryFilter, setSearchQuery, startDirectCheckout } = useStore();
+  const { authors, products, settings, homeConfig, setActivePage, setSelectedCategoryFilter, setSearchQuery, startDirectCheckout } = useStore();
+  const imageLayout = getProductImageLayoutClasses(
+    resolveProductImageFitMode(settings, homeConfig)
+  );
   const [authorImgErrors, setAuthorImgErrors] = useState<Record<string, boolean>>({});
   const [selectedModalAuthor, setSelectedModalAuthor] = useState<Author | null>(null);
   const authorsScrollRef = useRef<HTMLDivElement>(null);
@@ -248,11 +255,13 @@ export function FeaturedAuthorsSection() {
                     }}
                     className="p-3 rounded-2xl border border-neutral-200 hover:border-[#D71920] bg-white hover:bg-[#FFF1F2]/20 transition-all flex items-center gap-3 cursor-pointer group shadow-2xs"
                   >
-                    <img
-                      src={book.images[0]}
-                      alt={book.title}
-                      className="w-14 h-18 object-contain rounded-lg bg-neutral-50 border border-neutral-100 p-1 shrink-0 group-hover:scale-105 transition-transform"
-                    />
+                    <div className={imageLayout.relatedBookThumbFrameClass}>
+                      <img
+                        src={book.images[0]}
+                        alt={book.title}
+                        className={imageLayout.relatedBookThumbImgClass}
+                      />
+                    </div>
                     <div className="flex-1 min-w-0 space-y-1">
                       <h5 className="font-bold text-xs sm:text-sm text-neutral-900 group-hover:text-[#D71920] transition-colors truncate">
                         {book.title}

@@ -89,4 +89,20 @@ describe('homeConfigHelpers', () => {
       'Latest Releases'
     );
   });
+
+  it('defaults productImageFitMode to cover and mirrors changes between HomeConfig and StoreSettings', () => {
+    const defaultCfg = resolveHomeConfig(undefined, undefined);
+    assert.equal(defaultCfg.productImageFitMode, 'cover');
+
+    const settingsMirror = buildSettingsMirrorFromHomeConfig({
+      productImageFitMode: 'contain',
+    });
+    assert.equal(settingsMirror.productImageFitMode, 'contain');
+
+    const homeConfigMirror = buildHomeConfigMirrorFromSettings({
+      productImageFitMode: 'contain',
+    });
+    assert.ok(homeConfigMirror);
+    assert.equal(homeConfigMirror.productImageFitMode, 'contain');
+  });
 });

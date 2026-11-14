@@ -15,6 +15,10 @@ import {
   Truck,
   ShieldCheck
 } from 'lucide-react';
+import {
+  resolveProductImageFitMode,
+  getProductImageLayoutClasses,
+} from '../utils/productImageLayoutHelpers';
 
 export interface OrderTrackingProps {
   orderStatus: string;
@@ -123,8 +127,11 @@ export function OrderTracking({ orderStatus, paymentStatus }: OrderTrackingProps
 }
 
 export function MyOrdersPage() {
-  const { orders, products, wishlist, isLoading, settings, submitPaymentProof, setActivePage } = useStore();
+  const { orders, products, wishlist, isLoading, settings, homeConfig, submitPaymentProof, setActivePage } = useStore();
   const { currentUser } = useAuth();
+  const imageLayout = getProductImageLayoutClasses(
+    resolveProductImageFitMode(settings, homeConfig)
+  );
 
   const [activeTab, setActiveTab] = useState<'orders' | 'wishlist'>(wishlist.length > 0 && orders.length === 0 ? 'wishlist' : 'orders');
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
@@ -402,7 +409,7 @@ export function MyOrdersPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       {order.items.map((item, idx) => (
                         <div key={idx} className="flex items-center gap-3 p-3 bg-[#F7F7F8] dark:bg-[#1A2230] rounded-xl border border-[#E5E5E5] dark:border-slate-700">
-                          <img src={item.image} alt="" className="w-10 h-12 object-contain bg-white dark:bg-[#121722] rounded-md p-1 border border-[#E5E5E5] dark:border-slate-700 shrink-0" />
+                          <img src={item.image} alt="" className={imageLayout.miniThumbClass} />
                           <div className="min-w-0 flex-1">
                             <p className="font-bold text-xs text-[#171717] dark:text-white truncate">{item.title}</p>
                             <p className="text-[11px] text-[#5F6368] dark:text-slate-400">{item.variantName} × {item.quantity}</p>

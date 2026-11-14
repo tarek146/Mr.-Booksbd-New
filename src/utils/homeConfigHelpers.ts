@@ -9,6 +9,7 @@ export const DEFAULT_HOME_CONFIG: HomeConfig = {
   reviewIconStyle: 'heart',
   productCardReviewSlotMode: 'green_rating',
   productCardWriterSlotMode: 'writer_name',
+  productImageFitMode: 'cover',
 };
 
 export function resolveNewArrivalsTitle(
@@ -77,6 +78,10 @@ export function resolveHomeConfig(
       rawConfig?.productCardWriterSlotMode ||
       fallbackSettings?.productCardWriterSlotMode ||
       DEFAULT_HOME_CONFIG.productCardWriterSlotMode,
+    productImageFitMode:
+      rawConfig?.productImageFitMode ||
+      fallbackSettings?.productImageFitMode ||
+      DEFAULT_HOME_CONFIG.productImageFitMode,
     updatedAt: rawConfig?.updatedAt,
   };
 }
@@ -177,6 +182,9 @@ export function buildSettingsMirrorFromHomeConfig(
   if (configPatch.productCardWriterSlotMode !== undefined) {
     mirror.productCardWriterSlotMode = configPatch.productCardWriterSlotMode;
   }
+  if (configPatch.productImageFitMode !== undefined) {
+    mirror.productImageFitMode = configPatch.productImageFitMode;
+  }
 
   return mirror;
 }
@@ -227,6 +235,10 @@ export function buildHomeConfigMirrorFromSettings(
   }
   if (settingsPatch.productCardWriterSlotMode !== undefined) {
     patch.productCardWriterSlotMode = settingsPatch.productCardWriterSlotMode;
+    hasChanges = true;
+  }
+  if (settingsPatch.productImageFitMode !== undefined) {
+    patch.productImageFitMode = settingsPatch.productImageFitMode;
     hasChanges = true;
   }
 

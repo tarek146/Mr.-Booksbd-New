@@ -48,6 +48,10 @@ import {
 import { useCheckoutFraudCheck } from '../hooks/useCheckoutFraudCheck';
 import { computeCheckoutCompletion } from '../utils/checkoutProgressHelpers';
 import { getUnincludedCartItems } from '../utils/directCheckoutHelpers';
+import {
+  resolveProductImageFitMode,
+  getProductImageLayoutClasses,
+} from '../utils/productImageLayoutHelpers';
 
 const BANGLADESH_DISTRICTS = [
   'Dhaka',
@@ -77,6 +81,7 @@ export function CheckoutPage() {
     products,
     paymentMethods,
     settings,
+    homeConfig,
     createOrder,
     submitPaymentProof,
     setActivePage,
@@ -88,6 +93,9 @@ export function CheckoutPage() {
     setAppliedCouponCode,
   } = useStore();
   const { currentUser } = useAuth();
+  const imageLayout = getProductImageLayoutClasses(
+    resolveProductImageFitMode(settings, homeConfig)
+  );
 
   const isDirectCheckout =
     settings.directOrderIsolatesCart !== false && directCheckoutItems !== null;
@@ -1392,7 +1400,7 @@ export function CheckoutPage() {
                           src={item.image}
                           alt={item.title}
                           referrerPolicy="no-referrer"
-                          className="w-10 h-12 object-contain bg-neutral-50 dark:bg-slate-800 rounded-md p-0.5 border border-neutral-200 dark:border-slate-700 shrink-0"
+                          className={imageLayout.miniThumbClass}
                         />
                         <div className="min-w-0">
                           <p className="font-medium text-neutral-900 dark:text-white truncate">

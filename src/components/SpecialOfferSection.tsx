@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Flame, ChevronLeft, ChevronRight, Zap } from 'lucide-react';
+import { resolveProductImageFitMode } from '../utils/productImageLayoutHelpers';
 
 export function SpecialOfferSection() {
-  const { products, settings, setActivePage, startDirectCheckout } = useStore();
+  const { products, settings, homeConfig, setActivePage, startDirectCheckout } = useStore();
   const specialOfferConfig = settings.specialOffer;
+  const imageFitMode = resolveProductImageFitMode(settings, homeConfig);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const sliderRef = useRef<HTMLDivElement>(null);
@@ -149,12 +151,16 @@ export function SpecialOfferSection() {
                   {/* Image & Discount Badge */}
                   <div 
                     onClick={() => setActivePage('product-detail', p.id)}
-                    className="relative w-full h-32 sm:h-36 bg-neutral-100 overflow-hidden cursor-pointer"
+                    className={`relative w-full aspect-square bg-neutral-100 overflow-hidden cursor-pointer flex items-center justify-center ${
+                      imageFitMode === 'contain' ? 'p-2' : ''
+                    }`}
                   >
                     <img 
                       src={p.images[0] || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400'} 
                       alt={p.title} 
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      className={`w-full h-full ${
+                        imageFitMode === 'contain' ? 'object-contain' : 'object-cover object-center'
+                      } group-hover:scale-105 transition-transform duration-300`}
                     />
 
                     {/* Discount Badge */}

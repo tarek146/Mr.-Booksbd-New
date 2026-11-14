@@ -394,6 +394,7 @@ export interface StoreSettings {
   showHomeWritersSection?: boolean;
   homeWritersSlotReplacement?: 'writers' | 'publishers_spotlight' | 'bestsellers_showcase' | 'trust_features' | 'reading_benefits' | 'off';
   productCardWriterSlotMode?: 'writer_name' | 'publisher_name' | 'category_name' | 'edition_info' | 'delivery_badge' | 'off';
+  productImageFitMode?: 'cover' | 'contain';
   gaMeasurementId?: string;
   tiktokPixelId?: string;
   // Footer Customizations
@@ -584,6 +585,7 @@ export interface HomeConfig {
   reviewIconStyle?: 'heart' | 'verified_shield' | 'thumbs_up' | 'check_badge' | 'sparkles' | 'book_love' | 'star';
   productCardReviewSlotMode?: 'green_rating' | 'publisher_tag' | 'verified_badge' | 'stock_status' | 'off';
   productCardWriterSlotMode?: 'writer_name' | 'publisher_name' | 'category_name' | 'edition_info' | 'delivery_badge' | 'off';
+  productImageFitMode?: 'cover' | 'contain';
   updatedAt?: number;
 }
 

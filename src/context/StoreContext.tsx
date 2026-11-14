@@ -698,6 +698,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     firestoreFetchStrategy: 'cache-first',
     firestoreQueryLimit: 250,
     enableIndexedQuerySnapshots: true,
+    productImageFitMode: 'cover',
     showAnnouncementBar: true,
     announcementItems: [
       { id: 'ann-1', icon: '⚡', title: 'SPECIAL OFFER:', desc: 'Free Delivery on orders above Tk 1,500 across Bangladesh!', isActive: true },

@@ -43,6 +43,10 @@ import {
   resolveProductSeriesInfo,
   getSeriesBooksForProduct,
 } from '../utils/bookSeriesHelpers';
+import {
+  resolveProductImageFitMode,
+  getProductImageLayoutClasses,
+} from '../utils/productImageLayoutHelpers';
 import { trackFacebookConversionEvent, buildProductCustomData } from '../utils/facebookCapiHelpers';
 import { ProductDetailSkeleton } from '../components/SkeletonScreens';
 import { shouldShowSkeletonScreen, resolveFirestoreFetchStrategy } from '../utils/instantStoreCache';
@@ -75,7 +79,10 @@ function MessengerIcon({ className = "w-4 h-4 shrink-0" }: { className?: string 
 }
 
 export function ProductDetail() {
-  const { products, authors, publishers, isLoading, selectedProductId, setActivePage, addToCart, startDirectCheckout, wishlist, toggleWishlist, setSelectedCategoryFilter, setSelectedSeriesFilter, setSearchQuery, settings, siteSettings, reviews, visitorId, addProductReview, reactToReview } = useStore();
+  const { products, authors, publishers, isLoading, selectedProductId, setActivePage, addToCart, startDirectCheckout, wishlist, toggleWishlist, setSelectedCategoryFilter, setSelectedSeriesFilter, setSearchQuery, settings, homeConfig, siteSettings, reviews, visitorId, addProductReview, reactToReview } = useStore();
+  const imageLayout = getProductImageLayoutClasses(
+    resolveProductImageFitMode(settings, homeConfig)
+  );
   
   const [directFetchedProduct, setDirectFetchedProduct] = useState<Product | null>(null);
   const inMemoryProduct = products.find(p => p.id === selectedProductId || p.slug === selectedProductId);
@@ -376,13 +383,13 @@ export function ProductDetail() {
 
           {/* Left Column (5 cols): Clean Photo Gallery */}
           <div className="lg:col-span-5 space-y-3">
-            <div className="bg-neutral-50 rounded-xl p-6 sm:p-8 border border-neutral-200/80 flex items-center justify-center relative overflow-hidden group min-h-[300px] sm:min-h-[380px]">
+            <div className={imageLayout.detailFrameClass}>
 
               <img
                 src={productImages[activeImageIndex] || productImages[0]}
                 alt={product.title}
                 referrerPolicy="no-referrer"
-                className="max-h-[360px] w-auto object-contain transition-transform duration-300 ease-out group-hover:scale-[1.03]"
+                className={imageLayout.detailImgClass}
               />
 
               {/* Minimal Photo Counter if multiple images exist */}
@@ -425,7 +432,7 @@ export function ProductDetail() {
                       key={idx}
                       type="button"
                       onClick={() => setActiveImageIndex(idx)}
-                      className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-lg border overflow-hidden bg-white p-1 transition-all shrink-0 cursor-pointer ${
+                      className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-lg border overflow-hidden transition-all shrink-0 cursor-pointer ${imageLayout.thumbFrameClass} ${
                         isSelected
                           ? 'border-[#D71920] ring-1 ring-[#D71920]/40'
                           : 'border-neutral-200 opacity-70 hover:opacity-100 hover:border-neutral-400'
@@ -437,7 +444,7 @@ export function ProductDetail() {
                         loading="lazy"
                         decoding="async"
                         referrerPolicy="no-referrer"
-                        className="w-full h-full object-contain"
+                        className={imageLayout.thumbImgClass}
                       />
                     </button>
                   );
@@ -1719,12 +1726,12 @@ export function ProductDetail() {
                         }}
                         className="p-2.5 rounded-xl border border-neutral-200 dark:border-[#263347] hover:border-neutral-300 dark:hover:border-slate-600 bg-white transition-colors flex items-center gap-3 cursor-pointer group"
                       >
-                        <div className="w-12 h-16 rounded-md bg-neutral-50 border border-neutral-100 dark:border-[#1E2838] p-0.5 flex items-center justify-center shrink-0 overflow-hidden">
+                        <div className={imageLayout.relatedBookThumbFrameClass}>
                           <img
                             src={bookItem.images[0]}
                             alt={bookItem.title}
                             referrerPolicy="no-referrer"
-                            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-200"
+                            className={imageLayout.relatedBookThumbImgClass}
                           />
                         </div>
 
