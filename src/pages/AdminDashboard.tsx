@@ -76,8 +76,8 @@ import {
   DEFAULT_PUBLISHERS_LIST,
   countBooksForAuthor,
   countBooksForPublisher,
-  buildEnrichedAuthorsList,
-  buildEnrichedPublishersList,
+  buildManageableAuthorOptions,
+  buildManageablePublisherOptions,
   resolveAuthorOrPublisherCountPreview,
   parseCustomBookDetails,
   serializeCustomBookDetails,
@@ -712,13 +712,13 @@ export function AdminDashboard() {
   const [categorySearchQuery, setCategorySearchQuery] = useState('');
   const [categoryFilterTab, setCategoryFilterTab] = useState<'all' | 'main' | 'sub' | 'child'>('all');
 
-  // Auto-enriched Writers & Publishers + Live post-upload count previews
-  const enrichedAuthors = useMemo(
-    () => buildEnrichedAuthorsList(authors, products),
+  // Strictly managed Writers & Publishers + Live post-upload count previews (zero ghost/default entries)
+  const manageableAuthors = useMemo(
+    () => buildManageableAuthorOptions(authors, products),
     [authors, products]
   );
-  const enrichedPublishers = useMemo(
-    () => buildEnrichedPublishersList(publishers, products),
+  const manageablePublishers = useMemo(
+    () => buildManageablePublisherOptions(publishers, products),
     [publishers, products]
   );
   const writerCountPreview = useMemo(
@@ -1351,11 +1351,11 @@ export function AdminDashboard() {
     if (type === 'book') {
       setProdPrice(350);
       setProdRegularPrice(450);
-      const firstBookCat = categories.find(c => c.type === 'book')?.name || 'Fiction & Literature';
+      const firstBookCat = categories.find(c => c.type === 'book')?.name || '';
       setProdCategory(firstBookCat);
-      const defaultAuth = authors[0]?.name || 'আরিফ আজাদ';
+      const defaultAuth = authors[0]?.name || '';
       setProdAuthor(defaultAuth);
-      const defaultPub = publishers[0]?.name || 'গার্ডিয়ান প্রকাশনী';
+      const defaultPub = publishers[0]?.name || '';
       setProdPublisher(defaultPub);
       setProdIsbn('');
       setProdEdition('1st Edition');
@@ -1384,7 +1384,7 @@ export function AdminDashboard() {
     } else {
       setProdPrice(220);
       setProdRegularPrice(290);
-      const firstStatCat = categories.find(c => c.type === 'stationery')?.name || 'Notebooks & Diaries';
+      const firstStatCat = categories.find(c => c.type === 'stationery')?.name || '';
       setProdCategory(firstStatCat);
       setProdAuthor('');
       setProdPublisher('');
@@ -1565,8 +1565,8 @@ export function AdminDashboard() {
           ? 'Authentic book publication from MR. BOOKS.'
           : 'Premium stationery and office supply item.'),
       category: prodCategory,
-      author: prodType === 'book' ? prodAuthor : (prodBrand || 'Stationery Brand'),
-      publisher: prodType === 'book' ? (prodPublisher || 'MR. BOOKS Publications') : undefined,
+      author: prodType === 'book' ? prodAuthor.trim() : (prodBrand.trim() || 'Stationery Brand'),
+      publisher: prodType === 'book' ? (prodPublisher.trim() || undefined) : undefined,
       isbn: prodType === 'book' ? prodIsbn : undefined,
       edition: prodType === 'book' ? (prodEdition.trim() || 'Standard Edition') : undefined,
       seriesName: prodType === 'book' ? normalizeSeriesName(prodSeriesName) : '',
@@ -5779,84 +5779,77 @@ export function AdminDashboard() {
                 })()}
               </>
             ) : (
-              /* DEDICATED ADD / EDIT PRODUCT PAGE VIEW (MATCHING image_c4b27017.png & image_44c07b58.png) */
+              /* DEDICATED ADD / EDIT PRODUCT PAGE VIEW */
               <form onSubmit={handleCreateProduct} className="space-y-6">
-                {/* Top Sticky-Style Action Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-neutral-200">
+                {/* Top Action Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
                       onClick={() => setShowAddProdModal(false)}
-                      className="px-3.5 py-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                      className="px-3 py-2 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
                     >
                       <span>← Back to Inventory</span>
                     </button>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-extrabold text-base sm:text-lg text-neutral-900">
-                          {editingProductId ? 'Edit Product Details' : 'Add New Product'}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-bold text-base sm:text-lg text-slate-900 tracking-tight">
+                          {editingProductId ? 'Edit Product' : 'Add New Product'}
                         </h3>
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-black uppercase ${
-                          prodType === 'book' ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-blue-100 text-blue-800 border border-blue-300'
-                        }`}>
-                          {prodType === 'book' ? '📚 Book Catalog' : '✏️ Stationery Catalog'}
+                        <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                          {prodType === 'book' ? 'Book Catalog' : 'Stationery Catalog'}
                         </span>
                       </div>
-                      <p className="text-xs text-neutral-500 mt-0.5">
-                        Configure general info, slug, description, specifications, delivery & pricing
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Configure product information, writer &amp; publisher links, pricing, and delivery
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setShowAddProdModal(false)}
-                      className="px-4 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-bold rounded-xl cursor-pointer transition-colors"
+                      className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg cursor-pointer transition-colors"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="px-6 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-bold rounded-xl shadow-md cursor-pointer flex items-center gap-2 transition-all hover:scale-[1.02]"
+                      className="px-5 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-semibold rounded-lg cursor-pointer flex items-center gap-1.5 transition-colors"
                     >
-                      <Check size={15} />
+                      <Check size={14} />
                       <span>{editingProductId ? 'Update Product' : 'Save Product'}</span>
                     </button>
                   </div>
                 </div>
 
-                {/* 2-COLUMN GRID (Matching image_c4b27017.png & image_44c07b58.png) */}
+                {/* 2-COLUMN GRID */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                  
+
                   {/* LEFT COLUMN: 8 Columns */}
-                  <div className="lg:col-span-8 space-y-6">
-                    
+                  <div className="lg:col-span-8 space-y-5">
+
                     {/* CARD 1: GENERAL INFORMATION */}
-                    <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 sm:p-6 text-neutral-900 shadow-xs space-y-4">
-                      <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 border border-amber-200/60 flex items-center justify-center">
-                            <FileText size={16} />
-                          </div>
-                          <div>
-                            <h4 className="font-extrabold text-sm text-neutral-900">General Information</h4>
-                            <p className="text-[11px] text-neutral-500">Product name and detailed description</p>
-                          </div>
+                    <div className="bg-white border border-slate-200 rounded-xl p-5 text-slate-900 space-y-4">
+                      <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <div>
+                          <h4 className="font-bold text-sm text-slate-900">General Information</h4>
+                          <p className="text-[11px] text-slate-500">Title, URL handle, description &amp; catalog format</p>
                         </div>
-                        <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-red-50 text-[#D71920] border border-[#D71920]/25">
-                          Required *
+                        <span className="text-[11px] font-semibold text-[#D71920]">
+                          * Required
                         </span>
                       </div>
 
                       {/* Product Title / Name */}
                       <div>
-                        <label className="block text-xs font-bold text-neutral-700 mb-1.5">
-                          Product Title / Name <span className="text-[#D71920]">*</span>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          Product Title <span className="text-[#D71920]">*</span>
                         </label>
                         <input
                           type="text"
                           required
-                          placeholder={prodType === 'book' ? 'e.g. Paradoxical Sajid 2 (প্যারাডক্সিক্যাল সাজিদ ২)' : 'e.g. Premium Executive Leather Diary A5'}
+                          placeholder={prodType === 'book' ? 'e.g. Paradoxical Sajid 2' : 'e.g. Premium Executive Leather Diary A5'}
                           value={prodTitle}
                           onChange={e => {
                             const val = e.target.value;
@@ -5865,54 +5858,50 @@ export function AdminDashboard() {
                               setProdSlug(val.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''));
                             }
                           }}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs transition-all"
+                          className="w-full px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#D71920] transition-colors"
                         />
                       </div>
 
-                      {/* Product Slug / URL Handle with Edit Slug button */}
+                      {/* Product Slug / URL Handle */}
                       <div>
                         <div className="flex items-center justify-between mb-1.5">
-                          <label className="block text-xs font-bold text-neutral-700">
-                            Product Slug / URL Handle
+                          <label className="block text-xs font-semibold text-slate-700">
+                            URL Slug
                           </label>
                           <button
                             type="button"
                             onClick={() => setIsCustomSlug(!isCustomSlug)}
-                            className="text-[11px] font-bold text-[#D71920] hover:underline cursor-pointer"
+                            className="text-[11px] font-semibold text-[#D71920] hover:underline cursor-pointer"
                           >
                             {isCustomSlug ? 'Lock Slug' : 'Edit Slug'}
                           </button>
                         </div>
-                        <div className="flex items-center rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] px-3.5 py-2 text-xs font-mono shadow-2xs">
-                          <span className="text-neutral-500 font-bold shrink-0">store/product/</span>
+                        <div className="flex items-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-mono">
+                          <span className="text-slate-500 shrink-0">store/product/</span>
                           <input
                             type="text"
                             readOnly={!isCustomSlug}
-                            placeholder="e.g. product-slug-or-auto-generated"
+                            placeholder="auto-generated-from-title"
                             value={prodSlug}
                             onChange={e => setProdSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                            className={`w-full ml-1 bg-transparent text-[#D71920] font-bold focus:outline-none ${!isCustomSlug ? 'cursor-default' : ''}`}
+                            className={`w-full ml-1 bg-transparent text-slate-900 font-semibold focus:outline-none ${!isCustomSlug ? 'cursor-default' : ''}`}
                           />
                         </div>
                       </div>
 
-                      {/* Product Description with Rich Toolbar & Feature Template */}
+                      {/* Product Description */}
                       <div>
-                        <div className="flex items-center justify-between mb-1.5">
-                          <label className="block text-xs font-bold text-neutral-700">
-                            Product Description
-                          </label>
-                        </div>
-
-                        <div className="rounded-xl border border-[#E5E5E5] bg-white overflow-hidden shadow-2xs">
-                          {/* Formatting Toolbar */}
-                          <div className="flex flex-wrap items-center justify-between gap-1 p-2 bg-[#F7F7F8] border-b border-[#E5E5E5] text-neutral-700">
-                            <div className="flex items-center gap-1">
+                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          Description
+                        </label>
+                        <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+                          <div className="flex flex-wrap items-center justify-between gap-1 px-2.5 py-1.5 bg-slate-50 border-b border-slate-200 text-slate-700">
+                            <div className="flex items-center gap-0.5">
                               <button
                                 type="button"
                                 title="Bold"
                                 onClick={() => setProdDescription(prev => prev + ' **বোল্ড লেখা** ')}
-                                className="p-1.5 rounded-lg hover:bg-white hover:text-[#D71920] text-neutral-600 text-xs font-black transition-colors"
+                                className="p-1.5 rounded hover:bg-white hover:text-[#D71920] text-slate-600 transition-colors cursor-pointer"
                               >
                                 <Bold size={13} />
                               </button>
@@ -5920,7 +5909,7 @@ export function AdminDashboard() {
                                 type="button"
                                 title="Italic"
                                 onClick={() => setProdDescription(prev => prev + ' *ইটালিক লেখা* ')}
-                                className="p-1.5 rounded-lg hover:bg-white hover:text-[#D71920] text-neutral-600 text-xs transition-colors"
+                                className="p-1.5 rounded hover:bg-white hover:text-[#D71920] text-slate-600 transition-colors cursor-pointer"
                               >
                                 <Italic size={13} />
                               </button>
@@ -5928,16 +5917,16 @@ export function AdminDashboard() {
                                 type="button"
                                 title="Strikethrough"
                                 onClick={() => setProdDescription(prev => prev + ' ~~কাটা লেখা~~ ')}
-                                className="p-1.5 rounded-lg hover:bg-white hover:text-[#D71920] text-neutral-600 text-xs transition-colors"
+                                className="p-1.5 rounded hover:bg-white hover:text-[#D71920] text-slate-600 transition-colors cursor-pointer"
                               >
                                 <Strikethrough size={13} />
                               </button>
-                              <div className="w-[1px] h-4 bg-[#E5E5E5] mx-1" />
+                              <div className="w-[1px] h-4 bg-slate-200 mx-1" />
                               <button
                                 type="button"
                                 title="Bullet List"
                                 onClick={() => setProdDescription(prev => prev + '\n• ')}
-                                className="p-1.5 rounded-lg hover:bg-white hover:text-[#D71920] text-neutral-600 text-xs transition-colors"
+                                className="p-1.5 rounded hover:bg-white hover:text-[#D71920] text-slate-600 transition-colors cursor-pointer"
                               >
                                 <List size={13} />
                               </button>
@@ -5945,7 +5934,7 @@ export function AdminDashboard() {
                                 type="button"
                                 title="Numbered List"
                                 onClick={() => setProdDescription(prev => prev + '\n1. ')}
-                                className="p-1.5 rounded-lg hover:bg-white hover:text-[#D71920] text-neutral-600 text-xs transition-colors"
+                                className="p-1.5 rounded hover:bg-white hover:text-[#D71920] text-slate-600 transition-colors cursor-pointer"
                               >
                                 <ListOrdered size={13} />
                               </button>
@@ -5953,7 +5942,7 @@ export function AdminDashboard() {
                                 type="button"
                                 title="Quote"
                                 onClick={() => setProdDescription(prev => prev + '\n> ')}
-                                className="p-1.5 rounded-lg hover:bg-white hover:text-[#D71920] text-neutral-600 text-xs transition-colors"
+                                className="p-1.5 rounded hover:bg-white hover:text-[#D71920] text-slate-600 transition-colors cursor-pointer"
                               >
                                 <Quote size={13} />
                               </button>
@@ -5961,7 +5950,7 @@ export function AdminDashboard() {
                                 type="button"
                                 title="Code"
                                 onClick={() => setProdDescription(prev => prev + ' `কোড` ')}
-                                className="p-1.5 rounded-lg hover:bg-white hover:text-[#D71920] text-neutral-600 text-xs transition-colors"
+                                className="p-1.5 rounded hover:bg-white hover:text-[#D71920] text-slate-600 transition-colors cursor-pointer"
                               >
                                 <Code size={13} />
                               </button>
@@ -5971,106 +5960,70 @@ export function AdminDashboard() {
                               type="button"
                               onClick={() => {
                                 const template = prodType === 'book'
-                                  ? '\n\n📌 বইয়ের পরিচিতি ও বৈশিষ্ট্যসমূহ:\n• মূল লেখক: ' + (prodAuthor || 'প্রখ্যাত লেখক') + '\n• প্রকাশনী: ' + (prodPublisher || 'MR. BOOKS') + '\n• সারসংক্ষেপ: এই বইটিতে গভীর জীবনবোধ ও বাস্তব দৃষ্টিভঙ্গি চমৎকারভাবে উপস্থাপিত হয়েছে।\n• বাঁধাই ও কাগজের মান: উন্নত মানের ক্রিম পেপার ও শক্ত মজবুত বাঁধাই।\n• প্রতিটি বই ১০০% অরিজিনাল মুদ্রিত সংস্করণ।'
-                                  : '\n\n📌 পণ্যের মূল বৈশিষ্ট্যসমূহ:\n• ব্র্যান্ড: ' + (prodBrand || 'MR. BOOKS Essentials') + '\n• উপাদান: ' + (prodMaterial || 'প্রিমিয়াম কোয়ালিটি') + '\n• আকার / সাইজ: ' + (prodDimensions || 'স্ট্যান্ডার্ড সাইজ') + '\n• দীর্ঘস্থায়ী, নিখুঁত ফিনিশিং ও প্রফেশনাল ব্যবহারের জন্য আদর্শ।';
+                                  ? '\n\nবইয়ের পরিচিতি ও বৈশিষ্ট্যসমূহ:\n• মূল লেখক: ' + (prodAuthor || 'লেখক') + '\n• প্রকাশনী: ' + (prodPublisher || 'প্রকাশনী') + '\n• সারসংক্ষেপ: এই বইটিতে গভীর জীবনবোধ ও বাস্তব দৃষ্টিভঙ্গি চমৎকারভাবে উপস্থাপিত হয়েছে।\n• বাঁধাই ও কাগজের মান: উন্নত মানের ক্রিম পেপার ও শক্ত মজবুত বাঁধাই।\n• প্রতিটি বই ১০০% অরিজিনাল মুদ্রিত সংস্করণ।'
+                                  : '\n\nপণ্যের মূল বৈশিষ্ট্যসমূহ:\n• ব্র্যান্ড: ' + (prodBrand || 'MR. BOOKS Essentials') + '\n• উপাদান: ' + (prodMaterial || 'প্রিমিয়াম কোয়ালিটি') + '\n• আকার / সাইজ: ' + (prodDimensions || 'স্ট্যান্ডার্ড সাইজ') + '\n• দীর্ঘস্থায়ী, নিখুঁত ফিনিশিং ও প্রফেশনাল ব্যবহারের জন্য আদর্শ।';
                                 setProdDescription(prev => prev + template);
                               }}
-                              className="px-2.5 py-1 rounded-lg bg-white hover:bg-neutral-50 text-[#D71920] border border-neutral-200 text-[11px] font-bold cursor-pointer shadow-2xs transition-all"
+                              className="px-2.5 py-1 rounded-md bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-[11px] font-semibold cursor-pointer transition-colors"
                             >
-                              + Feature Template
+                              + Insert Template
                             </button>
                           </div>
 
                           <textarea
                             rows={4}
-                            placeholder="Enter detailed product description, benefits, and usage instructions..."
+                            placeholder="Enter product summary, reading notes, or specifications..."
                             value={prodDescription}
                             onChange={e => setProdDescription(e.target.value)}
-                            className="w-full p-3.5 bg-white text-xs font-medium text-neutral-900 placeholder-neutral-400 focus:outline-none resize-y"
+                            className="w-full p-3 bg-white text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none resize-y"
                           />
                         </div>
                       </div>
 
-                      {/* Product Classifier: New Product vs New Featured Product */}
-                      <div className="pt-2 border-t border-neutral-100">
-                        <label className="block text-xs font-bold text-neutral-700 mb-2">
-                          প্রোডাক্ট টাইপ নির্ধারণ (Product Classification) <span className="text-[#D71920]">*</span>
+                      {/* Product Classification */}
+                      <div className="pt-3 border-t border-slate-100">
+                        <label className="block text-xs font-semibold text-slate-700 mb-2">
+                          Catalog Classification <span className="text-[#D71920]">*</span>
                         </label>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setProdClassification('new');
-                              setProdBadge('NEW');
-                              setProdIsFeatured(false);
-                            }}
-                            className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
-                              prodClassification === 'new'
-                                ? 'bg-red-50 text-[#D71920] border-[#D71920] shadow-xs'
-                                : 'bg-[#F7F7F8] text-neutral-700 border-neutral-200 hover:bg-neutral-100'
-                            }`}
-                          >
-                            <div className="flex items-center gap-1.5 font-bold text-xs">
-                              <span>🆕</span>
-                              <span>নিউ প্রোডাক্ট (New Product)</span>
-                            </div>
-                            <p className="text-[10px] text-neutral-500 mt-1">ক্যাটালগে নতুন বই হিসেবে হাইলাইট হবে</p>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setProdClassification('featured');
-                              setProdBadge('HOT');
-                              setProdIsFeatured(true);
-                            }}
-                            className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
-                              prodClassification === 'featured'
-                                ? 'bg-amber-50 text-amber-900 border-amber-400 shadow-xs'
-                                : 'bg-[#F7F7F8] text-neutral-700 border-neutral-200 hover:bg-neutral-100'
-                            }`}
-                          >
-                            <div className="flex items-center gap-1.5 font-bold text-xs">
-                              <span>🔥</span>
-                              <span>নিউ ফিচার প্রোডাক্ট (Featured)</span>
-                            </div>
-                            <p className="text-[10px] text-neutral-500 mt-1">হোমপেজ ও স্পেশাল ফিচার সেকশনে দেখাবে</p>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setProdClassification('regular');
-                              setProdBadge('Original');
-                              setProdIsFeatured(false);
-                            }}
-                            className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
-                              prodClassification === 'regular'
-                                ? 'bg-neutral-100 text-neutral-900 border-neutral-400 shadow-xs'
-                                : 'bg-[#F7F7F8] text-neutral-700 border-neutral-200 hover:bg-neutral-100'
-                            }`}
-                          >
-                            <div className="flex items-center gap-1.5 font-bold text-xs">
-                              <span>⭐</span>
-                              <span>রেগুলার প্রোডাক্ট (Regular)</span>
-                            </div>
-                            <p className="text-[10px] text-neutral-500 mt-1">সাধারণ ক্যাটালগ ও ক্যাটাগরি আইটেম</p>
-                          </button>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          {[
+                            { key: 'new', title: 'New Product', desc: 'Highlighted in New Arrivals', badge: 'NEW', featured: false },
+                            { key: 'featured', title: 'Featured', desc: 'Pinned to Homepage showcase', badge: 'HOT', featured: true },
+                            { key: 'regular', title: 'Regular', desc: 'Standard catalog item', badge: 'Original', featured: false },
+                          ].map(item => (
+                            <button
+                              key={item.key}
+                              type="button"
+                              onClick={() => {
+                                setProdClassification(item.key as any);
+                                setProdBadge(item.badge);
+                                setProdIsFeatured(item.featured);
+                              }}
+                              className={`p-3 rounded-lg border text-left cursor-pointer transition-colors ${
+                                prodClassification === item.key
+                                  ? 'bg-[#FFF1F2] text-[#D71920] border-[#D71920]'
+                                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                              }`}
+                            >
+                              <div className="font-bold text-xs">{item.title}</div>
+                              <p className="text-[11px] text-slate-500 mt-0.5">{item.desc}</p>
+                            </button>
+                          ))}
                         </div>
                       </div>
 
-                      {/* Book Format: অরিজিনাল বই নাকি কপি বুক, প্রিন্টেড বুক নাকি পিডিএফ */}
+                      {/* Book Format */}
                       {prodType === 'book' && (
-                        <div className="pt-2 border-t border-neutral-100">
-                          <label className="block text-xs font-bold text-neutral-700 mb-2">
-                            বইয়ের ফরম্যাট ও ধরন (Book Edition & Format) <span className="text-[#D71920]">*</span>
+                        <div className="pt-3 border-t border-slate-100">
+                          <label className="block text-xs font-semibold text-slate-700 mb-2">
+                            Edition &amp; Format <span className="text-[#D71920]">*</span>
                           </label>
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                             {[
-                              { key: 'original', icon: '🛡️', label: 'অরিজিনাল বই', sub: 'Original Print' },
-                              { key: 'copy', icon: '📑', label: 'কপি / রিপ্রিন্ট', sub: 'Reprint Copy' },
-                              { key: 'printed', icon: '📖', label: 'প্রিন্টেড বই', sub: 'Standard Paper' },
-                              { key: 'pdf', icon: '📱', label: 'ই-বুক / পিডিএফ', sub: 'PDF / Digital' },
+                              { key: 'original', label: 'Original Print', sub: 'অরিজিনাল বই' },
+                              { key: 'copy', label: 'Reprint Copy', sub: 'কপি / রিপ্রিন্ট' },
+                              { key: 'printed', label: 'Standard Paper', sub: 'প্রিন্টেড বই' },
+                              { key: 'pdf', label: 'PDF / eBook', sub: 'ডিজিটাল ফাইল' },
                             ].map(fmt => (
                               <button
                                 key={fmt.key}
@@ -6079,51 +6032,47 @@ export function AdminDashboard() {
                                   setProdBookFormat(fmt.key as any);
                                   setProdIsOriginal(fmt.key === 'original');
                                 }}
-                                className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                                className={`p-2.5 rounded-lg border text-left cursor-pointer transition-colors ${
                                   prodBookFormat === fmt.key
-                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-400 font-bold shadow-xs'
-                                    : 'bg-[#F7F7F8] text-neutral-700 border-neutral-200 hover:bg-neutral-100'
+                                    ? 'bg-slate-900 text-white border-slate-900'
+                                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                                 }`}
                               >
-                                <div className="text-sm">{fmt.icon}</div>
-                                <div className="text-xs font-bold mt-1 leading-tight">{fmt.label}</div>
-                                <div className="text-[10px] text-neutral-400">{fmt.sub}</div>
+                                <div className="text-xs font-bold leading-tight">{fmt.label}</div>
+                                <div className={`text-[10px] mt-0.5 ${prodBookFormat === fmt.key ? 'text-slate-300' : 'text-slate-400'}`}>
+                                  {fmt.sub}
+                                </div>
                               </button>
                             ))}
                           </div>
 
                           {prodBookFormat === 'pdf' && (
-                            <div className="mt-3 p-3 bg-blue-50/80 border border-blue-200 rounded-xl space-y-2 animate-in fade-in duration-200">
-                              <label className="block text-[11px] font-bold text-blue-900">
-                                📱 পিডিএফ লিঙ্ক বা ই-বুক ফাইল ইউআরএল (PDF / eBook Link)
+                            <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
+                              <label className="block text-[11px] font-semibold text-slate-700">
+                                PDF / eBook URL
                               </label>
                               <input
                                 type="url"
                                 placeholder="https://example.com/books/sample-preview.pdf"
                                 value={prodPdfUrl}
                                 onChange={e => setProdPdfUrl(e.target.value)}
-                                className="w-full px-3 py-2 rounded-lg border border-blue-300 bg-white text-xs text-neutral-900 focus:outline-none focus:border-blue-500 shadow-2xs"
+                                className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:border-[#D71920]"
                               />
                             </div>
                           )}
                         </div>
                       )}
 
-                      {/* Special Offer Deal (কোনো অফার চালাতে চাইলে সেই অফার অ্যাড করার অপশন) */}
-                      <div className="pt-2 border-t border-neutral-100">
-                        <div className="p-3.5 rounded-xl bg-gradient-to-r from-red-50/80 via-white to-amber-50/80 border border-red-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-red-100 text-[#D71920] flex items-center justify-center shrink-0">
-                              <Flame size={16} />
-                            </div>
-                            <div>
-                              <h5 className="font-extrabold text-xs text-neutral-900">
-                                স্পেশাল অফার ডিল (Special Discount Offer)
-                              </h5>
-                              <p className="text-[11px] text-neutral-500">
-                                এই প্রোডাক্টে কোনো বিশেষ ডিসকাউন্ট বা ক্যাম্পেইন অফার চালাতে চান?
-                              </p>
-                            </div>
+                      {/* Special Offer Deal */}
+                      <div className="pt-3 border-t border-slate-100">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div>
+                            <h5 className="font-semibold text-xs text-slate-900">
+                              Special Offer Campaign
+                            </h5>
+                            <p className="text-[11px] text-slate-500">
+                              Attach an active promotional deal tag to this product
+                            </p>
                           </div>
 
                           <label className="inline-flex items-center gap-2 cursor-pointer select-none">
@@ -6131,31 +6080,31 @@ export function AdminDashboard() {
                               type="checkbox"
                               checked={prodSpecialOfferActive}
                               onChange={e => setProdSpecialOfferActive(e.target.checked)}
-                              className="w-4 h-4 text-[#D71920] accent-[#D71920] rounded cursor-pointer"
+                              className="w-4 h-4 accent-[#D71920] rounded cursor-pointer"
                             />
-                            <span className="text-xs font-bold text-neutral-800">
-                              {prodSpecialOfferActive ? 'অফার সক্রিয় আছে' : 'অফার বন্ধ'}
+                            <span className="text-xs font-semibold text-slate-800">
+                              {prodSpecialOfferActive ? 'Enabled' : 'Disabled'}
                             </span>
                           </label>
                         </div>
 
                         {prodSpecialOfferActive && (
-                          <div className="mt-3 p-3.5 bg-red-50/50 border border-red-200 rounded-xl grid grid-cols-1 sm:grid-cols-2 gap-3 animate-in fade-in duration-200">
+                          <div className="mt-3 p-3.5 bg-slate-50 border border-slate-200 rounded-lg grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
-                              <label className="block text-[11px] font-bold text-neutral-700 mb-1">
-                                অফার শিরোনাম / ট্যাগ (Offer Title) *
+                              <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                                Offer Title <span className="text-[#D71920]">*</span>
                               </label>
                               <input
                                 type="text"
-                                placeholder="e.g. মেগা ডিসকাউন্ট অফার / ঈদ স্পেশাল ছাড় / Buy 1 Get 1"
+                                placeholder="e.g. মেগা ডিসকাউন্ট অফার"
                                 value={prodSpecialOfferTitle}
                                 onChange={e => setProdSpecialOfferTitle(e.target.value)}
-                                className="w-full px-3 py-2 rounded-lg border border-red-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] shadow-2xs"
+                                className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
                               />
                             </div>
                             <div>
-                              <label className="block text-[11px] font-bold text-neutral-700 mb-1">
-                                অফার ডিসকাউন্ট পারসেন্ট (ঐচ্ছিক %)
+                              <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                                Discount (%)
                               </label>
                               <div className="relative">
                                 <input
@@ -6165,9 +6114,9 @@ export function AdminDashboard() {
                                   placeholder="e.g. 20"
                                   value={prodSpecialOfferDiscount}
                                   onChange={e => setProdSpecialOfferDiscount(e.target.value === '' ? '' : Number(e.target.value))}
-                                  className="w-full px-3 py-2 rounded-lg border border-red-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] shadow-2xs"
+                                  className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920] tabular-nums"
                                 />
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-neutral-400">%</span>
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">%</span>
                               </div>
                             </div>
                           </div>
@@ -6175,44 +6124,47 @@ export function AdminDashboard() {
                       </div>
                     </div>
 
-                    {/* CARD 2: BOOK DETAILS & ATTRIBUTES */}
+                    {/* CARD 2: BOOK DETAILS / STATIONERY SPECIFICATIONS */}
                     {prodType === 'book' ? (
-                      <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 sm:p-6 text-neutral-900 shadow-xs space-y-4">
-                        <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-xl bg-red-50 text-[#D71920] border border-red-200/60 flex items-center justify-center">
-                              <BookOpen size={16} />
-                            </div>
-                            <div>
-                              <h4 className="font-extrabold text-sm text-neutral-900">
-                                Book Details
-                              </h4>
-                              <p className="text-[11px] text-neutral-500">
-                                Writer, Publisher, Category, Pages, ISBN & SKU
-                              </p>
-                            </div>
+                      <div className="bg-white border border-slate-200 rounded-xl p-5 text-slate-900 space-y-4">
+                        <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                          <div>
+                            <h4 className="font-bold text-sm text-slate-900">Book Details</h4>
+                            <p className="text-[11px] text-slate-500">
+                              Writer, publisher, bibliographic info &amp; series
+                            </p>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => selectAdminTab('publishers')}
-                            className="text-[11px] font-bold text-[#D71920] hover:underline cursor-pointer"
-                          >
-                            + Manage Publishers
-                          </button>
+                          <div className="flex items-center gap-3 text-[11px] font-semibold">
+                            <button
+                              type="button"
+                              onClick={() => selectAdminTab('authors')}
+                              className="text-slate-600 hover:text-[#D71920] cursor-pointer transition-colors"
+                            >
+                              Manage Writers
+                            </button>
+                            <span className="text-slate-300">·</span>
+                            <button
+                              type="button"
+                              onClick={() => selectAdminTab('publishers')}
+                              className="text-[#D71920] hover:underline cursor-pointer"
+                            >
+                              Manage Publishers
+                            </button>
+                          </div>
                         </div>
 
-                        {/* Row 1: Writer Selection & Publisher Selection */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                          {/* Writer Selection (with real-time auto book count) */}
+                        {/* Row 1: Writer & Publisher (Strictly synced with managed Authors & Publishers tabs) */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {/* Writer Selection */}
                           <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <label className="block text-[11px] font-bold text-neutral-600 uppercase">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600">
                                 Writer <span className="text-[#D71920]">*</span>
                               </label>
                               <button
                                 type="button"
                                 onClick={() => setIsCustomAuthorInput(!isCustomAuthorInput)}
-                                className="text-[10px] font-bold text-[#D71920] hover:underline cursor-pointer"
+                                className="text-[11px] font-semibold text-[#D71920] hover:underline cursor-pointer"
                               >
                                 {isCustomAuthorInput ? 'Select from List' : '+ Custom Writer'}
                               </button>
@@ -6221,10 +6173,10 @@ export function AdminDashboard() {
                             {isCustomAuthorInput ? (
                               <input
                                 type="text"
-                                placeholder="Enter writer name (e.g. Arif Azad)"
+                                placeholder="Enter writer name"
                                 value={prodAuthor}
                                 onChange={e => setProdAuthor(e.target.value)}
-                                className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                                className="w-full px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
                               />
                             ) : (
                               <select
@@ -6237,43 +6189,49 @@ export function AdminDashboard() {
                                     setProdAuthor(e.target.value);
                                   }
                                 }}
-                                className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs cursor-pointer"
+                                className="w-full px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920] cursor-pointer"
                               >
                                 <option value="">-- Select Writer --</option>
-                                {enrichedAuthors.map(a => (
+                                {manageableAuthors.map(a => (
                                   <option key={a.id} value={a.name}>
-                                    ✍️ {a.name} — ({a.liveBooksCount} {a.liveBooksCount === 1 ? 'Book' : 'Books'})
+                                    {a.name} ({a.liveBooksCount} {a.liveBooksCount === 1 ? 'Book' : 'Books'})
                                   </option>
                                 ))}
-                                <option value="__custom__">✏️ + Add Custom Writer...</option>
+                                <option value="__custom__">+ Add Custom Writer...</option>
                               </select>
+                            )}
+
+                            {!isCustomAuthorInput && manageableAuthors.length === 0 && (
+                              <p className="mt-1 text-[11px] text-slate-500">
+                                No writers added in the Writers tab yet.
+                              </p>
                             )}
 
                             {prodAuthor.trim() && (
                               <div
                                 data-testid="writer-live-book-count"
-                                className="mt-1.5 flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200/80 text-[11px] tabular-nums"
+                                className="mt-1.5 flex items-center justify-between gap-2 px-2.5 py-1 rounded-md bg-slate-50 border border-slate-200 text-[11px] tabular-nums"
                               >
-                                <span className="text-slate-600 font-medium">
+                                <span className="text-slate-600">
                                   Catalog: <strong className="text-slate-900">{writerCountPreview.currentCount} {writerCountPreview.currentCount === 1 ? 'Book' : 'Books'}</strong>
                                 </span>
-                                <span className="text-[#D71920] font-bold">
-                                  {editingProductId ? 'Total after save' : 'After upload'}: {writerCountPreview.projectedCount} {writerCountPreview.projectedCount === 1 ? 'Book' : 'Books'}
+                                <span className="text-[#D71920] font-semibold">
+                                  {editingProductId ? 'After save' : 'After upload'}: {writerCountPreview.projectedCount} {writerCountPreview.projectedCount === 1 ? 'Book' : 'Books'}
                                 </span>
                               </div>
                             )}
                           </div>
 
-                          {/* Publisher Selection (with real-time auto book count) */}
+                          {/* Publisher Selection */}
                           <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <label className="block text-[11px] font-bold text-neutral-600 uppercase">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600">
                                 Publisher <span className="text-[#D71920]">*</span>
                               </label>
                               <button
                                 type="button"
                                 onClick={() => setIsCustomPublisherInput(!isCustomPublisherInput)}
-                                className="text-[10px] font-bold text-[#D71920] hover:underline cursor-pointer"
+                                className="text-[11px] font-semibold text-[#D71920] hover:underline cursor-pointer"
                               >
                                 {isCustomPublisherInput ? 'Select from List' : '+ Custom Publisher'}
                               </button>
@@ -6282,10 +6240,10 @@ export function AdminDashboard() {
                             {isCustomPublisherInput ? (
                               <input
                                 type="text"
-                                placeholder="Enter publisher name (e.g. Guardian Publications)"
+                                placeholder="Enter publisher name"
                                 value={prodPublisher}
                                 onChange={e => setProdPublisher(e.target.value)}
-                                className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                                className="w-full px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
                               />
                             ) : (
                               <select
@@ -6298,62 +6256,47 @@ export function AdminDashboard() {
                                     setProdPublisher(e.target.value);
                                   }
                                 }}
-                                className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs cursor-pointer"
+                                className="w-full px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920] cursor-pointer"
                               >
                                 <option value="">-- Select Publisher --</option>
-                                {enrichedPublishers.map(pub => (
+                                {manageablePublishers.map(pub => (
                                   <option key={pub.id} value={pub.name}>
                                     {pub.banglaName && pub.banglaName !== pub.name
                                       ? `${pub.name} (${pub.banglaName})`
                                       : pub.name}{' '}
-                                    — ({pub.liveBooksCount} {pub.liveBooksCount === 1 ? 'Book' : 'Books'})
+                                    ({pub.liveBooksCount} {pub.liveBooksCount === 1 ? 'Book' : 'Books'})
                                   </option>
                                 ))}
                                 <option value="__custom__">+ Add Custom Publisher...</option>
                               </select>
                             )}
 
+                            {!isCustomPublisherInput && manageablePublishers.length === 0 && (
+                              <p className="mt-1 text-[11px] text-slate-500">
+                                No publishers added in the Publishers tab yet.
+                              </p>
+                            )}
+
                             {prodPublisher.trim() && (
                               <div
                                 data-testid="publisher-live-book-count"
-                                className="mt-1.5 flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200/80 text-[11px] tabular-nums"
+                                className="mt-1.5 flex items-center justify-between gap-2 px-2.5 py-1 rounded-md bg-slate-50 border border-slate-200 text-[11px] tabular-nums"
                               >
-                                <span className="text-slate-600 font-medium">
+                                <span className="text-slate-600">
                                   Catalog: <strong className="text-slate-900">{publisherCountPreview.currentCount} {publisherCountPreview.currentCount === 1 ? 'Book' : 'Books'}</strong>
                                 </span>
-                                <span className="text-[#D71920] font-bold">
-                                  {editingProductId ? 'Total after save' : 'After upload'}: {publisherCountPreview.projectedCount} {publisherCountPreview.projectedCount === 1 ? 'Book' : 'Books'}
+                                <span className="text-[#D71920] font-semibold">
+                                  {editingProductId ? 'After save' : 'After upload'}: {publisherCountPreview.projectedCount} {publisherCountPreview.projectedCount === 1 ? 'Book' : 'Books'}
                                 </span>
                               </div>
                             )}
                           </div>
                         </div>
 
-                        {/* Row 2: Category, Pages, ISBN, SKU */}
-                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3.5">
-                          {/* Category */}
+                        {/* Row 2: Pages, ISBN, Edition, Language */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
                           <div>
-                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                              Category *
-                            </label>
-                            <select
-                              value={prodCategory}
-                              onChange={e => setProdCategory(e.target.value)}
-                              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs cursor-pointer"
-                            >
-                              {categories
-                                .filter(c => c.type === 'book')
-                                .map(c => (
-                                  <option key={c.id} value={c.name}>
-                                    {c.name}
-                                  </option>
-                                ))}
-                            </select>
-                          </div>
-
-                          {/* Pages */}
-                          <div>
-                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
+                            <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
                               Pages
                             </label>
                             <input
@@ -6362,91 +6305,63 @@ export function AdminDashboard() {
                               placeholder="e.g. 240"
                               value={prodPages || ''}
                               onChange={e => setProdPages(Number(e.target.value))}
-                              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                              className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920] tabular-nums"
                             />
                           </div>
 
-                          {/* ISBN */}
                           <div>
-                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                              ISBN Code
+                            <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                              ISBN
                             </label>
                             <input
                               type="text"
-                              placeholder="e.g. 9789849312341"
+                              placeholder="9789849312341"
                               value={prodIsbn}
                               onChange={e => setProdIsbn(e.target.value)}
-                              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-mono font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                              className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-mono font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
                             />
                           </div>
 
-                          {/* SKU */}
                           <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <label className="block text-[11px] font-bold text-neutral-600 uppercase">
-                                SKU Code
-                              </label>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setProdSku('BK-' + Math.floor(1000 + Math.random() * 9000));
-                                }}
-                                className="text-[10px] font-bold text-[#D71920] hover:underline cursor-pointer"
-                              >
-                                Auto-gen
-                              </button>
-                            </div>
-                            <input
-                              type="text"
-                              placeholder="e.g. BK-PS2-PB"
-                              value={prodSku}
-                              onChange={e => setProdSku(e.target.value)}
-                              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-mono font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Row 3: Edition & Language */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                          <div>
-                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                              Edition (সংস্করণ)
+                            <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                              Edition
                             </label>
                             <input
                               type="text"
-                              placeholder="e.g. 1st Edition / ১ম প্রকাশ"
+                              placeholder="e.g. 1st Edition"
                               value={prodEdition}
                               onChange={e => setProdEdition(e.target.value)}
-                              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                              className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:border-[#D71920]"
                             />
                           </div>
+
                           <div>
-                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                              Language (ভাষা)
+                            <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                              Language
                             </label>
                             <input
                               type="text"
                               placeholder="e.g. Bengali / English"
                               value={prodLanguage}
                               onChange={e => setProdLanguage(e.target.value)}
-                              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                              className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:border-[#D71920]"
                             />
                           </div>
                         </div>
 
-                        {/* Row 4: Book Series Name & Number (Optional — displays above title like "Royal Elite #3") */}
-                        <div className="p-3.5 rounded-xl border border-neutral-200 bg-neutral-50/70 space-y-2.5">
+                        {/* Row 3: Book Series (Optional) */}
+                        <div className="pt-3 border-t border-slate-100 space-y-2.5">
                           <div className="flex items-center justify-between gap-2 flex-wrap">
-                            <span className="text-[11px] font-bold text-neutral-700 uppercase">
-                              Book Series (বইয়ের সিরিজ — ঐচ্ছিক)
+                            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">
+                              Book Series (Optional)
                             </span>
                             {normalizeSeriesName(prodSeriesName) && (
                               <span
                                 data-testid="admin-series-preview"
-                                className="text-xs italic text-neutral-600"
+                                className="text-xs text-slate-600"
                               >
-                                Preview above title:{' '}
-                                <strong className="not-italic text-neutral-900">
+                                Display label:{' '}
+                                <strong className="text-slate-900">
                                   {formatSeriesLabel(prodSeriesName, prodSeriesNumber)}
                                 </strong>
                               </span>
@@ -6454,17 +6369,14 @@ export function AdminDashboard() {
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div className="sm:col-span-2">
-                              <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">
-                                Series Name (সিরিজের নাম)
-                              </label>
                               <input
                                 type="text"
                                 list="admin-existing-series-list"
                                 data-testid="admin-input-series-name"
-                                placeholder="e.g. Royal Elite / হিমু সিরিজ"
+                                placeholder="Series Name (e.g. Royal Elite)"
                                 value={prodSeriesName}
                                 onChange={e => setProdSeriesName(e.target.value)}
-                                className="w-full px-3 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] shadow-2xs"
+                                className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:border-[#D71920]"
                               />
                               <datalist id="admin-existing-series-list">
                                 {collectExistingSeriesNames(products).map(seriesTitle => (
@@ -6473,16 +6385,13 @@ export function AdminDashboard() {
                               </datalist>
                             </div>
                             <div>
-                              <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">
-                                Book # (সিরিজ নম্বর)
-                              </label>
                               <input
                                 type="text"
                                 data-testid="admin-input-series-number"
-                                placeholder="e.g. 1, 2, 3"
+                                placeholder="Book # (e.g. 1, 2)"
                                 value={prodSeriesNumber}
                                 onChange={e => setProdSeriesNumber(e.target.value)}
-                                className="w-full px-3 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs font-mono text-neutral-900 focus:outline-none focus:border-[#D71920] shadow-2xs"
+                                className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-mono text-slate-900 focus:outline-none focus:border-[#D71920]"
                               />
                             </div>
                           </div>
@@ -6490,156 +6399,149 @@ export function AdminDashboard() {
 
                         {/* Extra Custom Details */}
                         <div>
-                          <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                            Extra Custom Book Details (ঐচ্ছিক — প্রতি লাইনে LABEL: VALUE ফরম্যাটে লিখুন)
+                          <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                            Custom Metadata (Optional — one per line as LABEL: VALUE)
                           </label>
                           <textarea
                             rows={2}
                             placeholder={'Paper Quality: 80 GSM Cream Paper\nBinding: Hardcover Stitch'}
                             value={prodCustomDetailsText}
                             onChange={e => setProdCustomDetailsText(e.target.value)}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs resize-none"
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:border-[#D71920] resize-none"
                           />
                         </div>
                       </div>
                     ) : (
-                      <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 sm:p-6 text-neutral-900 shadow-xs space-y-4">
-                        <div className="flex items-center gap-2 pb-3 border-b border-neutral-100">
-                          <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 border border-blue-200/60 flex items-center justify-center">
-                            <Package size={16} />
-                          </div>
-                          <h4 className="font-extrabold text-sm text-neutral-900">
-                            Stationery Specifications (Brand, Material, Dimensions & Color)
+                      <div className="bg-white border border-slate-200 rounded-xl p-5 text-slate-900 space-y-4">
+                        <div className="pb-3 border-b border-slate-100">
+                          <h4 className="font-bold text-sm text-slate-900">
+                            Stationery Specifications
                           </h4>
+                          <p className="text-[11px] text-slate-500">Brand, material, dimensions &amp; color</p>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
                           <div>
-                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Brand / Manufacturer *</label>
+                            <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">Brand *</label>
                             <input
                               type="text"
                               placeholder="e.g. Deli / Faber-Castell"
                               required
                               value={prodBrand}
                               onChange={e => setProdBrand(e.target.value)}
-                              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-blue-500 focus:bg-white shadow-2xs"
+                              className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:border-[#D71920]"
                             />
                           </div>
                           <div>
-                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Material</label>
+                            <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">Material</label>
                             <input
                               type="text"
                               placeholder="e.g. Leather / Paper / Steel"
                               value={prodMaterial}
                               onChange={e => setProdMaterial(e.target.value)}
-                              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-blue-500 focus:bg-white shadow-2xs"
+                              className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:border-[#D71920]"
                             />
                           </div>
                           <div>
-                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Dimensions / Size</label>
+                            <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">Dimensions</label>
                             <input
                               type="text"
-                              placeholder="e.g. A5 / 0.5mm / 21x14 cm"
+                              placeholder="e.g. A5 / 21x14 cm"
                               value={prodDimensions}
                               onChange={e => setProdDimensions(e.target.value)}
-                              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-blue-500 focus:bg-white shadow-2xs"
+                              className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:border-[#D71920]"
                             />
                           </div>
                           <div>
-                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Color / Model</label>
+                            <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">Color / Model</label>
                             <input
                               type="text"
-                              placeholder="e.g. Matte Black / Navy Blue"
+                              placeholder="e.g. Matte Black"
                               value={prodColorModel}
                               onChange={e => setProdColorModel(e.target.value)}
-                              className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-blue-500 focus:bg-white shadow-2xs"
+                              className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:border-[#D71920]"
                             />
                           </div>
                         </div>
                       </div>
                     )}
 
-                    {/* CARD 3: CUSTOMER REVIEWS (প্রোডাক্টের উপর কাস্টমার রিভিউ অ্যাড করার অপশন) */}
-                    <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 sm:p-6 text-neutral-900 shadow-xs space-y-4">
-                      <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 border border-amber-200/60 flex items-center justify-center">
-                            <Star size={16} className="fill-amber-500 text-amber-500" />
-                          </div>
-                          <div>
-                            <h4 className="font-extrabold text-sm text-neutral-900">
-                              Customer Reviews (কাস্টমার রিভিউ যুক্ত করুন)
-                            </h4>
-                            <p className="text-[11px] text-neutral-500">
-                              এই বইটির জন্য আসল ক্রেতাদের রিভিউ ও রেটিং যুক্ত করুন (সিঙ্গেল প্রোডাক্ট পেজে প্রদর্শিত হবে)
-                            </p>
-                          </div>
+                    {/* CARD 3: CUSTOMER REVIEWS */}
+                    <div className="bg-white border border-slate-200 rounded-xl p-5 text-slate-900 space-y-4">
+                      <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <div>
+                          <h4 className="font-bold text-sm text-slate-900">
+                            Customer Reviews
+                          </h4>
+                          <p className="text-[11px] text-slate-500">
+                            Add verified reader reviews displayed on the product page
+                          </p>
                         </div>
-                        <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold">
-                          {inFormReviews.length} Reviews
+                        <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-xs font-semibold tabular-nums">
+                          {inFormReviews.length}
                         </span>
                       </div>
 
                       {/* Add Review Inline Form */}
-                      <div className="p-4 rounded-xl bg-[#FBFBFC] border border-[#E8E8E9] space-y-3">
+                      <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 space-y-3">
                         <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
                           <div className="sm:col-span-6">
-                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                              ক্রেতার নাম (Customer Name) *
+                            <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                              Reviewer Name *
                             </label>
                             <input
                               type="text"
-                              placeholder="e.g. রাকিব হাসান / সুমাইয়া জান্নাত"
+                              placeholder="e.g. রাকিব হাসান"
                               value={newRevName}
                               onChange={e => setNewRevName(e.target.value)}
-                              className="w-full px-3 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] shadow-2xs"
+                              className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
                             />
                           </div>
                           <div className="sm:col-span-6">
-                            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                              রেটিং (Star Rating)
+                            <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                              Rating
                             </label>
-                            <div className="flex items-center gap-1.5 pt-1">
+                            <div className="flex items-center gap-1 pt-1">
                               {[1, 2, 3, 4, 5].map(star => (
                                 <button
                                   key={star}
                                   type="button"
                                   onClick={() => setNewRevRating(star)}
-                                  className="p-1 rounded hover:bg-neutral-100 cursor-pointer transition-colors"
+                                  className="p-1 rounded hover:bg-slate-200/60 cursor-pointer transition-colors"
                                 >
                                   <Star
-                                    size={18}
-                                    className={star <= newRevRating ? 'text-amber-500 fill-amber-500' : 'text-neutral-300'}
+                                    size={16}
+                                    className={star <= newRevRating ? 'text-amber-500 fill-amber-500' : 'text-slate-300'}
                                   />
                                 </button>
                               ))}
-                              <span className="text-xs font-black text-amber-700 ml-1.5">{newRevRating}.0 Stars</span>
+                              <span className="text-xs font-semibold text-slate-700 ml-1.5 tabular-nums">{newRevRating}.0</span>
                             </div>
                           </div>
                         </div>
 
                         <div>
-                          <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                            রিভিউ মন্তব্য / ফিডব্যাক (Review Comment) *
+                          <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                            Comment *
                           </label>
                           <textarea
                             rows={2}
-                            placeholder="e.g. বইটি সত্যিই অসাধারণ, পেপার কোয়ালিটি খুব ভালো এবং প্যাকেজিং নিরাপদ ছিল।"
+                            placeholder="Write review feedback..."
                             value={newRevComment}
                             onChange={e => setNewRevComment(e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] shadow-2xs resize-none"
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:border-[#D71920] resize-none"
                           />
                         </div>
 
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
                           <label className="inline-flex items-center gap-2 cursor-pointer select-none">
                             <input
                               type="checkbox"
                               checked={newRevVerified}
                               onChange={e => setNewRevVerified(e.target.checked)}
-                              className="w-4 h-4 text-emerald-600 accent-emerald-600 rounded cursor-pointer"
+                              className="w-4 h-4 accent-[#D71920] rounded cursor-pointer"
                             />
-                            <span className="text-xs font-bold text-neutral-700 flex items-center gap-1">
-                              <ShieldCheck size={13} className="text-emerald-600" /> Verified Purchase (আসল ক্রেতা)
+                            <span className="text-xs font-medium text-slate-700">
+                              Verified Purchase
                             </span>
                           </label>
 
@@ -6647,11 +6549,11 @@ export function AdminDashboard() {
                             type="button"
                             onClick={() => {
                               if (!newRevName.trim()) {
-                                setToast({ show: true, type: 'error', message: 'ক্রেতার নাম লিখুন' });
+                                setToast({ show: true, type: 'error', message: 'Reviewer name is required' });
                                 return;
                               }
                               if (!newRevComment.trim()) {
-                                setToast({ show: true, type: 'error', message: 'রিভিউ মন্তব্য লিখুন' });
+                                setToast({ show: true, type: 'error', message: 'Review comment is required' });
                                 return;
                               }
                               const newRevItem = {
@@ -6666,36 +6568,29 @@ export function AdminDashboard() {
                               setNewRevName('');
                               setNewRevComment('');
                               setNewRevRating(5);
-                              setToast({ show: true, type: 'success', message: 'রিভিউ যুক্ত হয়েছে!' });
+                              setToast({ show: true, type: 'success', message: 'Review added!' });
                             }}
-                            className="px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition-all self-end"
+                            className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors self-end"
                           >
-                            <Plus size={14} />
-                            <span>রিভিউ যুক্ত করুন</span>
+                            <Plus size={13} />
+                            <span>Add Review</span>
                           </button>
                         </div>
                       </div>
 
-                      {/* Display Existing Reviews List */}
-                      {inFormReviews.length === 0 ? (
-                        <div className="p-4 border border-dashed border-neutral-200 rounded-xl bg-neutral-50/60 text-center">
-                          <p className="text-xs text-neutral-500">
-                            এখনো কোনো রিভিউ যোগ করা হয়নি। উপরের ফর্ম থেকে বইটির জন্য ক্রেতার রিভিউ যুক্ত করতে পারেন।
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="space-y-2 pt-1">
+                      {inFormReviews.length > 0 && (
+                        <div className="space-y-2">
                           {inFormReviews.map((rev, idx) => (
                             <div
                               key={rev.id || idx}
-                              className="p-3 rounded-xl border border-neutral-200 bg-white flex items-start justify-between gap-3 shadow-2xs hover:border-neutral-300 transition-all"
+                              className="p-3 rounded-lg border border-slate-200 bg-white flex items-start justify-between gap-3"
                             >
                               <div className="space-y-1">
-                                <div className="flex items-center gap-2">
-                                  <h6 className="font-extrabold text-xs text-neutral-900">{rev.userName}</h6>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h6 className="font-semibold text-xs text-slate-900">{rev.userName}</h6>
                                   {rev.isVerifiedPurchase && (
-                                    <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded-full font-bold">
-                                      ✓ Verified
+                                    <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded font-semibold">
+                                      Verified
                                     </span>
                                   )}
                                   <div className="flex items-center text-amber-500">
@@ -6703,12 +6598,12 @@ export function AdminDashboard() {
                                       <Star
                                         key={i}
                                         size={11}
-                                        className={i < rev.rating ? 'fill-amber-500 text-amber-500' : 'text-neutral-200'}
+                                        className={i < rev.rating ? 'fill-amber-500 text-amber-500' : 'text-slate-200'}
                                       />
                                     ))}
                                   </div>
                                 </div>
-                                <p className="text-xs text-neutral-700">{rev.comment}</p>
+                                <p className="text-xs text-slate-600">{rev.comment}</p>
                               </div>
 
                               <button
@@ -6719,8 +6614,8 @@ export function AdminDashboard() {
                                     deleteProductReview(rev.id);
                                   }
                                 }}
-                                className="p-1.5 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 cursor-pointer transition-colors shrink-0"
-                                title="মুছুন"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 cursor-pointer transition-colors shrink-0"
+                                title="Delete review"
                               >
                                 <Trash2 size={13} />
                               </button>
@@ -6730,24 +6625,18 @@ export function AdminDashboard() {
                       )}
                     </div>
 
-                    {/* CARD 4: PER-BOOK DELIVERY SYSTEM (ডেলিভারি সিস্টেম ও কুরিয়ার চার্জ নির্ধারণ) */}
-                    <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 sm:p-6 text-neutral-900 shadow-xs space-y-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-neutral-100">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-xl bg-red-50 text-[#D71920] border border-red-200/60 flex items-center justify-center">
-                            <Truck size={16} />
-                          </div>
-                          <div>
-                            <h4 className="font-extrabold text-sm text-neutral-900">
-                              Delivery System & Charges (ডেলিভারি সিস্টেম ও চার্জ)
-                            </h4>
-                            <p className="text-[11px] text-neutral-500">
-                              ফ্রি ডেলিভারি, সুন্দরবন কুরিয়ার, হোম ডেলিভারি ও অন্যান্য কুরিয়ার চার্জ নির্ধারণ করুন
-                            </p>
-                          </div>
+                    {/* CARD 4: PER-ITEM DELIVERY & COURIER FEES */}
+                    <div className="bg-white border border-slate-200 rounded-xl p-5 text-slate-900 space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                        <div>
+                          <h4 className="font-bold text-sm text-slate-900">
+                            Delivery Fees &amp; Timing
+                          </h4>
+                          <p className="text-[11px] text-slate-500">
+                            Zone-based shipping fees and estimated dispatch windows
+                          </p>
                         </div>
 
-                        {/* Free Delivery Quick Toggle */}
                         <button
                           type="button"
                           onClick={() => {
@@ -6755,168 +6644,116 @@ export function AdminDashboard() {
                             setProdIsFreeDelivery(nextFree);
                             setProdDeliveryChargeType(nextFree ? 'free' : 'custom');
                           }}
-                          className={`px-3.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                          className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors cursor-pointer ${
                             prodIsFreeDelivery
-                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                              : 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                              ? 'bg-emerald-600 text-white border-emerald-600'
+                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                           }`}
                         >
-                          <span>🎁</span>
-                          <span>{prodIsFreeDelivery ? '✓ সম্পূর্ণ ফ্রি ডেলিভারি সক্রিয়' : 'এই বইয়ে ফ্রি ডেলিভারি দিন'}</span>
+                          {prodIsFreeDelivery ? 'Free Delivery Active (৳0)' : 'Enable Free Delivery'}
                         </button>
                       </div>
 
-                      {/* If Free Delivery Banner */}
-                      {prodIsFreeDelivery && (
-                        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-900 flex items-center gap-2 shadow-2xs">
-                          <CheckCircle2 size={15} className="text-emerald-600" />
-                          <span>এই বইটিতে কাস্টমারদের জন্য ডেলিভারি চার্জ সম্পূর্ণ ফ্রি (৳0) থাকবে।</span>
-                        </div>
-                      )}
-
-                      {/* Courier Wise & Home Delivery Fee Section (English Only) */}
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                          {/* 1. Inside Dhaka Fee */}
-                          <div className="p-3 rounded-xl border border-neutral-200 bg-[#FBFBFC] space-y-1.5">
-                            <div className="flex items-center justify-between">
-                              <label className="block text-[11px] font-bold text-neutral-700">
-                                Inside Dhaka Fee
-                              </label>
-                              <span className="text-[10px] text-neutral-400">Dhaka City</span>
-                            </div>
-                            <div className="relative">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-xs">৳</span>
-                              <input
-                                type="number"
-                                min={0}
-                                disabled={prodIsFreeDelivery}
-                                placeholder="60"
-                                value={prodIsFreeDelivery ? 0 : prodInsideDhakaFee}
-                                onChange={e => setProdInsideDhakaFee(Number(e.target.value))}
-                                className="w-full pl-7 pr-3 py-2 rounded-lg border border-neutral-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] disabled:bg-neutral-100"
-                              />
-                            </div>
-                          </div>
-
-                          {/* 2. Outside Dhaka Fee */}
-                          <div className="p-3 rounded-xl border border-neutral-200 bg-[#FBFBFC] space-y-1.5">
-                            <div className="flex items-center justify-between">
-                              <label className="block text-[11px] font-bold text-neutral-700">
-                                Outside Dhaka Fee
-                              </label>
-                              <span className="text-[10px] text-neutral-400">Nationwide</span>
-                            </div>
-                            <div className="relative">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-xs">৳</span>
-                              <input
-                                type="number"
-                                min={0}
-                                disabled={prodIsFreeDelivery}
-                                placeholder="120"
-                                value={prodIsFreeDelivery ? 0 : prodOutsideDhakaFee}
-                                onChange={e => setProdOutsideDhakaFee(Number(e.target.value))}
-                                className="w-full pl-7 pr-3 py-2 rounded-lg border border-neutral-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] disabled:bg-neutral-100"
-                              />
-                            </div>
-                          </div>
-
-                          {/* 3. Sub Area Fee */}
-                          <div className="p-3 rounded-xl border border-neutral-200 bg-[#FBFBFC] space-y-1.5">
-                            <div className="flex items-center justify-between">
-                              <label className="block text-[11px] font-bold text-neutral-700">
-                                Sub Area Fee
-                              </label>
-                              <span className="text-[10px] text-neutral-400">Suburbs</span>
-                            </div>
-                            <div className="relative">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-xs">৳</span>
-                              <input
-                                type="number"
-                                min={0}
-                                disabled={prodIsFreeDelivery}
-                                placeholder="90"
-                                value={prodIsFreeDelivery ? 0 : prodSubAreaFee}
-                                onChange={e => setProdSubAreaFee(Number(e.target.value))}
-                                className="w-full pl-7 pr-3 py-2 rounded-lg border border-neutral-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] disabled:bg-neutral-100"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Sundarban & Other Courier Fee Row */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {/* Sundarban Courier Fee */}
-                          <div className="p-3 rounded-xl border border-neutral-200 bg-[#FBFBFC] space-y-1.5">
-                            <div className="flex items-center justify-between">
-                              <label className="block text-[11px] font-bold text-neutral-700">
-                                Sundarban Courier Charge
-                              </label>
-                              <span className="text-[10px] text-neutral-400">Sundarban</span>
-                            </div>
-                            <div className="relative">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-xs">৳</span>
-                              <input
-                                type="number"
-                                min={0}
-                                disabled={prodIsFreeDelivery}
-                                placeholder="120"
-                                value={prodIsFreeDelivery ? 0 : prodSundarbanDeliveryFee}
-                                onChange={e => setProdSundarbanDeliveryFee(Number(e.target.value))}
-                                className="w-full pl-7 pr-3 py-2 rounded-lg border border-neutral-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] disabled:bg-neutral-100"
-                              />
-                            </div>
-                          </div>
-
-                          {/* Other Courier Fee */}
-                          <div className="p-3 rounded-xl border border-neutral-200 bg-[#FBFBFC] space-y-1.5">
-                            <div className="flex items-center justify-between">
-                              <label className="block text-[11px] font-bold text-neutral-700">
-                                Other Courier Charge
-                              </label>
-                              <span className="text-[10px] text-neutral-400">Steadfast/SA</span>
-                            </div>
-                            <div className="relative">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-xs">৳</span>
-                              <input
-                                type="number"
-                                min={0}
-                                disabled={prodIsFreeDelivery}
-                                placeholder="100"
-                                value={prodIsFreeDelivery ? 0 : prodOtherCourierDeliveryFee}
-                                onChange={e => setProdOtherCourierDeliveryFee(Number(e.target.value))}
-                                className="w-full pl-7 pr-3 py-2 rounded-lg border border-neutral-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] disabled:bg-neutral-100"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Weight-Based Extra Charge Note (Editable) */}
-                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-1.5 shadow-2xs">
-                          <label className="block text-[11px] font-bold text-amber-900 uppercase">
-                            Weight-Based Extra Charge Note (Editable)
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                            Inside Dhaka (৳)
                           </label>
                           <input
-                            type="text"
-                            value={prodWeightNote}
-                            onChange={e => setProdWeightNote(e.target.value)}
-                            placeholder="Weight-based extra charge: ৳20 added per extra kg/item when weight increases."
-                            className="w-full px-3 py-2 rounded-lg border border-amber-300 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                            type="number"
+                            min={0}
+                            disabled={prodIsFreeDelivery}
+                            placeholder="60"
+                            value={prodIsFreeDelivery ? 0 : prodInsideDhakaFee}
+                            onChange={e => setProdInsideDhakaFee(Number(e.target.value))}
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920] disabled:bg-slate-50 tabular-nums"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                            Outside Dhaka (৳)
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            disabled={prodIsFreeDelivery}
+                            placeholder="120"
+                            value={prodIsFreeDelivery ? 0 : prodOutsideDhakaFee}
+                            onChange={e => setProdOutsideDhakaFee(Number(e.target.value))}
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920] disabled:bg-slate-50 tabular-nums"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                            Sub Area (৳)
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            disabled={prodIsFreeDelivery}
+                            placeholder="90"
+                            value={prodIsFreeDelivery ? 0 : prodSubAreaFee}
+                            onChange={e => setProdSubAreaFee(Number(e.target.value))}
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920] disabled:bg-slate-50 tabular-nums"
                           />
                         </div>
                       </div>
 
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                            Sundarban Courier (৳)
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            disabled={prodIsFreeDelivery}
+                            placeholder="120"
+                            value={prodIsFreeDelivery ? 0 : prodSundarbanDeliveryFee}
+                            onChange={e => setProdSundarbanDeliveryFee(Number(e.target.value))}
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920] disabled:bg-slate-50 tabular-nums"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                            Other Courier — Steadfast/SA (৳)
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            disabled={prodIsFreeDelivery}
+                            placeholder="100"
+                            value={prodIsFreeDelivery ? 0 : prodOtherCourierDeliveryFee}
+                            onChange={e => setProdOtherCourierDeliveryFee(Number(e.target.value))}
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920] disabled:bg-slate-50 tabular-nums"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                          Weight-Based Extra Charge Note
+                        </label>
+                        <input
+                          type="text"
+                          value={prodWeightNote}
+                          onChange={e => setProdWeightNote(e.target.value)}
+                          placeholder="Weight-based extra charge: ৳20 added per extra kg/item when weight increases."
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-800 focus:outline-none focus:border-[#D71920] focus:bg-white"
+                        />
+                      </div>
+
                       {/* Delivery Timing Presets */}
-                      <div className="space-y-1.5 pt-1">
-                        <label className="block text-[11px] font-bold text-neutral-600 uppercase">
+                      <div className="pt-2 border-t border-slate-100 space-y-2">
+                        <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600">
                           Delivery Timing Quick Presets
                         </label>
                         <div className="flex flex-wrap gap-1.5">
                           {[
-                            { label: '⚡ 24h Express', est: '24h Express Delivery', inDhaka: '12-24 Hours', outDhaka: '1-2 Days', hrs: 24 },
-                            { label: '🚚 1-2 Days', est: '1-2 Business Days', inDhaka: '24 Hours (1 Day)', outDhaka: '1-2 Business Days', hrs: 36 },
-                            { label: '📦 2-3 Days (Default)', est: '2-3 Business Days', inDhaka: '24-48 Hours (1-2 Days)', outDhaka: '2-3 Business Days (Nationwide)', hrs: 48 },
-                            { label: '⏳ 3-5 Days (Pre-Order)', est: '3-5 Days (Pre-Order)', inDhaka: '2-3 Days', outDhaka: '3-5 Business Days', hrs: 96 },
+                            { label: '24h Express', est: '24h Express Delivery', inDhaka: '12-24 Hours', outDhaka: '1-2 Days', hrs: 24 },
+                            { label: '1-2 Days', est: '1-2 Business Days', inDhaka: '24 Hours (1 Day)', outDhaka: '1-2 Business Days', hrs: 36 },
+                            { label: '2-3 Days (Default)', est: '2-3 Business Days', inDhaka: '24-48 Hours (1-2 Days)', outDhaka: '2-3 Business Days (Nationwide)', hrs: 48 },
+                            { label: '3-5 Days (Pre-Order)', est: '3-5 Days (Pre-Order)', inDhaka: '2-3 Days', outDhaka: '3-5 Business Days', hrs: 96 },
                           ].map((preset, idx) => (
                             <button
                               key={idx}
@@ -6927,7 +6764,7 @@ export function AdminDashboard() {
                                 setProdOutsideDhakaDelivery(preset.outDhaka);
                                 setProdDeliveryTimerHours(preset.hrs);
                               }}
-                              className="px-2.5 py-1 rounded-lg bg-[#F7F7F8] hover:bg-[#D71920] hover:text-white text-neutral-700 border border-neutral-200 text-[10px] font-bold transition-all cursor-pointer shadow-2xs"
+                              className="px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-semibold transition-colors cursor-pointer"
                             >
                               {preset.label}
                             </button>
@@ -6935,11 +6772,10 @@ export function AdminDashboard() {
                         </div>
                       </div>
 
-                      {/* Timing Section Title & Inside/Outside Dhaka Timeframes */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
-                          <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                            Delivery Timing Section Title
+                          <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                            Timing Section Title
                           </label>
                           <input
                             type="text"
@@ -6947,12 +6783,12 @@ export function AdminDashboard() {
                             placeholder="Delivery Timing"
                             value={prodDeliveryTimingTitle}
                             onChange={e => setProdDeliveryTimingTitle(e.target.value)}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:border-[#D71920]"
                           />
                         </div>
                         <div>
-                          <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                            Inside Dhaka Timeframe
+                          <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                            Inside Dhaka Window
                           </label>
                           <input
                             type="text"
@@ -6960,12 +6796,12 @@ export function AdminDashboard() {
                             placeholder="24-48 Hours (1-2 Days)"
                             value={prodInsideDhakaDelivery}
                             onChange={e => setProdInsideDhakaDelivery(e.target.value)}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:border-[#D71920]"
                           />
                         </div>
                         <div>
-                          <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                            Outside Dhaka Timeframe
+                          <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                            Outside Dhaka Window
                           </label>
                           <input
                             type="text"
@@ -6973,28 +6809,27 @@ export function AdminDashboard() {
                             placeholder="2-3 Business Days (Nationwide)"
                             value={prodOutsideDhakaDelivery}
                             onChange={e => setProdOutsideDhakaDelivery(e.target.value)}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:border-[#D71920]"
                           />
                         </div>
                       </div>
 
-                      {/* Timing Badge & Timer Hours & Custom Delivery Note */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
-                          <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                            Primary Delivery Badge *
+                          <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                            Primary Estimate *
                           </label>
                           <input
                             type="text"
                             placeholder="e.g. 2-3 Business Days"
                             value={prodDeliveryEstimate}
                             onChange={e => setProdDeliveryEstimate(e.target.value)}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:border-[#D71920]"
                           />
                         </div>
                         <div>
-                          <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                            Timer Hours (Hours)
+                          <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                            Timer Hours
                           </label>
                           <input
                             type="number"
@@ -7002,19 +6837,19 @@ export function AdminDashboard() {
                             placeholder="48"
                             value={prodDeliveryTimerHours}
                             onChange={e => setProdDeliveryTimerHours(Number(e.target.value))}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:border-[#D71920] tabular-nums"
                           />
                         </div>
                         <div>
-                          <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                            Custom Delivery Note
+                          <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                            Custom Note
                           </label>
                           <input
                             type="text"
                             placeholder="Order today for fast dispatch..."
                             value={prodDeliveryTimingNote}
                             onChange={e => setProdDeliveryTimingNote(e.target.value)}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:border-[#D71920]"
                           />
                         </div>
                       </div>
@@ -7023,68 +6858,65 @@ export function AdminDashboard() {
                   </div>
 
                   {/* RIGHT COLUMN: 4 Columns */}
-                  <div className="lg:col-span-4 space-y-6">
-                    
+                  <div className="lg:col-span-4 space-y-5">
+
                     {/* WIDGET 1: PRODUCT STATUS */}
-                    <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 text-neutral-900 shadow-xs space-y-4">
-                      <h4 className="font-extrabold text-xs uppercase tracking-wider text-neutral-500">
-                        PRODUCT STATUS
+                    <div className="bg-white border border-slate-200 rounded-xl p-5 text-slate-900 space-y-4">
+                      <h4 className="font-bold text-xs uppercase tracking-wider text-slate-500">
+                        Status &amp; Visibility
                       </h4>
 
-                      {/* Visibility Status */}
                       <div>
-                        <label className="block text-xs font-bold text-neutral-700 mb-2">
-                          Visibility Status
+                        <label className="block text-xs font-semibold text-slate-700 mb-2">
+                          Visibility
                         </label>
                         <div className="grid grid-cols-2 gap-2">
                           <button
                             type="button"
                             onClick={() => setProdIsActive(true)}
-                            className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer border transition-all ${
+                            className={`py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer border transition-colors ${
                               prodIsActive
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-300 shadow-xs'
-                                : 'bg-[#F7F7F8] text-neutral-600 border-neutral-200 hover:bg-neutral-100'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                             }`}
                           >
-                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                            <span>Active / Live</span>
+                            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                            <span>Active</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => setProdIsActive(false)}
-                            className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer border transition-all ${
+                            className={`py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer border transition-colors ${
                               !prodIsActive
-                                ? 'bg-neutral-800 text-white border-neutral-800 shadow-xs'
-                                : 'bg-[#F7F7F8] text-neutral-600 border-neutral-200 hover:bg-neutral-100'
+                                ? 'bg-slate-900 text-white border-slate-900'
+                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                             }`}
                           >
-                            <span className="w-2 h-2 rounded-full bg-neutral-400"></span>
-                            <span>Draft / Hidden</span>
+                            <span className="w-2 h-2 rounded-full bg-slate-400" />
+                            <span>Draft</span>
                           </button>
                         </div>
                       </div>
 
-                      {/* Featured / Hot Deal Switch */}
-                      <div className="p-3.5 rounded-xl bg-[#F7F7F8] border border-[#E5E5E5] flex items-center justify-between">
+                      <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <Flame size={16} className={prodIsFeatured ? 'text-[#D71920]' : 'text-neutral-400'} />
-                          <span className="text-xs font-bold text-neutral-800">Featured / Hot Deal</span>
+                          <Flame size={15} className={prodIsFeatured ? 'text-[#D71920]' : 'text-slate-400'} />
+                          <span className="text-xs font-semibold text-slate-800">Featured Deal</span>
                         </div>
                         <button
                           type="button"
                           onClick={() => setProdIsFeatured(!prodIsFeatured)}
-                          className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-200 ${
-                            prodIsFeatured ? 'bg-[#D71920] justify-end' : 'bg-neutral-300 justify-start'
+                          className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-200 ${
+                            prodIsFeatured ? 'bg-[#D71920] justify-end' : 'bg-slate-300 justify-start'
                           }`}
                         >
-                          <span className="bg-white w-4 h-4 rounded-full shadow-md transform transition-transform" />
+                          <span className="bg-white w-4 h-4 rounded-full shadow-xs" />
                         </button>
                       </div>
 
-                      {/* Product Badge Selector */}
                       <div>
-                        <label className="block text-xs font-bold text-neutral-700 mb-2">
-                          Product Badge
+                        <label className="block text-xs font-semibold text-slate-700 mb-2">
+                          Catalog Badge
                         </label>
                         <div className="flex flex-wrap gap-1.5">
                           {['NEW', 'HOT', 'SALE', '100% Pure', 'Best Offer', '50% Off', 'Original'].map(badge => (
@@ -7092,10 +6924,10 @@ export function AdminDashboard() {
                               key={badge}
                               type="button"
                               onClick={() => setProdBadge(badge)}
-                              className={`px-3 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
+                              className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border transition-colors cursor-pointer ${
                                 prodBadge === badge
-                                  ? 'bg-[#D71920] text-white border-[#D71920] shadow-xs'
-                                  : 'bg-[#F7F7F8] text-neutral-700 border-neutral-200 hover:bg-neutral-100'
+                                  ? 'bg-[#D71920] text-white border-[#D71920]'
+                                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                               }`}
                             >
                               {badge}
@@ -7106,42 +6938,40 @@ export function AdminDashboard() {
                     </div>
 
                     {/* WIDGET 2: PRICING */}
-                    <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 text-neutral-900 shadow-xs space-y-4">
-                      <h4 className="font-extrabold text-xs uppercase tracking-wider text-neutral-500">
-                        PRICING
+                    <div className="bg-white border border-slate-200 rounded-xl p-5 text-slate-900 space-y-4">
+                      <h4 className="font-bold text-xs uppercase tracking-wider text-slate-500">
+                        Pricing
                       </h4>
 
-                      {/* Regular Price */}
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <label className="block text-xs font-bold text-neutral-700">
-                            রেগুলার মূল্য (Regular / Original Price)
+                          <label className="block text-xs font-semibold text-slate-700">
+                            Regular Price
                           </label>
-                          <span className="text-[10px] text-neutral-400">(Optional - strikethrough)</span>
+                          <span className="text-[10px] text-slate-400">Strikethrough</span>
                         </div>
                         <div className="relative">
-                          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 font-bold text-xs">৳</span>
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold text-xs">৳</span>
                           <input
                             type="number"
                             min={0}
                             placeholder="450"
                             value={prodRegularPrice}
                             onChange={e => setProdRegularPrice(Number(e.target.value))}
-                            className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                            className="w-full pl-7 pr-3.5 py-2 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:border-[#D71920] tabular-nums"
                           />
                         </div>
                       </div>
 
-                      {/* Offer Price */}
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <label className="block text-xs font-bold text-neutral-700">
-                            অফার মূল্য (Offer Price) <span className="text-[#D71920]">*</span>
+                          <label className="block text-xs font-semibold text-slate-700">
+                            Sale / Offer Price <span className="text-[#D71920]">*</span>
                           </label>
-                          <span className="text-[10px] text-emerald-600 font-bold">(Customer purchase price)</span>
+                          <span className="text-[10px] text-emerald-700 font-semibold">Checkout price</span>
                         </div>
                         <div className="relative">
-                          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-600 font-bold text-xs">৳</span>
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600 font-semibold text-xs">৳</span>
                           <input
                             type="number"
                             min={0}
@@ -7149,49 +6979,40 @@ export function AdminDashboard() {
                             placeholder="350"
                             value={prodPrice}
                             onChange={e => setProdPrice(Number(e.target.value))}
-                            className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-emerald-300 bg-white text-sm font-black text-emerald-700 focus:outline-none focus:border-emerald-500 shadow-2xs"
+                            className="w-full pl-7 pr-3.5 py-2 rounded-lg border border-emerald-300 bg-white text-sm font-bold text-emerald-700 focus:outline-none focus:border-emerald-500 tabular-nums"
                           />
                         </div>
                       </div>
 
-                      {/* Dynamic Customer Savings Banner */}
                       {Number(prodRegularPrice) > Number(prodPrice) && (
-                        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between text-xs text-amber-900 font-bold shadow-2xs">
-                          <div className="flex items-center gap-1.5">
-                            <Tag size={13} className="text-amber-600" />
-                            <span>Customer Savings:</span>
-                          </div>
-                          <span className="font-black text-amber-800">
+                        <div className="px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between text-xs text-slate-700 font-semibold tabular-nums">
+                          <span>Customer Savings</span>
+                          <span className="text-[#D71920] font-bold">
                             ৳{Number(prodRegularPrice) - Number(prodPrice)} ({Math.round(((Number(prodRegularPrice) - Number(prodPrice)) / Number(prodRegularPrice)) * 100)}% OFF)
                           </span>
                         </div>
                       )}
-
-                      <p className="text-[10px] text-neutral-400 text-center">
-                        Purchase Cost Price দিলে প্রফিট হিসাব হবে
-                      </p>
                     </div>
 
                     {/* WIDGET 3: PRODUCT GALLERY */}
-                    <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 text-neutral-900 shadow-xs space-y-4">
+                    <div className="bg-white border border-slate-200 rounded-xl p-5 text-slate-900 space-y-4">
                       <div className="flex items-center justify-between">
-                        <h4 className="font-extrabold text-xs uppercase tracking-wider text-neutral-500">
-                          PRODUCT GALLERY
+                        <h4 className="font-bold text-xs uppercase tracking-wider text-slate-500">
+                          Product Gallery
                         </h4>
-                        <span className="text-[11px] text-neutral-500 font-mono">
-                          {prodGalleryUrls.length} Images
+                        <span className="text-[11px] text-slate-500 font-mono tabular-nums">
+                          {prodGalleryUrls.length} images
                         </span>
                       </div>
 
-                      {/* Dropzone Upload Box */}
-                      <label className="border-2 border-dashed border-neutral-300 hover:border-[#D71920] hover:bg-[#FFF9F9] bg-[#F7F7F8] rounded-2xl p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-all group">
-                        <div className="w-10 h-10 rounded-full bg-red-50 text-[#D71920] flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                          <Upload size={18} />
+                      <label className="border border-dashed border-slate-300 hover:border-[#D71920] bg-slate-50 hover:bg-[#FFF9F9] rounded-xl p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-colors group">
+                        <div className="w-9 h-9 rounded-full bg-white border border-slate-200 text-slate-600 group-hover:text-[#D71920] flex items-center justify-center mb-2 transition-colors">
+                          <Upload size={16} />
                         </div>
-                        <span className="text-xs font-bold text-neutral-800 group-hover:text-[#D71920]">
-                          Click to upload or drag image
+                        <span className="text-xs font-semibold text-slate-800 group-hover:text-[#D71920]">
+                          Click to upload images
                         </span>
-                        <span className="text-[10px] text-neutral-400 mt-0.5">
+                        <span className="text-[10px] text-slate-400 mt-0.5">
                           PNG, JPG, WEBP up to 5MB
                         </span>
                         <input
@@ -7209,7 +7030,7 @@ export function AdminDashboard() {
                                 if (!prodImage && compressedList.length > 0) {
                                   setProdImage(compressedList[0]);
                                 }
-                                setToast({ show: true, type: 'success', message: `${files.length}টি ছবি সফলভাবে আপলোড হয়েছে!` });
+                                setToast({ show: true, type: 'success', message: `${files.length} image(s) uploaded!` });
                               } catch (err: any) {
                                 setToast({ show: true, type: 'error', message: err.message || 'Upload failed' });
                               }
@@ -7219,7 +7040,6 @@ export function AdminDashboard() {
                         />
                       </label>
 
-                      {/* Paste Image URL Input */}
                       <div className="flex items-center gap-1.5">
                         <input
                           type="url"
@@ -7236,7 +7056,7 @@ export function AdminDashboard() {
                               }
                             }
                           }}
-                          className="flex-1 px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                          className="flex-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#D71920]"
                         />
                         <button
                           type="button"
@@ -7247,20 +7067,19 @@ export function AdminDashboard() {
                               setGalleryUrlInput('');
                             }
                           }}
-                          className="px-3.5 py-2 bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-bold rounded-xl cursor-pointer shadow-xs transition-colors"
+                          className="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg cursor-pointer transition-colors"
                         >
                           Add
                         </button>
                       </div>
 
-                      {/* Gallery Thumbnails Grid */}
                       {prodGalleryUrls.length > 0 && (
                         <div className="grid grid-cols-3 gap-2 pt-1">
                           {prodGalleryUrls.map((url, idx) => (
-                            <div key={idx} className="relative group rounded-xl overflow-hidden border border-neutral-200 bg-white aspect-square p-1 shadow-2xs">
-                              <img src={url} alt={`Gallery ${idx + 1}`} className="w-full h-full object-contain rounded-lg" />
+                            <div key={idx} className="relative group rounded-lg overflow-hidden border border-slate-200 bg-white aspect-square p-1">
+                              <img src={url} alt={`Gallery ${idx + 1}`} className="w-full h-full object-contain rounded" />
                               {idx === 0 && (
-                                <span className="absolute top-1 left-1 text-[9px] font-black px-1.5 py-0.2 rounded bg-amber-500 text-white shadow-2xs">
+                                <span className="absolute top-1 left-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-900 text-white">
                                   Cover
                                 </span>
                               )}
@@ -7272,7 +7091,7 @@ export function AdminDashboard() {
                                     setProdImage(prodGalleryUrls.find(u => u !== url) || '');
                                   }
                                 }}
-                                className="absolute top-1 right-1 p-1 rounded-md bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-xs"
+                                className="absolute top-1 right-1 p-1 rounded bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                               >
                                 <Trash2 size={11} />
                               </button>
@@ -7282,45 +7101,51 @@ export function AdminDashboard() {
                       )}
                     </div>
 
-                    {/* WIDGET 4: DELIVERY CHARGE */}
-                    <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 text-neutral-900 shadow-xs space-y-4">
-                      <div className="flex items-center gap-2">
-                        <Truck size={16} className="text-[#D71920]" />
-                        <h4 className="font-extrabold text-xs uppercase tracking-wider text-neutral-500">
-                          DELIVERY CHARGE
-                        </h4>
-                      </div>
+                    {/* WIDGET 4: DELIVERY CHARGE MODE */}
+                    <div className="bg-white border border-slate-200 rounded-xl p-5 text-slate-900 space-y-4">
+                      <h4 className="font-bold text-xs uppercase tracking-wider text-slate-500">
+                        Shipping Mode
+                      </h4>
 
                       <div className="grid grid-cols-3 gap-1.5">
                         <button
                           type="button"
-                          onClick={() => setProdDeliveryChargeType('standard')}
-                          className={`py-2 px-2 rounded-xl text-xs font-bold text-center border transition-all cursor-pointer ${
+                          onClick={() => {
+                            setProdDeliveryChargeType('standard');
+                            setProdIsFreeDelivery(false);
+                          }}
+                          className={`py-2 px-2 rounded-lg text-xs font-semibold text-center border transition-colors cursor-pointer ${
                             prodDeliveryChargeType === 'standard'
-                              ? 'bg-[#D71920] text-white border-[#D71920] shadow-xs'
-                              : 'bg-[#F7F7F8] text-neutral-700 border-neutral-200 hover:bg-neutral-100'
+                              ? 'bg-[#D71920] text-white border-[#D71920]'
+                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                           }`}
                         >
                           Standard
                         </button>
                         <button
                           type="button"
-                          onClick={() => setProdDeliveryChargeType('free')}
-                          className={`py-2 px-2 rounded-xl text-xs font-bold text-center border transition-all cursor-pointer ${
+                          onClick={() => {
+                            setProdDeliveryChargeType('free');
+                            setProdIsFreeDelivery(true);
+                          }}
+                          className={`py-2 px-2 rounded-lg text-xs font-semibold text-center border transition-colors cursor-pointer ${
                             prodDeliveryChargeType === 'free'
-                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                              : 'bg-[#F7F7F8] text-neutral-700 border-neutral-200 hover:bg-neutral-100'
+                              ? 'bg-emerald-600 text-white border-emerald-600'
+                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                           }`}
                         >
-                          ✨ Free
+                          Free
                         </button>
                         <button
                           type="button"
-                          onClick={() => setProdDeliveryChargeType('custom')}
-                          className={`py-2 px-2 rounded-xl text-xs font-bold text-center border transition-all cursor-pointer ${
+                          onClick={() => {
+                            setProdDeliveryChargeType('custom');
+                            setProdIsFreeDelivery(false);
+                          }}
+                          className={`py-2 px-2 rounded-lg text-xs font-semibold text-center border transition-colors cursor-pointer ${
                             prodDeliveryChargeType === 'custom'
-                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                              : 'bg-[#F7F7F8] text-neutral-700 border-neutral-200 hover:bg-neutral-100'
+                              ? 'bg-slate-900 text-white border-slate-900'
+                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                           }`}
                         >
                           Custom
@@ -7328,9 +7153,9 @@ export function AdminDashboard() {
                       </div>
 
                       {prodDeliveryChargeType === 'custom' && (
-                        <div className="pt-2">
-                          <label className="block text-xs font-bold text-neutral-700 mb-1">
-                            Custom Delivery Charge (৳)
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">
+                            Flat Custom Fee (৳)
                           </label>
                           <input
                             type="number"
@@ -7338,68 +7163,41 @@ export function AdminDashboard() {
                             placeholder="60"
                             value={prodCustomDeliveryFee}
                             onChange={e => setProdCustomDeliveryFee(Number(e.target.value))}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-blue-500 focus:bg-white shadow-2xs"
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:border-[#D71920] tabular-nums"
                           />
                         </div>
                       )}
                     </div>
 
-                    {/* WIDGET 5: CATEGORY & SKU */}
-                    <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 text-neutral-900 shadow-xs space-y-4">
-                      <h4 className="font-extrabold text-xs uppercase tracking-wider text-neutral-500">
-                        CATEGORY & INVENTORY
+                    {/* WIDGET 5: ORGANIZATION & INVENTORY */}
+                    <div className="bg-white border border-slate-200 rounded-xl p-5 text-slate-900 space-y-4">
+                      <h4 className="font-bold text-xs uppercase tracking-wider text-slate-500">
+                        Organization &amp; Inventory
                       </h4>
 
                       <div>
-                        <label className="block text-xs font-bold text-neutral-700 mb-1">
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
                           Category <span className="text-[#D71920]">*</span>
                         </label>
                         <select
                           value={prodCategory}
                           onChange={e => setProdCategory(e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920] cursor-pointer"
                         >
+                          <option value="">-- Select Category --</option>
                           {categories
                             .filter(c => c.type === prodType)
                             .map(c => (
-                              <option key={c.id} value={c.name} className="bg-white text-neutral-900">
+                              <option key={c.id} value={c.name} className="bg-white text-slate-900">
                                 {c.name}
                               </option>
                             ))}
                         </select>
                       </div>
 
-                      {prodType === 'book' && (
-                        <div>
-                          <label className="block text-xs font-bold text-neutral-700 mb-1">
-                            Publisher <span className="text-[#D71920]">*</span>
-                          </label>
-                          <select
-                            value={prodPublisher}
-                            onChange={e => setProdPublisher(e.target.value)}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
-                          >
-                            <option value="">-- Select Publisher --</option>
-                            {enrichedPublishers.map(pub => (
-                              <option key={pub.id} value={pub.name} className="bg-white text-neutral-900">
-                                {pub.name} ({pub.liveBooksCount} {pub.liveBooksCount === 1 ? 'Book' : 'Books'})
-                              </option>
-                            ))}
-                          </select>
-                          {prodPublisher.trim() && (
-                            <p className="mt-1 text-[11px] text-slate-500 font-medium tabular-nums">
-                              Auto-count: {publisherCountPreview.currentCount} in catalog →{' '}
-                              <span className="text-[#D71920] font-bold">
-                                {publisherCountPreview.projectedCount} after {editingProductId ? 'save' : 'upload'}
-                              </span>
-                            </p>
-                          )}
-                        </div>
-                      )}
-
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <label className="block text-xs font-bold text-neutral-700">
+                          <label className="block text-xs font-semibold text-slate-700">
                             SKU Code
                           </label>
                           <button
@@ -7408,9 +7206,9 @@ export function AdminDashboard() {
                               const newSku = (prodType === 'book' ? 'BK-' : 'ST-') + Math.floor(1000 + Math.random() * 9000);
                               setProdSku(newSku);
                             }}
-                            className="text-[11px] font-bold text-[#D71920] hover:underline cursor-pointer"
+                            className="text-[11px] font-semibold text-[#D71920] hover:underline cursor-pointer"
                           >
-                            Auto-gen
+                            Auto-generate
                           </button>
                         </div>
                         <input
@@ -7418,7 +7216,7 @@ export function AdminDashboard() {
                           placeholder={prodType === 'book' ? 'e.g. BK-PS2-PB' : 'e.g. ST-DIARY-01'}
                           value={prodSku}
                           onChange={e => setProdSku(e.target.value)}
-                          className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-mono font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:border-[#D71920]"
                         />
                       </div>
                     </div>
@@ -7426,28 +7224,20 @@ export function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* CARD 4 (FULL WIDTH): BOOK PREVIEW & LOOK INSIDE (বইয়ের কিছু অংশ পড়ুন) */}
+                {/* CARD 4 (FULL WIDTH): BOOK PREVIEW & LOOK INSIDE */}
                 {prodType === 'book' && (
-                  <div className="w-full bg-white border border-[#E5E5E5] rounded-2xl p-5 sm:p-6 text-neutral-900 shadow-xs space-y-5">
-                    {/* Header with Title and Action Buttons */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-neutral-100">
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-red-50 text-[#D71920] border border-red-200/60 flex items-center justify-center shrink-0">
-                          <BookOpen size={20} />
-                        </div>
-                        <div>
-                          <h4 className="font-extrabold text-sm sm:text-base text-neutral-900">
-                            বইয়ের কিছু অংশ পড়ুন — Book Preview & Look Inside
-                          </h4>
-                          <p className="text-xs text-neutral-500 mt-0.5">
-                            Upload a PDF file, page images, or written preview pages for customers to read
-                          </p>
-                        </div>
+                  <div className="w-full bg-white border border-slate-200 rounded-xl p-5 text-slate-900 space-y-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-slate-100">
+                      <div>
+                        <h4 className="font-bold text-sm text-slate-900">
+                          Book Preview &amp; Look Inside
+                        </h4>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Upload PDF sample pages, cover spreads, or written preview excerpts
+                        </p>
                       </div>
 
-                      {/* Upload & Add Buttons */}
                       <div className="flex flex-wrap items-center gap-2">
-                        {/* PDF Upload */}
                         <input
                           id="book-preview-pdf-input"
                           type="file"
@@ -7460,13 +7250,12 @@ export function AdminDashboard() {
                           type="button"
                           onClick={() => document.getElementById('book-preview-pdf-input')?.click()}
                           disabled={pdfUploading}
-                          className="px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs cursor-pointer transition-all"
+                          className="px-3.5 py-2 bg-[#D71920] hover:bg-[#B9151B] disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
                         >
-                          <Upload size={14} />
-                          <span>{pdfUploading ? 'প্রসেসিং...' : 'Upload PDF (২-৫ পেজ)'}</span>
+                          <Upload size={13} />
+                          <span>{pdfUploading ? 'Processing...' : 'Upload PDF'}</span>
                         </button>
 
-                        {/* Page Images Upload */}
                         <input
                           id="book-preview-images-input"
                           type="file"
@@ -7480,95 +7269,92 @@ export function AdminDashboard() {
                           type="button"
                           onClick={() => document.getElementById('book-preview-images-input')?.click()}
                           disabled={pdfUploading}
-                          className="px-4 py-2 bg-neutral-900 hover:bg-neutral-800 disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs cursor-pointer transition-all"
+                          className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
                         >
-                          <ImageIcon size={14} />
-                          <span>Upload Page Images</span>
+                          <ImageIcon size={13} />
+                          <span>Upload Pages</span>
                         </button>
 
-                        {/* Written Page Button */}
                         <button
                           type="button"
                           onClick={handleAddWrittenPreviewPage}
-                          className="px-4 py-2 bg-white hover:bg-neutral-50 text-neutral-800 border border-neutral-300 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-2xs cursor-pointer transition-all"
+                          className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
                         >
-                          <Plus size={14} />
-                          <span>লেখার পৃষ্ঠা যোগ করুন</span>
+                          <Plus size={13} />
+                          <span>Add Text Page</span>
                         </button>
                       </div>
                     </div>
 
-                    {/* Form Fields: Section Title, Subtitle, Intro Text */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                          হাইলাইট শিরোনাম (SECTION TITLE)
+                        <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                          Section Title
                         </label>
                         <input
                           type="text"
                           value={prodPreviewHighlightTitle}
                           onChange={e => setProdPreviewHighlightTitle(e.target.value)}
                           placeholder="বইয়ের কিছু অংশ পড়ুন (একটু পড়ে দেখুন)"
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
                         />
                       </div>
                       <div>
-                        <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                          সাব-টাইটেল (OPTIONAL SUBTITLE)
+                        <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                          Subtitle (Optional)
                         </label>
                         <input
                           type="text"
                           value={prodPreviewHighlightSubtitle}
                           onChange={e => setProdPreviewHighlightSubtitle(e.target.value)}
-                          placeholder="বইয়ের কিছুটা পড়তে পারেন এখানে • পৃষ্ঠা স্লাইড করে পড়ুন"
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs"
+                          placeholder="পৃষ্ঠা স্লাইড করে পড়ুন"
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:border-[#D71920]"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                        বই সম্পর্কে কিছু কথা / ভূমিকা (SHOWN INSIDE BOOK PREVIEW)
+                      <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                        Introductory Note
                       </label>
                       <textarea
                         rows={2}
                         value={prodPreviewIntro}
                         onChange={e => setProdPreviewIntro(e.target.value)}
                         placeholder="বইটি সম্পর্কে বিশেষ কিছু কথা বা ভূমিকা লিখুন..."
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#FDFDFD] text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] focus:bg-white shadow-2xs resize-none"
+                        className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:border-[#D71920] resize-none"
                       />
                     </div>
 
-                    {/* Preview Pages Cards or Empty Notice */}
                     {prodPreviewPages.length === 0 ? (
-                      <div className="p-6 border-2 border-dashed border-neutral-200 rounded-xl bg-neutral-50/60 text-center">
-                        <p className="text-xs text-neutral-500">
-                          এখনো কোনো কাস্টম পৃষ্ঠা যোগ করা হয়নি। উপরে <strong>Upload PDF</strong>, <strong>Upload Page Images</strong> বা <strong>লেখার পৃষ্ঠা যোগ করুন</strong> বাটনে ক্লিক করে পৃষ্ঠা যুক্ত করতে পারেন।
+                      <div className="p-5 border border-dashed border-slate-200 rounded-lg bg-slate-50 text-center">
+                        <p className="text-xs text-slate-500">
+                          No preview pages attached yet. Use Upload PDF, Upload Pages, or Add Text Page above.
                         </p>
                       </div>
                     ) : (
-                      <div className="space-y-3 pt-2">
+                      <div className="space-y-3 pt-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-neutral-700">
-                            সংযুক্ত প্রিভিউ পৃষ্ঠা সমূহ ({prodPreviewPages.length}টি পৃষ্ঠা)
+                          <span className="text-xs font-semibold text-slate-700 tabular-nums">
+                            Preview Pages ({prodPreviewPages.length})
                           </span>
                           <button
                             type="button"
                             onClick={() => setProdPreviewPages([])}
-                            className="text-[11px] font-bold text-[#D71920] hover:underline cursor-pointer"
+                            className="text-[11px] font-semibold text-[#D71920] hover:underline cursor-pointer"
                           >
-                            সবগুলো মুছুন
+                            Clear All
                           </button>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           {prodPreviewPages.map((page, idx) => (
                             <div
                               key={page.id || idx}
-                              className="p-3.5 rounded-xl border border-neutral-200 bg-[#FAFAFA] flex flex-col gap-2 relative group"
+                              className="p-3 rounded-lg border border-slate-200 bg-slate-50 flex flex-col gap-2"
                             >
                               <div className="flex items-center justify-between gap-2">
                                 <div className="flex items-center gap-2">
-                                  <span className="w-6 h-6 rounded-lg bg-red-100 text-[#D71920] text-[11px] font-extrabold flex items-center justify-center">
+                                  <span className="w-6 h-6 rounded-md bg-white border border-slate-200 text-slate-700 text-[11px] font-bold flex items-center justify-center tabular-nums">
                                     {idx + 1}
                                   </span>
                                   <input
@@ -7578,8 +7364,8 @@ export function AdminDashboard() {
                                       const newTitle = e.target.value;
                                       setProdPreviewPages(prev => prev.map((p, i) => i === idx ? { ...p, title: newTitle } : p));
                                     }}
-                                    placeholder={`পৃষ্ঠা ${idx + 1}`}
-                                    className="px-2 py-1 rounded-lg border border-neutral-200 bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920]"
+                                    placeholder={`Page ${idx + 1}`}
+                                    className="px-2 py-1 rounded border border-slate-200 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:border-[#D71920]"
                                   />
                                 </div>
                                 <div className="flex items-center gap-1">
@@ -7587,8 +7373,8 @@ export function AdminDashboard() {
                                     <button
                                       type="button"
                                       onClick={() => setProdPreviewPages(prev => movePreviewPage(prev, idx, 'up'))}
-                                      className="p-1 rounded text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200 cursor-pointer"
-                                      title="উপরে নিন"
+                                      className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200 cursor-pointer"
+                                      title="Move up"
                                     >
                                       <ArrowUp size={13} />
                                     </button>
@@ -7597,8 +7383,8 @@ export function AdminDashboard() {
                                     <button
                                       type="button"
                                       onClick={() => setProdPreviewPages(prev => movePreviewPage(prev, idx, 'down'))}
-                                      className="p-1 rounded text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200 cursor-pointer"
-                                      title="নিচে নিন"
+                                      className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200 cursor-pointer"
+                                      title="Move down"
                                     >
                                       <ArrowDown size={13} />
                                     </button>
@@ -7606,8 +7392,8 @@ export function AdminDashboard() {
                                   <button
                                     type="button"
                                     onClick={() => setProdPreviewPages(prev => prev.filter((_, i) => i !== idx).map((p, i) => ({ ...p, pageNumber: i + 1 })))}
-                                    className="p-1 rounded text-neutral-400 hover:text-red-600 hover:bg-red-50 cursor-pointer"
-                                    title="মুছুন"
+                                    className="p-1 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 cursor-pointer"
+                                    title="Remove"
                                   >
                                     <Trash2 size={13} />
                                   </button>
@@ -7615,11 +7401,8 @@ export function AdminDashboard() {
                               </div>
 
                               {page.imageUrl ? (
-                                <div className="relative rounded-lg overflow-hidden border border-neutral-200 bg-white h-36 flex items-center justify-center">
+                                <div className="relative rounded-md overflow-hidden border border-slate-200 bg-white h-36 flex items-center justify-center">
                                   <img src={page.imageUrl} alt={page.title} className="max-h-full object-contain" />
-                                  <span className="absolute bottom-1 right-2 bg-black/70 text-white text-[10px] px-2 py-0.5 rounded">
-                                    ছবি প্রিভিউ
-                                  </span>
                                 </div>
                               ) : (
                                 <textarea
@@ -7629,8 +7412,8 @@ export function AdminDashboard() {
                                     const newContent = e.target.value;
                                     setProdPreviewPages(prev => prev.map((p, i) => i === idx ? { ...p, content: newContent } : p));
                                   }}
-                                  placeholder="এই পৃষ্ঠার মূল পাঠ্য বা সারাংশ এখানে লিখুন..."
-                                  className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-200 bg-white text-xs text-neutral-800 focus:outline-none focus:border-[#D71920] resize-none"
+                                  placeholder="Enter page text..."
+                                  className="w-full px-2.5 py-1.5 rounded-md border border-slate-200 bg-white text-xs text-slate-800 focus:outline-none focus:border-[#D71920] resize-none"
                                 />
                               )}
                             </div>
@@ -7641,109 +7424,94 @@ export function AdminDashboard() {
                   </div>
                 )}
 
-                {/* CARD 5 (FULL WIDTH): VARIANTS & OPTIONS (সাইজ ও সংস্করণ) */}
-                <div className="w-full bg-white border border-[#E5E5E5] rounded-2xl p-5 sm:p-6 text-neutral-900 shadow-xs space-y-5">
-                  <div className="flex items-center gap-3 pb-3 border-b border-neutral-100">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 border border-blue-200/60 flex items-center justify-center shrink-0">
-                      <Layers size={20} />
+                {/* CARD 5 (FULL WIDTH): VARIANTS & OPTIONS */}
+                <div className="w-full bg-white border border-slate-200 rounded-xl p-5 text-slate-900 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <h4 className="font-bold text-sm text-slate-900">
+                          Variants &amp; Editions
+                        </h4>
+                        <p className="text-[11px] text-slate-500">
+                          Configure print bindings, pack sizes, and edition-specific pricing
+                        </p>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-xs font-semibold tabular-nums">
+                        {customVariants.length}
+                      </span>
                     </div>
-                    <div>
-                      <h4 className="font-extrabold text-sm sm:text-base text-neutral-900">
-                        Variants & Options
-                      </h4>
-                      <p className="text-xs text-neutral-500 mt-0.5">
-                        Sizes, colors, and variant configurations
-                      </p>
+
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const baseP = Number(prodPrice) || 350;
+                          const baseReg = Number(prodRegularPrice) || 450;
+                          const baseSku = prodSku || 'BK-6530';
+                          setCustomVariants([
+                            { id: `var-${Date.now()}-1`, name: 'Paperback (পেপারব্যাক)', price: baseP, regularPrice: baseReg, stock: 100, sku: `${baseSku}-PB` },
+                            { id: `var-${Date.now()}-2`, name: 'Hardcover (হার্ডকভার)', price: baseP + 100, regularPrice: baseReg + 100, stock: 50, sku: `${baseSku}-HC` },
+                          ]);
+                        }}
+                        className="px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-semibold transition-colors cursor-pointer"
+                      >
+                        + Paperback &amp; Hardcover
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const baseP = Number(prodPrice) || 350;
+                          const baseReg = Number(prodRegularPrice) || 450;
+                          const baseSku = prodSku || 'BK-6530';
+                          setCustomVariants(prev => [
+                            ...prev,
+                            { id: `var-${Date.now()}-gift`, name: 'Gift Edition (উপহার বক্স)', price: baseP + 200, regularPrice: baseReg + 250, stock: 30, sku: `${baseSku}-GIFT` }
+                          ]);
+                        }}
+                        className="px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-semibold transition-colors cursor-pointer"
+                      >
+                        + Gift Edition
+                      </button>
                     </div>
                   </div>
 
-                  {/* Inner Box: Sizes & Size-Wise Pricing */}
-                  <div className="bg-[#FBFBFC] border border-[#E8E8E9] rounded-xl p-4 sm:p-5 space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                      <div className="flex items-center gap-2">
-                        <h5 className="font-extrabold text-xs sm:text-sm text-neutral-900">
-                          Sizes & Size-Wise Pricing (সাইজ অনুযায়ী মূল্য)
-                        </h5>
-                        <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-2.5 py-0.5 text-[11px] font-bold">
-                          {customVariants.length} Sizes
-                        </span>
-                      </div>
-                      
-                      {/* Quick Presets */}
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="text-[11px] text-neutral-500 font-semibold mr-1">Quick Presets:</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const baseP = Number(prodPrice) || 350;
-                            const baseReg = Number(prodRegularPrice) || 450;
-                            const baseSku = prodSku || 'BK-6530';
-                            setCustomVariants([
-                              { id: `var-${Date.now()}-1`, name: 'Paperback (পেপারব্যাক)', price: baseP, regularPrice: baseReg, stock: 100, sku: `${baseSku}-PB` },
-                              { id: `var-${Date.now()}-2`, name: 'Hardcover (হার্ডকভার)', price: baseP + 100, regularPrice: baseReg + 100, stock: 50, sku: `${baseSku}-HC` },
-                            ]);
-                          }}
-                          className="px-2.5 py-1 rounded-lg bg-white hover:bg-neutral-100 text-neutral-800 border border-neutral-200 text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
-                        >
-                          ⚡ Paperback & Hardcover
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const baseP = Number(prodPrice) || 350;
-                            const baseReg = Number(prodRegularPrice) || 450;
-                            const baseSku = prodSku || 'BK-6530';
-                            setCustomVariants(prev => [
-                              ...prev,
-                              { id: `var-${Date.now()}-gift`, name: 'Gift Edition (উপহার বক্স)', price: baseP + 200, regularPrice: baseReg + 250, stock: 30, sku: `${baseSku}-GIFT` }
-                            ]);
-                          }}
-                          className="px-2.5 py-1 rounded-lg bg-white hover:bg-neutral-100 text-neutral-800 border border-neutral-200 text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
-                        >
-                          ⚡ Gift Edition
-                        </button>
-                      </div>
-                    </div>
-                    <p className="text-[11px] text-neutral-500">
-                      ২টা বা ততোধিক সাইজ/সংস্করণের জন্য আলাদা আলাদা প্রাইস নির্ধারণ করতে পারেন
-                    </p>
-
-                    {/* Inputs row to add variant */}
-                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-2">
+                  {/* Add Variant Row */}
+                  <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                       <div>
-                        <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                          সাইজের নাম (SIZE NAME) *
+                        <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                          Variant Name *
                         </label>
                         <input
                           type="text"
-                          placeholder="যেমন: Paperback, Hardcover বা 500g"
+                          placeholder="e.g. Paperback, Hardcover"
                           value={newVariantName}
                           onChange={e => setNewVariantName(e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] shadow-2xs"
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
                         />
                       </div>
                       <div>
-                        <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                          অফার মূল্য / Offer Price (৳)
+                        <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                          Offer Price (৳)
                         </label>
                         <input
                           type="number"
-                          placeholder={`ডিফল্ট: ৳${prodPrice || 350}`}
+                          placeholder={`Default: ৳${prodPrice || 350}`}
                           value={newVariantOfferPrice}
                           onChange={e => setNewVariantOfferPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-xs font-bold text-neutral-900 focus:outline-none focus:border-[#D71920] shadow-2xs"
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920] tabular-nums"
                         />
                       </div>
                       <div>
-                        <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
-                          রেগুলার মূল্য / Regular (৳)
+                        <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                          Regular Price (৳)
                         </label>
                         <input
                           type="number"
-                          placeholder="ঐচ্ছিক (কাটা মূল্য)"
+                          placeholder="Optional"
                           value={newVariantRegularPrice}
                           onChange={e => setNewVariantRegularPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-white text-xs text-neutral-900 focus:outline-none focus:border-[#D71920] shadow-2xs"
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:border-[#D71920] tabular-nums"
                         />
                       </div>
                       <div className="flex items-end">
@@ -7751,14 +7519,14 @@ export function AdminDashboard() {
                           type="button"
                           onClick={() => {
                             if (!newVariantName.trim()) {
-                              setToast({ show: true, type: 'error', message: 'সাইজ বা সংস্করণের নাম লিখুন' });
+                              setToast({ show: true, type: 'error', message: 'Enter variant name' });
                               return;
                             }
-                            const priceNum = typeof newVariantOfferPrice === 'number' && newVariantOfferPrice > 0 
-                              ? newVariantOfferPrice 
+                            const priceNum = typeof newVariantOfferPrice === 'number' && newVariantOfferPrice > 0
+                              ? newVariantOfferPrice
                               : (Number(prodPrice) || 350);
-                            const regNum = typeof newVariantRegularPrice === 'number' && newVariantRegularPrice > 0 
-                              ? newVariantRegularPrice 
+                            const regNum = typeof newVariantRegularPrice === 'number' && newVariantRegularPrice > 0
+                              ? newVariantRegularPrice
                               : (Number(prodRegularPrice) || undefined);
                             const autoSku = (prodSku || 'ITEM') + '-' + newVariantName.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
                             setCustomVariants(prev => [
@@ -7778,114 +7546,105 @@ export function AdminDashboard() {
                             setNewVariantRegularPrice('');
                             setNewVariantDescription('');
                           }}
-                          className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition-all"
+                          className="w-full py-2 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                         >
-                          <Plus size={14} />
-                          <span>যোগ করুন</span>
+                          <Plus size={13} />
+                          <span>Add Variant</span>
                         </button>
                       </div>
                     </div>
 
-                    <div className="pt-1">
-                      <input
-                        type="text"
-                        placeholder="ঐচ্ছিক ফরম্যাট বিবরণ (Format description — যেমন: ১৮০ গ্রাম প্রিমিয়াম আর্ট পেপার ও হার্ডকভার বাঁধাই)"
-                        value={newVariantDescription}
-                        onChange={e => setNewVariantDescription(e.target.value)}
-                        className="w-full px-3.5 py-2 rounded-xl border border-[#E5E5E5] bg-white text-xs text-neutral-800 focus:outline-none focus:border-[#D71920] shadow-2xs"
-                      />
-                    </div>
+                    <input
+                      type="text"
+                      placeholder="Optional format specification (e.g. 180 GSM art paper, stitched binding)"
+                      value={newVariantDescription}
+                      onChange={e => setNewVariantDescription(e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-800 focus:outline-none focus:border-[#D71920]"
+                    />
+                  </div>
 
-                    {/* Variants list */}
-                    {customVariants.length === 0 ? (
-                      <div className="p-5 border-2 border-dashed border-neutral-200 rounded-xl bg-white text-center">
-                        <p className="text-xs text-neutral-500">
-                          কোনো সাইজ যুক্ত করা হয়নি। যদি প্রোডাক্টের একাধিক সাইজ বা সংস্করণ থাকে, উপরের ফিল্ড থেকে যুক্ত করুন।
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2.5 pt-1">
-                        {customVariants.map((v, idx) => (
-                          <div
-                            key={`${v.id || 'v'}-${idx}`}
-                            className="p-3.5 rounded-xl border border-neutral-200 bg-white space-y-2 shadow-2xs hover:border-neutral-300 transition-all"
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-3">
-                                <span className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-extrabold flex items-center justify-center">
-                                  {idx + 1}
-                                </span>
-                                <div>
-                                  <h5 className="text-xs font-extrabold text-neutral-900">{v.name}</h5>
-                                  <p className="text-[11px] font-mono text-neutral-400 mt-0.5">
-                                    #{v.sku || 'SKU'} • Stock: {v.stock ?? 100}
-                                  </p>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-4">
-                                <div className="text-right">
-                                  <div className="text-xs font-extrabold text-[#D71920]">৳{v.price}</div>
-                                  {v.regularPrice && v.regularPrice > v.price && (
-                                    <div className="text-[10px] text-neutral-400 line-through">৳{v.regularPrice}</div>
-                                  )}
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => setCustomVariants(prev => prev.filter((_, i) => i !== idx))}
-                                  className="p-1.5 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 cursor-pointer transition-colors"
-                                  title="মুছুন"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
+                  {customVariants.length > 0 && (
+                    <div className="space-y-2">
+                      {customVariants.map((v, idx) => (
+                        <div
+                          key={`${v.id || 'v'}-${idx}`}
+                          className="p-3 rounded-lg border border-slate-200 bg-white space-y-2"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2.5">
+                              <span className="w-6 h-6 rounded-md bg-slate-100 text-slate-700 text-xs font-bold flex items-center justify-center tabular-nums">
+                                {idx + 1}
+                              </span>
+                              <div>
+                                <h5 className="text-xs font-bold text-slate-900">{v.name}</h5>
+                                <p className="text-[11px] font-mono text-slate-400">
+                                  #{v.sku || 'SKU'} · Stock: {v.stock ?? 100}
+                                </p>
                               </div>
                             </div>
-                            <input
-                              type="text"
-                              placeholder="এই ফরম্যাটের বিশেষ বিবরণ লিখুন (Description tab-এ অটো আপডেট হবে)..."
-                              value={v.description || ''}
-                              onChange={e => {
-                                const val = e.target.value;
-                                setCustomVariants(prev => prev.map((item, i) => (i === idx ? { ...item, description: val } : item)));
-                              }}
-                              className="w-full px-3 py-1.5 rounded-lg border border-neutral-200 bg-neutral-50 focus:bg-white text-[11px] text-neutral-700 focus:outline-none focus:border-[#D71920]"
-                            />
+
+                            <div className="flex items-center gap-4">
+                              <div className="text-right tabular-nums">
+                                <div className="text-xs font-bold text-slate-900">৳{v.price}</div>
+                                {v.regularPrice && v.regularPrice > v.price && (
+                                  <div className="text-[10px] text-slate-400 line-through">৳{v.regularPrice}</div>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setCustomVariants(prev => prev.filter((_, i) => i !== idx))}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 cursor-pointer transition-colors"
+                                title="Remove variant"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                          <input
+                            type="text"
+                            placeholder="Optional edition note (syncs to product Description tab)..."
+                            value={v.description || ''}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setCustomVariants(prev => prev.map((item, i) => (i === idx ? { ...item, description: val } : item)));
+                            }}
+                            className="w-full px-3 py-1.5 rounded-md border border-slate-200 bg-slate-50 focus:bg-white text-[11px] text-slate-700 focus:outline-none focus:border-[#D71920]"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
-                {/* Bottom Bar: Original Badge & Submit Buttons (Single unified bar) */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-neutral-200">
+                {/* Bottom Action Bar */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-slate-200">
                   {prodType === 'book' ? (
                     <label className="inline-flex items-center gap-2 cursor-pointer select-none">
-                      <input 
-                        type="checkbox" 
-                        checked={prodIsOriginal} 
-                        onChange={e => setProdIsOriginal(e.target.checked)} 
-                        className="w-4 h-4 text-[#D71920] accent-[#D71920] rounded cursor-pointer"
+                      <input
+                        type="checkbox"
+                        checked={prodIsOriginal}
+                        onChange={e => setProdIsOriginal(e.target.checked)}
+                        className="w-4 h-4 accent-[#D71920] rounded cursor-pointer"
                       />
-                      <span className="text-xs font-bold text-neutral-800 flex items-center gap-1.5">
-                        <ShieldCheck size={16} className="text-emerald-600" /> Show &quot;অরিজিনাল বই&quot; (Original Book Verified Badge)
+                      <span className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+                        <ShieldCheck size={15} className="text-emerald-600" /> Show &quot;অরিজিনাল বই&quot; Verified Badge
                       </span>
                     </label>
                   ) : <div />}
 
-                  <div className="flex items-center justify-end gap-2.5">
+                  <div className="flex items-center justify-end gap-2">
                     <button
                       type="button"
                       onClick={() => setShowAddProdModal(false)}
-                      className="px-5 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-bold rounded-xl cursor-pointer transition-colors"
+                      className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg cursor-pointer transition-colors"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="px-7 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-bold rounded-xl shadow-md cursor-pointer flex items-center gap-2 transition-all hover:scale-[1.02]"
+                      className="px-6 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-semibold rounded-lg cursor-pointer flex items-center gap-1.5 transition-colors"
                     >
-                      <Check size={15} />
+                      <Check size={14} />
                       <span>{editingProductId ? 'Update Product' : 'Save Product'}</span>
                     </button>
                   </div>
@@ -8687,14 +8446,14 @@ export function AdminDashboard() {
               <div className="space-y-1">
                 <div className="flex items-center gap-2.5 flex-wrap">
                   <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
-                    Writers &amp; Author Profiles
+                    Writers &amp; Authors
                   </h2>
-                  <span className="px-2 py-0.5 rounded-md bg-slate-200/80 text-slate-700 text-xs font-semibold tabular-nums">
+                  <span className="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold tabular-nums">
                     {authors.length}
                   </span>
                 </div>
                 <p className="text-xs sm:text-[13px] text-slate-500">
-                  Manage author portraits, biographies, and published book counts
+                  Only writers managed here appear in the product form Writer selector
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
@@ -8708,12 +8467,12 @@ export function AdminDashboard() {
                     className="w-full pl-8 pr-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
                   />
                 </div>
-                <button 
+                <button
                   onClick={() => {
                     setEditingAuthorId(null);
                     setAuthorName('');
                     setAuthorBio('');
-                    setAuthorPhoto('https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&auto=format&fit=crop&q=80');
+                    setAuthorPhoto('');
                     setAuthorBooksCount(0);
                     setShowAddAuthorModal(true);
                   }}
@@ -8724,45 +8483,34 @@ export function AdminDashboard() {
               </div>
             </div>
 
-            {/* HOMEPAGE WRITER / AUTHOR VISIBILITY & SLOT REPLACEMENT SYSTEM */}
+            {/* COMPACT HOMEPAGE WRITER DISPLAY & IMAGE FIT BAR */}
             <div
               data-testid="admin-home-writer-system-panel"
-              className="p-4 sm:p-5 rounded-xl bg-white border border-slate-200 space-y-4"
+              className="rounded-xl bg-white border border-slate-200 overflow-hidden"
             >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
-                <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/15 flex items-center justify-center shrink-0">
-                    <UserCheck size={17} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-sm font-bold text-slate-900">
-                        Homepage Writer Display &amp; Slot Settings
-                      </h3>
-                      <span
-                        className={`px-2 py-0.5 rounded-md text-[11px] font-semibold border ${
-                          settings.showHomeWritersSection !== false &&
-                          settings.homeWritersSlotReplacement !== 'off'
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : 'bg-slate-100 text-slate-600 border-slate-200'
-                        }`}
-                      >
-                        {settings.showHomeWritersSection === false ||
-                        settings.homeWritersSlotReplacement === 'off'
-                          ? 'Writers: OFF'
-                          : settings.homeWritersSlotReplacement &&
-                              settings.homeWritersSlotReplacement !== 'writers'
-                            ? `Slot: ${settings.homeWritersSlotReplacement.replace('_', ' ')}`
-                            : 'Writers: Active'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Toggle the Customer Homepage Writer section ON/OFF or replace that slot and product card writer line.
-                    </p>
-                  </div>
+              <div className="px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/60">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <span className="text-xs font-bold text-slate-900">
+                    Storefront Display Settings
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded-md text-[11px] font-semibold border ${
+                      settings.showHomeWritersSection !== false &&
+                      settings.homeWritersSlotReplacement !== 'off'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-white text-slate-600 border-slate-200'
+                    }`}
+                  >
+                    {settings.showHomeWritersSection === false ||
+                    settings.homeWritersSlotReplacement === 'off'
+                      ? 'Writers: OFF'
+                      : settings.homeWritersSlotReplacement &&
+                          settings.homeWritersSlotReplacement !== 'writers'
+                        ? `Slot: ${settings.homeWritersSlotReplacement.replace('_', ' ')}`
+                        : 'Writers: Active'}
+                  </span>
                 </div>
 
-                {/* Quick Show / Off Master Switch */}
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
@@ -8779,10 +8527,10 @@ export function AdminDashboard() {
                       setToast({
                         show: true,
                         type: 'success',
-                        message: 'Homepage Authors section enabled in homeConfig!',
+                        message: 'Homepage Authors section enabled!',
                       });
                     }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer transition-colors flex items-center gap-1.5 ${
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer transition-colors flex items-center gap-1.5 ${
                       homeConfig.showAuthors !== false &&
                       homeConfig.authorsSlotReplacement !== 'off'
                         ? 'bg-emerald-600 text-white border-emerald-600'
@@ -8803,10 +8551,10 @@ export function AdminDashboard() {
                       setToast({
                         show: true,
                         type: 'success',
-                        message: 'Homepage Authors section turned OFF in homeConfig!',
+                        message: 'Homepage Authors section turned OFF!',
                       });
                     }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer transition-colors flex items-center gap-1.5 ${
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer transition-colors flex items-center gap-1.5 ${
                       homeConfig.showAuthors === false ||
                       homeConfig.authorsSlotReplacement === 'off'
                         ? 'bg-red-600 text-white border-red-600'
@@ -8819,10 +8567,10 @@ export function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-700">
-                    1. Homepage Writer Section Slot
+              <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-200">
+                <div className="p-3.5 space-y-1.5">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600">
+                    Homepage Writer Slot
                   </label>
                   <select
                     data-testid="home-writers-slot-select"
@@ -8854,23 +8602,20 @@ export function AdminDashboard() {
                             : `Homepage Writer slot updated to: ${val.replace('_', ' ')}`,
                       });
                     }}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:border-[#D71920]"
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
                   >
-                    <option value="writers">Show Featured Writers Carousel (Default)</option>
-                    <option value="publishers_spotlight">Replace with: Official Publications &amp; Partners</option>
-                    <option value="bestsellers_showcase">Replace with: Reader Favorites &amp; Bestsellers</option>
-                    <option value="trust_features">Replace with: Store Trust &amp; Fast Delivery</option>
-                    <option value="reading_benefits">Replace with: Look Inside &amp; Reader Perks</option>
-                    <option value="off">Turn Off (Keep Slot Hidden)</option>
+                    <option value="writers">Featured Writers Carousel</option>
+                    <option value="publishers_spotlight">Official Publications &amp; Partners</option>
+                    <option value="bestsellers_showcase">Reader Favorites &amp; Bestsellers</option>
+                    <option value="trust_features">Store Trust &amp; Fast Delivery</option>
+                    <option value="reading_benefits">Look Inside &amp; Reader Perks</option>
+                    <option value="off">Turn Off (Hidden)</option>
                   </select>
-                  <p className="text-[11px] text-slate-500">
-                    Keep Featured Writers active on the Homepage, replace that space with another feature, or turn it off.
-                  </p>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-700">
-                    2. Product Card Writer Line Slot
+                <div className="p-3.5 space-y-1.5">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600">
+                    Product Card Writer Line
                   </label>
                   <select
                     data-testid="product-card-writer-slot-select"
@@ -8890,23 +8635,20 @@ export function AdminDashboard() {
                         message: 'Product card writer line updated!',
                       });
                     }}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:border-[#D71920]"
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
                   >
-                    <option value="writer_name">Show Writer / Author Name (Default)</option>
-                    <option value="publisher_name">Replace with: Publisher Name</option>
-                    <option value="category_name">Replace with: Book Category Name</option>
-                    <option value="edition_info">Replace with: Edition &amp; Print Badge</option>
-                    <option value="delivery_badge">Replace with: Fast Cash on Delivery Tag</option>
-                    <option value="off">Turn Off (Hide Writer Line on Cards)</option>
+                    <option value="writer_name">Writer / Author Name (Default)</option>
+                    <option value="publisher_name">Publisher Name</option>
+                    <option value="category_name">Book Category Name</option>
+                    <option value="edition_info">Edition &amp; Print Badge</option>
+                    <option value="delivery_badge">Fast Cash on Delivery Tag</option>
+                    <option value="off">Hidden</option>
                   </select>
-                  <p className="text-[11px] text-slate-500">
-                    Control whether book cards display the Writer name, Publisher/Category info, or remain hidden.
-                  </p>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2 sm:col-span-2">
-                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-700">
-                    3. Product Image Ratio &amp; Zoom Fit (Cards, Detail Gallery &amp; Lists)
+                <div className="p-3.5 space-y-1.5">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600">
+                    Product Image Ratio &amp; Fit
                   </label>
                   <select
                     data-testid="product-image-fit-mode-select"
@@ -8920,194 +8662,207 @@ export function AdminDashboard() {
                         message: `Product image layout updated to ${val === 'cover' ? '1:1 Square Full-Bleed Zoom' : 'Padded Uncropped Fit'}!`,
                       });
                     }}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:border-[#D71920]"
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
                   >
-                    <option value="cover">1:1 Square Full-Bleed Zoom (No Empty Gaps - Default)</option>
-                    <option value="contain">Padded Uncropped Fit (Letterboxed)</option>
+                    <option value="cover">1:1 Square Full-Bleed (Default)</option>
+                    <option value="contain">Padded Uncropped Fit</option>
                   </select>
-                  <p className="text-[11px] text-slate-500">
-                    Fill every 1:1 square card and product detail gallery edge-to-edge without blank top/side borders, or preserve uncropped letterbox margins.
-                  </p>
                 </div>
               </div>
             </div>
 
-            {/* Authors Responsive Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {authors
-                .filter(author => !authorSearchQuery.trim() || author.name.toLowerCase().includes(authorSearchQuery.toLowerCase()))
-                .map(author => {
-                  const catalogMatches = countBooksForAuthor(author, products);
-                  return (
-                    <div key={author.id} className="p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors flex flex-col justify-between gap-3 group">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-slate-200 bg-slate-50 flex items-center justify-center">
-                          {author.photoUrl ? (
-                            <img 
-                              src={author.photoUrl} 
-                              alt={author.name} 
-                              className="w-full h-full object-cover"
-                              onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-                            />
-                          ) : (
-                            <span className="text-[#D71920] font-bold text-base">{author.name[0]}</span>
-                          )}
+            {/* Authors Empty State or Grid */}
+            {authors.length === 0 ? (
+              <div className="bg-white border border-slate-200 rounded-xl p-10 text-center space-y-3">
+                <div className="w-11 h-11 rounded-lg bg-slate-50 border border-slate-200 text-slate-500 flex items-center justify-center mx-auto">
+                  <UserCheck size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">No Writers Added Yet</h3>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
+                    Add writer profiles here so they appear in the product form Writer dropdown.
+                  </p>
+                </div>
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingAuthorId(null);
+                      setAuthorName('');
+                      setAuthorBio('');
+                      setAuthorPhoto('');
+                      setAuthorBooksCount(0);
+                      setShowAddAuthorModal(true);
+                    }}
+                    className="px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    <Plus size={14} /> Add First Writer
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {authors
+                  .filter(author => !authorSearchQuery.trim() || author.name.toLowerCase().includes(authorSearchQuery.toLowerCase()))
+                  .map(author => {
+                    const catalogMatches = countBooksForAuthor(author, products);
+                    const initials = (author.name || 'W').trim().slice(0, 2).toUpperCase();
+                    return (
+                      <div key={author.id} className="p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors flex flex-col justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="relative w-11 h-11 rounded-full overflow-hidden shrink-0 border border-slate-200 bg-slate-100 flex items-center justify-center">
+                            <span className="text-slate-600 font-bold text-xs">{initials}</span>
+                            {author.photoUrl && (
+                              <img
+                                src={author.photoUrl}
+                                alt={author.name}
+                                className="absolute inset-0 w-full h-full object-cover"
+                                onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                              />
+                            )}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-bold text-sm text-slate-900 truncate">{author.name}</h4>
+                            <p className="text-[11px] font-semibold text-slate-500 mt-0.5 tabular-nums">
+                              {catalogMatches} {catalogMatches === 1 ? 'Book' : 'Books'}
+                            </p>
+                          </div>
                         </div>
 
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-bold text-sm text-slate-900 truncate">{author.name}</h4>
-                          <p className="text-[11px] font-semibold text-[#D71920] mt-0.5 tabular-nums">
-                            {catalogMatches} {catalogMatches === 1 ? 'Book' : 'Books'} Published
-                          </p>
+                        <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
+                          <button
+                            onClick={() => {
+                              setEditingAuthorId(author.id);
+                              setAuthorName(author.name);
+                              setAuthorBio(author.bio || '');
+                              setAuthorPhoto(author.photoUrl || '');
+                              setAuthorBooksCount(catalogMatches);
+                              setShowAddAuthorModal(true);
+                            }}
+                            className="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-semibold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                          >
+                            <Edit2 size={11} /> <span>Edit</span>
+                          </button>
+                          <button
+                            onClick={async () => {
+                              try {
+                                await deleteAuthor(author.id);
+                                setToast({ show: true, type: 'success', message: 'Writer deleted.' });
+                              } catch (err: any) {
+                                setToast({ show: true, type: 'error', message: err?.message || 'Failed to delete writer' });
+                              }
+                            }}
+                            className="py-1.5 px-2.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-[11px] font-semibold flex items-center justify-center cursor-pointer transition-colors"
+                            title="Delete Author"
+                            aria-label={`Delete ${author.name}`}
+                          >
+                            <Trash2 size={12} />
+                          </button>
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
-                        <button 
-                          onClick={() => {
-                            setEditingAuthorId(author.id);
-                            setAuthorName(author.name);
-                            setAuthorBio(author.bio || '');
-                            setAuthorPhoto(author.photoUrl || '');
-                            setAuthorBooksCount(catalogMatches);
-                            setShowAddAuthorModal(true);
-                          }}
-                          className="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-semibold flex items-center justify-center gap-1 cursor-pointer transition-colors"
-                        >
-                          <Edit2 size={11} /> <span>Edit</span>
-                        </button>
-                        <button 
-                          onClick={() => deleteAuthor(author.id)}
-                          className="py-1.5 px-2.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-[11px] font-semibold flex items-center justify-center cursor-pointer transition-colors"
-                          title="Delete Author"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
+                    );
+                  })}
+              </div>
+            )}
 
             {/* Add / Edit Author Modal */}
             {showAddAuthorModal && (
-              <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-                <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-[#E5E5E5] space-y-5 my-8">
-                  <div className="flex items-center justify-between pb-3 border-b border-[#EEEEEE]">
-                    <h3 className="text-lg font-black text-[#171717]">
-                      {editingAuthorId ? 'Edit Author Profile' : 'Add New Author'}
+              <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+                <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-200 space-y-5 my-8">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <h3 className="text-base font-bold text-slate-900">
+                      {editingAuthorId ? 'Edit Writer Profile' : 'Add New Writer'}
                     </h3>
-                    <button 
+                    <button
                       onClick={() => setShowAddAuthorModal(false)}
-                      className="text-[#777777] hover:text-[#171717] text-lg font-bold p-1 cursor-pointer"
+                      className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 cursor-pointer"
                     >
-                      ✕
+                      <X size={16} />
                     </button>
                   </div>
 
                   <form onSubmit={handleSaveAuthor} className="space-y-4 text-xs">
                     <div>
-                      <label className="block font-bold text-[#171717] mb-1 uppercase tracking-wider text-[11px]">Author Full Name</label>
-                      <input 
-                        type="text" 
-                        required 
+                      <label className="block font-semibold text-slate-700 mb-1 uppercase tracking-wide text-[11px]">
+                        Writer Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
                         placeholder="e.g. Humayun Ahmed"
-                        value={authorName} 
-                        onChange={e => setAuthorName(e.target.value)} 
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
+                        value={authorName}
+                        onChange={e => setAuthorName(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-[#D71920]"
                       />
                     </div>
 
-                    {/* Author Photo Upload & URL */}
                     <div>
-                      <label className="block font-bold text-[#171717] mb-1 uppercase tracking-wider text-[11px]">
-                        Author Profile Picture (URL or Upload from Device)
+                      <label className="block font-semibold text-slate-700 mb-1 uppercase tracking-wide text-[11px]">
+                        Profile Picture (URL or Upload)
                       </label>
-                      <div className="flex gap-2">
-                        <input 
-                          type="url" 
-                          placeholder="https://example.com/author.jpg"
-                          value={authorPhoto} 
-                          onChange={e => setAuthorPhoto(e.target.value)} 
-                          className="flex-1 px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
-                        />
-                        <label className="px-4 py-2.5 bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/30 rounded-xl font-bold flex items-center gap-1.5 cursor-pointer hover:bg-[#D71920] hover:text-white transition-colors">
-                          <Upload size={14} /> Upload
-                          <input type="file" accept="image/*" onChange={handleAuthorFileUpload} className="hidden" />
-                        </label>
-                      </div>
-
-                      {/* Photo Preview & Presets */}
-                      <div className="mt-3 flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#D71920]/30 bg-neutral-100 shrink-0 flex items-center justify-center">
-                          {authorPhoto ? (
-                            <img src={authorPhoto} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="text-[#D71920] font-bold text-sm">Preview</span>
+                      <div className="flex items-center gap-2.5">
+                        <div className="relative w-10 h-10 rounded-full overflow-hidden border border-slate-200 bg-slate-100 shrink-0 flex items-center justify-center">
+                          <span className="text-slate-500 font-bold text-xs">
+                            {(authorName || 'W').trim().slice(0, 2).toUpperCase()}
+                          </span>
+                          {authorPhoto && (
+                            <img src={authorPhoto} alt="" className="absolute inset-0 w-full h-full object-cover" />
                           )}
                         </div>
-                        <div className="flex-1">
-                          <div className="text-[10px] text-[#5F6368] font-bold mb-1">Preset Writer Portraits:</div>
-                          <div className="flex flex-wrap gap-1">
-                            {[
-                              { name: 'Humayun Ahmed', url: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&auto=format&fit=crop&q=80' },
-                              { name: 'Zafar Iqbal', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80' },
-                              { name: 'Sarat Chandra', url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&auto=format&fit=crop&q=80' },
-                              { name: 'Arif Azad', url: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400&auto=format&fit=crop&q=80' }
-                            ].map((preset, i) => (
-                              <button
-                                key={i}
-                                type="button"
-                                onClick={() => setAuthorPhoto(preset.url)}
-                                className="text-[10px] px-2 py-0.5 rounded bg-neutral-100 hover:bg-[#FFF1F2] hover:text-[#D71920] border border-[#E5E5E5] font-semibold cursor-pointer"
-                              >
-                                {preset.name}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
+                        <input
+                          type="url"
+                          placeholder="https://example.com/author.jpg"
+                          value={authorPhoto}
+                          onChange={e => setAuthorPhoto(e.target.value)}
+                          className="flex-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-[#D71920]"
+                        />
+                        <label className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-semibold flex items-center gap-1.5 cursor-pointer transition-colors shrink-0">
+                          <Upload size={13} /> Upload
+                          <input type="file" accept="image/*" onChange={handleAuthorFileUpload} className="hidden" />
+                        </label>
                       </div>
                     </div>
 
                     <div>
-                      <label className="block font-bold text-[#171717] mb-1 uppercase tracking-wider text-[11px]">
-                        Total Books (Auto-Counted)
+                      <label className="block font-semibold text-slate-700 mb-1 uppercase tracking-wide text-[11px]">
+                        Catalog Books (Auto-Counted)
                       </label>
-                      <div className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-neutral-100/80 text-[#171717] text-xs font-extrabold flex items-center justify-between tabular-nums">
+                      <div className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-800 text-xs font-semibold flex items-center justify-between tabular-nums">
                         <span>
                           {countBooksForAuthor({ name: authorName }, products)}{' '}
                           {countBooksForAuthor({ name: authorName }, products) === 1 ? 'Book' : 'Books'} in Catalog
                         </span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FFF1F2] text-[#D71920]">
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-600">
                           Auto
                         </span>
                       </div>
                     </div>
 
                     <div>
-                      <label className="block font-bold text-[#171717] mb-1 uppercase tracking-wider text-[11px]">Author Biography</label>
-                      <textarea 
+                      <label className="block font-semibold text-slate-700 mb-1 uppercase tracking-wide text-[11px]">Biography</label>
+                      <textarea
                         rows={3}
                         placeholder="Short summary of literary contributions..."
-                        value={authorBio} 
-                        onChange={e => setAuthorBio(e.target.value)} 
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
+                        value={authorBio}
+                        onChange={e => setAuthorBio(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-[#D71920]"
                       />
                     </div>
 
-                    <div className="flex justify-end gap-2.5 pt-3 border-t border-[#EEEEEE]">
-                      <button 
-                        type="button" 
+                    <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                      <button
+                        type="button"
                         onClick={() => setShowAddAuthorModal(false)}
-                        className="px-5 py-2.5 bg-neutral-100 text-[#171717] font-bold rounded-xl hover:bg-neutral-200 cursor-pointer"
+                        className="px-4 py-2 bg-white border border-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-50 cursor-pointer"
                       >
                         Cancel
                       </button>
-                      <button 
+                      <button
                         type="submit"
-                        className="px-6 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl shadow-md cursor-pointer flex items-center gap-1.5"
+                        className="px-5 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-semibold rounded-lg cursor-pointer flex items-center gap-1.5"
                       >
-                        <Check size={14} /> Save Author Profile
+                        <Check size={13} /> Save Writer
                       </button>
                     </div>
                   </form>
@@ -9127,12 +8882,12 @@ export function AdminDashboard() {
                   <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
                     Publishers Directory
                   </h2>
-                  <span className="px-2 py-0.5 rounded-md bg-slate-200/80 text-slate-700 text-xs font-semibold tabular-nums">
+                  <span className="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold tabular-nums">
                     {publishers.length}
                   </span>
                 </div>
                 <p className="text-xs sm:text-[13px] text-slate-500">
-                  Manage publishing houses — book counts update automatically when catalog items are assigned
+                  Only publishers managed here appear in the product form Publisher selector
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
@@ -9170,9 +8925,9 @@ export function AdminDashboard() {
                   <Building2 size={20} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">No Custom Publishers Saved Yet</h3>
+                  <h3 className="text-sm font-bold text-slate-900">No Publishers Added Yet</h3>
                   <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
-                    Import default Bangladeshi publishing houses or add a custom publisher profile.
+                    Add a custom publishing house or import default Bangladeshi publishers into your directory.
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
@@ -9191,7 +8946,7 @@ export function AdminDashboard() {
                           isFeatured: true,
                         });
                       }
-                      setToast({ show: true, type: 'success', message: 'Default publishers imported to Firebase!' });
+                      setToast({ show: true, type: 'success', message: 'Default publishers imported!' });
                     }}
                     className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
                   >
@@ -9223,89 +8978,100 @@ export function AdminDashboard() {
                     return pub.name.toLowerCase().includes(q) || (pub.banglaName || '').toLowerCase().includes(q);
                   })
                   .map(pub => {
-                  const catalogMatches = countBooksForPublisher(pub, products);
-                  return (
-                    <div key={pub.id} className="bg-white border border-slate-200 hover:border-slate-300 rounded-xl p-4 flex flex-col justify-between gap-3 transition-colors">
-                      <div className="flex items-start gap-3">
-                        <img
-                          src={pub.logoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(pub.name)}&background=FFF0F0&color=D71920&bold=true&size=200`}
-                          alt={pub.name}
-                          className="w-11 h-11 rounded-lg object-cover shrink-0 border border-slate-200 bg-slate-50"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-1.5">
-                            <h3 className="font-bold text-slate-900 text-sm truncate">
-                              {pub.banglaName || pub.name}
-                            </h3>
-                            {pub.establishedYear && (
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 shrink-0 tabular-nums">
-                                {pub.establishedYear}
-                              </span>
+                    const catalogMatches = countBooksForPublisher(pub, products);
+                    const initials = (pub.name || pub.banglaName || 'P').trim().slice(0, 2).toUpperCase();
+                    return (
+                      <div key={pub.id} className="bg-white border border-slate-200 hover:border-slate-300 rounded-xl p-4 flex flex-col justify-between gap-3 transition-colors">
+                        <div className="flex items-start gap-3">
+                          <div className="relative w-11 h-11 rounded-lg overflow-hidden shrink-0 border border-slate-200 bg-slate-100 flex items-center justify-center">
+                            <span className="text-slate-600 font-bold text-xs">{initials}</span>
+                            {pub.logoUrl && (
+                              <img
+                                src={pub.logoUrl}
+                                alt={pub.name}
+                                className="absolute inset-0 w-full h-full object-cover"
+                                onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                              />
                             )}
                           </div>
-                          {pub.banglaName && (
-                            <p className="text-[11px] text-slate-500 truncate">{pub.name}</p>
-                          )}
-                          <p className="text-[11px] text-[#D71920] font-semibold mt-1 tabular-nums">
-                            {catalogMatches} {catalogMatches === 1 ? 'Book' : 'Books'}
-                          </p>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-1.5">
+                              <h3 className="font-bold text-slate-900 text-sm truncate">
+                                {pub.banglaName || pub.name}
+                              </h3>
+                              {pub.establishedYear && (
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 shrink-0 tabular-nums">
+                                  {pub.establishedYear}
+                                </span>
+                              )}
+                            </div>
+                            {pub.banglaName && pub.banglaName !== pub.name && (
+                              <p className="text-[11px] text-slate-500 truncate">{pub.name}</p>
+                            )}
+                            <p className="text-[11px] text-slate-500 font-semibold mt-1 tabular-nums">
+                              {catalogMatches} {catalogMatches === 1 ? 'Book' : 'Books'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
+                          <button
+                            onClick={() => {
+                              setEditingPublisherId(pub.id);
+                              setPubName(pub.name);
+                              setPubBanglaName(pub.banglaName || '');
+                              setPubLogo(pub.logoUrl || '');
+                              setPubBooksCount(catalogMatches);
+                              setPubDescription(pub.description || '');
+                              setPubEstYear(pub.establishedYear || '');
+                              setShowAddPublisherModal(true);
+                            }}
+                            className="flex-1 py-1.5 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-semibold rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                          >
+                            <Edit2 size={11} /> <span>Edit</span>
+                          </button>
+                          <button
+                            onClick={async () => {
+                              try {
+                                await deletePublisher(pub.id);
+                                setToast({ show: true, type: 'success', message: 'Publisher deleted.' });
+                              } catch (err: any) {
+                                setToast({ show: true, type: 'error', message: err?.message || 'Failed to delete publisher' });
+                              }
+                            }}
+                            className="py-1.5 px-2.5 bg-red-50 hover:bg-red-100 text-red-600 text-[11px] font-semibold rounded-lg transition-colors flex items-center justify-center cursor-pointer"
+                            title="Delete Publisher"
+                            aria-label={`Delete ${pub.name}`}
+                          >
+                            <Trash2 size={12} />
+                          </button>
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
-                        <button
-                          onClick={() => {
-                            setEditingPublisherId(pub.id);
-                            setPubName(pub.name);
-                            setPubBanglaName(pub.banglaName || '');
-                            setPubLogo(pub.logoUrl || '');
-                            setPubBooksCount(catalogMatches);
-                            setPubDescription(pub.description || '');
-                            setPubEstYear(pub.establishedYear || '');
-                            setShowAddPublisherModal(true);
-                          }}
-                          className="flex-1 py-1.5 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-semibold rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
-                        >
-                          <Edit2 size={11} /> <span>Edit</span>
-                        </button>
-                        <button
-                          onClick={async () => {
-                            await deletePublisher(pub.id);
-                            setToast({ show: true, type: 'success', message: 'Publisher deleted.' });
-                          }}
-                          className="py-1.5 px-2.5 bg-red-50 hover:bg-red-100 text-red-600 text-[11px] font-semibold rounded-lg transition-colors flex items-center justify-center cursor-pointer"
-                          title="Delete Publisher"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
               </div>
             )}
 
             {/* Add / Edit Publisher Modal */}
             {showAddPublisherModal && (
-              <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-                <div className="bg-white border border-[#E5E5E5] rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5 my-8">
-                  <div className="flex items-center justify-between border-b border-[#EEEEEE] pb-4">
-                    <h3 className="text-lg font-black text-[#171717] flex items-center gap-2">
-                      <Building2 size={18} className="text-[#D71920]" />
+              <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+                <div className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-5 my-8">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h3 className="text-base font-bold text-slate-900">
                       {editingPublisherId ? 'Edit Publisher' : 'Add New Publisher'}
                     </h3>
                     <button
                       onClick={() => setShowAddPublisherModal(false)}
-                      className="p-2 rounded-lg text-[#5F6368] hover:bg-neutral-100 cursor-pointer"
+                      className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 cursor-pointer"
                     >
-                      <X size={18} />
+                      <X size={16} />
                     </button>
                   </div>
 
-                  <form onSubmit={handleSavePublisher} className="space-y-4">
+                  <form onSubmit={handleSavePublisher} className="space-y-4 text-xs">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold uppercase text-[#5F6368] mb-1">
+                        <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-700 mb-1">
                           Publisher Name (English) *
                         </label>
                         <input
@@ -9314,11 +9080,11 @@ export function AdminDashboard() {
                           placeholder="e.g. Guardian Publications"
                           value={pubName}
                           onChange={e => setPubName(e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-[#D71920]"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold uppercase text-[#5F6368] mb-1">
+                        <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-700 mb-1">
                           Bangla Name (Optional)
                         </label>
                         <input
@@ -9326,32 +9092,33 @@ export function AdminDashboard() {
                           placeholder="e.g. গার্ডিয়ান পাবলিকেশন্স"
                           value={pubBanglaName}
                           onChange={e => setPubBanglaName(e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-[#D71920]"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold uppercase text-[#5F6368] mb-1">
-                        Publisher Logo (Upload or URL)
+                      <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-700 mb-1">
+                        Publisher Logo (URL or Upload)
                       </label>
-                      <div className="flex items-center gap-3">
-                        {pubLogo && (
-                          <img
-                            src={pubLogo}
-                            alt="Logo preview"
-                            className="w-12 h-12 rounded-xl object-cover border border-[#E5E5E5] shrink-0"
-                          />
-                        )}
+                      <div className="flex items-center gap-2.5">
+                        <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-slate-200 bg-slate-100 shrink-0 flex items-center justify-center">
+                          <span className="text-slate-500 font-bold text-xs">
+                            {(pubName || pubBanglaName || 'P').trim().slice(0, 2).toUpperCase()}
+                          </span>
+                          {pubLogo && (
+                            <img src={pubLogo} alt="Logo preview" className="absolute inset-0 w-full h-full object-cover" />
+                          )}
+                        </div>
                         <input
                           type="text"
                           placeholder="https://... or upload image"
                           value={pubLogo}
                           onChange={e => setPubLogo(e.target.value)}
-                          className="flex-1 px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717] text-xs"
+                          className="flex-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-[#D71920]"
                         />
-                        <label className="px-3.5 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-[#171717] text-xs font-bold rounded-xl cursor-pointer shrink-0 flex items-center gap-1.5">
-                          <Upload size={14} /> Upload
+                        <label className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg cursor-pointer shrink-0 flex items-center gap-1.5 transition-colors">
+                          <Upload size={13} /> Upload
                           <input type="file" accept="image/*" onChange={handlePublisherFileUpload} className="hidden" />
                         </label>
                       </div>
@@ -9359,21 +9126,21 @@ export function AdminDashboard() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold uppercase text-[#5F6368] mb-1">
-                          Total Books (Auto-Counted)
+                        <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-700 mb-1">
+                          Catalog Books (Auto-Counted)
                         </label>
-                        <div className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-neutral-100/80 text-[#171717] text-xs font-extrabold flex items-center justify-between">
+                        <div className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-800 text-xs font-semibold flex items-center justify-between tabular-nums">
                           <span>
                             {countBooksForPublisher({ name: pubName, banglaName: pubBanglaName }, products)}{' '}
                             {countBooksForPublisher({ name: pubName, banglaName: pubBanglaName }, products) === 1 ? 'Book' : 'Books'} in Catalog
                           </span>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FFF1F2] text-[#D71920]">
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-600">
                             Auto
                           </span>
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs font-bold uppercase text-[#5F6368] mb-1">
+                        <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-700 mb-1">
                           Established Year (Optional)
                         </label>
                         <input
@@ -9381,13 +9148,13 @@ export function AdminDashboard() {
                           placeholder="e.g. 2015"
                           value={pubEstYear}
                           onChange={e => setPubEstYear(e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-[#D71920]"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold uppercase text-[#5F6368] mb-1">
+                      <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-700 mb-1">
                         Short Description
                       </label>
                       <textarea
@@ -9395,23 +9162,23 @@ export function AdminDashboard() {
                         placeholder="Brief description of the publishing house..."
                         value={pubDescription}
                         onChange={e => setPubDescription(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
+                        className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-[#D71920]"
                       />
                     </div>
 
-                    <div className="flex justify-end gap-2.5 pt-3 border-t border-[#EEEEEE]">
+                    <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                       <button
                         type="button"
                         onClick={() => setShowAddPublisherModal(false)}
-                        className="px-5 py-2.5 bg-neutral-100 text-[#171717] font-bold rounded-xl hover:bg-neutral-200 cursor-pointer"
+                        className="px-4 py-2 bg-white border border-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-50 cursor-pointer"
                       >
                         Cancel
                       </button>
                       <button
                         type="submit"
-                        className="px-6 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl shadow-md cursor-pointer flex items-center gap-1.5"
+                        className="px-5 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-semibold rounded-lg cursor-pointer flex items-center gap-1.5"
                       >
-                        <Check size={14} /> Save Publisher
+                        <Check size={13} /> Save Publisher
                       </button>
                     </div>
                   </form>

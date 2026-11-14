@@ -261,6 +261,145 @@ export function buildEnrichedPublishersList(
 }
 
 /**
+ * Returns ONLY explicitly managed authors from Firestore/Admin directory with live book counts.
+ * Never falls back to default authors or synthesizes deleted/ghost writers from catalog products.
+ */
+export function buildManageableAuthorOptions(
+  storedAuthors: Author[],
+  products: Product[]
+): EnrichedAuthor[] {
+  const seenKeys = new Set<string>();
+  const result: EnrichedAuthor[] = [];
+
+  for (const author of storedAuthors) {
+    const cleanName = (author.name || '').trim();
+    if (!cleanName) continue;
+    const key = cleanName.toLowerCase();
+    if (seenKeys.has(key)) continue;
+    seenKeys.add(key);
+
+    const liveCount = countBooksForAuthor(author, products);
+    result.push({
+      ...author,
+      name: cleanName,
+      booksCount: liveCount,
+      liveBooksCount: liveCount,
+      displayBooksCount: liveCount,
+    });
+  }
+
+  return result;
+}
+
+/**
+ * Returns ONLY explicitly managed publishers from Firestore/Admin directory with live book counts.
+ * Never falls back to DEFAULT_PUBLISHERS_LIST or synthesizes deleted/ghost publishers from catalog products.
+ */
+export function buildManageablePublisherOptions(
+  storedPublishers: Publisher[],
+  products: Product[]
+): EnrichedPublisher[] {
+  const seenKeys = new Set<string>();
+  const result: EnrichedPublisher[] = [];
+
+  for (const pub of storedPublishers) {
+    const cleanName = (pub.name || '').trim();
+    const cleanBangla = (pub.banglaName || '').trim();
+    const primaryKey = (cleanName || cleanBangla).toLowerCase();
+    if (!primaryKey || seenKeys.has(primaryKey)) continue;
+    seenKeys.add(primaryKey);
+    if (cleanBangla) {
+      seenKeys.add(cleanBangla.toLowerCase());
+    }
+
+    const liveCount = countBooksForPublisher(pub, products);
+    result.push({
+      ...pub,
+      name: cleanName || cleanBangla,
+      booksCount: liveCount,
+      liveBooksCount: liveCount,
+      displayBooksCount: liveCount,
+    });
+  }
+
+  return result;
+}
+
+export interface PublishersPrimaryState {
+  received: boolean;
+  fromServer: boolean;
+  items: Publisher[];
+}
+
+export interface PublishersBackupDocState {
+  received: boolean;
+  fromServer: boolean;
+  exists: boolean;
+  initialized: boolean;
+  items: Publisher[];
+}
+
+function dedupePublishers(list: Publisher[]): Publisher[] {
+  const seen = new Set<string>();
+  const out: Publisher[] = [];
+  for (const item of list) {
+    if (!item || !item.id || seen.has(item.id)) continue;
+    seen.add(item.id);
+    out.push(item);
+  }
+  return out;
+}
+
+/**
+ * Reconciles primary `publishers` collection snapshot with `settings/publishers_directory` doc.
+ * Once `settings/publishers_directory` has `initialized: true`, its `items` list (including `[]` when
+ * the last publisher is deleted) is authoritative so deleted publishers never resurrect from stale docs.
+ */
+export function resolveAuthoritativePublishersList(
+  primary: PublishersPrimaryState,
+  backup: PublishersBackupDocState
+): { items: Publisher[]; markInitialized: boolean } | null {
+  if (backup.received && backup.exists && backup.initialized) {
+    return {
+      items: dedupePublishers(backup.items),
+      markInitialized: true,
+    };
+  }
+
+  if (primary.received) {
+    if (primary.items.length > 0) {
+      return {
+        items: dedupePublishers(primary.items),
+        markInitialized: primary.fromServer,
+      };
+    }
+    if (backup.received && backup.exists && backup.items.length > 0) {
+      return {
+        items: dedupePublishers(backup.items),
+        markInitialized: primary.fromServer || backup.fromServer,
+      };
+    }
+    if (primary.fromServer) {
+      return {
+        items: [],
+        markInitialized: true,
+      };
+    }
+  }
+
+  if (backup.received && backup.exists && (backup.items.length > 0 || backup.fromServer)) {
+    return {
+      items: dedupePublishers(backup.items),
+      markInitialized: backup.fromServer,
+    };
+  }
+
+  return null;
+}
+
+
+
+/**
  * Resolves the enriched Publisher profile for a single product on the Product Detail page.
  * Matches `product.publisher` against the store's publishers list (by English or Bangla name),
  * or falls back to author-based publisher inference / default publisher so a book always displays

@@ -5,6 +5,9 @@ import {
   countBooksForPublisher,
   buildEnrichedAuthorsList,
   buildEnrichedPublishersList,
+  buildManageableAuthorOptions,
+  buildManageablePublisherOptions,
+  resolveAuthoritativePublishersList,
   resolveProductPublisherInfo,
   resolveProductDeliveryTiming,
   resolveAuthorOrPublisherCountPreview,
@@ -345,3 +348,60 @@ test('buildSyncedAuthorsAndPublishers increments 1->2->...->10, decrements on de
   assert.equal(afterCustom.createdPublishers[0].name, 'Custom House');
   assert.equal(afterCustom.createdPublishers[0].booksCount, 1);
 });
+
+test('buildManageableAuthorOptions and buildManageablePublisherOptions strictly mirror managed items without defaults or deleted ghosts', () => {
+  const catalogProducts: Product[] = [
+    makeBook('b1', 'Arif Azad', 'Guardian Publications'),
+    makeBook('b2', 'হুমায়ূন আহমেদ', 'Anyaprokash'),
+    makeBook('b3', 'Dr. Muhammad Zafar Iqbal', 'Tamralipi'),
+  ];
+
+  // When Admin deleted ALL writers, dropdown MUST be empty even if products still contain author names
+  assert.deepEqual(buildManageableAuthorOptions([], catalogProducts), []);
+
+  // When Admin deleted ALL publishers, dropdown MUST be empty (never falls back to DEFAULT_PUBLISHERS_LIST)
+  assert.deepEqual(buildManageablePublisherOptions([], catalogProducts), []);
+
+  // When Admin keeps only 1 active writer & 1 active publisher, only those appear with accurate live counts
+  const managedAuthors: Author[] = [
+    { id: 'a-arif', name: 'Arif Azad', bio: '', photoUrl: '', booksCount: 99 },
+    { id: 'a-dup', name: 'arif azad ', bio: '', photoUrl: '', booksCount: 0 },
+  ];
+  const writerOpts = buildManageableAuthorOptions(managedAuthors, catalogProducts);
+  assert.equal(writerOpts.length, 1);
+  assert.equal(writerOpts[0].name, 'Arif Azad');
+  assert.equal(writerOpts[0].liveBooksCount, 1);
+
+  const managedPublishers: Publisher[] = [
+    { id: 'pub-prothoma', name: 'Prothoma Prokashon', banglaName: 'প্রথমা প্রকাশন', booksCount: 5 },
+  ];
+  const pubOpts = buildManageablePublisherOptions(managedPublishers, catalogProducts);
+  assert.equal(pubOpts.length, 1);
+  assert.equal(pubOpts[0].name, 'Prothoma Prokashon');
+  assert.equal(pubOpts[0].liveBooksCount, 0);
+});
+
+test('resolveAuthoritativePublishersList honors initialized empty directory and server empty snapshots without resurrecting defaults', () => {
+  // Initialized backup doc with [] overrides leftover stale primary docs
+  const deletedAll = resolveAuthoritativePublishersList(
+    { received: true, fromServer: true, items: [{ id: 'pub-prothoma', name: 'Prothoma Prokashon' }] },
+    { received: true, fromServer: true, exists: true, initialized: true, items: [] }
+  );
+  assert.deepEqual(deletedAll, { items: [], markInitialized: true });
+
+  // Server confirmed empty primary + no backup doc returns [] and marks initialized
+  const serverEmpty = resolveAuthoritativePublishersList(
+    { received: true, fromServer: true, items: [] },
+    { received: true, fromServer: true, exists: false, initialized: false, items: [] }
+  );
+  assert.deepEqual(serverEmpty, { items: [], markInitialized: true });
+
+  // Cache-only empty primary snapshot before server response returns null (wait for server)
+  const cacheEmpty = resolveAuthoritativePublishersList(
+    { received: true, fromServer: false, items: [] },
+    { received: false, fromServer: false, exists: false, initialized: false, items: [] }
+  );
+  assert.equal(cacheEmpty, null);
+});
+
+
