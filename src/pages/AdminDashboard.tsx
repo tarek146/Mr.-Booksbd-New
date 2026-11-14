@@ -12226,6 +12226,75 @@ export function AdminDashboard() {
                       </div>
                     </div>
 
+                    {/* Admin Orders Workspace & Fraud Check Settings */}
+                    <div
+                      data-testid="admin-orders-workspace-settings-card"
+                      className="p-4 rounded-xl bg-slate-50 border border-slate-200 col-span-1 sm:col-span-3 space-y-3"
+                    >
+                      <div>
+                        <span className="font-black text-neutral-900 block text-xs uppercase">
+                          Orders Fulfillment &amp; Fraud Check Settings (Firebase Synced)
+                        </span>
+                        <span className="text-[11px] text-neutral-600 block mt-0.5">
+                          Control row density, product thumbnail display, and quick customer Fraud Check button visibility on the Orders page.
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center pt-1">
+                        <div>
+                          <label className="block font-bold uppercase text-[#5F6368] mb-1 text-[11px]">
+                            Orders Default Density
+                          </label>
+                          <select
+                            data-testid="admin-orders-density-select"
+                            value={settingsForm.ordersDefaultDensity ?? 'comfortable'}
+                            onChange={e =>
+                              setSettingsForm(prev => ({
+                                ...prev,
+                                ordersDefaultDensity: e.target.value as 'comfortable' | 'compact',
+                              }))
+                            }
+                            className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-[#171717] font-bold text-xs"
+                          >
+                            <option value="comfortable">Comfortable (Balanced)</option>
+                            <option value="compact">Compact (High Density)</option>
+                          </select>
+                        </div>
+
+                        <label className="flex items-center gap-2 text-xs font-bold text-neutral-800 cursor-pointer pt-4 sm:pt-5">
+                          <input
+                            type="checkbox"
+                            data-testid="admin-orders-show-fraud-btn-checkbox"
+                            checked={settingsForm.ordersShowFraudCheckButton !== false}
+                            onChange={e =>
+                              setSettingsForm(prev => ({
+                                ...prev,
+                                ordersShowFraudCheckButton: e.target.checked,
+                              }))
+                            }
+                            className="w-4 h-4 accent-[#D71920]"
+                          />
+                          <span>Show Inline Fraud Check Button on Orders</span>
+                        </label>
+
+                        <label className="flex items-center gap-2 text-xs font-bold text-neutral-800 cursor-pointer pt-4 sm:pt-5">
+                          <input
+                            type="checkbox"
+                            data-testid="admin-orders-show-thumbs-checkbox"
+                            checked={settingsForm.ordersShowItemThumbnails !== false}
+                            onChange={e =>
+                              setSettingsForm(prev => ({
+                                ...prev,
+                                ordersShowItemThumbnails: e.target.checked,
+                              }))
+                            }
+                            className="w-4 h-4 accent-[#D71920]"
+                          />
+                          <span>Show Product Thumbnails in Order Rows</span>
+                        </label>
+                      </div>
+                    </div>
+
                     {/* Bangla QR (বাংলা কিউআর) Settings */}
                     <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 col-span-1 sm:col-span-3 space-y-3">
                       <div className="flex items-center justify-between">

@@ -481,6 +481,11 @@ export interface StoreSettings {
   invoiceFooterNote?: string;
   labelLogisticsText?: string;
 
+  // Admin Orders Workspace Preferences (Admin-managed via Firebase)
+  ordersDefaultDensity?: 'comfortable' | 'compact';
+  ordersShowFraudCheckButton?: boolean;
+  ordersShowItemThumbnails?: boolean;
+
   // Returning Customer Address Autofill Settings
   enableUseOldAddress?: boolean;
   oldAddressButtonLabel?: string;

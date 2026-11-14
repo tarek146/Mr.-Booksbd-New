@@ -203,6 +203,98 @@ export function getOrderRepeatRankLabel(
   };
 }
 
+export interface CustomerOrderHistoryEntry {
+  id: string;
+  createdAt: number;
+  total: number;
+  orderStatus: Order['orderStatus'];
+  paymentStatus: Order['paymentStatus'];
+  paymentMethodName: string;
+  itemsCount: number;
+  addressLine: string;
+  trackingCode?: string;
+}
+
+export interface CustomerOrderHistorySummary {
+  normalizedPhone: string;
+  totalOrders: number;
+  deliveredCount: number;
+  cancelledCount: number;
+  inFlightCount: number;
+  totalSpent: number;
+  successRatePercent: number | null;
+  cancellationRatePercent: number | null;
+  isFirstTimeCustomer: boolean;
+  customerRankLabel: string;
+  orders: CustomerOrderHistoryEntry[];
+}
+
+export function buildCustomerOrderHistorySummary(
+  phone: string,
+  allOrders: Order[]
+): CustomerOrderHistorySummary {
+  const key = normalizePhoneLast10(phone) || (phone || '').trim();
+  const matching = (allOrders || [])
+    .filter(o => {
+      if (o.isTrashed) return false;
+      const oKey = normalizePhoneLast10(o.phone) || (o.phone || '').trim();
+      return Boolean(key && oKey && oKey === key);
+    })
+    .sort((a, b) => toNumericTimestamp(b.createdAt, 0) - toNumericTimestamp(a.createdAt, 0));
+
+  const deliveredCount = matching.filter(o => o.orderStatus === 'delivered').length;
+  const cancelledCount = matching.filter(o => o.orderStatus === 'cancelled').length;
+  const inFlightCount = matching.filter(
+    o => o.orderStatus !== 'delivered' && o.orderStatus !== 'cancelled'
+  ).length;
+  const finishedCount = deliveredCount + cancelledCount;
+  const totalSpent = matching
+    .filter(o => o.orderStatus !== 'cancelled')
+    .reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+
+  const successRatePercent =
+    finishedCount > 0 ? Math.round((deliveredCount / finishedCount) * 100) : null;
+  const cancellationRatePercent =
+    finishedCount > 0 ? Math.round((cancelledCount / finishedCount) * 100) : null;
+
+  const totalOrders = matching.length;
+  const isFirstTimeCustomer = totalOrders <= 1;
+  const customerRankLabel =
+    totalOrders === 0
+      ? 'No Prior Store Orders'
+      : totalOrders === 1
+      ? '1st Order (New Customer)'
+      : `Repeat Customer · ${totalOrders} Orders`;
+
+  const orders: CustomerOrderHistoryEntry[] = matching.map(o => ({
+    id: o.id,
+    createdAt: toNumericTimestamp(o.createdAt, Date.now()),
+    total: Number(o.total) || 0,
+    orderStatus: o.orderStatus,
+    paymentStatus: o.paymentStatus,
+    paymentMethodName: o.paymentMethodName || 'Cash on Delivery',
+    itemsCount: Array.isArray(o.items)
+      ? o.items.reduce((sum, it) => sum + Math.max(1, Number(it.quantity) || 1), 0)
+      : 0,
+    addressLine: [o.address, o.city, o.district].filter(Boolean).join(', '),
+    trackingCode: o.trackingCode,
+  }));
+
+  return {
+    normalizedPhone: key,
+    totalOrders,
+    deliveredCount,
+    cancelledCount,
+    inFlightCount,
+    totalSpent,
+    successRatePercent,
+    cancellationRatePercent,
+    isFirstTimeCustomer,
+    customerRankLabel,
+    orders,
+  };
+}
+
 export function isOrderCompletedStatus(status: Order['orderStatus']): boolean {
   return status === 'delivered';
 }

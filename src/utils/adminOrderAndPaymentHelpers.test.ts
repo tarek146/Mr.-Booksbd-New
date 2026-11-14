@@ -9,6 +9,7 @@ import {
   filterPaymentRecords,
   resolveSiteSettings,
   computePaymentChannelDistribution,
+  buildCustomerOrderHistorySummary,
 } from './adminOrderAndPaymentHelpers';
 import type { Order, PaymentSubmission, PaymentMethodConfig } from '../types';
 
@@ -358,4 +359,32 @@ test('computePaymentChannelDistribution accurately attributes Bengali bKash orde
   assert.equal(dist.primaryChannel.label, 'bKash');
   assert.equal(dist.primaryChannel.percentage, 100);
 });
+
+test('buildCustomerOrderHistorySummary computes total orders, ratios, and excludes trashed orders', () => {
+  const orders: Order[] = [
+    makeOrder({ id: 'MRB-10', phone: '01609237584', orderStatus: 'delivered', total: 450, createdAt: 1000 }),
+    makeOrder({ id: 'MRB-11', phone: '+8801609237584', orderStatus: 'cancelled', total: 300, createdAt: 2000 }),
+    makeOrder({ id: 'MRB-12', phone: '01609237584', orderStatus: 'confirmed', total: 700, createdAt: 3000 }),
+    makeOrder({ id: 'MRB-TRASH', phone: '01609237584', orderStatus: 'cancelled', isTrashed: true, total: 999, createdAt: 4000 }),
+    makeOrder({ id: 'MRB-OTHER', phone: '01799999999', orderStatus: 'delivered', total: 200, createdAt: 5000 }),
+  ];
+
+  const summary = buildCustomerOrderHistorySummary('01609237584', orders);
+  assert.equal(summary.totalOrders, 3);
+  assert.equal(summary.deliveredCount, 1);
+  assert.equal(summary.cancelledCount, 1);
+  assert.equal(summary.inFlightCount, 1);
+  assert.equal(summary.totalSpent, 1150);
+  assert.equal(summary.successRatePercent, 50);
+  assert.equal(summary.cancellationRatePercent, 50);
+  assert.equal(summary.isFirstTimeCustomer, false);
+  assert.equal(summary.customerRankLabel, 'Repeat Customer · 3 Orders');
+  assert.deepEqual(summary.orders.map(o => o.id), ['MRB-12', 'MRB-11', 'MRB-10']);
+
+  const firstTimeSummary = buildCustomerOrderHistorySummary('01799999999', orders);
+  assert.equal(firstTimeSummary.totalOrders, 1);
+  assert.equal(firstTimeSummary.isFirstTimeCustomer, true);
+  assert.equal(firstTimeSummary.customerRankLabel, '1st Order (New Customer)');
+});
+
 

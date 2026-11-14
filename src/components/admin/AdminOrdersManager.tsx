@@ -13,11 +13,9 @@ import {
   Plus,
   Download,
   RefreshCw,
-  Calendar,
   Phone,
   MapPin,
   ShieldCheck,
-  AlertTriangle,
   Copy,
   Check,
   Eye,
@@ -33,8 +31,6 @@ import {
   X,
   FileText,
   Receipt,
-  Sparkles,
-  User,
 } from 'lucide-react';
 import {
   OrderChannelFilter,
@@ -60,9 +56,11 @@ import {
 } from '../../utils/bookkeepingCsvHelpers';
 import {
   calculateEditedOrderFinancials,
+  formatOrderAddressLine,
   resolveOrderWeightKg,
 } from '../../utils/orderDocumentHelpers';
 import { OrderPrintDocumentView } from './OrderPrintDocumentView';
+import { OrderFraudCheckModal } from './OrderFraudCheckModal';
 
 interface AdminOrdersManagerProps {
   orders: Order[];
@@ -671,10 +669,15 @@ export function AdminOrdersManager({
 
   const [detailModalOrder, setDetailModalOrder] = useState<Order | null>(null);
   const [receiptModalOrder, setReceiptModalOrder] = useState<Order | null>(null);
+  const [fraudCheckModalOrder, setFraudCheckModalOrder] = useState<Order | null>(null);
   const [printModalData, setPrintModalData] = useState<{ mode: 'label' | 'invoice'; orderId: string } | null>(null);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [returnPrintModeAfterEdit, setReturnPrintModeAfterEdit] = useState<'label' | 'invoice' | null>(null);
   const [confirmDeleteOrder, setConfirmDeleteOrder] = useState<{ order: Order; permanent: boolean } | null>(null);
+
+  const isCompactDensity = settings?.ordersDefaultDensity === 'compact';
+  const showFraudCheckButton = settings?.ordersShowFraudCheckButton !== false;
+  const showItemThumbnails = settings?.ordersShowItemThumbnails !== false;
 
   const subByOrderId = useMemo(() => {
     const map = new Map<string, PaymentSubmission>();
@@ -886,25 +889,25 @@ export function AdminOrdersManager({
 
   return (
     <div data-testid="admin-orders-dashboard" className="space-y-4">
-      {/* Top Command Toolbar Card */}
-      <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3.5">
-        {/* Row 1: Search, Status Select, Date Select, + Create Order, Export CSV, Sync */}
-        <div className="flex flex-col xl:flex-row xl:items-center gap-2.5">
+      {/* Unified Command Toolbar + Status Tabs */}
+      <div className="bg-white border border-slate-200/90 rounded-xl shadow-2xs overflow-visible">
+        {/* Row 1: Search, Compact Filters, Primary Actions */}
+        <div className="p-3.5 sm:px-4 flex flex-col xl:flex-row xl:items-center gap-2.5">
           <div className="relative flex-1 min-w-0">
-            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input
               type="text"
               data-testid="orders-search-input"
-              placeholder="Search by order #, customer name, phone, address, or TrxID..."
+              placeholder="Search order #, customer, phone, address, or TrxID..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-8 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50/70 focus:bg-white text-xs font-semibold text-neutral-900 focus:outline-none focus:border-[#D71920] transition-colors"
+              className="w-full h-9 pl-9 pr-8 rounded-lg border border-slate-200 bg-slate-50/70 focus:bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920] transition-colors"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 cursor-pointer"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
                 aria-label="Clear order search"
               >
                 <X size={13} />
@@ -917,9 +920,9 @@ export function AdminOrdersManager({
               value={statusDropdown}
               onChange={e => setStatusDropdown(e.target.value)}
               aria-label="Filter by exact status"
-              className="px-3 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-xs font-bold text-neutral-800 focus:outline-none focus:border-[#D71920] cursor-pointer"
+              className="h-9 px-2.5 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 focus:outline-none focus:border-[#D71920] cursor-pointer"
             >
-              <option value="all">⚡ All Status ({activeOrdersList.length})</option>
+              <option value="all">All Status ({activeOrdersList.length})</option>
               <option value="pending">Pending</option>
               <option value="awaiting_payment">Awaiting Payment</option>
               <option value="awaiting_payment_verification">Awaiting Verification</option>
@@ -934,37 +937,24 @@ export function AdminOrdersManager({
               value={dateFilter}
               onChange={e => setDateFilter(e.target.value as OrderDateFilter)}
               aria-label="Filter by date range"
-              className="px-3 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-xs font-bold text-neutral-800 focus:outline-none focus:border-[#D71920] cursor-pointer"
+              className="h-9 px-2.5 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 focus:outline-none focus:border-[#D71920] cursor-pointer"
             >
-              <option value="all">📅 All Dates</option>
+              <option value="all">All Dates</option>
               <option value="today">Today</option>
               <option value="7d">Last 7 Days</option>
               <option value="30d">Last 30 Days</option>
             </select>
-
-            <button
-              type="button"
-              data-testid="orders-create-order-btn"
-              onClick={() => {
-                if (!newProductId && products[0]) setNewProductId(products[0].id);
-                setShowCreateModal(true);
-              }}
-              className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-2xs cursor-pointer transition-colors"
-            >
-              <Plus size={14} />
-              <span>+ Create Order</span>
-            </button>
 
             <div className="relative">
               <button
                 type="button"
                 data-testid="orders-export-csv-btn"
                 onClick={() => setShowExportMenu(prev => !prev)}
-                className="px-3.5 py-2.5 bg-white hover:bg-neutral-50 text-neutral-800 border border-neutral-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+                className="h-9 px-3 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer transition-colors"
               >
-                <Download size={13} className="text-neutral-600" />
+                <Download size={13} className="text-slate-500" />
                 <span>Export CSV</span>
-                <ChevronDown size={13} className="text-neutral-400" />
+                <ChevronDown size={13} className="text-slate-400" />
               </button>
 
               {showExportMenu && (
@@ -975,42 +965,42 @@ export function AdminOrdersManager({
                   />
                   <div
                     data-testid="orders-export-csv-dropdown"
-                    className="absolute right-0 mt-1.5 w-60 bg-white border border-neutral-200 rounded-xl shadow-lg p-1.5 z-40 space-y-0.5"
+                    className="absolute right-0 mt-1.5 w-60 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 z-40 space-y-0.5"
                   >
                     <button
                       type="button"
                       data-testid="orders-export-order-summary-item"
                       onClick={handleExportCsv}
-                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-neutral-50 transition-colors flex items-start gap-2.5 cursor-pointer"
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors flex items-start gap-2.5 cursor-pointer"
                     >
-                      <FileText size={14} className="text-neutral-700 mt-0.5 shrink-0" />
+                      <FileText size={14} className="text-slate-700 mt-0.5 shrink-0" />
                       <div>
-                        <div className="text-xs font-bold text-neutral-900">Order Summary CSV</div>
-                        <div className="text-[11px] text-neutral-500">Orders, items, payment & courier</div>
+                        <div className="text-xs font-semibold text-slate-900">Order Summary CSV</div>
+                        <div className="text-[11px] text-slate-500">Orders, items, payment &amp; courier</div>
                       </div>
                     </button>
                     <button
                       type="button"
                       data-testid="orders-sales-report-csv-btn"
                       onClick={handleExportSalesReportCsv}
-                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-neutral-50 transition-colors flex items-start gap-2.5 cursor-pointer"
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors flex items-start gap-2.5 cursor-pointer"
                     >
                       <Receipt size={14} className="text-[#D71920] mt-0.5 shrink-0" />
                       <div>
-                        <div className="text-xs font-bold text-neutral-900">Sales Report CSV</div>
-                        <div className="text-[11px] text-neutral-500">Daily revenue & COD/MFS ledger</div>
+                        <div className="text-xs font-semibold text-slate-900">Sales Report CSV</div>
+                        <div className="text-[11px] text-slate-500">Daily revenue &amp; COD/MFS ledger</div>
                       </div>
                     </button>
                     <button
                       type="button"
                       data-testid="orders-product-sales-csv-btn"
                       onClick={handleExportProductSalesCsv}
-                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-neutral-50 transition-colors flex items-start gap-2.5 cursor-pointer"
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors flex items-start gap-2.5 cursor-pointer"
                     >
                       <Package size={14} className="text-emerald-600 mt-0.5 shrink-0" />
                       <div>
-                        <div className="text-xs font-bold text-neutral-900">Product Sales CSV</div>
-                        <div className="text-[11px] text-neutral-500">Item-wise units sold & revenue</div>
+                        <div className="text-xs font-semibold text-slate-900">Product Sales CSV</div>
+                        <div className="text-[11px] text-slate-500">Item-wise units sold &amp; revenue</div>
                       </div>
                     </button>
                   </div>
@@ -1030,17 +1020,91 @@ export function AdminOrdersManager({
                   setSyncing(false);
                 }
               }}
-              className="px-3.5 py-2.5 bg-white hover:bg-neutral-50 text-neutral-800 border border-neutral-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+              className="h-9 px-3 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer transition-colors"
             >
-              <RefreshCw size={13} className={syncing ? 'animate-spin text-[#D71920]' : 'text-neutral-600'} />
+              <RefreshCw size={13} className={syncing ? 'animate-spin text-[#D71920]' : 'text-slate-500'} />
               <span>Sync</span>
+            </button>
+
+            <button
+              type="button"
+              data-testid="orders-create-order-btn"
+              onClick={() => {
+                if (!newProductId && products[0]) setNewProductId(products[0].id);
+                setShowCreateModal(true);
+              }}
+              className="h-9 px-3.5 bg-[#D71920] hover:bg-[#B9151B] text-white rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer transition-colors"
+            >
+              <Plus size={14} />
+              <span>Create Order</span>
             </button>
           </div>
         </div>
 
-        {/* Row 2: Payment Channel Pills + Zone / Verification Dropdowns */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-neutral-100">
-          <div className="flex items-center gap-1.5 flex-wrap">
+        {/* Row 2: Clean Underline Status Tabs + Select All */}
+        <div className="px-4 border-t border-slate-100 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-5 overflow-x-auto no-scrollbar">
+            {(
+              [
+                { id: 'all', label: 'All Orders', count: statusTabCounts.all },
+                { id: 'pending', label: 'Pending', count: statusTabCounts.pending },
+                { id: 'processing', label: 'Processing', count: statusTabCounts.processing },
+                { id: 'shipped', label: 'Shipped', count: statusTabCounts.shipped },
+                { id: 'completed', label: 'Completed', count: statusTabCounts.completed },
+                { id: 'cancelled', label: 'Cancelled', count: statusTabCounts.cancelled },
+                { id: 'trash', label: 'Trash Bin', count: statusTabCounts.trash },
+              ] as const
+            ).map(tab => {
+              const active = statusTab === tab.id;
+              const isTrash = tab.id === 'trash';
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  data-testid={`orders-tab-${tab.id}`}
+                  onClick={() => {
+                    setStatusTab(tab.id);
+                    setSelectedIds([]);
+                  }}
+                  className={`py-2.5 text-xs border-b-2 inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer transition-colors ${
+                    active
+                      ? isTrash
+                        ? 'border-red-600 text-red-700 font-semibold'
+                        : 'border-[#D71920] text-slate-900 font-semibold'
+                      : isTrash
+                      ? 'border-transparent text-red-600/80 hover:text-red-700 font-medium'
+                      : 'border-transparent text-slate-500 hover:text-slate-900 font-medium'
+                  }`}
+                >
+                  {isTrash && <Trash2 size={12} />}
+                  <span>{tab.label}</span>
+                  <span
+                    className={`tabular-nums text-[11px] ${
+                      active ? 'text-slate-700 font-semibold' : 'text-slate-400'
+                    }`}
+                  >
+                    ({tab.count})
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <label className="inline-flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer shrink-0 select-none whitespace-nowrap">
+            <input
+              type="checkbox"
+              checked={allFilteredSelected}
+              onChange={toggleSelectAll}
+              className="w-3.5 h-3.5 accent-[#D71920] rounded cursor-pointer"
+            />
+            <span className="tabular-nums">Select All ({totalCount})</span>
+          </label>
+        </div>
+
+        {/* Row 3: Minimal Payment Channel Segmented Bar */}
+        <div className="px-4 py-2 bg-slate-50/70 border-t border-slate-100 rounded-b-xl flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className="text-[11px] font-medium text-slate-500 mr-1.5">Channel:</span>
             {CHANNEL_CHIPS.map(chip => {
               const active = channelFilter === chip.id;
               return (
@@ -1049,16 +1113,16 @@ export function AdminOrdersManager({
                   type="button"
                   data-testid={`orders-channel-${chip.id}`}
                   onClick={() => setChannelFilter(chip.id)}
-                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold border inline-flex items-center gap-1.5 cursor-pointer transition-all ${
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium inline-flex items-center gap-1 cursor-pointer transition-colors whitespace-nowrap shrink-0 ${
                     active
-                      ? 'bg-[#D71920] text-white border-[#D71920] shadow-2xs'
-                      : 'bg-neutral-50 text-neutral-700 border-neutral-200 hover:bg-neutral-100'
+                      ? 'bg-slate-900 text-white'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white'
                   }`}
                 >
                   <span>{chip.label}</span>
                   <span
-                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                      active ? 'bg-white/25 text-white' : 'bg-neutral-200/80 text-neutral-700'
+                    className={`tabular-nums text-[11px] ${
+                      active ? 'text-slate-300' : 'text-slate-400'
                     }`}
                   >
                     {channelCounts[chip.id]}
@@ -1073,9 +1137,9 @@ export function AdminOrdersManager({
               value={zoneFilter}
               onChange={e => setZoneFilter(e.target.value as OrderZoneFilter)}
               aria-label="Filter by delivery zone"
-              className="px-2.5 py-1.5 rounded-xl border border-neutral-200 bg-neutral-50 text-[11px] font-bold text-neutral-700 cursor-pointer focus:outline-none focus:border-[#D71920]"
+              className="h-7 px-2 rounded-md border border-slate-200 bg-white text-[11px] font-medium text-slate-700 cursor-pointer focus:outline-none focus:border-[#D71920]"
             >
-              <option value="all">🌐 All Zones</option>
+              <option value="all">All Zones</option>
               <option value="inside_dhaka">Inside Dhaka</option>
               <option value="outside_dhaka">Outside Dhaka</option>
             </select>
@@ -1084,82 +1148,26 @@ export function AdminOrdersManager({
               value={verificationFilter}
               onChange={e => setVerificationFilter(e.target.value as OrderVerificationFilter)}
               aria-label="Filter by payment verification"
-              className="px-2.5 py-1.5 rounded-xl border border-neutral-200 bg-neutral-50 text-[11px] font-bold text-neutral-700 cursor-pointer focus:outline-none focus:border-[#D71920]"
+              className="h-7 px-2 rounded-md border border-slate-200 bg-white text-[11px] font-medium text-slate-700 cursor-pointer focus:outline-none focus:border-[#D71920]"
             >
-              <option value="all">🛡️ Verification: All</option>
-              <option value="paid">Payment Done (Paid)</option>
-              <option value="pending_verification">Pending Verification</option>
+              <option value="all">Payment: All</option>
+              <option value="paid">Payment Done</option>
+              <option value="pending_verification">Pending Verify</option>
               <option value="unpaid">Unpaid</option>
               <option value="rejected">Rejected</option>
             </select>
+
+            <span className="text-[11px] text-slate-500 tabular-nums pl-1">
+              {filteredOrders.length} / {statusTab === 'trash' ? statusTabCounts.trash : statusTabCounts.all}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Status Rounded Tabs Bar + Select All */}
-      <div className="bg-white border border-neutral-200/90 rounded-2xl px-4 py-3 shadow-xs flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-          {(
-            [
-              { id: 'all', label: 'All Orders', count: statusTabCounts.all },
-              { id: 'pending', label: 'Pending', count: statusTabCounts.pending },
-              { id: 'processing', label: 'Processing', count: statusTabCounts.processing },
-              { id: 'shipped', label: 'Shipped', count: statusTabCounts.shipped },
-              { id: 'completed', label: 'Completed', count: statusTabCounts.completed },
-              { id: 'cancelled', label: 'Cancelled', count: statusTabCounts.cancelled },
-              { id: 'trash', label: 'Trash Bin', count: statusTabCounts.trash },
-            ] as const
-          ).map(tab => {
-            const active = statusTab === tab.id;
-            const isTrash = tab.id === 'trash';
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                data-testid={`orders-tab-${tab.id}`}
-                onClick={() => {
-                  setStatusTab(tab.id);
-                  setSelectedIds([]);
-                }}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold border inline-flex items-center gap-1.5 shrink-0 cursor-pointer transition-all ${
-                  active
-                    ? isTrash
-                      ? 'bg-red-600 text-white border-red-600 shadow-2xs'
-                      : 'bg-[#D71920] text-white border-[#D71920] shadow-2xs'
-                    : isTrash
-                    ? 'bg-red-50/70 text-red-700 border-red-200 hover:bg-red-100/80'
-                    : 'bg-neutral-50 text-neutral-700 border-neutral-200 hover:bg-neutral-100'
-                }`}
-              >
-                {isTrash && <Trash2 size={12} />}
-                <span>{tab.label}</span>
-                <span
-                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                    active ? 'bg-white/25 text-white' : 'bg-neutral-200/80 text-neutral-700'
-                  }`}
-                >
-                  {tab.count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        <label className="inline-flex items-center gap-2 text-xs font-bold text-neutral-700 cursor-pointer shrink-0 select-none">
-          <input
-            type="checkbox"
-            checked={allFilteredSelected}
-            onChange={toggleSelectAll}
-            className="w-4 h-4 accent-[#D71920] rounded cursor-pointer"
-          />
-          <span>Select All ({totalCount})</span>
-        </label>
-      </div>
-
       {/* Bulk Action Strip (Visible when >= 1 order selected) */}
       {selectedIds.length > 0 && (
-        <div className="bg-[#FFF1F2] border border-[#D71920]/30 rounded-2xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
-          <span className="font-black text-[#D71920]">
+        <div className="bg-red-50/70 border border-red-200 rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <span className="font-semibold text-[#D71920] tabular-nums">
             {selectedIds.length} order(s) selected
           </span>
           <div className="flex flex-wrap items-center gap-1.5">
@@ -1168,28 +1176,28 @@ export function AdminOrdersManager({
                 <button
                   type="button"
                   onClick={() => void handleBulkAction('processing')}
-                  className="px-2.5 py-1 rounded-lg bg-white border border-neutral-200 font-bold text-neutral-800 hover:border-[#D71920] cursor-pointer"
+                  className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 font-medium text-slate-700 hover:border-slate-300 cursor-pointer"
                 >
                   Mark Processing
                 </button>
                 <button
                   type="button"
                   onClick={() => void handleBulkAction('shipped')}
-                  className="px-2.5 py-1 rounded-lg bg-white border border-neutral-200 font-bold text-neutral-800 hover:border-[#D71920] cursor-pointer"
+                  className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 font-medium text-slate-700 hover:border-slate-300 cursor-pointer"
                 >
                   Mark Shipped
                 </button>
                 <button
                   type="button"
                   onClick={() => void handleBulkAction('delivered')}
-                  className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 cursor-pointer"
+                  className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 cursor-pointer"
                 >
                   Mark Completed
                 </button>
                 <button
                   type="button"
                   onClick={() => void handleBulkAction('trash')}
-                  className="px-2.5 py-1 rounded-lg bg-red-600 text-white font-bold hover:bg-red-700 cursor-pointer"
+                  className="px-2.5 py-1 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 cursor-pointer"
                 >
                   Move to Trash
                 </button>
@@ -1198,7 +1206,7 @@ export function AdminOrdersManager({
               <button
                 type="button"
                 onClick={() => void handleBulkAction('restore')}
-                className="px-3 py-1 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 cursor-pointer"
+                className="px-3 py-1 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 cursor-pointer"
               >
                 Restore Selected
               </button>
@@ -1207,18 +1215,18 @@ export function AdminOrdersManager({
         </div>
       )}
 
-      {/* Orders Card List */}
-      <div className="space-y-3">
+      {/* Clean Minimal Order List */}
+      <div className="space-y-2.5">
         {filteredOrders.length === 0 ? (
-          <div className="bg-white border border-dashed border-neutral-300 rounded-2xl p-12 text-center space-y-2">
-            <Package size={30} className="mx-auto text-neutral-300" />
-            <h3 className="text-sm font-black text-neutral-800">
+          <div className="bg-white border border-dashed border-slate-300 rounded-xl p-12 text-center space-y-2">
+            <Package size={28} className="mx-auto text-slate-300" />
+            <h3 className="text-sm font-semibold text-slate-900">
               {statusTab === 'trash' ? 'Trash Bin is empty' : 'No matching orders found'}
             </h3>
-            <p className="text-xs text-neutral-500">
+            <p className="text-xs text-slate-500">
               {statusTab === 'trash'
                 ? 'Moved or deleted orders will stay safely in Trash Bin until permanently removed.'
-                : 'Try clearing filters or create a manual order with + Create Order.'}
+                : 'Try adjusting your filters or create a manual order.'}
             </p>
           </div>
         ) : (
@@ -1234,96 +1242,95 @@ export function AdminOrdersManager({
             const linkedSub = subByOrderId.get(order.id);
             const isSelected = selectedIds.includes(order.id);
             const waPhone = cleanWhatsappPhone(order.phone);
+            const cleanAddress = formatOrderAddressLine(order);
+            const codCollectible =
+              order.paymentStatus === 'approved'
+                ? 0
+                : order.courierCodAmount ?? order.total ?? 0;
 
             return (
               <div
                 key={order.id}
                 data-testid={`order-card-${order.id}`}
-                className={`bg-white border rounded-2xl overflow-hidden shadow-2xs transition-all ${
+                className={`bg-white border rounded-xl overflow-hidden transition-colors ${
                   isSelected
-                    ? 'border-[#D71920] ring-2 ring-[#D71920]/15'
-                    : 'border-neutral-200/90 hover:border-neutral-300'
+                    ? 'border-[#D71920] ring-1 ring-[#D71920]/25'
+                    : 'border-slate-200/90 hover:border-slate-300'
                 }`}
               >
-                {/* Card Header Strip */}
-                <div className="px-4 py-3 bg-neutral-50/80 border-b border-neutral-100 flex flex-wrap items-center justify-between gap-2.5">
-                  <div className="flex flex-wrap items-center gap-2">
+                {/* Clean 1-Line Typographic Header Strip */}
+                <div className="px-4 py-2.5 bg-slate-50/70 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2.5">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs min-w-0">
                     <input
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => toggleSelectOne(order.id)}
                       aria-label={`Select order ${order.id}`}
-                      className="w-4 h-4 accent-[#D71920] rounded cursor-pointer"
+                      className="w-3.5 h-3.5 accent-[#D71920] rounded cursor-pointer shrink-0"
                     />
 
-                    {/* SL Badge */}
-                    <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200/90 text-[11px] font-black font-mono">
-                      SL #{serialNumber}
+                    <span className="font-mono text-slate-400 tabular-nums font-medium">
+                      #{serialNumber}
                     </span>
 
-                    {/* Order # + Copy */}
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-neutral-900 text-white text-[11px] font-mono font-bold">
-                      #{order.id}
-                      <button
-                        type="button"
-                        onClick={() => handleCopyText(order.id, 'Order ID', `id-${order.id}`)}
-                        className="ml-0.5 text-neutral-300 hover:text-white cursor-pointer"
-                        title="Copy Order ID"
-                        aria-label={`Copy Order ${order.id}`}
-                      >
-                        {copiedId === `id-${order.id}` ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
-                      </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyText(order.id, 'Order ID', `id-${order.id}`)}
+                      className="inline-flex items-center gap-1 font-mono font-semibold text-slate-900 hover:text-[#D71920] cursor-pointer transition-colors"
+                      title="Copy Order ID"
+                      aria-label={`Copy Order ${order.id}`}
+                    >
+                      <span>#{order.id}</span>
+                      {copiedId === `id-${order.id}` ? (
+                        <Check size={11} className="text-emerald-600" />
+                      ) : (
+                        <Copy size={11} className="text-slate-400" />
+                      )}
+                    </button>
+
+                    <span className="text-slate-300" aria-hidden="true">·</span>
+
+                    <span className="text-slate-500 tabular-nums whitespace-nowrap">
+                      {dateStr}, {timeStr}
                     </span>
 
-                    {/* 1st Order / Repeat Order Badge */}
+                    <span className="text-slate-300" aria-hidden="true">·</span>
+
                     <span
                       data-testid={`order-repeat-badge-${order.id}`}
-                      className={`px-2 py-0.5 rounded-md text-[10.5px] font-extrabold border inline-flex items-center gap-1 ${
-                        repeatMeta.isRepeat
-                          ? 'bg-purple-50 text-purple-700 border-purple-200'
-                          : 'bg-blue-50 text-blue-700 border-blue-200'
+                      className={`font-medium whitespace-nowrap ${
+                        repeatMeta.isRepeat ? 'text-blue-700' : 'text-slate-600'
                       }`}
                     >
-                      <Sparkles size={10} />
                       {repeatMeta.label}
                     </span>
 
-                    {/* Fraud Check Badge (when cancelled > 0 highlight in header too) */}
-                    {repeatMeta.cancelledCount > 0 && (
-                      <span className="px-2 py-0.5 rounded-md text-[10.5px] font-extrabold bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-1">
-                        <AlertTriangle size={10} className="text-amber-600" />
-                        Fraud: {repeatMeta.cancelledCount} Cancelled
-                      </span>
-                    )}
+                    <span className="text-slate-300" aria-hidden="true">·</span>
 
-                    {/* Date & Time Pill */}
-                    <span className="px-2 py-0.5 rounded-md bg-white border border-neutral-200 text-[11px] font-semibold text-neutral-600 inline-flex items-center gap-1">
-                      <Calendar size={11} className="text-neutral-400" />
-                      {dateStr} · {timeStr}
-                    </span>
-
-                    {/* Inside / Outside Dhaka Pill */}
-                    <span
-                      className={`px-2 py-0.5 rounded-md text-[10.5px] font-extrabold border ${
-                        isInsideDhaka
-                          ? 'bg-blue-50 text-blue-700 border-blue-200'
-                          : 'bg-orange-50 text-orange-700 border-orange-200'
-                      }`}
-                    >
+                    <span className="text-slate-500 whitespace-nowrap">
                       {isInsideDhaka ? 'Inside Dhaka' : 'Outside Dhaka'}
                     </span>
+
+                    {repeatMeta.cancelledCount > 0 && (
+                      <>
+                        <span className="text-slate-300" aria-hidden="true">·</span>
+                        <span className="text-amber-700 font-semibold whitespace-nowrap tabular-nums">
+                          {repeatMeta.cancelledCount} Cancelled History
+                        </span>
+                      </>
+                    )}
                   </div>
 
-                  {/* Header Right Controls: Label, Invoice, Edit, Status Select */}
-                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 shrink-0">
+                  {/* Header Right Controls */}
+                  <div className="flex flex-wrap items-center gap-1.5 min-w-0">
                     <button
                       type="button"
                       data-testid={`order-label-btn-${order.id}`}
                       onClick={() => setPrintModalData({ mode: 'label', orderId: order.id })}
-                      className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-neutral-100 border border-neutral-200 text-neutral-700 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
+                      className="h-7 px-2.5 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium inline-flex items-center gap-1 whitespace-nowrap cursor-pointer transition-colors"
                       title="Open & Print Shipping Label"
                     >
-                      <Printer size={12} />
+                      <Printer size={12} className="text-slate-500" />
                       <span>Label</span>
                     </button>
 
@@ -1331,10 +1338,10 @@ export function AdminOrdersManager({
                       type="button"
                       data-testid={`order-invoice-btn-${order.id}`}
                       onClick={() => setPrintModalData({ mode: 'invoice', orderId: order.id })}
-                      className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-neutral-100 border border-neutral-200 text-neutral-700 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
+                      className="h-7 px-2.5 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium inline-flex items-center gap-1 whitespace-nowrap cursor-pointer transition-colors"
                       title="Open & Print Customer Invoice"
                     >
-                      <FileText size={12} />
+                      <FileText size={12} className="text-slate-500" />
                       <span>Invoice</span>
                     </button>
 
@@ -1345,10 +1352,10 @@ export function AdminOrdersManager({
                         setReturnPrintModeAfterEdit(null);
                         setEditingOrderId(order.id);
                       }}
-                      className="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 text-[11px] font-extrabold inline-flex items-center gap-1 cursor-pointer transition-colors"
+                      className="h-7 px-2.5 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 text-xs font-semibold inline-flex items-center gap-1 whitespace-nowrap cursor-pointer transition-colors"
                       title="Edit Full Order Details"
                     >
-                      <Edit2 size={12} />
+                      <Edit2 size={12} className="text-slate-500" />
                       <span>Edit</span>
                     </button>
 
@@ -1358,14 +1365,14 @@ export function AdminOrdersManager({
                         void onUpdateOrderStatus(order.id, e.target.value as Order['orderStatus'])
                       }
                       aria-label={`Order status for ${order.id}`}
-                      className={`px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold border cursor-pointer focus:outline-none ${
+                      className={`h-7 px-2.5 max-w-full rounded-lg text-xs font-semibold border cursor-pointer focus:outline-none ${
                         order.orderStatus === 'delivered'
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          ? 'bg-emerald-50/70 text-emerald-700 border-emerald-200'
                           : order.orderStatus === 'cancelled'
-                          ? 'bg-red-50 text-red-700 border-red-200'
+                          ? 'bg-red-50/70 text-red-700 border-red-200'
                           : isOrderPendingGroup(order.orderStatus)
-                          ? 'bg-amber-50 text-amber-800 border-amber-200'
-                          : 'bg-blue-50 text-blue-700 border-blue-200'
+                          ? 'bg-amber-50/70 text-amber-800 border-amber-200'
+                          : 'bg-white text-slate-800 border-slate-200'
                       }`}
                     >
                       <option value="pending">Pending</option>
@@ -1381,21 +1388,24 @@ export function AdminOrdersManager({
                   </div>
                 </div>
 
-                {/* 4-Column Body */}
-                <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 items-start">
-                  {/* Col 1: Customer Details + Fraud Signal (3 cols) */}
-                  <div className="lg:col-span-3 space-y-2">
-                    <div className="font-black text-sm text-neutral-900 flex items-center gap-1.5">
-                      <User size={13} className="text-neutral-400 shrink-0" />
-                      <span className="truncate">{order.customerName}</span>
+                {/* Clean 4-Column Body */}
+                <div
+                  className={`${
+                    isCompactDensity ? 'p-3 gap-3.5' : 'p-4 gap-5'
+                  } grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 items-start`}
+                >
+                  {/* Col 1: Customer & Fraud Check (3 cols) */}
+                  <div className="lg:col-span-3 space-y-1.5 min-w-0">
+                    <div className="text-sm font-semibold text-slate-900 truncate">
+                      {order.customerName}
                     </div>
 
-                    <div className="flex items-center gap-1.5 flex-wrap">
+                    <div className="flex items-center gap-2.5 flex-wrap text-xs">
                       <a
                         href={`tel:${(order.phone || '').replace(/\s+/g, '')}`}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-extrabold"
+                        className="inline-flex items-center gap-1 font-mono font-semibold text-slate-800 hover:text-[#D71920] tabular-nums"
                       >
-                        <Phone size={11} className="text-emerald-600" />
+                        <Phone size={11} className="text-slate-400" />
                         <span>{order.phone}</span>
                       </a>
 
@@ -1404,89 +1414,86 @@ export function AdminOrdersManager({
                           href={`https://wa.me/${waPhone}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10.5px] font-black"
+                          className="text-[11px] font-semibold text-emerald-700 hover:underline"
                           title="Message on WhatsApp"
                         >
-                          WA
+                          WhatsApp
                         </a>
                       )}
                     </div>
 
-                    <div className="text-xs text-neutral-500 flex items-start gap-1.5 leading-snug">
-                      <MapPin size={12} className="text-neutral-400 shrink-0 mt-0.5" />
-                      <span>
-                        {[order.address, order.city, order.district].filter(Boolean).join(', ')}
-                      </span>
-                    </div>
-
-                    {/* Fraud Check Risk Indicator Pill + 1-Click Live Fraud Check */}
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <div
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10.5px] font-bold ${
-                          repeatMeta.cancelledCount > 0
-                            ? 'bg-amber-50 text-amber-800 border-amber-200'
-                            : 'bg-emerald-50/70 text-emerald-700 border-emerald-200/80'
-                        }`}
-                      >
-                        {repeatMeta.cancelledCount > 0 ? (
-                          <AlertTriangle size={11} className="text-amber-600 shrink-0" />
-                        ) : (
-                          <ShieldCheck size={11} className="text-emerald-600 shrink-0" />
-                        )}
-                        <span>
-                          Fraud: {repeatMeta.cancelledCount} Cancelled ({repeatMeta.totalOrders} total)
-                        </span>
+                    {cleanAddress && (
+                      <div className="text-xs text-slate-500 flex items-start gap-1.5 leading-snug">
+                        <MapPin size={12} className="text-slate-400 shrink-0 mt-0.5" />
+                        <span className="line-clamp-2">{cleanAddress}</span>
                       </div>
+                    )}
 
-                      {onOpenFraudChecker && (
+                    {/* Fraud Check Action + Clean Order History Signal */}
+                    {showFraudCheckButton && (
+                      <div className="pt-1 flex items-center gap-2 flex-wrap">
                         <button
                           type="button"
-                          onClick={() => onOpenFraudChecker(order.phone)}
+                          onClick={() => setFraudCheckModalOrder(order)}
                           data-testid={`order-fraud-check-btn-${order.id}`}
-                          className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold inline-flex items-center gap-1 cursor-pointer"
-                          title="Verify Courier Delivery History by Phone Number"
+                          className="h-7 px-2.5 rounded-lg border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 text-slate-800 text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                          title="Check Customer Order History & Courier Fraud Score"
                         >
-                          <ShieldCheck size={11} />
-                          <span>Verify Score</span>
+                          <ShieldCheck
+                            size={12}
+                            className={
+                              repeatMeta.cancelledCount > 0
+                                ? 'text-amber-600'
+                                : 'text-emerald-600'
+                            }
+                          />
+                          <span>Fraud Check</span>
                         </button>
-                      )}
-                    </div>
+
+                        <span
+                          className={`text-[11px] font-medium tabular-nums ${
+                            repeatMeta.cancelledCount > 0 ? 'text-amber-700' : 'text-slate-500'
+                          }`}
+                        >
+                          {repeatMeta.totalOrders} {repeatMeta.totalOrders === 1 ? 'order' : 'orders'} · {repeatMeta.cancelledCount} cancelled
+                        </span>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Col 2: Ordered Items + Expandable Toggle (3 cols) */}
-                  <div className="lg:col-span-3 space-y-2">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[10.5px] font-extrabold">
-                      <Package size={11} />
-                      {itemsList.length} item(s)
-                    </span>
+                  {/* Col 2: Ordered Items (3 cols) - Zero nested boxes */}
+                  <div className="lg:col-span-3 space-y-1.5 min-w-0">
+                    <div className="text-xs font-medium text-slate-500 tabular-nums">
+                      {itemsList.length} {itemsList.length === 1 ? 'item' : 'items'}
+                    </div>
 
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       {visibleItems.map((item, i) => (
                         <div
                           key={`${item.productId}-${i}`}
-                          className="flex items-center gap-2.5 p-2 rounded-xl bg-neutral-50 border border-neutral-200/80"
+                          className="flex items-center gap-2.5 min-w-0"
                         >
-                          <img
-                            src={
-                              item.image ||
-                              'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=100'
-                            }
-                            alt={item.title}
-                            className="w-9 h-10 object-cover rounded-lg border border-neutral-200 shrink-0"
-                          />
+                          {showItemThumbnails && (
+                            item.image ? (
+                              <img
+                                src={item.image}
+                                alt={item.title}
+                                referrerPolicy="no-referrer"
+                                className="w-9 h-9 object-cover rounded-md border border-slate-200/80 shrink-0"
+                              />
+                            ) : (
+                              <div className="w-9 h-9 rounded-md bg-slate-100 border border-slate-200/80 flex items-center justify-center text-slate-400 shrink-0">
+                                <Package size={14} />
+                              </div>
+                            )
+                          )}
                           <div className="min-w-0 flex-1">
-                            <div className="text-xs font-bold text-neutral-900 truncate">
+                            <div className="text-xs font-semibold text-slate-900 truncate">
                               {item.quantity}x {item.title}
                             </div>
-                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                              <span className="text-[11px] font-black text-[#D71920]">
-                                ৳{item.price}
-                              </span>
-                              {item.variantName && (
-                                <span className="px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[9.5px] font-bold">
-                                  {item.variantName}
-                                </span>
-                              )}
+                            <div className="text-[11px] text-slate-500 tabular-nums truncate">
+                              ৳{item.price}
+                              {item.variantName ? ` · ${item.variantName}` : ''}
                             </div>
                           </div>
                         </div>
@@ -1499,7 +1506,7 @@ export function AdminOrdersManager({
                         onClick={() =>
                           setExpandedItemsOrderIds(prev => ({ ...prev, [order.id]: !prev[order.id] }))
                         }
-                        className="w-full py-1 px-2.5 rounded-lg bg-amber-50/70 hover:bg-amber-100/70 border border-amber-200/90 text-amber-800 text-[10.5px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                        className="text-[11px] font-medium text-slate-600 hover:text-[#D71920] inline-flex items-center gap-1 cursor-pointer transition-colors"
                       >
                         {isItemsExpanded ? (
                           <>
@@ -1507,35 +1514,29 @@ export function AdminOrdersManager({
                           </>
                         ) : (
                           <>
-                            <ChevronDown size={12} /> + {extraCount} more item(s)
+                            <ChevronDown size={12} /> +{extraCount} more item(s)
                           </>
                         )}
                       </button>
                     )}
                   </div>
 
-                  {/* Col 3: Amount, Payment Method, Payment Status & Receipt (3 cols) */}
-                  <div className="lg:col-span-3 space-y-2">
-                    <div className="flex items-center justify-between text-[10.5px] font-bold text-neutral-500">
-                      <span className="text-amber-700">Total Amount</span>
-                      <span>Delivery ৳{order.deliveryCharge || 0}</span>
-                    </div>
-
-                    <div className="text-xl font-black text-neutral-900 tabular-nums leading-none flex items-center gap-2">
-                      <span>৳{(order.total || 0).toLocaleString()}</span>
-                      <span className="px-2 py-0.5 rounded bg-neutral-100 text-neutral-700 text-[10px] font-mono font-bold">
-                        COD: ৳
-                        {order.paymentStatus === 'approved'
-                          ? 0
-                          : (order.courierCodAmount ?? order.total ?? 0).toLocaleString()}
+                  {/* Col 3: Payment & Total (3 cols) */}
+                  <div className="lg:col-span-3 space-y-1.5 min-w-0">
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <span className="text-base font-bold text-slate-900 tabular-nums">
+                        ৳{(order.total || 0).toLocaleString()}
+                      </span>
+                      <span className="text-[11px] font-mono text-slate-500 tabular-nums">
+                        COD ৳{codCollectible.toLocaleString()}
                       </span>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10.5px] font-bold">
-                        {order.paymentMethodName || 'Cash on Delivery'}
-                      </span>
+                    <div className="text-[11px] text-slate-500 tabular-nums truncate">
+                      {order.paymentMethodName || 'Cash on Delivery'} · Delivery ৳{order.deliveryCharge || 0}
+                    </div>
 
+                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                       <select
                         value={order.paymentStatus}
                         onChange={e =>
@@ -1545,14 +1546,14 @@ export function AdminOrdersManager({
                           )
                         }
                         aria-label={`Payment status for ${order.id}`}
-                        className={`px-2 py-1 rounded-lg text-[10.5px] font-extrabold border cursor-pointer focus:outline-none ${
+                        className={`h-7 px-2 rounded-lg text-[11px] font-semibold border cursor-pointer focus:outline-none ${
                           order.paymentStatus === 'approved'
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            ? 'bg-emerald-50/70 text-emerald-700 border-emerald-200'
                             : order.paymentStatus === 'pending_verification'
-                            ? 'bg-amber-50 text-amber-800 border-amber-200'
+                            ? 'bg-amber-50/70 text-amber-800 border-amber-200'
                             : order.paymentStatus === 'rejected'
-                            ? 'bg-red-50 text-red-700 border-red-200'
-                            : 'bg-neutral-100 text-neutral-700 border-neutral-200'
+                            ? 'bg-red-50/70 text-red-700 border-red-200'
+                            : 'bg-white text-slate-700 border-slate-200'
                         }`}
                       >
                         <option value="unpaid">Unpaid</option>
@@ -1560,23 +1561,22 @@ export function AdminOrdersManager({
                         <option value="approved">Payment Done</option>
                         <option value="rejected">Rejected</option>
                       </select>
-                    </div>
 
-                    <div className="flex items-center gap-1.5 flex-wrap">
                       {order.paymentStatus !== 'approved' && (
                         <button
                           type="button"
                           onClick={() => void onUpdateOrderPaymentStatus(order.id, 'approved')}
-                          className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10.5px] font-bold inline-flex items-center gap-1 cursor-pointer"
+                          className="h-7 px-2 rounded-lg border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100 text-emerald-700 text-[11px] font-semibold inline-flex items-center gap-1 cursor-pointer transition-colors"
                         >
                           <CheckCircle2 size={11} />
                           <span>Mark Paid</span>
                         </button>
                       )}
+
                       <button
                         type="button"
                         onClick={() => setReceiptModalOrder(order)}
-                        className="px-2.5 py-1 rounded-lg bg-neutral-100 hover:bg-neutral-200 text-neutral-700 border border-neutral-200 text-[10.5px] font-bold inline-flex items-center gap-1 cursor-pointer"
+                        className="h-7 px-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-[11px] font-medium inline-flex items-center gap-1 cursor-pointer transition-colors"
                       >
                         <Receipt size={11} />
                         <span>Receipt</span>
@@ -1584,23 +1584,23 @@ export function AdminOrdersManager({
                     </div>
                   </div>
 
-                  {/* Col 4: Quick Courier Assignment + 1-Click Steadfast Transfer + Row Action Icons (3 cols) */}
-                  <div className="lg:col-span-3 flex flex-col justify-between gap-2">
+                  {/* Col 4: Courier & Row Actions (3 cols) */}
+                  <div className="lg:col-span-3 flex flex-col justify-between gap-2.5 min-w-0">
                     {order.courierName || order.trackingCode || order.consignmentId ? (
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-1.5">
                           <button
                             type="button"
                             onClick={() => onOpenTrackingModal(order)}
-                            className="flex-1 min-w-0 px-2.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-extrabold flex items-center justify-between gap-1.5 cursor-pointer transition-colors"
+                            className="flex-1 min-w-0 h-8 px-2.5 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 text-xs font-medium flex items-center justify-between gap-1.5 cursor-pointer transition-colors"
                           >
                             <span className="truncate flex items-center gap-1.5">
-                              <CheckCircle2 size={13} className="text-emerald-600 shrink-0" />
-                              <span className="truncate">
+                              <Truck size={13} className="text-emerald-600 shrink-0" />
+                              <span className="truncate font-mono text-[11px]">
                                 {order.courierName || 'Steadfast'}: {order.trackingCode || order.consignmentId || 'Sent'}
                               </span>
                             </span>
-                            <Edit2 size={11} className="shrink-0" />
+                            <Edit2 size={11} className="text-slate-400 shrink-0" />
                           </button>
 
                           {onSyncCourierOrder && (
@@ -1615,28 +1615,28 @@ export function AdminOrdersManager({
                                   setSyncingCourierOrderId(null);
                                 }
                               }}
-                              className="p-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 cursor-pointer shrink-0"
+                              className="h-8 w-8 rounded-lg bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 flex items-center justify-center cursor-pointer shrink-0 transition-colors"
                               title="Sync Live Delivery Status from Courier"
                             >
                               <RefreshCw
                                 size={13}
-                                className={syncingCourierOrderId === order.id ? 'animate-spin' : ''}
+                                className={syncingCourierOrderId === order.id ? 'animate-spin text-[#D71920]' : ''}
                               />
                             </button>
                           )}
                         </div>
 
                         {order.courierDeliveryStatus && (
-                          <div className="flex items-center justify-between text-[10px] font-bold px-1">
-                            <span className="text-neutral-500">Courier Status:</span>
-                            <span className="uppercase font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                          <div className="flex items-center justify-between text-[11px] px-0.5">
+                            <span className="text-slate-500">Courier Status</span>
+                            <span className="font-mono font-semibold text-emerald-700 uppercase">
                               {order.courierDeliveryStatus}
                             </span>
                           </div>
                         )}
                       </div>
                     ) : (
-                      <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5">
                         {onOneClickSendCourier && (
                           <button
                             type="button"
@@ -1650,16 +1650,24 @@ export function AdminOrdersManager({
                                 setSendingCourierOrderId(null);
                               }
                             }}
-                            className="w-full py-1.5 px-3.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 hover:bg-emerald-200 text-emerald-800 dark:text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs disabled:opacity-50"
+                            className="flex-1 h-8 px-3 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer transition-colors disabled:opacity-50"
                           >
                             <Truck size={13} className="shrink-0" />
                             <span className="truncate">
                               {sendingCourierOrderId === order.id
                                 ? `Sending to ${courierName}...`
-                                : `1-Click Send to ${courierName}`}
+                                : `Send to ${courierName}`}
                             </span>
                           </button>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => onOpenTrackingModal(order)}
+                          className="h-8 px-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-medium cursor-pointer shrink-0 transition-colors"
+                          title="Assign Courier Manually"
+                        >
+                          Manual
+                        </button>
                       </div>
                     )}
 
@@ -1669,12 +1677,12 @@ export function AdminOrdersManager({
                         type="button"
                         onClick={() =>
                           handleCopyText(
-                            `Order #${order.id}\nName: ${order.customerName}\nPhone: ${order.phone}\nAddress: ${order.address}, ${order.city}, ${order.district}\nTotal: ৳${order.total}${linkedSub?.transactionReference ? `\nTrxID: ${linkedSub.transactionReference}` : ''}`,
+                            `Order #${order.id}\nName: ${order.customerName}\nPhone: ${order.phone}\nAddress: ${cleanAddress}\nTotal: ৳${order.total}${linkedSub?.transactionReference ? `\nTrxID: ${linkedSub.transactionReference}` : ''}`,
                             'Order summary',
                             `summary-${order.id}`
                           )
                         }
-                        className="p-2 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-600 cursor-pointer"
+                        className="h-8 w-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 flex items-center justify-center cursor-pointer transition-colors"
                         title="Copy Full Order Summary"
                       >
                         {copiedId === `summary-${order.id}` ? (
@@ -1687,7 +1695,7 @@ export function AdminOrdersManager({
                       <button
                         type="button"
                         onClick={() => setDetailModalOrder(order)}
-                        className="p-2 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-600 cursor-pointer"
+                        className="h-8 w-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 flex items-center justify-center cursor-pointer transition-colors"
                         title="View Order Details"
                       >
                         <Eye size={13} />
@@ -1698,7 +1706,7 @@ export function AdminOrdersManager({
                           <button
                             type="button"
                             onClick={() => void onRestoreOrder(order.id)}
-                            className="p-2 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 cursor-pointer"
+                            className="h-8 w-8 rounded-lg border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 flex items-center justify-center cursor-pointer transition-colors"
                             title="Restore Order from Trash"
                           >
                             <RotateCcw size={13} />
@@ -1706,7 +1714,7 @@ export function AdminOrdersManager({
                           <button
                             type="button"
                             onClick={() => setConfirmDeleteOrder({ order, permanent: true })}
-                            className="p-2 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 cursor-pointer"
+                            className="h-8 w-8 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 flex items-center justify-center cursor-pointer transition-colors"
                             title="Delete Permanently"
                           >
                             <Trash2 size={13} />
@@ -1716,7 +1724,7 @@ export function AdminOrdersManager({
                         <button
                           type="button"
                           onClick={() => setConfirmDeleteOrder({ order, permanent: false })}
-                          className="p-2 rounded-xl border border-red-100 bg-red-50/70 hover:bg-red-100 text-red-600 cursor-pointer"
+                          className="h-8 w-8 rounded-lg border border-slate-200 bg-white hover:bg-red-50 hover:border-red-200 text-slate-500 hover:text-red-600 flex items-center justify-center cursor-pointer transition-colors"
                           title="Move to Trash Bin"
                         >
                           <Trash2 size={13} />
@@ -2013,6 +2021,17 @@ export function AdminOrdersManager({
             setEditingOrderId(targetOrderId);
           }}
           onClose={() => setPrintModalData(null)}
+        />
+      )}
+
+      {/* Customer Fraud & Order History Check Modal */}
+      {fraudCheckModalOrder && (
+        <OrderFraudCheckModal
+          order={fraudCheckModalOrder}
+          orders={orders}
+          settings={settings}
+          onOpenFullFraudChecker={onOpenFraudChecker}
+          onClose={() => setFraudCheckModalOrder(null)}
         />
       )}
 
