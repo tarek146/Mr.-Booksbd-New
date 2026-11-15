@@ -81,6 +81,7 @@ import {
   deleteDoc, 
   onSnapshot,
   query,
+  runTransaction,
   where,
   writeBatch
 } from 'firebase/firestore';
@@ -599,31 +600,103 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const reviewReactionQueueRef = useRef<Record<string, Promise<void>>>({});
+  const pendingReviewReactionsRef = useRef<Record<string, number>>({});
+
   const reactToReview = async (review: Review, reaction: ReactionType) => {
-    const result = applyReviewReaction(review, visitorId, reaction);
-    const updatedReview: Review = {
+    const optimistic = applyReviewReaction(review, visitorId, reaction);
+    const optimisticReview: Review = {
       ...review,
-      likesCount: result.likesCount,
-      lovesCount: result.lovesCount,
-      dislikesCount: result.dislikesCount,
-      userReactions: result.userReactions,
+      likesCount: optimistic.likesCount,
+      lovesCount: optimistic.lovesCount,
+      dislikesCount: optimistic.dislikesCount,
+      userReactions: optimistic.userReactions,
     };
 
-    // Optimistic state update for immediate real-time responsiveness
+    pendingReviewReactionsRef.current[review.id] =
+      (pendingReviewReactionsRef.current[review.id] || 0) + 1;
+
+    // Optimistic state & local cache update for instant real-time responsiveness
     setReviews(prev => {
       const exists = prev.some(r => r.id === review.id);
-      if (exists) {
-        return prev.map(r => (r.id === review.id ? updatedReview : r));
-      }
-      return [updatedReview, ...prev];
+      const next = exists
+        ? prev.map(r => (r.id === review.id ? optimisticReview : r))
+        : [optimisticReview, ...prev];
+      writeCachedSlice('reviews', next);
+      return next;
     });
 
-    try {
-      const cleaned = cleanForFirestore(updatedReview);
-      await setDoc(doc(db, 'reviews', review.id), cleaned, { merge: true });
-    } catch (err: any) {
-      console.warn('Error syncing review reaction to Firestore:', err);
-    }
+    const revRef = doc(db, 'reviews', review.id);
+    const prevTask = reviewReactionQueueRef.current[review.id] || Promise.resolve();
+
+    const nextTask = prevTask
+      .catch(() => {})
+      .then(async () => {
+        try {
+          const committedReview = await runTransaction(db, async (transaction) => {
+            const snap = await transaction.get(revRef);
+            if (snap.exists()) {
+              const latestReview: Review = {
+                ...review,
+                ...(snap.data() as Partial<Review>),
+                id: snap.id,
+              };
+              const txResult = applyReviewReaction(latestReview, visitorId, reaction);
+              const patch = cleanForFirestore({
+                likesCount: txResult.likesCount,
+                lovesCount: txResult.lovesCount,
+                dislikesCount: txResult.dislikesCount,
+                userReactions: txResult.userReactions,
+              });
+              transaction.update(revRef, patch);
+              return {
+                ...latestReview,
+                likesCount: txResult.likesCount,
+                lovesCount: txResult.lovesCount,
+                dislikesCount: txResult.dislikesCount,
+                userReactions: txResult.userReactions,
+              };
+            }
+
+            const initialDoc = cleanForFirestore(optimisticReview);
+            transaction.set(revRef, initialDoc);
+            return optimisticReview;
+          });
+
+          let remainingPending = 0;
+          pendingReviewReactionsRef.current[review.id] = Math.max(
+            0,
+            (pendingReviewReactionsRef.current[review.id] || 1) - 1
+          );
+          remainingPending = pendingReviewReactionsRef.current[review.id];
+
+          if (remainingPending === 0) {
+            setReviews(prev => {
+              const exists = prev.some(r => r.id === review.id);
+              const next = exists
+                ? prev.map(r => (r.id === review.id ? committedReview : r))
+                : [committedReview, ...prev];
+              writeCachedSlice('reviews', next);
+              return next;
+            });
+          }
+        } catch (err: any) {
+          pendingReviewReactionsRef.current[review.id] = Math.max(
+            0,
+            (pendingReviewReactionsRef.current[review.id] || 1) - 1
+          );
+          // Fallback to queued merge write if offline or transaction unavailable
+          try {
+            const cleaned = cleanForFirestore(optimisticReview);
+            await setDoc(revRef, cleaned, { merge: true });
+          } catch (fallbackErr) {
+            console.warn('Error syncing review reaction to Firestore:', err, fallbackErr);
+          }
+        }
+      });
+
+    reviewReactionQueueRef.current[review.id] = nextTask;
+    await nextTask;
   };
 
   const updateProductReview = async (id: string, data: Partial<Review>) => {
@@ -1170,7 +1243,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         authorsRes,
         publishersRes,
         bannersRes,
-        paymentsRes
+        paymentsRes,
+        reviewsRes
       ] = await Promise.all([
         getDocCacheFirst<StoreSettings>(doc(db, 'settings', 'general'), strategy),
         getDocCacheFirst<HomeConfig>(doc(db, 'settings', 'homeConfig'), strategy),
@@ -1197,6 +1271,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         ),
         getQueryDocsCacheFirst<PaymentMethodConfig>(
           buildIndexedQuery(collection(db, 'payment_methods'), enableIndexing, queryLimit),
+          strategy
+        ),
+        getQueryDocsCacheFirst<Review>(
+          buildIndexedQuery(collection(db, 'reviews'), enableIndexing, queryLimit),
           strategy
         )
       ]);
@@ -1316,6 +1394,34 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const sanitizedMethods = paymentsRes.items.map(m => sanitizePaymentMethod(m));
         setPaymentMethods(sanitizedMethods);
         writeCachedSlice('paymentMethods', sanitizedMethods);
+      }
+
+      if (reviewsRes.items.length > 0 || reviewsRes.source === 'server') {
+        recordSource(reviewsRes.source);
+        setReviews(prev => {
+          const pendingIds = Object.keys(pendingReviewReactionsRef.current).filter(
+            id => (pendingReviewReactionsRef.current[id] || 0) > 0
+          );
+          if (pendingIds.length === 0) {
+            writeCachedSlice('reviews', reviewsRes.items);
+            return reviewsRes.items;
+          }
+          const merged = reviewsRes.items.map(item => {
+            if (pendingIds.includes(item.id)) {
+              const inFlight = prev.find(r => r.id === item.id);
+              if (inFlight) return inFlight;
+            }
+            return item;
+          });
+          for (const pid of pendingIds) {
+            if (!merged.some(r => r.id === pid)) {
+              const inFlight = prev.find(r => r.id === pid);
+              if (inFlight) merged.unshift(inFlight);
+            }
+          }
+          writeCachedSlice('reviews', merged);
+          return merged;
+        });
       }
 
       setCacheTelemetry(prev => ({
@@ -1699,10 +1805,41 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }
         if (!snapshot.empty) {
           const nextReviews = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Review));
-          setReviews(nextReviews);
-          writeCachedSlice('reviews', nextReviews);
+          setReviews(prev => {
+            const pendingIds = Object.keys(pendingReviewReactionsRef.current).filter(
+              id => (pendingReviewReactionsRef.current[id] || 0) > 0
+            );
+            if (pendingIds.length === 0) {
+              writeCachedSlice('reviews', nextReviews);
+              return nextReviews;
+            }
+            const merged = nextReviews.map(item => {
+              if (pendingIds.includes(item.id)) {
+                const inFlight = prev.find(r => r.id === item.id);
+                if (inFlight) return inFlight;
+              }
+              return item;
+            });
+            for (const pid of pendingIds) {
+              if (!merged.some(r => r.id === pid)) {
+                const inFlight = prev.find(r => r.id === pid);
+                if (inFlight) merged.unshift(inFlight);
+              }
+            }
+            writeCachedSlice('reviews', merged);
+            return merged;
+          });
         } else if (!fromCache) {
-          setReviews([]);
+          setReviews(prev => {
+            const pendingIds = Object.keys(pendingReviewReactionsRef.current).filter(
+              id => (pendingReviewReactionsRef.current[id] || 0) > 0
+            );
+            if (pendingIds.length === 0) {
+              writeCachedSlice('reviews', []);
+              return [];
+            }
+            return prev.filter(r => pendingIds.includes(r.id));
+          });
         }
       },
       (err) => {

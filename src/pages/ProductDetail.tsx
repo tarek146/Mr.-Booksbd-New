@@ -24,7 +24,6 @@ import {
   ChevronRight,
   Edit3,
   ThumbsUp,
-  ThumbsDown,
   Clock,
   Building2
 } from 'lucide-react';
@@ -1357,7 +1356,6 @@ export function ProductDetail() {
                                 const userReacted = rev.userReactions?.[visitorId] || null;
                                 const likesCount = rev.likesCount ?? 0;
                                 const lovesCount = rev.lovesCount ?? 0;
-                                const dislikesCount = rev.dislikesCount ?? 0;
 
                                 return (
                                   <div key={rev.id} className="w-full shrink-0 px-0.5">
@@ -1387,56 +1385,71 @@ export function ProductDetail() {
                                         </p>
                                       </div>
 
-                                      <div className="flex items-center justify-between gap-2 flex-wrap pt-2.5 border-t border-neutral-200/60">
-                                        <span className="text-[10px] text-neutral-400 font-medium">
+                                      <div className="flex items-center justify-between gap-3 pt-3 border-t border-neutral-200/70">
+                                        <span className="text-[11px] text-neutral-400 font-medium whitespace-nowrap">
                                           {new Date(rev.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                                         </span>
 
-                                        {/* Real-Time Customer Review Reactions: Like, Love, Dislike */}
-                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                        {/* Real-Time Customer Review Reactions: Like & Love */}
+                                        <div className="flex items-center gap-2 shrink-0">
                                           <button
                                             type="button"
                                             onClick={() => reactToReview(rev, 'like')}
                                             aria-label={`Like review by ${rev.userName}`}
-                                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer active:scale-95 ${
+                                            aria-pressed={userReacted === 'like'}
+                                            data-testid={`review-like-btn-${rev.id}`}
+                                            className={`group/rx inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-[11px] font-semibold border transition-all duration-150 cursor-pointer select-none active:scale-95 ${
                                               userReacted === 'like'
-                                                ? 'bg-blue-50 text-blue-600 border-blue-300 ring-1 ring-blue-200 shadow-2xs'
-                                                : 'bg-white text-neutral-600 border-neutral-200 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50/50'
+                                                ? 'bg-blue-50 text-blue-700 border-blue-300 shadow-[0_1px_2px_rgba(37,99,235,0.10)]'
+                                                : 'bg-white text-neutral-600 border-neutral-200 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50/40'
                                             }`}
                                           >
-                                            <ThumbsUp size={11} className={userReacted === 'like' ? 'fill-blue-600 text-blue-600' : ''} />
+                                            <ThumbsUp
+                                              size={12}
+                                              className={`transition-transform duration-150 group-hover/rx:-translate-y-0.5 ${
+                                                userReacted === 'like' ? 'fill-blue-600 text-blue-600' : 'text-neutral-500 group-hover/rx:text-blue-600'
+                                              }`}
+                                            />
                                             <span>Like</span>
-                                            <span className="tabular-nums font-black ml-0.5">{likesCount}</span>
+                                            <span
+                                              className={`tabular-nums font-bold pl-1.5 border-l ${
+                                                userReacted === 'like'
+                                                  ? 'border-blue-200 text-blue-700'
+                                                  : 'border-neutral-200 text-neutral-700'
+                                              }`}
+                                            >
+                                              {likesCount}
+                                            </span>
                                           </button>
 
                                           <button
                                             type="button"
                                             onClick={() => reactToReview(rev, 'love')}
                                             aria-label={`Love review by ${rev.userName}`}
-                                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer active:scale-95 ${
+                                            aria-pressed={userReacted === 'love'}
+                                            data-testid={`review-love-btn-${rev.id}`}
+                                            className={`group/rx inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-[11px] font-semibold border transition-all duration-150 cursor-pointer select-none active:scale-95 ${
                                               userReacted === 'love'
-                                                ? 'bg-[#FFF1F2] text-[#D71920] border-[#D71920]/40 ring-1 ring-[#D71920]/20 shadow-2xs'
-                                                : 'bg-white text-neutral-600 border-neutral-200 hover:border-[#D71920]/40 hover:text-[#D71920] hover:bg-[#FFF1F2]/60'
+                                                ? 'bg-[#FFF1F2] text-[#D71920] border-[#D71920]/45 shadow-[0_1px_2px_rgba(215,25,32,0.10)]'
+                                                : 'bg-white text-neutral-600 border-neutral-200 hover:border-[#D71920]/40 hover:text-[#D71920] hover:bg-[#FFF1F2]/50'
                                             }`}
                                           >
-                                            <Heart size={11} className={userReacted === 'love' ? 'fill-[#D71920] text-[#D71920]' : ''} />
+                                            <Heart
+                                              size={12}
+                                              className={`transition-transform duration-150 group-hover/rx:scale-110 ${
+                                                userReacted === 'love' ? 'fill-[#D71920] text-[#D71920]' : 'text-neutral-500 group-hover/rx:text-[#D71920]'
+                                              }`}
+                                            />
                                             <span>Love</span>
-                                            <span className="tabular-nums font-black ml-0.5">{lovesCount}</span>
-                                          </button>
-
-                                          <button
-                                            type="button"
-                                            onClick={() => reactToReview(rev, 'dislike')}
-                                            aria-label={`Dislike review by ${rev.userName}`}
-                                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer active:scale-95 ${
-                                              userReacted === 'dislike'
-                                                ? 'bg-amber-50 text-amber-700 border-amber-300 ring-1 ring-amber-200 shadow-2xs'
-                                                : 'bg-white text-neutral-600 border-neutral-200 hover:border-amber-300 hover:text-amber-700 hover:bg-amber-50/50'
-                                            }`}
-                                          >
-                                            <ThumbsDown size={11} className={userReacted === 'dislike' ? 'fill-amber-600 text-amber-700' : ''} />
-                                            <span>Dislike</span>
-                                            <span className="tabular-nums font-black ml-0.5">{dislikesCount}</span>
+                                            <span
+                                              className={`tabular-nums font-bold pl-1.5 border-l ${
+                                                userReacted === 'love'
+                                                  ? 'border-[#D71920]/25 text-[#D71920]'
+                                                  : 'border-neutral-200 text-neutral-700'
+                                              }`}
+                                            >
+                                              {lovesCount}
+                                            </span>
                                           </button>
                                         </div>
                                       </div>

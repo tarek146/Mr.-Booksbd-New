@@ -49,7 +49,7 @@ test('applyReviewReaction toggles off reaction when clicking the same reaction a
   assert.equal(second.userReactions['visitor-1'], undefined);
 });
 
-test('applyReviewReaction switches from one reaction to another accurately', () => {
+test('applyReviewReaction switches between like and love accurately and migrates legacy dislike cleanly', () => {
   const liked = applyReviewReaction(baseReview, 'visitor-1', 'like');
   assert.equal(liked.likesCount, 5);
   assert.equal(liked.lovesCount, 2);
@@ -64,15 +64,17 @@ test('applyReviewReaction switches from one reaction to another accurately', () 
   assert.equal(switchedToLove.dislikesCount, 0);
   assert.equal(switchedToLove.activeReaction, 'love');
 
-  const switchedToDislike = applyReviewReaction(
-    { ...baseReview, ...switchedToLove },
-    'visitor-1',
-    'dislike'
-  );
-  assert.equal(switchedToDislike.likesCount, 4);
-  assert.equal(switchedToDislike.lovesCount, 2);
-  assert.equal(switchedToDislike.dislikesCount, 1);
-  assert.equal(switchedToDislike.activeReaction, 'dislike');
+  // Legacy visitor who previously reacted 'dislike' switching to 'like'
+  const legacyReview: Review = {
+    ...baseReview,
+    dislikesCount: 1,
+    userReactions: { 'legacy-visitor': 'dislike' },
+  };
+  const migrated = applyReviewReaction(legacyReview, 'legacy-visitor', 'like');
+  assert.equal(migrated.likesCount, 5);
+  assert.equal(migrated.dislikesCount, 0);
+  assert.equal(migrated.activeReaction, 'like');
+  assert.equal(migrated.userReactions['legacy-visitor'], 'like');
 });
 
 test('validateBangladeshPhone validates primary and optional phone numbers properly', () => {

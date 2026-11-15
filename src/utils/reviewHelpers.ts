@@ -1,11 +1,12 @@
 import { Review, PaymentMethodConfig, PaymentSubOptionConfig, PaymentSubOptionType } from '../types';
 import { isValidImageUrl } from './imageCompressor';
 
-export type ReactionType = 'like' | 'love' | 'dislike';
+export type ReactionType = 'like' | 'love';
 
 /**
  * Pure helper to compute updated reaction counts and userReactions map
- * when a customer clicks Like, Love, or Dislike on a review.
+ * when a customer clicks Like or Love on a review.
+ * Also handles migrating any legacy 'dislike' reaction cleanly if clicked.
  */
 export function applyReviewReaction(
   review: Review,
@@ -15,10 +16,10 @@ export function applyReviewReaction(
   likesCount: number;
   lovesCount: number;
   dislikesCount: number;
-  userReactions: Record<string, ReactionType>;
+  userReactions: Record<string, 'like' | 'love' | 'dislike'>;
   activeReaction: ReactionType | null;
 } {
-  const currentReactions: Record<string, ReactionType> = { ...(review.userReactions || {}) };
+  const currentReactions: Record<string, 'like' | 'love' | 'dislike'> = { ...(review.userReactions || {}) };
   const previousReaction = currentReactions[visitorId] || null;
 
   let likesCount = Math.max(0, Number(review.likesCount ?? 0));
@@ -45,7 +46,6 @@ export function applyReviewReaction(
     activeReaction = reaction;
     if (reaction === 'like') likesCount += 1;
     else if (reaction === 'love') lovesCount += 1;
-    else if (reaction === 'dislike') dislikesCount += 1;
   }
 
   return {

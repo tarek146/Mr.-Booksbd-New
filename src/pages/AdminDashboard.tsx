@@ -43,7 +43,6 @@ import {
   Play,
   Star,
   ThumbsUp,
-  ThumbsDown,
   Heart,
   ArrowUp,
   ArrowDown,
@@ -5110,7 +5109,7 @@ export function AdminDashboard() {
             </div>
 
             {/* Reaction Summary KPIs */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
               <div className="p-4 rounded-xl bg-white border border-slate-200">
                 <div className="text-xs font-medium text-slate-500">Total Synced Reviews</div>
                 <div className="text-2xl font-bold text-slate-900 mt-1 tabular-nums">{reviews.length}</div>
@@ -5129,14 +5128,6 @@ export function AdminDashboard() {
                 </div>
                 <div className="text-2xl font-bold text-slate-900 mt-1 tabular-nums">
                   {reviews.reduce((sum, r) => sum + (r.lovesCount || 0), 0)}
-                </div>
-              </div>
-              <div className="p-4 rounded-xl bg-white border border-slate-200">
-                <div className="text-xs font-medium text-slate-500 flex items-center gap-1.5">
-                  <ThumbsDown size={13} className="text-amber-600" /> Total Dislikes
-                </div>
-                <div className="text-2xl font-bold text-slate-900 mt-1 tabular-nums">
-                  {reviews.reduce((sum, r) => sum + (r.dislikesCount || 0), 0)}
                 </div>
               </div>
             </div>
@@ -5180,18 +5171,6 @@ export function AdminDashboard() {
                             min="0"
                             value={rev.lovesCount ?? 0}
                             onChange={e => updateProductReview(rev.id, { lovesCount: Math.max(0, Number(e.target.value) || 0) })}
-                            className="w-12 text-center font-semibold text-slate-900 bg-white border border-slate-200 rounded px-1 py-0.5 tabular-nums"
-                          />
-                        </div>
-
-                        <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-xs">
-                          <ThumbsDown size={12} className="text-amber-600" />
-                          <span className="text-[11px] font-medium text-slate-500">Dislike</span>
-                          <input
-                            type="number"
-                            min="0"
-                            value={rev.dislikesCount ?? 0}
-                            onChange={e => updateProductReview(rev.id, { dislikesCount: Math.max(0, Number(e.target.value) || 0) })}
                             className="w-12 text-center font-semibold text-slate-900 bg-white border border-slate-200 rounded px-1 py-0.5 tabular-nums"
                           />
                         </div>
