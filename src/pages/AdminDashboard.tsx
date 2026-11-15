@@ -630,7 +630,7 @@ export function AdminDashboard() {
   const [prodEdition, setProdEdition] = useState('3rd Edition');
   const [prodSeriesName, setProdSeriesName] = useState('');
   const [prodSeriesNumber, setProdSeriesNumber] = useState('');
-  const [prodPages, setProdPages] = useState<number>(264);
+  const [prodPages, setProdPages] = useState<number>(0);
   const [prodLanguage, setProdLanguage] = useState('Bengali');
   const [prodSku, setProdSku] = useState('');
   const [prodCustomDetailsText, setProdCustomDetailsText] = useState('');
@@ -666,10 +666,11 @@ export function AdminDashboard() {
   const [prodCustomDeliveryFee, setProdCustomDeliveryFee] = useState<number>(60);
   const [prodGalleryUrls, setProdGalleryUrls] = useState<string[]>([]);
   const [galleryUrlInput, setGalleryUrlInput] = useState('');
-  const [customVariants, setCustomVariants] = useState<{ id: string; name: string; price: number; regularPrice?: number; stock: number; sku: string; description?: string }[]>([]);
+  const [customVariants, setCustomVariants] = useState<{ id: string; name: string; price: number; regularPrice?: number; stock: number; sku: string; pages?: number; description?: string }[]>([]);
   const [newVariantName, setNewVariantName] = useState('');
   const [newVariantOfferPrice, setNewVariantOfferPrice] = useState<number | ''>('');
   const [newVariantRegularPrice, setNewVariantRegularPrice] = useState<number | ''>('');
+  const [newVariantPages, setNewVariantPages] = useState<number | ''>('');
   const [newVariantDescription, setNewVariantDescription] = useState('');
 
   // Book Format (অরিজিনাল বই নাকি কপি বুক, প্রিন্টেড বুক নাকি পিডিএফ)
@@ -1361,7 +1362,7 @@ export function AdminDashboard() {
       setProdEdition('1st Edition');
       setProdSeriesName('');
       setProdSeriesNumber('');
-      setProdPages(240);
+      setProdPages(0);
       setProdLanguage('Bengali');
       const genSku = `BK-${Math.floor(1000 + Math.random() * 9000)}`;
       setProdSku(genSku);
@@ -1380,6 +1381,7 @@ export function AdminDashboard() {
         { id: `v-${Date.now()}-1`, name: 'Paperback (পেপারব্যাক)', price: 350, regularPrice: 450, stock: 100, sku: `${genSku}-PB` },
         { id: `v-${Date.now()}-2`, name: 'Hardcover (হার্ডকভার)', price: 450, regularPrice: 550, stock: 50, sku: `${genSku}-HC` }
       ]);
+      setNewVariantPages('');
       setProdPrintVariants('Paperback, Hardcover');
     } else {
       setProdPrice(220);
@@ -1433,7 +1435,7 @@ export function AdminDashboard() {
     setProdEdition(p.edition || '3rd Edition');
     setProdSeriesName(p.seriesName || '');
     setProdSeriesNumber(p.seriesNumber || '');
-    setProdPages(p.pages || 264);
+    setProdPages(p.pages || 0);
     setProdLanguage(p.language || 'Bengali');
     setProdSku(p.sku || '');
     setProdCustomDetailsText(serializeCustomBookDetails(p.customBookDetails));
@@ -1500,13 +1502,24 @@ export function AdminDashboard() {
         regularPrice: v.previousPrice || (v.price ? v.price + 100 : undefined),
         stock: v.stock || 100,
         sku: v.sku || `${p.sku || 'SKU'}-V${idx + 1}`,
+        pages: v.pages ? Number(v.pages) : (p.pages ? Number(p.pages) : undefined),
         description: v.description || ''
       })));
     } else {
       setCustomVariants([
-        { id: 'v1', name: p.type === 'book' ? 'Paperback' : 'Standard Pack', price: p.price, regularPrice: p.previousPrice || p.price + 100, stock: 100, sku: p.sku || 'SKU-01', description: '' }
+        {
+          id: 'v1',
+          name: p.type === 'book' ? 'Paperback' : 'Standard Pack',
+          price: p.price,
+          regularPrice: p.previousPrice || p.price + 100,
+          stock: 100,
+          sku: p.sku || 'SKU-01',
+          pages: p.pages ? Number(p.pages) : undefined,
+          description: ''
+        }
       ]);
     }
+    setNewVariantPages('');
     setNewVariantDescription('');
     setShowAddProdModal(true);
   };
@@ -1571,7 +1584,15 @@ export function AdminDashboard() {
       edition: prodType === 'book' ? (prodEdition.trim() || 'Standard Edition') : undefined,
       seriesName: prodType === 'book' ? normalizeSeriesName(prodSeriesName) : '',
       seriesNumber: prodType === 'book' && normalizeSeriesName(prodSeriesName) ? normalizeSeriesNumber(prodSeriesNumber) : '',
-      pages: prodType === 'book' ? (Number(prodPages) > 0 ? Number(prodPages) : undefined) : undefined,
+      pages:
+        prodType === 'book'
+          ? (() => {
+              const firstVariantPages = finalVariants.find(v => v.pages && Number(v.pages) > 0)?.pages;
+              if (firstVariantPages && Number(firstVariantPages) > 0) return Number(firstVariantPages);
+              if (Number(prodPages) > 0) return Number(prodPages);
+              return undefined;
+            })()
+          : undefined,
       language: prodType === 'book' ? (prodLanguage.trim() || 'Bengali') : undefined,
       brand: prodType === 'stationery' ? prodBrand : undefined,
       material: prodType === 'stationery' ? prodMaterial : undefined,
@@ -1622,6 +1643,7 @@ export function AdminDashboard() {
         previousPrice: v.regularPrice ? Number(v.regularPrice) : undefined,
         stock: Number(v.stock) || 100,
         sku: v.sku || `${resolvedSku}-V${i+1}`,
+        ...(prodType === 'book' && v.pages && Number(v.pages) > 0 ? { pages: Number(v.pages) } : {}),
         ...(v.description && v.description.trim() ? { description: v.description.trim() } : {})
       }))
     };
@@ -6370,32 +6392,25 @@ export function AdminDashboard() {
                           </div>
                         </div>
 
-                        {/* Row 2: Pages, ISBN, Edition, Language */}
+                        {/* Row 2: Book Title, Edition, Language, ISBN */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
                           <div>
                             <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
-                              Pages
-                            </label>
-                            <input
-                              type="number"
-                              min={1}
-                              placeholder="e.g. 240"
-                              value={prodPages || ''}
-                              onChange={e => setProdPages(Number(e.target.value))}
-                              className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920] tabular-nums"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
-                              ISBN
+                              Book Title
                             </label>
                             <input
                               type="text"
-                              placeholder="9789849312341"
-                              value={prodIsbn}
-                              onChange={e => setProdIsbn(e.target.value)}
-                              className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-mono font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
+                              data-testid="book-details-title-input"
+                              placeholder="e.g. Paradoxical Sajid 2"
+                              value={prodTitle}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setProdTitle(val);
+                                if (!isCustomSlug) {
+                                  setProdSlug(val.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''));
+                                }
+                              }}
+                              className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
                             />
                           </div>
 
@@ -6422,6 +6437,19 @@ export function AdminDashboard() {
                               value={prodLanguage}
                               onChange={e => setProdLanguage(e.target.value)}
                               className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:border-[#D71920]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                              ISBN
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="9789849312341"
+                              value={prodIsbn}
+                              onChange={e => setProdIsbn(e.target.value)}
+                              className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-mono font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
                             />
                           </div>
                         </div>
@@ -7554,7 +7582,11 @@ export function AdminDashboard() {
 
                   {/* Add Variant Row */}
                   <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <div
+                      className={`grid grid-cols-1 sm:grid-cols-2 ${
+                        prodType === 'book' ? 'lg:grid-cols-5' : 'lg:grid-cols-4'
+                      } gap-3`}
+                    >
                       <div>
                         <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
                           Variant Name *
@@ -7591,9 +7623,28 @@ export function AdminDashboard() {
                           className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:border-[#D71920] tabular-nums"
                         />
                       </div>
+                      {prodType === 'book' && (
+                        <div>
+                          <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                            Pages (Optional)
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            data-testid="add-variant-pages-input"
+                            placeholder="Optional (e.g. 240)"
+                            value={newVariantPages}
+                            onChange={e =>
+                              setNewVariantPages(e.target.value === '' ? '' : Number(e.target.value))
+                            }
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920] tabular-nums"
+                          />
+                        </div>
+                      )}
                       <div className="flex items-end">
                         <button
                           type="button"
+                          data-testid="add-variant-submit-btn"
                           onClick={() => {
                             if (!newVariantName.trim()) {
                               setToast({ show: true, type: 'error', message: 'Enter variant name' });
@@ -7605,6 +7656,12 @@ export function AdminDashboard() {
                             const regNum = typeof newVariantRegularPrice === 'number' && newVariantRegularPrice > 0
                               ? newVariantRegularPrice
                               : (Number(prodRegularPrice) || undefined);
+                            const pagesNum =
+                              prodType === 'book' &&
+                              typeof newVariantPages === 'number' &&
+                              newVariantPages > 0
+                                ? Math.round(newVariantPages)
+                                : undefined;
                             const autoSku = (prodSku || 'ITEM') + '-' + newVariantName.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
                             setCustomVariants(prev => [
                               ...prev,
@@ -7615,12 +7672,17 @@ export function AdminDashboard() {
                                 regularPrice: regNum,
                                 stock: 100,
                                 sku: autoSku,
+                                ...(pagesNum ? { pages: pagesNum } : {}),
                                 ...(newVariantDescription.trim() ? { description: newVariantDescription.trim() } : {})
                               }
                             ]);
+                            if (pagesNum && (!prodPages || prodPages <= 0)) {
+                              setProdPages(pagesNum);
+                            }
                             setNewVariantName('');
                             setNewVariantOfferPrice('');
                             setNewVariantRegularPrice('');
+                            setNewVariantPages('');
                             setNewVariantDescription('');
                           }}
                           className="w-full py-2 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
@@ -7654,8 +7716,11 @@ export function AdminDashboard() {
                               </span>
                               <div>
                                 <h5 className="text-xs font-bold text-slate-900">{v.name}</h5>
-                                <p className="text-[11px] font-mono text-slate-400">
+                                <p className="text-[11px] font-mono text-slate-400 tabular-nums">
                                   #{v.sku || 'SKU'} · Stock: {v.stock ?? 100}
+                                  {prodType === 'book' && v.pages && Number(v.pages) > 0
+                                    ? ` · Book Details: ${v.pages} Pages`
+                                    : ''}
                                 </p>
                               </div>
                             </div>
@@ -7677,16 +7742,48 @@ export function AdminDashboard() {
                               </button>
                             </div>
                           </div>
-                          <input
-                            type="text"
-                            placeholder="Optional edition note (syncs to product Description tab)..."
-                            value={v.description || ''}
-                            onChange={e => {
-                              const val = e.target.value;
-                              setCustomVariants(prev => prev.map((item, i) => (i === idx ? { ...item, description: val } : item)));
-                            }}
-                            className="w-full px-3 py-1.5 rounded-md border border-slate-200 bg-slate-50 focus:bg-white text-[11px] text-slate-700 focus:outline-none focus:border-[#D71920]"
-                          />
+
+                          <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                            {prodType === 'book' && (
+                              <div className="sm:col-span-4 flex items-center rounded-md border border-slate-200 bg-slate-50 focus-within:bg-white focus-within:border-[#D71920] px-2.5 py-1.5">
+                                <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mr-2 shrink-0">
+                                  Pages (Optional)
+                                </span>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  data-testid={`variant-pages-input-${idx}`}
+                                  placeholder="e.g. 240"
+                                  value={v.pages ?? ''}
+                                  onChange={e => {
+                                    const raw = e.target.value;
+                                    const nextPages = raw === '' ? undefined : Math.max(1, Number(raw));
+                                    setCustomVariants(prev =>
+                                      prev.map((item, i) =>
+                                        i === idx ? { ...item, pages: nextPages } : item
+                                      )
+                                    );
+                                    if (idx === 0) {
+                                      setProdPages(nextPages || 0);
+                                    }
+                                  }}
+                                  className="w-full bg-transparent text-[11px] font-semibold text-slate-800 tabular-nums focus:outline-none min-w-0"
+                                />
+                              </div>
+                            )}
+                            <input
+                              type="text"
+                              placeholder="Optional edition note (syncs to product Description tab)..."
+                              value={v.description || ''}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setCustomVariants(prev => prev.map((item, i) => (i === idx ? { ...item, description: val } : item)));
+                              }}
+                              className={`${
+                                prodType === 'book' ? 'sm:col-span-8' : 'sm:col-span-12'
+                              } w-full px-3 py-1.5 rounded-md border border-slate-200 bg-slate-50 focus:bg-white text-[11px] text-slate-700 focus:outline-none focus:border-[#D71920]`}
+                            />
+                          </div>
                         </div>
                       ))}
                     </div>

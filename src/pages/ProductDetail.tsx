@@ -38,6 +38,8 @@ import {
 import {
   resolveVariantFormatDescription,
   resolveProductDetailsPresentation,
+  resolveEffectiveBookPages,
+  resolveBookDetailsHeaderPreview,
 } from '../utils/storeEnhancementsHelpers';
 import {
   resolveProductSeriesInfo,
@@ -284,6 +286,7 @@ export function ProductDetail() {
   const currentProductPublisher = resolveProductPublisherInfo(product, publishers, products);
   const presentation = resolveProductDetailsPresentation(product);
   const activeVariantDescription = resolveVariantFormatDescription(product, activeVariant);
+  const effectiveBookPages = resolveEffectiveBookPages(product, activeVariant);
   const seriesInfo = resolveProductSeriesInfo(product);
   const seriesBooks = getSeriesBooksForProduct(products, product);
 
@@ -689,7 +692,9 @@ export function ProductDetail() {
                         data-testid={`variant-option-${v.id}`}
                         onClick={() => {
                           setSelectedVariantId(v.id);
-                          setActiveAccordion('description');
+                          if (activeAccordion !== 'specifications') {
+                            setActiveAccordion('description');
+                          }
                         }}
                         className={`px-3.5 py-2.5 rounded-lg text-left border transition-colors cursor-pointer ${
                           isSelectedVariant
@@ -905,11 +910,12 @@ export function ProductDetail() {
                         {presentation.detailsHeading}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[11px] font-medium text-neutral-400 tabular-nums">
-                        {product.type === 'book'
-                          ? (product.pages ? `${product.pages} pages` : (product.edition || 'Details'))
-                          : (product.brand || 'Specs')}
+                    <div className="flex items-center gap-2 shrink-0 min-w-0">
+                      <span
+                        data-testid="book-details-header-preview"
+                        className="text-[11px] font-medium text-neutral-400 truncate max-w-[160px] sm:max-w-[240px]"
+                      >
+                        {resolveBookDetailsHeaderPreview(product)}
                       </span>
                       <ChevronRight
                         size={14}
@@ -927,7 +933,9 @@ export function ProductDetail() {
                     >
                       <dl className="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-8">
                         <div className="py-1.5 border-b border-neutral-200/70 flex items-baseline justify-between gap-3">
-                          <dt className="text-neutral-500 shrink-0">Title</dt>
+                          <dt className="text-neutral-500 shrink-0">
+                            {product.type === 'book' ? 'Book Title' : 'Title'}
+                          </dt>
                           <dd className="font-medium text-neutral-900 text-right truncate">{product.title}</dd>
                         </div>
 
@@ -990,10 +998,17 @@ export function ProductDetail() {
                               <dd className="font-medium text-neutral-900 text-right">{product.edition || activeVariant.name || 'Standard Edition'}</dd>
                             </div>
 
-                            <div className="py-1.5 border-b border-neutral-200/70 flex items-baseline justify-between gap-3">
-                              <dt className="text-neutral-500 shrink-0">Pages</dt>
-                              <dd className="font-medium text-neutral-900 text-right tabular-nums">{product.pages ? `${product.pages} Pages` : 'Standard Print'}</dd>
-                            </div>
+                            {effectiveBookPages ? (
+                              <div
+                                data-testid="book-details-pages-row"
+                                className="py-1.5 border-b border-neutral-200/70 flex items-baseline justify-between gap-3"
+                              >
+                                <dt className="text-neutral-500 shrink-0">Pages</dt>
+                                <dd className="font-medium text-neutral-900 text-right tabular-nums">
+                                  {effectiveBookPages} Pages
+                                </dd>
+                              </div>
+                            ) : null}
 
                             <div className="py-1.5 border-b border-neutral-200/70 flex items-baseline justify-between gap-3">
                               <dt className="text-neutral-500 shrink-0">Language</dt>

@@ -6,6 +6,8 @@ import {
   calculateCheckoutPricing,
   resolveVariantFormatDescription,
   resolveProductDetailsPresentation,
+  resolveEffectiveBookPages,
+  resolveBookDetailsHeaderPreview,
   resolveFooterQuickLinks,
   filterSpotlightSearch,
   getCouponScheduleState,
@@ -371,3 +373,42 @@ test('filterSpotlightSearch finds books, authors, and stationery accurately', ()
   assert.equal(res.products.length, 1);
   assert.equal(res.products[0].id, 'prod-1');
 });
+
+test('resolveEffectiveBookPages and resolveBookDetailsHeaderPreview prioritize variant pages in Book Details and show Book Title first', () => {
+  // 1. Variant-specific optional page count overrides base product page count
+  assert.equal(
+    resolveEffectiveBookPages({ pages: 240 }, { pages: 312 }),
+    312
+  );
+  // 2. Falls back to product page count when variant has no page count
+  assert.equal(
+    resolveEffectiveBookPages({ pages: 240 }, { pages: undefined }),
+    240
+  );
+  // 3. Returns undefined when optional page count is omitted on both variant and product
+  assert.equal(
+    resolveEffectiveBookPages({ pages: undefined }, { pages: undefined }),
+    undefined
+  );
+  assert.equal(
+    resolveEffectiveBookPages({ pages: 0 }, { pages: 0 }),
+    undefined
+  );
+
+  // 4. Book Details header preview shows Book Title (not page count)
+  assert.equal(
+    resolveBookDetailsHeaderPreview(sampleBook),
+    'Paradoxical Sajid 2'
+  );
+  assert.equal(
+    resolveBookDetailsHeaderPreview(sampleStationery),
+    'Moleskine'
+  );
+
+  // 5. Variant format description highlights do not leak page counts
+  const pb = resolveVariantFormatDescription(sampleBook, sampleBook.variants[0]);
+  const hc = resolveVariantFormatDescription(sampleBook, sampleBook.variants[1]);
+  assert.ok(pb.highlights.every(h => !/pages:/i.test(h)));
+  assert.ok(hc.highlights.every(h => !/pages:/i.test(h)));
+});
+

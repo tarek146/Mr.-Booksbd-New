@@ -7,6 +7,7 @@ export interface ProductVariant {
   previousPrice?: number;
   stock: number;
   sku: string;
+  pages?: number;
   image?: string;
   description?: string;
 }

@@ -755,7 +755,7 @@ export function resolveVariantFormatDescription(
       highlights: [
         'Durable sewn hardboard binding',
         '80-100 GSM eye-comfort paper',
-        `Pages: ${product.pages || 'Standard'} · ৳${variant.price}`,
+        `Edition: ${product.edition || 'Standard Edition'} · ৳${variant.price}`,
       ],
       savingsAmount,
     };
@@ -796,11 +796,43 @@ export function resolveVariantFormatDescription(
     detailsText: `Lightweight ${name} edition of "${product.title}" printed on clean readable paper for comfortable everyday reading.`,
     highlights: [
       'Lightweight paperback binding',
-      `Language: ${product.language || 'Bengali'} · Pages: ${product.pages || 'Standard'}`,
+      `Language: ${product.language || 'Bengali'} · Edition: ${product.edition || 'Standard'}`,
       `Price: ৳${variant.price}`,
     ],
     savingsAmount,
   };
+}
+
+/**
+ * Resolves the effective optional page count for Book Details, prioritizing the active variant's
+ * optional page count and falling back to the book's base page count when positive.
+ */
+export function resolveEffectiveBookPages(
+  product?: Pick<Product, 'pages'> | null,
+  activeVariant?: Pick<ProductVariant, 'pages'> | null
+): number | undefined {
+  const variantPages = Number(activeVariant?.pages);
+  if (Number.isFinite(variantPages) && variantPages > 0) {
+    return Math.round(variantPages);
+  }
+  const productPages = Number(product?.pages);
+  if (Number.isFinite(productPages) && productPages > 0) {
+    return Math.round(productPages);
+  }
+  return undefined;
+}
+
+/**
+ * Resolves the right-hand summary label shown on the Book Details / Product Specifications accordion header.
+ * For books, shows the Book Title (never the page count).
+ */
+export function resolveBookDetailsHeaderPreview(
+  product: Pick<Product, 'type' | 'title' | 'brand'>
+): string {
+  if (product.type === 'book') {
+    return (product.title || '').trim() || 'Book Details';
+  }
+  return (product.brand || product.title || 'Specs').trim();
 }
 
 export interface ProductDetailsPresentation {
