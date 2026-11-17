@@ -536,7 +536,9 @@ export function BooksPage() {
                           <h3 className="font-bold text-sm sm:text-base text-[#171717] group-hover:text-[#D71920] transition-colors truncate">
                             {product.title}
                           </h3>
-                          <p className="text-xs text-neutral-500 truncate">{presentation.creatorLabel}</p>
+                          {presentation.creatorLabel && (
+                            <p className="text-xs text-neutral-500 truncate">{presentation.creatorLabel}</p>
+                          )}
                           <p className="hidden sm:block text-xs text-neutral-600 line-clamp-1">{product.description}</p>
                         </div>
 

@@ -106,3 +106,31 @@ test('getEffectiveBookPreviewPages returns custom pages when present, or 3 fallb
   assert.equal(customResult[0].id, 'custom-1');
   assert.equal(customResult[1].id, 'custom-2');
 });
+
+test('getEffectiveBookPreviewPages omits author and publisher text when not set on book', () => {
+  const authorOnlyBook: Product = {
+    id: 'prod-2',
+    type: 'book',
+    title: 'Throne of Vengeance',
+    slug: 'throne-of-vengeance',
+    description: 'Dark romance novel.',
+    category: 'English Books',
+    author: 'Rina Kent',
+    publisher: '',
+    images: ['https://example.com/cover.jpg'],
+    price: 400,
+    stock: 10,
+    sku: 'BK-2',
+    variants: [],
+    rating: 5,
+    reviewCount: 1,
+    createdAt: 1000,
+  };
+
+  const pages = getEffectiveBookPreviewPages(authorOnlyBook);
+  assert.match(pages[0].content || '', /লেখক: Rina Kent/);
+  assert.doesNotMatch(pages[0].content || '', /প্রকাশনী:/);
+  assert.doesNotMatch(pages[2].content || '', /প্রকাশনী:/);
+  assert.doesNotMatch(pages.map(p => p.content || '').join('\n'), /MR\. BOOKS Publications/);
+});
+

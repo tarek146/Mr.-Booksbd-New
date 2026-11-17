@@ -31,6 +31,7 @@ import {
   resolveProductDeliveryTiming,
   buildEnrichedPublishersList,
   resolveProductPublisherInfo,
+  resolveBookBylineParts,
   countBooksForAuthor,
   EnrichedPublisher,
 } from '../utils/publisherAndDeliveryHelpers';
@@ -283,6 +284,7 @@ export function ProductDetail() {
   const activeVariant = product.variants.find(v => v.id === selectedVariantId) || product.variants[0];
   const isWishlisted = wishlist.includes(product.id);
   const currentProductPublisher = resolveProductPublisherInfo(product, publishers, products);
+  const bylineParts = resolveBookBylineParts(product, siteSettings.authorInfo !== false, currentProductPublisher);
   const presentation = resolveProductDetailsPresentation(product);
   const activeVariantDescription = resolveVariantFormatDescription(product, activeVariant);
   const effectiveBookPages = resolveEffectiveBookPages(product, activeVariant);
@@ -506,79 +508,59 @@ export function ProductDetail() {
               </div>
 
               {/* Writer & Publisher Byline (Unboxed Editorial Typography) */}
-              <div
-                data-testid="product-detail-writer-publisher-bar"
-                className="text-xs sm:text-sm text-neutral-600 leading-relaxed flex flex-wrap items-center gap-x-2 gap-y-1"
-              >
-                {product.type === 'book' ? (
-                  <>
-                    {siteSettings.authorInfo !== false && (
-                      <span>
-                        <span className="text-neutral-500">লেখক:</span>{' '}
-                        <button
-                          type="button"
-                          data-testid="product-detail-writer-link"
-                          onClick={() => {
-                            if (product.author) {
-                              setSearchQuery(product.author);
+              {(product.type !== 'book' || bylineParts.hasAny) && (
+                <div
+                  data-testid="product-detail-writer-publisher-bar"
+                  className="text-xs sm:text-sm text-neutral-600 leading-relaxed flex flex-wrap items-center gap-x-2 gap-y-1"
+                >
+                  {product.type === 'book' ? (
+                    <>
+                      {bylineParts.authorName && (
+                        <span>
+                          <span className="text-neutral-500">লেখক:</span>{' '}
+                          <button
+                            type="button"
+                            data-testid="product-detail-writer-link"
+                            onClick={() => {
+                              setSearchQuery(bylineParts.authorName!);
                               setActivePage('books');
-                            }
-                          }}
-                          className="text-neutral-900 font-semibold hover:text-[#D71920] underline underline-offset-4 decoration-neutral-300 hover:decoration-[#D71920] transition-colors cursor-pointer"
-                        >
-                          {product.author || 'Renowned Author'}
-                        </button>
-                      </span>
-                    )}
+                            }}
+                            className="text-neutral-900 font-semibold hover:text-[#D71920] underline underline-offset-4 decoration-neutral-300 hover:decoration-[#D71920] transition-colors cursor-pointer"
+                          >
+                            {bylineParts.authorName}
+                          </button>
+                        </span>
+                      )}
 
-                    {siteSettings.authorInfo !== false ? (
-                      <span className="inline-flex items-center gap-2">
+                      {bylineParts.authorName && bylineParts.publisherDisplayName && (
                         <span aria-hidden="true" className="text-neutral-400">·</span>
+                      )}
+
+                      {bylineParts.publisherDisplayName && bylineParts.publisherName && (
                         <span>
                           <span className="text-neutral-500">প্রকাশনী:</span>{' '}
                           <button
                             type="button"
                             data-testid="product-detail-publisher-link"
                             onClick={() => {
-                              setSearchQuery(currentProductPublisher.name);
+                              setSearchQuery(bylineParts.publisherName!);
                               setActivePage('books');
                             }}
                             className="text-neutral-900 font-semibold hover:text-[#D71920] underline underline-offset-4 decoration-neutral-300 hover:decoration-[#D71920] transition-colors cursor-pointer"
                           >
-                            {currentProductPublisher.banglaName &&
-                            currentProductPublisher.banglaName !== currentProductPublisher.name
-                              ? `${currentProductPublisher.name} (${currentProductPublisher.banglaName})`
-                              : currentProductPublisher.name}
+                            {bylineParts.publisherDisplayName}
                           </button>
                         </span>
-                      </span>
-                    ) : (
-                      <span>
-                        <span className="text-neutral-500">প্রকাশনী:</span>{' '}
-                        <button
-                          type="button"
-                          data-testid="product-detail-publisher-link"
-                          onClick={() => {
-                            setSearchQuery(currentProductPublisher.name);
-                            setActivePage('books');
-                          }}
-                          className="text-neutral-900 font-semibold hover:text-[#D71920] underline underline-offset-4 decoration-neutral-300 hover:decoration-[#D71920] transition-colors cursor-pointer"
-                        >
-                          {currentProductPublisher.banglaName &&
-                          currentProductPublisher.banglaName !== currentProductPublisher.name
-                            ? `${currentProductPublisher.name} (${currentProductPublisher.banglaName})`
-                            : currentProductPublisher.name}
-                        </button>
-                      </span>
-                    )}
-                  </>
-                ) : (
-                  <span>
-                    <span className="text-neutral-500">Brand:</span>{' '}
-                    <strong className="text-neutral-900 font-semibold">{product.brand || 'Stationery'}</strong>
-                  </span>
-                )}
-              </div>
+                      )}
+                    </>
+                  ) : (
+                    <span>
+                      <span className="text-neutral-500">Brand:</span>{' '}
+                      <strong className="text-neutral-900 font-semibold">{product.brand || 'Stationery'}</strong>
+                    </span>
+                  )}
+                </div>
+              )}
 
               {/* Clean Single-Line Rating, Category & Authenticity Summary */}
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-neutral-500 pt-0.5">
@@ -940,41 +922,41 @@ export function ProductDetail() {
 
                         {product.type === 'book' ? (
                           <>
-                            {siteSettings.authorInfo !== false && (
+                            {bylineParts.authorName && (
                               <div className="py-1.5 border-b border-neutral-200/70 flex items-baseline justify-between gap-3">
                                 <dt className="text-neutral-500 shrink-0">Author</dt>
                                 <dd className="text-right min-w-0">
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      if (product.author) {
-                                        setSearchQuery(product.author);
-                                        setActivePage('books');
-                                      }
+                                      setSearchQuery(bylineParts.authorName!);
+                                      setActivePage('books');
                                     }}
                                     className="font-medium text-neutral-900 hover:text-[#D71920] hover:underline underline-offset-4 transition-colors cursor-pointer truncate max-w-full"
                                   >
-                                    {product.author || 'Renowned Author'}
+                                    {bylineParts.authorName}
                                   </button>
                                 </dd>
                               </div>
                             )}
 
-                            <div className="py-1.5 border-b border-neutral-200/70 flex items-baseline justify-between gap-3">
-                              <dt className="text-neutral-500 shrink-0">Publisher</dt>
-                              <dd className="text-right min-w-0">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSearchQuery(currentProductPublisher.name);
-                                    setActivePage('books');
-                                  }}
-                                  className="font-medium text-neutral-900 hover:text-[#D71920] hover:underline underline-offset-4 transition-colors cursor-pointer text-right"
-                                >
-                                  {currentProductPublisher.name}
-                                </button>
-                              </dd>
-                            </div>
+                            {currentProductPublisher && (
+                              <div className="py-1.5 border-b border-neutral-200/70 flex items-baseline justify-between gap-3">
+                                <dt className="text-neutral-500 shrink-0">Publisher</dt>
+                                <dd className="text-right min-w-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSearchQuery(currentProductPublisher.name);
+                                      setActivePage('books');
+                                    }}
+                                    className="font-medium text-neutral-900 hover:text-[#D71920] hover:underline underline-offset-4 transition-colors cursor-pointer text-right"
+                                  >
+                                    {currentProductPublisher.name}
+                                  </button>
+                                </dd>
+                              </div>
+                            )}
 
                             {seriesInfo.hasSeries && (
                               <div className="py-1.5 border-b border-neutral-200/70 flex items-baseline justify-between gap-3">
@@ -1515,52 +1497,67 @@ export function ProductDetail() {
         {/* লেখক ও প্রকাশনী (Unified Compact Author & Publisher Section for Books) */}
         {product.type === 'book' && (() => {
           const showAuthorInfo = siteSettings.authorInfo !== false;
-          const bookAuthorName = (product.author || 'রেনাউন্ড লেখক').trim();
-          const matchedStoreAuthor = authors.find(
-            a => a.name.toLowerCase() === bookAuthorName.toLowerCase() ||
-                 bookAuthorName.toLowerCase().includes(a.name.toLowerCase()) ||
-                 a.name.toLowerCase().includes(bookAuthorName.toLowerCase())
-          );
+          const explicitAuthorName = (product.author || '').trim();
+          const hasAuthorColumn = showAuthorInfo && Boolean(explicitAuthorName);
+          const activePublisher: EnrichedPublisher | null = currentProductPublisher;
+          const hasPublisherColumn = Boolean(activePublisher);
 
-          const activeAuthor: Author = matchedStoreAuthor || {
-            id: 'current-book-author',
-            name: bookAuthorName,
-            bio: `${bookAuthorName} সমকালীন সাহিত্যের একজন জনপ্রিয় ও পাঠকপ্রিয় লেখক। তাঁর সাবলীল লেখনী ও উপস্থাপনা পাঠকদের কাছে বিশেষভাবে সমাদৃত।`,
-            photoUrl: '',
-            booksCount: countBooksForAuthor({ name: bookAuthorName }, products),
-          };
-          const activeAuthorLiveCount = countBooksForAuthor(activeAuthor, products) || 1;
+          if (!hasAuthorColumn && !hasPublisherColumn) {
+            return null;
+          }
 
-          const activePublisher: EnrichedPublisher = currentProductPublisher;
-          const activePubNameLower = (activePublisher.name || '').trim().toLowerCase();
-          const activePubBanglaLower = (activePublisher.banglaName || '').trim().toLowerCase();
-
-          const authorMatches = showAuthorInfo
-            ? products.filter(
-                p =>
-                  p.id !== product.id &&
-                  p.type === 'book' &&
-                  p.author &&
-                  (p.author.toLowerCase().includes(activeAuthor.name.toLowerCase()) ||
-                    activeAuthor.name.toLowerCase().includes(p.author.toLowerCase()))
+          const matchedStoreAuthor = hasAuthorColumn
+            ? authors.find(
+                a =>
+                  a.name.toLowerCase() === explicitAuthorName.toLowerCase() ||
+                  explicitAuthorName.toLowerCase().includes(a.name.toLowerCase()) ||
+                  a.name.toLowerCase().includes(explicitAuthorName.toLowerCase())
               )
-            : [];
+            : undefined;
 
-          const publisherMatches = products.filter(p => {
-            if (p.id === product.id || p.type !== 'book') return false;
-            const prodPub = (p.publisher || '').trim().toLowerCase();
-            if (!prodPub) return false;
-            return (
-              (activePubNameLower &&
-                (prodPub === activePubNameLower ||
-                  prodPub.includes(activePubNameLower) ||
-                  activePubNameLower.includes(prodPub))) ||
-              (activePubBanglaLower &&
-                (prodPub === activePubBanglaLower ||
-                  prodPub.includes(activePubBanglaLower) ||
-                  activePubBanglaLower.includes(prodPub)))
-            );
-          });
+          const activeAuthor: Author | null = hasAuthorColumn
+            ? matchedStoreAuthor || {
+                id: 'current-book-author',
+                name: explicitAuthorName,
+                bio: `${explicitAuthorName} সমকালীন সাহিত্যের একজন জনপ্রিয় ও পাঠকপ্রিয় লেখক। তাঁর সাবলীল লেখনী ও উপস্থাপনা পাঠকদের কাছে বিশেষভাবে সমাদৃত।`,
+                photoUrl: '',
+                booksCount: countBooksForAuthor({ name: explicitAuthorName }, products),
+              }
+            : null;
+          const activeAuthorLiveCount = activeAuthor ? countBooksForAuthor(activeAuthor, products) || 1 : 0;
+
+          const activePubNameLower = (activePublisher?.name || '').trim().toLowerCase();
+          const activePubBanglaLower = (activePublisher?.banglaName || '').trim().toLowerCase();
+
+          const authorMatches =
+            hasAuthorColumn && activeAuthor
+              ? products.filter(
+                  p =>
+                    p.id !== product.id &&
+                    p.type === 'book' &&
+                    p.author &&
+                    (p.author.toLowerCase().includes(activeAuthor.name.toLowerCase()) ||
+                      activeAuthor.name.toLowerCase().includes(p.author.toLowerCase()))
+                )
+              : [];
+
+          const publisherMatches = hasPublisherColumn
+            ? products.filter(p => {
+                if (p.id === product.id || p.type !== 'book') return false;
+                const prodPub = (p.publisher || '').trim().toLowerCase();
+                if (!prodPub) return false;
+                return (
+                  (activePubNameLower &&
+                    (prodPub === activePubNameLower ||
+                      prodPub.includes(activePubNameLower) ||
+                      activePubNameLower.includes(prodPub))) ||
+                  (activePubBanglaLower &&
+                    (prodPub === activePubBanglaLower ||
+                      prodPub.includes(activePubBanglaLower) ||
+                      activePubBanglaLower.includes(prodPub)))
+                );
+              })
+            : [];
 
           const fallbackBooks = products.filter(p => p.id !== product.id && p.type === 'book');
           const unifiedBookCandidates = [...authorMatches, ...publisherMatches, ...fallbackBooks];
@@ -1574,52 +1571,73 @@ export function ProductDetail() {
             }
           }
 
-          const hasAuthorPhoto = !!activeAuthor.photoUrl && !authorAvatarError[activeAuthor.id];
-          const hasPublisherLogo = !!activePublisher.logoUrl && !publisherLogoError[activePublisher.id];
-          const publisherDisplayName =
-            activePublisher.banglaName && activePublisher.banglaName !== activePublisher.name
+          const hasAuthorPhoto = Boolean(activeAuthor?.photoUrl) && !authorAvatarError[activeAuthor!.id];
+          const hasPublisherLogo = Boolean(activePublisher?.logoUrl) && !publisherLogoError[activePublisher!.id];
+          const publisherDisplayName = activePublisher
+            ? activePublisher.banglaName && activePublisher.banglaName !== activePublisher.name
               ? `${activePublisher.name} (${activePublisher.banglaName})`
-              : activePublisher.name;
+              : activePublisher.name
+            : '';
+
+          const spotlightHeading =
+            hasAuthorColumn && hasPublisherColumn
+              ? 'লেখক ও প্রকাশনী'
+              : hasAuthorColumn
+              ? 'লেখক পরিচিতি'
+              : 'প্রকাশনী পরিচিতি';
+
+          const moreBooksOwnerNames = [
+            activeAuthor?.name,
+            activePublisher ? activePublisher.banglaName || activePublisher.name : null,
+          ].filter(Boolean) as string[];
 
           return (
             <section
               data-testid="product-detail-publisher-spotlight"
-              aria-label="লেখক ও প্রকাশনী"
+              aria-label={spotlightHeading}
               className="mt-10 pt-6 border-t border-neutral-200 dark:border-[#263347]"
             >
               {/* Clean Editorial Header */}
               <div className="flex items-center justify-between gap-3 mb-4">
                 <h3 className="text-base sm:text-lg font-bold text-neutral-900 tracking-tight">
-                  {showAuthorInfo ? 'লেখক ও প্রকাশনী' : 'প্রকাশনী পরিচিতি'}
+                  {spotlightHeading}
                 </h3>
                 <div className="flex items-center gap-2 text-xs text-neutral-500 shrink-0">
-                  {showAuthorInfo && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setActivePage('authors')}
-                        className="font-medium hover:text-[#D71920] underline underline-offset-4 decoration-neutral-300 hover:decoration-[#D71920] transition-colors cursor-pointer whitespace-nowrap"
-                      >
-                        সকল লেখক
-                      </button>
-                      <span aria-hidden="true" className="text-neutral-300 dark:text-slate-700">·</span>
-                    </>
+                  {hasAuthorColumn && (
+                    <button
+                      type="button"
+                      onClick={() => setActivePage('authors')}
+                      className="font-medium hover:text-[#D71920] underline underline-offset-4 decoration-neutral-300 hover:decoration-[#D71920] transition-colors cursor-pointer whitespace-nowrap"
+                    >
+                      সকল লেখক
+                    </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => setActivePage('publishers')}
-                    className="font-medium hover:text-[#D71920] underline underline-offset-4 decoration-neutral-300 hover:decoration-[#D71920] transition-colors cursor-pointer whitespace-nowrap"
-                  >
-                    সকল প্রকাশনী
-                  </button>
+                  {hasAuthorColumn && hasPublisherColumn && (
+                    <span aria-hidden="true" className="text-neutral-300 dark:text-slate-700">·</span>
+                  )}
+                  {hasPublisherColumn && (
+                    <button
+                      type="button"
+                      onClick={() => setActivePage('publishers')}
+                      className="font-medium hover:text-[#D71920] underline underline-offset-4 decoration-neutral-300 hover:decoration-[#D71920] transition-colors cursor-pointer whitespace-nowrap"
+                    >
+                      সকল প্রকাশনী
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {/* Unified Minimal Author + Publisher Box */}
+              {/* Unified Minimal Author / Publisher Box */}
               <div className="rounded-xl border border-neutral-200 dark:border-[#263347] bg-white overflow-hidden">
-                <div className={`grid grid-cols-1 ${showAuthorInfo ? 'md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-neutral-200 dark:divide-[#263347]' : ''}`}>
+                <div
+                  className={`grid grid-cols-1 ${
+                    hasAuthorColumn && hasPublisherColumn
+                      ? 'md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-neutral-200 dark:divide-[#263347]'
+                      : ''
+                  }`}
+                >
                   {/* Author Half */}
-                  {showAuthorInfo && (
+                  {hasAuthorColumn && activeAuthor && (
                     <div className="p-4 sm:p-5 flex flex-col justify-between gap-3">
                       <div className="space-y-2.5">
                         <div className="flex items-center gap-3">
@@ -1677,75 +1695,81 @@ export function ProductDetail() {
                   )}
 
                   {/* Publisher Half */}
-                  <div className="p-4 sm:p-5 flex flex-col justify-between gap-3">
-                    <div className="space-y-2.5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-lg border border-neutral-200 dark:border-[#263347] bg-neutral-50 overflow-hidden flex items-center justify-center shrink-0">
-                          {hasPublisherLogo ? (
-                            <img
-                              src={activePublisher.logoUrl}
-                              alt={activePublisher.name}
-                              referrerPolicy="no-referrer"
-                              className="w-full h-full object-cover"
-                              onError={() =>
-                                setPublisherLogoError(prev => ({
-                                  ...prev,
-                                  [activePublisher.id]: true,
-                                }))
-                              }
-                            />
-                          ) : (
-                            <Building2 size={18} className="text-neutral-500" />
-                          )}
+                  {hasPublisherColumn && activePublisher && (
+                    <div className="p-4 sm:p-5 flex flex-col justify-between gap-3">
+                      <div className="space-y-2.5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-lg border border-neutral-200 dark:border-[#263347] bg-neutral-50 overflow-hidden flex items-center justify-center shrink-0">
+                            {hasPublisherLogo ? (
+                              <img
+                                src={activePublisher.logoUrl}
+                                alt={activePublisher.name}
+                                referrerPolicy="no-referrer"
+                                className="w-full h-full object-cover"
+                                onError={() =>
+                                  setPublisherLogoError(prev => ({
+                                    ...prev,
+                                    [activePublisher.id]: true,
+                                  }))
+                                }
+                              />
+                            ) : (
+                              <Building2 size={18} className="text-neutral-500" />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <span className="block text-[11px] font-medium text-neutral-500">
+                              প্রকাশনী
+                            </span>
+                            <h4 className="text-sm sm:text-[15px] font-bold text-neutral-900 truncate leading-snug">
+                              {publisherDisplayName}
+                            </h4>
+                            <p className="text-[11px] text-neutral-500 tabular-nums mt-0.5">
+                              {activePublisher.displayBooksCount || 1}+ প্রকাশিত বই
+                              {activePublisher.establishedYear ? ` · স্থাপিত ${activePublisher.establishedYear}` : ''}
+                            </p>
+                          </div>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <span className="block text-[11px] font-medium text-neutral-500">
-                            প্রকাশনী
-                          </span>
-                          <h4 className="text-sm sm:text-[15px] font-bold text-neutral-900 truncate leading-snug">
-                            {publisherDisplayName}
-                          </h4>
-                          <p className="text-[11px] text-neutral-500 tabular-nums mt-0.5">
-                            {activePublisher.displayBooksCount || 1}+ প্রকাশিত বই
-                            {activePublisher.establishedYear ? ` · স্থাপিত ${activePublisher.establishedYear}` : ''}
-                          </p>
-                        </div>
+
+                        <p className="text-xs text-neutral-600 leading-relaxed line-clamp-2">
+                          {activePublisher.description ||
+                            `${activePublisher.name} বাংলাদেশের একটি স্বনামধন্য ও বিশ্বস্ত প্রকাশনা প্রতিষ্ঠান। তাদের প্রকাশিত প্রতিটি বই ১০০% অরিজিনাল মুদ্রিত সংস্করণ।`}
+                        </p>
                       </div>
 
-                      <p className="text-xs text-neutral-600 leading-relaxed line-clamp-2">
-                        {activePublisher.description ||
-                          `${activePublisher.name} বাংলাদেশের একটি স্বনামধন্য ও বিশ্বস্ত প্রকাশনা প্রতিষ্ঠান। তাদের প্রকাশিত প্রতিটি বই ১০০% অরিজিনাল মুদ্রিত সংস্করণ।`}
-                      </p>
+                      <div className="pt-2.5 border-t border-neutral-100 dark:border-[#1E2838] flex items-center justify-between">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedCategoryFilter('all');
+                            setSearchQuery(activePublisher.name);
+                            setActivePage('books');
+                          }}
+                          className="text-xs font-semibold text-[#D71920] hover:underline inline-flex items-center gap-1 cursor-pointer"
+                        >
+                          <span>এই প্রকাশনীর সব বই দেখুন</span>
+                          <ArrowRight size={13} />
+                        </button>
+                      </div>
                     </div>
-
-                    <div className="pt-2.5 border-t border-neutral-100 dark:border-[#1E2838] flex items-center justify-between">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedCategoryFilter('all');
-                          setSearchQuery(activePublisher.name);
-                          setActivePage('books');
-                        }}
-                        className="text-xs font-semibold text-[#D71920] hover:underline inline-flex items-center gap-1 cursor-pointer"
-                      >
-                        <span>এই প্রকাশনীর সব বই দেখুন</span>
-                        <ArrowRight size={13} />
-                      </button>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
 
-              {/* Compact More Books Row (Combined Author & Publisher Catalog) */}
+              {/* Compact More Books Row */}
               {displayCombinedBooks.length > 0 && (
                 <div className="mt-4">
                   <p className="text-xs font-semibold text-neutral-500 mb-2.5">
-                    {showAuthorInfo
-                      ? `${activeAuthor.name} ও ${activePublisher.banglaName || activePublisher.name}-এর অন্যান্য বই`
-                      : `${activePublisher.banglaName || activePublisher.name}-এর অন্যান্য বই`}
+                    {moreBooksOwnerNames.length > 0
+                      ? `${moreBooksOwnerNames.join(' ও ')}-এর অন্যান্য বই`
+                      : 'অন্যান্য জনপ্রিয় বই'}
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    {displayCombinedBooks.map(bookItem => (
+                    {displayCombinedBooks.map(bookItem => {
+                      const itemMeta = [bookItem.author?.trim(), bookItem.publisher?.trim()]
+                        .filter(Boolean)
+                        .join(' · ');
+                      return (
                       <div
                         key={bookItem.id}
                         onClick={() => {
@@ -1767,10 +1791,11 @@ export function ProductDetail() {
                           <h5 className="font-semibold text-xs text-neutral-900 group-hover:text-[#D71920] transition-colors truncate">
                             {bookItem.title}
                           </h5>
-                          <p className="text-[11px] text-neutral-500 truncate mt-0.5">
-                            {bookItem.author || activeAuthor.name}
-                            {bookItem.publisher ? ` · ${bookItem.publisher}` : ''}
-                          </p>
+                          {itemMeta && (
+                            <p className="text-[11px] text-neutral-500 truncate mt-0.5">
+                              {itemMeta}
+                            </p>
+                          )}
                           <div className="flex items-center justify-between gap-2 mt-1.5">
                             <div className="flex items-baseline gap-1.5 tabular-nums">
                               <span className="font-bold text-xs text-[#D71920]">৳{bookItem.price}</span>
@@ -1793,7 +1818,8 @@ export function ProductDetail() {
                           </div>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}

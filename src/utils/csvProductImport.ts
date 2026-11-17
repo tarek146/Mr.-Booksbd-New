@@ -462,17 +462,12 @@ export function transformRowToProduct(
   let author = (rowMap.author || '').trim();
   let brand = (rowMap.brand || '').trim();
 
-  if (type === 'book' && !author) {
-    // Provide a friendly default if missing
-    author = 'Unknown Author';
-  }
-
   if (type === 'stationery' && !brand) {
     brand = 'MR. BOOKS Essentials';
   }
 
   const category = (rowMap.category || '').trim() || (type === 'book' ? 'General Books' : 'General Stationery');
-  const publisher = (rowMap.publisher || '').trim() || (type === 'book' ? 'MR. BOOKS' : undefined);
+  const publisher = (rowMap.publisher || '').trim();
   const edition = (rowMap.edition || '').trim() || (type === 'book' ? '1st Edition' : undefined);
   const seriesName = type === 'book' ? normalizeSeriesName(rowMap.seriesName) : '';
   const seriesNumber = type === 'book' && seriesName ? normalizeSeriesNumber(rowMap.seriesNumber) : '';

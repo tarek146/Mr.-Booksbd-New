@@ -101,8 +101,9 @@ export function getEffectiveBookPreviewPages(product: Product): BookPreviewPage[
 
   const isBook = product.type === 'book';
   const title = product.title || 'বই পরিচিতি';
-  const author = product.author || product.brand || 'MR. BOOKS';
-  const publisher = product.publisher || 'MR. BOOKS Publications';
+  const explicitAuthor = (product.author || '').trim();
+  const explicitPublisher = (product.publisher || '').trim();
+  const brandOrFallback = isBook ? explicitAuthor : (product.brand || product.author || 'MR. BOOKS').trim();
   const category = product.category || 'সাহিত্য ও প্রকাশনা';
   const introText =
     product.previewIntro?.trim() ||
@@ -121,17 +122,18 @@ export function getEffectiveBookPreviewPages(product: Product): BookPreviewPage[
   } else if (titleLower.includes('rashed') || titleLower.includes('রাশেদ')) {
     page2Body = `স্কুলের বারান্দায় দাঁড়িয়ে রাশেদ চুপচাপ দূর আকাশের দিকে তাকিয়ে ছিল। ১৯৭১ সালের উত্তাল দিনগুলো তখন ছোট্ট মফস্বল শহরটিকেও স্পর্শ করেছে।\n\nআমরা তখনো বুঝতে পারিনি এই চশমা পরা শান্ত ছেলেটি বুকের ভেতর কী অসীম সাহস লুকিয়ে রেখেছে। দেশের মানুষ যখন মুক্তির স্বপ্নে বিভোর, তখন রাশেদের প্রতিটি কথা আমাদের মনে সাহসের প্রদীপ জ্বালিয়ে দিত...`;
   } else if (isBook) {
-    page2Body = `“${title}” গ্রন্থের প্রতিটি পৃষ্ঠায় লেখক ${author} তুলে ধরেছেন জীবনঘনিষ্ঠ অনুভূতি, গভীর পর্যবেক্ষণ এবং পাঠকের হৃদয়ে দাগ কাটার মতো অনন্য উপস্থাপনা।\n\nবইটির পাতায় পাতায় রয়েছে সাবলীল ভাষার গাঁথুনি। একটি অধ্যায় শেষ করার পর পরবর্তী পৃষ্ঠায় কী অপেক্ষা করছে তা জানার কৌতূহল পাঠককে শেষ পাতা পর্যন্ত টেনে নিয়ে যায়। প্রিমিয়াম অফসেট পেপার ও স্পষ্ট মুদ্রণের কারণে দীর্ঘ সময় পড়লেও চোখের কোনো ক্লান্তি আসে না।`;
+    const authorPhrase = explicitAuthor ? `লেখক ${explicitAuthor} ` : '';
+    page2Body = `“${title}” গ্রন্থের প্রতিটি পৃষ্ঠায় ${authorPhrase}তুলে ধরেছেন জীবনঘনিষ্ঠ অনুভূতি, গভীর পর্যবেক্ষণ এবং পাঠকের হৃদয়ে দাগ কাটার মতো অনন্য উপস্থাপনা।\n\nবইটির পাতায় পাতায় রয়েছে সাবলীল ভাষার গাঁথুনি। একটি অধ্যায় শেষ করার পর পরবর্তী পৃষ্ঠায় কী অপেক্ষা করছে তা জানার কৌতূহল পাঠককে শেষ পাতা পর্যন্ত টেনে নিয়ে যায়। প্রিমিয়াম অফসেট পেপার ও স্পষ্ট মুদ্রণের কারণে দীর্ঘ সময় পড়লেও চোখের কোনো ক্লান্তি আসে না।`;
   } else {
     page2Heading = 'পৃষ্ঠা ২ — পণ্যের বৈশিষ্ট্য ও ব্যবহার';
-    page2Body = `${title} তৈরি করা হয়েছে উন্নতমানের কাঁচামাল ও প্রিমিয়াম ফিনিশিং দিয়ে।\n\n• ব্র্যান্ড: ${author}\n• ক্যাটাগরি: ${category}\n• প্রতিদিনের লেখালেখি, নোট নেওয়া কিংবা উপহার হিসেবে দেওয়ার জন্য এটি চমৎকার একটি পছন্দ।`;
+    page2Body = `${title} তৈরি করা হয়েছে উন্নতমানের কাঁচামাল ও প্রিমিয়াম ফিনিশিং দিয়ে।\n\n• ব্র্যান্ড: ${brandOrFallback}\n• ক্যাটাগরি: ${category}\n• প্রতিদিনের লেখালেখি, নোট নেওয়া কিংবা উপহার হিসেবে দেওয়ার জন্য এটি চমৎকার একটি পছন্দ।`;
   }
 
   const page3Heading = isBook ? 'পৃষ্ঠা ৩ — প্রকাশনা তথ্য ও পাঠক গাইড' : 'পৃষ্ঠা ৩ — বিস্তারিত স্পেসিফিকেশন';
   const page3Lines = [
     `📖 শিরোনাম: ${title}`,
-    isBook ? `✍️ লেখক: ${author}` : `🏷️ ব্র্যান্ড: ${author}`,
-    isBook ? `🏛️ প্রকাশনী: ${publisher}` : `📂 বিভাগ: ${category}`,
+    isBook ? (explicitAuthor ? `✍️ লেখক: ${explicitAuthor}` : '') : `🏷️ ব্র্যান্ড: ${brandOrFallback}`,
+    isBook ? (explicitPublisher ? `🏛️ প্রকাশনী: ${explicitPublisher}` : '') : `📂 বিভাগ: ${category}`,
     product.edition ? `🔖 সংস্করণ: ${product.edition}` : `🔖 সংস্করণ: অরিজিনাল প্রিন্ট এডিশন`,
     product.pages ? `📄 মোট পৃষ্ঠা সংখ্যা: ${product.pages} পৃষ্ঠা` : '',
     product.language ? `🌐 ভাষা: ${product.language}` : '🌐 ভাষা: বাংলা',
@@ -141,12 +143,21 @@ export function getEffectiveBookPreviewPages(product: Product): BookPreviewPage[
     .filter(Boolean)
     .join('\n');
 
+  const page1Credits = isBook
+    ? [
+        explicitAuthor ? `— লেখক: ${explicitAuthor}` : '',
+        explicitPublisher ? `— প্রকাশনী: ${explicitPublisher}` : '',
+      ]
+        .filter(Boolean)
+        .join('\n')
+    : [brandOrFallback ? `— ব্র্যান্ড: ${brandOrFallback}` : ''].filter(Boolean).join('\n');
+
   return [
     {
       id: `default-p1-${product.id}`,
       pageNumber: 1,
       title: isBook ? 'পৃষ্ঠা ১ — বই সম্পর্কে কিছু কথা' : 'পৃষ্ঠা ১ — পণ্য পরিচিতি',
-      content: `${introText}\n\n— লেখক: ${author}\n— প্রকাশনী: ${publisher}`,
+      content: page1Credits ? `${introText}\n\n${page1Credits}` : introText,
     },
     {
       id: `default-p2-${product.id}`,

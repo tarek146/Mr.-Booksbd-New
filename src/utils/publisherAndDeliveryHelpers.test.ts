@@ -9,6 +9,7 @@ import {
   buildManageablePublisherOptions,
   resolveAuthoritativePublishersList,
   resolveProductPublisherInfo,
+  resolveBookBylineParts,
   resolveProductDeliveryTiming,
   resolveAuthorOrPublisherCountPreview,
   buildSyncedAuthorsAndPublishers,
@@ -167,12 +168,17 @@ test('countBooksForPublisher and buildEnrichedPublishersList dynamically count b
   assert.equal(mowla.displayBooksCount, 1);
 
   const resolvedPub = resolveProductPublisherInfo(products[0], stored, products);
+  assert.ok(resolvedPub);
   assert.equal(resolvedPub.name, 'Guardian Publications');
   assert.equal(resolvedPub.banglaName, 'গার্ডিয়ান পাবলিকেশন্স');
   assert.equal(resolvedPub.displayBooksCount, 2);
 
-  const fallbackPub = resolveProductPublisherInfo({ title: 'Himu', author: 'Humayun Ahmed' }, [], products);
-  assert.equal(fallbackPub.name, 'Anyaprokash');
+  // When publisher is omitted on a book, it MUST return null instead of inferring/defaulting
+  const omittedPub = resolveProductPublisherInfo({ title: 'Himu', author: 'Humayun Ahmed' }, stored, products);
+  assert.equal(omittedPub, null);
+
+  const blankPub = resolveProductPublisherInfo({ title: 'Throne of Vengeance', author: 'Rina Kent', publisher: '   ' }, stored, products);
+  assert.equal(blankPub, null);
 });
 
 test('parseCustomBookDetails and serializeCustomBookDetails round-trip properly', () => {
@@ -404,4 +410,77 @@ test('resolveAuthoritativePublishersList honors initialized empty directory and 
   assert.equal(cacheEmpty, null);
 });
 
+test('resolveBookBylineParts strictly reflects only explicitly set writer and publisher without fallbacks', () => {
+  const samplePublisher = resolveProductPublisherInfo(
+    { title: 'Sample', publisher: 'Guardian Publications' },
+    [{ id: 'p1', name: 'Guardian Publications', banglaName: 'গার্ডিয়ান পাবলিকেশন্স' }],
+    []
+  );
+  assert.ok(samplePublisher);
+
+  // 1. Writer only (no Publisher) -> shows writer, no publisher
+  const authorOnly = resolveBookBylineParts(
+    { type: 'book', title: 'Throne of Vengeance', author: 'Rina Kent', publisher: '' },
+    true,
+    null
+  );
+  assert.deepEqual(authorOnly, {
+    authorName: 'Rina Kent',
+    publisherName: null,
+    publisherDisplayName: null,
+    hasAny: true,
+  });
+
+  // 2. Publisher only (no Writer) -> shows publisher, no writer
+  const publisherOnly = resolveBookBylineParts(
+    { type: 'book', title: 'Untitled Compilation', author: '', publisher: 'Guardian Publications' },
+    true,
+    samplePublisher
+  );
+  assert.deepEqual(publisherOnly, {
+    authorName: null,
+    publisherName: 'Guardian Publications',
+    publisherDisplayName: 'Guardian Publications (গার্ডিয়ান পাবলিকেশন্স)',
+    hasAny: true,
+  });
+
+  // 3. Neither Writer nor Publisher -> hides byline completely
+  const neitherSet = resolveBookBylineParts(
+    { type: 'book', title: 'No Meta Book', author: '   ', publisher: '' },
+    true,
+    null
+  );
+  assert.deepEqual(neitherSet, {
+    authorName: null,
+    publisherName: null,
+    publisherDisplayName: null,
+    hasAny: false,
+  });
+
+  // 4. Both Writer and Publisher -> shows both
+  const bothSet = resolveBookBylineParts(
+    { type: 'book', title: 'Paradoxical Sajid', author: 'Arif Azad', publisher: 'Guardian Publications' },
+    true,
+    samplePublisher
+  );
+  assert.deepEqual(bothSet, {
+    authorName: 'Arif Azad',
+    publisherName: 'Guardian Publications',
+    publisherDisplayName: 'Guardian Publications (গার্ডিয়ান পাবলিকেশন্স)',
+    hasAny: true,
+  });
+
+  // 5. showAuthorInfo disabled -> suppresses author even if present, keeps publisher if present
+  const authorDisabled = resolveBookBylineParts(
+    { type: 'book', title: 'Paradoxical Sajid', author: 'Arif Azad', publisher: 'Guardian Publications' },
+    false,
+    samplePublisher
+  );
+  assert.deepEqual(authorDisabled, {
+    authorName: null,
+    publisherName: 'Guardian Publications',
+    publisherDisplayName: 'Guardian Publications (গার্ডিয়ান পাবলিকেশন্স)',
+    hasAny: true,
+  });
+});
 

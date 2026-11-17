@@ -1353,10 +1353,8 @@ export function AdminDashboard() {
       setProdRegularPrice(450);
       const firstBookCat = categories.find(c => c.type === 'book')?.name || '';
       setProdCategory(firstBookCat);
-      const defaultAuth = authors[0]?.name || '';
-      setProdAuthor(defaultAuth);
-      const defaultPub = publishers[0]?.name || '';
-      setProdPublisher(defaultPub);
+      setProdAuthor('');
+      setProdPublisher('');
       setProdIsbn('');
       setProdEdition('1st Edition');
       setProdSeriesName('');
@@ -1578,7 +1576,7 @@ export function AdminDashboard() {
           : 'Premium stationery and office supply item.'),
       category: prodCategory,
       author: prodType === 'book' ? prodAuthor.trim() : (prodBrand.trim() || 'Stationery Brand'),
-      publisher: prodType === 'book' ? (prodPublisher.trim() || undefined) : undefined,
+      publisher: prodType === 'book' ? prodPublisher.trim() : undefined,
       isbn: prodType === 'book' ? prodIsbn : undefined,
       edition: prodType === 'book' ? (prodEdition.trim() || 'Standard Edition') : undefined,
       seriesName: prodType === 'book' ? normalizeSeriesName(prodSeriesName) : '',
@@ -6037,8 +6035,12 @@ export function AdminDashboard() {
                             <button
                               type="button"
                               onClick={() => {
+                                const bookMetaLines = [
+                                  prodAuthor.trim() ? `• মূল লেখক: ${prodAuthor.trim()}` : '',
+                                  prodPublisher.trim() ? `• প্রকাশনী: ${prodPublisher.trim()}` : '',
+                                ].filter(Boolean);
                                 const template = prodType === 'book'
-                                  ? '\n\nবইয়ের পরিচিতি ও বৈশিষ্ট্যসমূহ:\n• মূল লেখক: ' + (prodAuthor || 'লেখক') + '\n• প্রকাশনী: ' + (prodPublisher || 'প্রকাশনী') + '\n• সারসংক্ষেপ: এই বইটিতে গভীর জীবনবোধ ও বাস্তব দৃষ্টিভঙ্গি চমৎকারভাবে উপস্থাপিত হয়েছে।\n• বাঁধাই ও কাগজের মান: উন্নত মানের ক্রিম পেপার ও শক্ত মজবুত বাঁধাই।\n• প্রতিটি বই ১০০% অরিজিনাল মুদ্রিত সংস্করণ।'
+                                  ? `\n\nবইয়ের পরিচিতি ও বৈশিষ্ট্যসমূহ:${bookMetaLines.length ? `\n${bookMetaLines.join('\n')}` : ''}\n• সারসংক্ষেপ: এই বইটিতে গভীর জীবনবোধ ও বাস্তব দৃষ্টিভঙ্গি চমৎকারভাবে উপস্থাপিত হয়েছে।\n• বাঁধাই ও কাগজের মান: উন্নত মানের ক্রিম পেপার ও শক্ত মজবুত বাঁধাই।\n• প্রতিটি বই ১০০% অরিজিনাল মুদ্রিত সংস্করণ।`
                                   : '\n\nপণ্যের মূল বৈশিষ্ট্যসমূহ:\n• ব্র্যান্ড: ' + (prodBrand || 'MR. BOOKS Essentials') + '\n• উপাদান: ' + (prodMaterial || 'প্রিমিয়াম কোয়ালিটি') + '\n• আকার / সাইজ: ' + (prodDimensions || 'স্ট্যান্ডার্ড সাইজ') + '\n• দীর্ঘস্থায়ী, নিখুঁত ফিনিশিং ও প্রফেশনাল ব্যবহারের জন্য আদর্শ।';
                                 setProdDescription(prev => prev + template);
                               }}
@@ -6237,7 +6239,7 @@ export function AdminDashboard() {
                           <div>
                             <div className="flex items-center justify-between mb-1.5">
                               <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600">
-                                Writer <span className="text-[#D71920]">*</span>
+                                Writer <span className="font-normal normal-case text-slate-400">(Optional)</span>
                               </label>
                               <button
                                 type="button"
@@ -6304,7 +6306,7 @@ export function AdminDashboard() {
                           <div>
                             <div className="flex items-center justify-between mb-1.5">
                               <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600">
-                                Publisher <span className="text-[#D71920]">*</span>
+                                Publisher <span className="font-normal normal-case text-slate-400">(Optional)</span>
                               </label>
                               <button
                                 type="button"

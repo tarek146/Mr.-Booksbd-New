@@ -399,75 +399,82 @@ export function resolveAuthoritativePublishersList(
 
 
 
+export interface ResolvedBookBylineParts {
+  authorName: string | null;
+  publisherName: string | null;
+  publisherDisplayName: string | null;
+  hasAny: boolean;
+}
+
+/**
+ * Resolves optional book byline fields strictly from explicitly saved product data.
+ * Never fabricates a fallback Writer or Publisher when omitted by the admin.
+ */
+export function resolveBookBylineParts(
+  product: Partial<Product> | null | undefined,
+  showAuthorInfo: boolean,
+  resolvedPublisher: EnrichedPublisher | null
+): ResolvedBookBylineParts {
+  const rawAuthor = (product?.author || '').trim();
+  const authorName = showAuthorInfo && rawAuthor ? rawAuthor : null;
+
+  const rawPubName = resolvedPublisher?.name?.trim() || '';
+  const rawPubBangla = resolvedPublisher?.banglaName?.trim() || '';
+  const publisherName = rawPubName || null;
+  const publisherDisplayName = publisherName
+    ? rawPubBangla && rawPubBangla !== publisherName
+      ? `${publisherName} (${rawPubBangla})`
+      : publisherName
+    : null;
+
+  return {
+    authorName,
+    publisherName,
+    publisherDisplayName,
+    hasAny: Boolean(authorName || publisherDisplayName),
+  };
+}
+
 /**
  * Resolves the enriched Publisher profile for a single product on the Product Detail page.
- * Matches `product.publisher` against the store's publishers list (by English or Bangla name),
- * or falls back to author-based publisher inference / default publisher so a book always displays
- * both Writer and Publisher/প্রকাশনী.
+ * Returns `null` when `product.publisher` is empty or omitted — never auto-selects or infers
+ * a default publisher.
  */
 export function resolveProductPublisherInfo(
   product: Partial<Product> | null | undefined,
   storedPublishers: Publisher[],
   allProducts: Product[]
-): EnrichedPublisher {
-  const enrichedList = buildEnrichedPublishersList(storedPublishers, allProducts);
+): EnrichedPublisher | null {
   const rawPubName = (product?.publisher || '').trim();
-
-  if (rawPubName) {
-    const key = rawPubName.toLowerCase();
-    const matched = enrichedList.find(
-      p =>
-        p.name.trim().toLowerCase() === key ||
-        (p.banglaName || '').trim().toLowerCase() === key ||
-        p.name.trim().toLowerCase().includes(key) ||
-        key.includes(p.name.trim().toLowerCase())
-    );
-    if (matched) {
-      return matched;
-    }
-
-    const liveCount = countBooksForPublisher({ name: rawPubName }, allProducts);
-    return {
-      id: `pub-custom-${key.replace(/[^a-z0-9]+/g, '-')}`,
-      name: rawPubName,
-      banglaName: rawPubName,
-      description: `${rawPubName} থেকে প্রকাশিত ১০০% অরিজিনাল মুদ্রিত বইসমূহ।`,
-      logoUrl: product?.images?.[0] || '',
-      booksCount: liveCount || 1,
-      liveBooksCount: liveCount || 1,
-      displayBooksCount: liveCount || 1,
-      isFeatured: true,
-    };
+  if (!rawPubName) {
+    return null;
   }
 
-  // Fallback inference by author if legacy product did not have `publisher` field populated
-  const authorLower = (product?.author || '').trim().toLowerCase();
-  if (authorLower.includes('humayun') || authorLower.includes('হুমায়ূন')) {
-    const anya = enrichedList.find(p => p.name.toLowerCase().includes('anyaprokash'));
-    if (anya) return anya;
-  }
-  if (authorLower.includes('arif') || authorLower.includes('আরিফ')) {
-    const guardian = enrichedList.find(p => p.name.toLowerCase().includes('guardian'));
-    if (guardian) return guardian;
-  }
-  if (authorLower.includes('zafar') || authorLower.includes('জাফর')) {
-    const tamralipi = enrichedList.find(p => p.name.toLowerCase().includes('tamralipi'));
-    if (tamralipi) return tamralipi;
-  }
-
-  return (
-    enrichedList[0] || {
-      id: 'pub-default',
-      name: 'Guardian Publications',
-      banglaName: 'গার্ডিয়ান পাবলিকেশন্স',
-      description: 'সমকালীন ইসলামিক, আদর্শিক ও গবেষণাধর্মী বইয়ের অন্যতম শীর্ষ প্রকাশনী।',
-      logoUrl: '',
-      booksCount: 1,
-      liveBooksCount: 1,
-      displayBooksCount: 1,
-      isFeatured: true,
-    }
+  const enrichedList = buildEnrichedPublishersList(storedPublishers, allProducts);
+  const key = rawPubName.toLowerCase();
+  const matched = enrichedList.find(
+    p =>
+      p.name.trim().toLowerCase() === key ||
+      (p.banglaName || '').trim().toLowerCase() === key ||
+      p.name.trim().toLowerCase().includes(key) ||
+      key.includes(p.name.trim().toLowerCase())
   );
+  if (matched) {
+    return matched;
+  }
+
+  const liveCount = countBooksForPublisher({ name: rawPubName }, allProducts);
+  return {
+    id: `pub-custom-${key.replace(/[^a-z0-9]+/g, '-')}`,
+    name: rawPubName,
+    banglaName: rawPubName,
+    description: `${rawPubName} থেকে প্রকাশিত ১০০% অরিজিনাল মুদ্রিত বইসমূহ।`,
+    logoUrl: product?.images?.[0] || '',
+    booksCount: liveCount || 1,
+    liveBooksCount: liveCount || 1,
+    displayBooksCount: liveCount || 1,
+    isFeatured: true,
+  };
 }
 
 export interface ResolvedProductDeliveryTiming {

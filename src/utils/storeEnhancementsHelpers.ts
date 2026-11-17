@@ -870,7 +870,7 @@ export function resolveProductDetailsPresentation(
     typeTag: isStationery ? 'Stationery' : 'Book',
     creatorLabel: isStationery
       ? product.brand || product.category || 'Premium Stationery'
-      : product.author || product.category || 'Renowned Author',
+      : (product.author || '').trim(),
   };
 }
 

@@ -199,10 +199,15 @@ export function ProductCard({ product }: ProductCardProps) {
               if (cardMode === 'off') return null;
 
               if (cardMode === 'publisher_tag') {
+                const pubTagText =
+                  product.type === 'book'
+                    ? (product.publisher || '').trim()
+                    : (product.brand || product.publisher || 'Official').trim();
+                if (!pubTagText) return null;
                 return (
                   <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded truncate max-w-[115px]">
                     <Building2 size={9} className="text-emerald-600 shrink-0" />
-                    <span className="truncate">{product.publisher || product.brand || 'Official'}</span>
+                    <span className="truncate">{pubTagText}</span>
                   </span>
                 );
               }
@@ -274,12 +279,17 @@ export function ProductCard({ product }: ProductCardProps) {
             if (writerSlotMode === 'off') return null;
 
             if (writerSlotMode === 'publisher_name') {
+              const pubSlotText =
+                product.type === 'book'
+                  ? (product.publisher || '').trim()
+                  : (product.publisher || product.brand || product.category || '').trim();
+              if (!pubSlotText) return null;
               return (
                 <p
                   data-testid="product-card-writer-slot"
                   className="text-[10px] sm:text-[11px] text-neutral-500 truncate mt-0.5"
                 >
-                  {product.publisher || product.brand || product.category}
+                  {pubSlotText}
                 </p>
               );
             }
@@ -317,14 +327,18 @@ export function ProductCard({ product }: ProductCardProps) {
               );
             }
 
+            const writerText =
+              product.type === 'book'
+                ? (product.author || '').trim()
+                : (product.brand || product.category || '').trim();
+            if (!writerText) return null;
+
             return (
               <p
                 data-testid="product-card-writer-slot"
                 className="text-[10px] sm:text-[11px] text-neutral-500 truncate mt-0.5"
               >
-                {product.type === 'book'
-                  ? product.author || product.category
-                  : product.brand || product.category}
+                {writerText}
               </p>
             );
           })()}
