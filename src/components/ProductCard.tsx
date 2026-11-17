@@ -13,7 +13,10 @@ import {
   BookOpen,
   Building2,
 } from 'lucide-react';
-import { resolveProductDetailsPresentation } from '../utils/storeEnhancementsHelpers';
+import {
+  resolveProductDetailsPresentation,
+  formatStockStatusLabel,
+} from '../utils/storeEnhancementsHelpers';
 import { resolveProductSeriesInfo } from '../utils/bookSeriesHelpers';
 import {
   resolveProductImageFitMode,
@@ -231,7 +234,7 @@ export function ProductCard({ product }: ProductCardProps) {
                     }`}
                   >
                     <CheckCircle2 size={9} className="shrink-0" />
-                    <span>{product.stock > 0 ? `In Stock (${product.stock})` : 'Out'}</span>
+                    <span>{formatStockStatusLabel(product.stock, true)}</span>
                   </span>
                 );
               }

@@ -8,6 +8,7 @@ import { FeaturedAuthorsSection } from '../components/FeaturedAuthorsSection';
 import { HomePageSkeleton } from '../components/SkeletonScreens';
 import { shouldShowSkeletonScreen } from '../utils/instantStoreCache';
 import { buildEnrichedPublishersList } from '../utils/publisherAndDeliveryHelpers';
+import { productHasCategory } from '../utils/productCategoryHelpers';
 import {
   resolveHomeReviewsSlotMode,
   resolveHomeAuthorsSlotMode,
@@ -47,7 +48,7 @@ export function Home() {
     .filter(cat => cat.showOnHome !== false)
     .map(cat => ({
       category: cat,
-      items: products.filter(p => p.category.toLowerCase() === cat.name.toLowerCase())
+      items: products.filter(p => productHasCategory(p, cat.name))
     }))
     .filter(sec => sec.items.length > 0);
 

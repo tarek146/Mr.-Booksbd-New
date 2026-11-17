@@ -23,6 +23,7 @@ import {
   calculateCheckoutPricing,
   evaluateCoupon,
   getCouponScheduleState,
+  getEffectiveSubAreaLocations,
   normalizeCouponPhoneLast10,
   resolveActiveCoupons,
 } from '../utils/storeEnhancementsHelpers';
@@ -55,11 +56,7 @@ import {
   getProductImageLayoutClasses,
 } from '../utils/productImageLayoutHelpers';
 
-const BANGLADESH_DISTRICTS = [
-  'Dhaka',
-  'Sub Area',
-  'Gazipur',
-  'Narayanganj',
+const OUTSIDE_DHAKA_DISTRICTS = [
   'Chittagong',
   'Sylhet',
   'Rajshahi',
@@ -245,8 +242,11 @@ export function CheckoutPage() {
     if (addr.phone) setPhone(addr.phone);
     if (addr.optionalPhone) setOptionalPhone(addr.optionalPhone);
     if (addr.email) setEmail(addr.email);
-    if (addr.district && BANGLADESH_DISTRICTS.includes(addr.district)) {
-      setDistrict(addr.district);
+    if (addr.district) {
+      const normalizedDistrict = addr.district.trim();
+      if (normalizedDistrict) {
+        setDistrict(normalizedDistrict);
+      }
     }
     if (addr.city) setCity(addr.city);
     if (addr.address) setAddress(addr.address);
@@ -476,6 +476,18 @@ export function CheckoutPage() {
     );
   }, [coupons]);
 
+  const subAreaLocations = useMemo(
+    () => getEffectiveSubAreaLocations(settings),
+    [settings]
+  );
+
+  const outsideDistrictOptions = useMemo(() => {
+    const subLower = new Set(subAreaLocations.map(s => s.toLowerCase()));
+    return OUTSIDE_DHAKA_DISTRICTS.filter(
+      d => d.toLowerCase() !== 'dhaka' && d.toLowerCase() !== 'sub area' && !subLower.has(d.toLowerCase())
+    );
+  }, [subAreaLocations]);
+
   // Dynamic Pricing, Delivery, Free Threshold & Coupon Calculation
   const pricingSummary = useMemo(
     () =>
@@ -483,6 +495,7 @@ export function CheckoutPage() {
         cart: checkoutItems,
         products,
         district,
+        city,
         deliveryType,
         settings,
         couponCode: appliedCouponCode,
@@ -493,6 +506,7 @@ export function CheckoutPage() {
       checkoutItems,
       products,
       district,
+      city,
       deliveryType,
       settings,
       appliedCouponCode,
@@ -931,7 +945,15 @@ export function CheckoutPage() {
               )}
 
               <div className="pt-2 border-t border-neutral-100 dark:border-slate-800 flex justify-between text-neutral-500 dark:text-slate-400">
-                <span>Delivery ({deliveryType === 'sundarban' ? 'Hub / Point' : district})</span>
+                <span>
+                  Delivery (
+                  {deliveryType === 'sundarban'
+                    ? 'Hub / Point'
+                    : pricingSummary.resolvedZone === 'sub_area'
+                    ? `Sub Area · ${pricingSummary.matchedSubArea || district}`
+                    : district}
+                  )
+                </span>
                 <span className="tabular-nums">{hasFreeDelivery ? 'Free' : `৳${deliveryCharge}`}</span>
               </div>
             </div>
@@ -1165,38 +1187,78 @@ export function CheckoutPage() {
               )}
 
               {/* District & Area/Thana */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div>
-                  <label htmlFor="checkout-district" className={labelClass}>
-                    District <span className="text-[#D71920]">*</span>
-                  </label>
-                  <select
-                    id="checkout-district"
-                    value={district}
-                    onChange={e => setDistrict(e.target.value)}
-                    className={inputClass}
+              <div className="space-y-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label htmlFor="checkout-district" className={labelClass}>
+                      District <span className="text-[#D71920]">*</span>
+                    </label>
+                    <select
+                      id="checkout-district"
+                      value={district}
+                      onChange={e => setDistrict(e.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="Dhaka">Dhaka (Inside City · ৳{settings.insideDhakaCharge ?? 60})</option>
+                      {subAreaLocations.length > 0 && (
+                        <optgroup label={`Dhaka Sub-Areas (৳${settings.subAreaCharge ?? 90})`}>
+                          {subAreaLocations.map(area => (
+                            <option key={`sub-${area}`} value={area}>
+                              {area} (Sub Area)
+                            </option>
+                          ))}
+                          <option value="Sub Area">Other Sub Area (৳{settings.subAreaCharge ?? 90})</option>
+                        </optgroup>
+                      )}
+                      {subAreaLocations.length === 0 && (
+                        <option value="Sub Area">Sub Area (৳{settings.subAreaCharge ?? 90})</option>
+                      )}
+                      <optgroup label={`Outside Dhaka (৳${settings.outsideDhakaCharge ?? 120})`}>
+                        {outsideDistrictOptions.map(d => (
+                          <option key={d} value={d}>
+                            {d}
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="checkout-city" className={labelClass}>
+                      Thana / Area <span className="text-[#D71920]">*</span>
+                    </label>
+                    <input
+                      id="checkout-city"
+                      type="text"
+                      required
+                      value={city}
+                      onChange={e => setCity(e.target.value)}
+                      placeholder={
+                        subAreaLocations.length > 0
+                          ? `e.g. Mirpur, ${subAreaLocations.slice(0, 2).join(', ')}`
+                          : 'e.g. Mirpur, Dhaka'
+                      }
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+
+                {deliveryType === 'standard' && pricingSummary.resolvedZone === 'sub_area' && (
+                  <div
+                    data-testid="checkout-sub-area-banner"
+                    className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 text-[11px] font-medium text-emerald-800 dark:text-emerald-300"
                   >
-                    {BANGLADESH_DISTRICTS.map(d => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="checkout-city" className={labelClass}>
-                    Thana / Area <span className="text-[#D71920]">*</span>
-                  </label>
-                  <input
-                    id="checkout-city"
-                    type="text"
-                    required
-                    value={city}
-                    onChange={e => setCity(e.target.value)}
-                    placeholder="e.g. Mirpur, Dhaka"
-                    className={inputClass}
-                  />
-                </div>
+                    <span className="flex items-center gap-1.5">
+                      <CheckCircle2 size={13} className="text-emerald-600 shrink-0" />
+                      <span>
+                        Sub-Area delivery rate applied for{' '}
+                        <strong>{pricingSummary.matchedSubArea || 'Sub Area'}</strong>
+                      </span>
+                    </span>
+                    <span className="font-bold tabular-nums shrink-0">
+                      {hasFreeDelivery ? 'Free (৳0)' : `৳${baseDelivery}`}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Full Street Address */}
@@ -1690,7 +1752,15 @@ export function CheckoutPage() {
                 )}
 
                 <div className="flex justify-between text-neutral-600 dark:text-slate-400">
-                  <span>Delivery ({deliveryType === 'sundarban' ? 'Hub / Point' : district})</span>
+                  <span>
+                    Delivery (
+                    {deliveryType === 'sundarban'
+                      ? 'Hub / Point'
+                      : pricingSummary.resolvedZone === 'sub_area'
+                      ? `Sub Area · ${pricingSummary.matchedSubArea || district}`
+                      : district}
+                    )
+                  </span>
                   <span className="font-medium text-neutral-900 dark:text-white tabular-nums">
                     {hasFreeDelivery ? (
                       <span className="text-emerald-600 dark:text-emerald-400 font-semibold">

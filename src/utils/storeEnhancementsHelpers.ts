@@ -579,10 +579,110 @@ export function shouldDisplayCouponPopup(params: {
   };
 }
 
+export const DEFAULT_SUB_AREA_LOCATIONS = [
+  'Gazipur',
+  'Savar',
+  'Keraniganj',
+  'Tongi',
+  'Ashulia',
+  'Narayanganj',
+];
+
+export function normalizeSubAreaList(list?: string[] | null): string[] {
+  if (!Array.isArray(list)) return [];
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const raw of list) {
+    const clean = typeof raw === 'string' ? raw.trim() : '';
+    if (!clean) continue;
+    const key = clean.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(clean);
+  }
+  return result;
+}
+
+export function getEffectiveSubAreaLocations(settings?: Partial<StoreSettings> | null): string[] {
+  if (settings && Array.isArray(settings.subAreaLocations)) {
+    return normalizeSubAreaList(settings.subAreaLocations);
+  }
+  return [...DEFAULT_SUB_AREA_LOCATIONS];
+}
+
+function matchesSubAreaToken(inputText: string, subAreaName: string): boolean {
+  const input = (inputText || '').trim().toLowerCase();
+  const target = (subAreaName || '').trim().toLowerCase();
+  if (!input || !target) return false;
+  if (input === target) return true;
+  const escaped = target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const boundaryRegex = new RegExp(`(^|[\\s,/\\-_().]+)${escaped}($|[\\s,/\\-_().]+)`, 'i');
+  if (boundaryRegex.test(input)) return true;
+  if (/[\u0980-\u09FF]/.test(target) && input.includes(target)) return true;
+  return false;
+}
+
+export interface ResolvedDeliveryZone {
+  zone: 'inside_dhaka' | 'sub_area' | 'outside_dhaka';
+  matchedSubArea?: string;
+}
+
+export function resolveDeliveryZone({
+  district,
+  city,
+  subAreaLocations,
+}: {
+  district?: string;
+  city?: string;
+  subAreaLocations?: string[] | null;
+}): ResolvedDeliveryZone {
+  const cleanDistrict = (district || '').trim();
+  const cleanCity = (city || '').trim();
+  const lowerDistrict = cleanDistrict.toLowerCase();
+
+  if (lowerDistrict === 'sub area') {
+    return { zone: 'sub_area', matchedSubArea: 'Sub Area' };
+  }
+
+  const effectiveSubAreas = Array.isArray(subAreaLocations)
+    ? normalizeSubAreaList(subAreaLocations)
+    : DEFAULT_SUB_AREA_LOCATIONS;
+
+  for (const subArea of effectiveSubAreas) {
+    if (matchesSubAreaToken(cleanDistrict, subArea) || matchesSubAreaToken(cleanCity, subArea)) {
+      return { zone: 'sub_area', matchedSubArea: subArea };
+    }
+  }
+
+  if (lowerDistrict === 'dhaka') {
+    return { zone: 'inside_dhaka' };
+  }
+
+  return { zone: 'outside_dhaka' };
+}
+
+/**
+ * Formats stock availability cleanly:
+ * - stock <= 0: Out of Stock (or Out in compact badge)
+ * - 1..9 (< 10): shows scarcity count "In Stock (X)"
+ * - >= 10: hides count and shows "In Stock"
+ */
+export function formatStockStatusLabel(stock?: number | null, compact = false): string {
+  const qty = typeof stock === 'number' && Number.isFinite(stock) ? Math.floor(stock) : 0;
+  if (qty <= 0) {
+    return compact ? 'Out' : 'Out of Stock';
+  }
+  if (qty < 10) {
+    return `In Stock (${qty})`;
+  }
+  return 'In Stock';
+}
+
 export interface CheckoutPricingInput {
   cart: CartItem[];
   products: Product[];
   district: string;
+  city?: string;
   deliveryType: 'standard' | 'sundarban';
   settings: Partial<StoreSettings>;
   couponCode?: string;
@@ -601,12 +701,15 @@ export interface CheckoutPricingSummary {
   discount: number;
   appliedCoupon: CouponEvaluationResult | null;
   total: number;
+  resolvedZone?: 'inside_dhaka' | 'sub_area' | 'outside_dhaka' | 'sundarban';
+  matchedSubArea?: string;
 }
 
 export function calculateCheckoutPricing({
   cart,
   products,
   district,
+  city,
   deliveryType,
   settings,
   couponCode,
@@ -627,14 +730,25 @@ export function calculateCheckoutPricing({
   const reachesFreeThreshold = freeThreshold > 0 && subtotal >= freeThreshold;
 
   let baseDelivery = 0;
+  let resolvedZone: CheckoutPricingSummary['resolvedZone'] = 'outside_dhaka';
+  let matchedSubArea: string | undefined;
+
   if (deliveryType === 'sundarban') {
+    resolvedZone = 'sundarban';
     const customSundarbanFee = cart
       .map(item => (products || []).find(p => p.id === item.productId)?.sundarbanDeliveryFee)
       .find(fee => fee !== undefined && fee > 0);
     baseDelivery = customSundarbanFee ?? (settings.sundarbanDeliveryCharge ?? 120);
   } else {
-    const cleanDistrict = (district || '').trim().toLowerCase();
-    if (cleanDistrict === 'dhaka') {
+    const zoneResult = resolveDeliveryZone({
+      district,
+      city,
+      subAreaLocations: settings.subAreaLocations,
+    });
+    resolvedZone = zoneResult.zone;
+    matchedSubArea = zoneResult.matchedSubArea;
+
+    if (zoneResult.zone === 'inside_dhaka') {
       const customInside = cart
         .map(item => {
           const p = (products || []).find(pr => pr.id === item.productId);
@@ -642,7 +756,7 @@ export function calculateCheckoutPricing({
         })
         .find(f => f !== undefined && f > 0);
       baseDelivery = customInside ?? (settings.insideDhakaCharge ?? 60);
-    } else if (cleanDistrict === 'sub area') {
+    } else if (zoneResult.zone === 'sub_area') {
       const customSub = cart
         .map(item => (products || []).find(p => p.id === item.productId)?.subAreaFee)
         .find(f => f !== undefined && f > 0);
@@ -697,6 +811,8 @@ export function calculateCheckoutPricing({
     discount,
     appliedCoupon,
     total,
+    resolvedZone,
+    matchedSubArea,
   };
 }
 
@@ -727,7 +843,7 @@ export function resolveVariantFormatDescription(
       highlights: [
         `Price: ৳${variant.price}`,
         `SKU: ${variant.sku || product.sku}`,
-        variant.stock > 0 ? `In Stock (${variant.stock})` : 'Out of Stock',
+        formatStockStatusLabel(variant.stock),
       ],
       savingsAmount,
     };

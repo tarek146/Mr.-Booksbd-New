@@ -27,6 +27,7 @@ export interface Product {
   slug: string;
   description: string;
   category: string;
+  categories?: string[];
   subcategory?: string;
   author?: string;
   publisher?: string;
@@ -338,6 +339,7 @@ export interface StoreSettings {
   address: string;
   insideDhakaCharge: number;
   subAreaCharge?: number;
+  subAreaLocations?: string[];
   outsideDhakaCharge: number;
   freeShippingThreshold: number;
   logoUrl: string;

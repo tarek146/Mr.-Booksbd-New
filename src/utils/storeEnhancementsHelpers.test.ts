@@ -17,6 +17,9 @@ import {
   shouldDisplayCouponPopup,
   toDateTimeLocalValue,
   fromDateTimeLocalValue,
+  resolveDeliveryZone,
+  formatStockStatusLabel,
+  normalizeSubAreaList,
 } from './storeEnhancementsHelpers.ts';
 import type { Coupon, Product, StoreSettings, CartItem } from '../types.ts';
 
@@ -411,4 +414,91 @@ test('resolveEffectiveBookPages and resolveBookDetailsHeaderPreview prioritize v
   assert.ok(pb.highlights.every(h => !/pages:/i.test(h)));
   assert.ok(hc.highlights.every(h => !/pages:/i.test(h)));
 });
+
+test('formatStockStatusLabel shows exact count only when stock < 10 and hides count for >= 10', () => {
+  assert.equal(formatStockStatusLabel(0), 'Out of Stock');
+  assert.equal(formatStockStatusLabel(0, true), 'Out');
+  assert.equal(formatStockStatusLabel(-3), 'Out of Stock');
+  assert.equal(formatStockStatusLabel(1), 'In Stock (1)');
+  assert.equal(formatStockStatusLabel(9), 'In Stock (9)');
+  assert.equal(formatStockStatusLabel(10), 'In Stock');
+  assert.equal(formatStockStatusLabel(100), 'In Stock');
+  assert.equal(formatStockStatusLabel(300), 'In Stock');
+});
+
+test('resolveDeliveryZone and calculateCheckoutPricing automatically detect admin-configured sub-areas across district & city', () => {
+  assert.deepEqual(normalizeSubAreaList([' Gazipur ', 'Savar', 'gazipur', '']), ['Gazipur', 'Savar']);
+
+  const settings: Partial<StoreSettings> = {
+    insideDhakaCharge: 60,
+    subAreaCharge: 90,
+    outsideDhakaCharge: 120,
+    subAreaLocations: ['Gazipur', 'Savar', 'Keraniganj', 'Tongi'],
+    extraWeightChargePerKg: 20,
+    freeShippingThreshold: 2000,
+  };
+
+  const cart: CartItem[] = [
+    {
+      productId: 'prod-1',
+      variantId: 'v1',
+      title: 'Paradoxical Sajid 2',
+      variantName: 'Paperback',
+      price: 350,
+      image: 'cover.jpg',
+      quantity: 1,
+      stock: 50,
+      type: 'book',
+    },
+  ];
+
+  // Matching district = Gazipur
+  const gazipurRes = calculateCheckoutPricing({
+    cart,
+    products: [sampleBook],
+    district: 'Gazipur',
+    city: 'Chowrasta',
+    deliveryType: 'standard',
+    settings,
+  });
+  assert.equal(gazipurRes.resolvedZone, 'sub_area');
+  assert.equal(gazipurRes.matchedSubArea, 'Gazipur');
+  assert.equal(gazipurRes.baseDelivery, 90);
+
+  // Matching Thana/Area = Savar even when District = Dhaka
+  const savarRes = calculateCheckoutPricing({
+    cart,
+    products: [sampleBook],
+    district: 'Dhaka',
+    city: 'Savar Bank Town',
+    deliveryType: 'standard',
+    settings,
+  });
+  assert.equal(savarRes.resolvedZone, 'sub_area');
+  assert.equal(savarRes.matchedSubArea, 'Savar');
+  assert.equal(savarRes.baseDelivery, 90);
+
+  // Inside Dhaka non-sub-area still uses insideDhakaCharge (60)
+  const mirpurRes = calculateCheckoutPricing({
+    cart,
+    products: [sampleBook],
+    district: 'Dhaka',
+    city: 'Mirpur 10',
+    deliveryType: 'standard',
+    settings,
+  });
+  assert.equal(mirpurRes.resolvedZone, 'inside_dhaka');
+  assert.equal(mirpurRes.baseDelivery, 60);
+
+  // Removed sub-area falls back to outsideDhakaCharge (120)
+  const customSettings: Partial<StoreSettings> = {
+    ...settings,
+    subAreaLocations: ['Savar'],
+  };
+  assert.equal(
+    resolveDeliveryZone({ district: 'Gazipur', city: '', subAreaLocations: customSettings.subAreaLocations }).zone,
+    'outside_dhaka'
+  );
+});
+
 

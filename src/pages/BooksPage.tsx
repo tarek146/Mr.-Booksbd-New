@@ -35,6 +35,10 @@ import {
   resolveProductImageFitMode,
   getProductImageLayoutClasses,
 } from '../utils/productImageLayoutHelpers';
+import {
+  productHasCategory,
+  productCategoriesMatchQuery,
+} from '../utils/productCategoryHelpers';
 
 export function BooksPage() {
   const { products, categories, isLoading, isStoreHydrated, settings, homeConfig, searchQuery, setSearchQuery, selectedCategoryFilter, setSelectedCategoryFilter, selectedSeriesFilter, setSelectedSeriesFilter, setActivePage, addToCart, startDirectCheckout } = useStore();
@@ -66,7 +70,7 @@ export function BooksPage() {
       if (productTypeFilter !== 'all' && item.type !== productTypeFilter) return false;
 
       // Category filter
-      if (selectedCategoryFilter !== 'all' && item.category !== selectedCategoryFilter) return false;
+      if (selectedCategoryFilter !== 'all' && !productHasCategory(item, selectedCategoryFilter)) return false;
 
       // Search query
       if (searchQuery.trim() !== '') {
@@ -75,7 +79,7 @@ export function BooksPage() {
         const matchesAuthor = item.author ? item.author.toLowerCase().includes(q) : false;
         const matchesPublisher = item.publisher ? item.publisher.toLowerCase().includes(q) : false;
         const matchesSeries = item.seriesName ? item.seriesName.toLowerCase().includes(q) : false;
-        const matchesCategory = item.category.toLowerCase().includes(q);
+        const matchesCategory = productCategoriesMatchQuery(item, q);
         const matchesBrand = item.brand ? item.brand.toLowerCase().includes(q) : false;
         if (!matchesTitle && !matchesAuthor && !matchesPublisher && !matchesSeries && !matchesCategory && !matchesBrand) return false;
       }
@@ -442,7 +446,7 @@ export function BooksPage() {
                   <span className="text-[10px] opacity-80">({products.length})</span>
                 </button>
                 {categories.map(c => {
-                  const count = products.filter(p => p.category === c.name).length;
+                  const count = products.filter(p => productHasCategory(p, c.name)).length;
                   return (
                     <button
                       key={c.id}

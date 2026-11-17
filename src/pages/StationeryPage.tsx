@@ -21,6 +21,10 @@ import {
   resolveProductImageFitMode,
   getProductImageLayoutClasses,
 } from '../utils/productImageLayoutHelpers';
+import {
+  productHasCategory,
+  productCategoriesMatchQuery,
+} from '../utils/productCategoryHelpers';
 
 export function StationeryPage() {
   const { products, categories, isLoading, isStoreHydrated, settings, homeConfig, searchQuery, setSearchQuery, selectedCategoryFilter, setSelectedCategoryFilter, setActivePage, addToCart, startDirectCheckout } = useStore();
@@ -45,13 +49,13 @@ export function StationeryPage() {
       if (item.type !== 'stationery') return false;
 
       // Category filter
-      if (selectedCategoryFilter !== 'all' && item.category !== selectedCategoryFilter) return false;
+      if (selectedCategoryFilter !== 'all' && !productHasCategory(item, selectedCategoryFilter)) return false;
 
       // Search query
       if (searchQuery.trim() !== '') {
         const q = searchQuery.toLowerCase();
         const matchesTitle = item.title.toLowerCase().includes(q);
-        const matchesCategory = item.category.toLowerCase().includes(q);
+        const matchesCategory = productCategoriesMatchQuery(item, q);
         const matchesBrand = item.brand ? item.brand.toLowerCase().includes(q) : false;
         const matchesDesc = item.description.toLowerCase().includes(q);
         if (!matchesTitle && !matchesCategory && !matchesBrand && !matchesDesc) return false;
@@ -214,7 +218,7 @@ export function StationeryPage() {
               All Stationery ({allStationeryCount})
             </button>
             {stationeryCategories.map(cat => {
-              const count = products.filter(p => p.type === 'stationery' && p.category === cat.name).length;
+              const count = products.filter(p => p.type === 'stationery' && productHasCategory(p, cat.name)).length;
               return (
                 <button 
                   key={cat.id}
@@ -366,7 +370,7 @@ export function StationeryPage() {
                   <span className="text-[10px] opacity-80">({allStationeryCount})</span>
                 </button>
                 {stationeryCategories.map(c => {
-                  const count = products.filter(p => p.type === 'stationery' && p.category === c.name).length;
+                  const count = products.filter(p => p.type === 'stationery' && productHasCategory(p, c.name)).length;
                   return (
                     <button
                       key={c.id}

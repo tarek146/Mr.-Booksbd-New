@@ -359,6 +359,7 @@ export const COLD_NEUTRAL_SETTINGS: StoreSettings = {
   address: '',
   insideDhakaCharge: 60,
   subAreaCharge: 90,
+  subAreaLocations: [],
   outsideDhakaCharge: 120,
   freeShippingThreshold: 2000,
   logoUrl: '',

@@ -38,6 +38,8 @@ import {
   resolveActiveCoupons,
   calculateCheckoutPricing,
   normalizeCouponPhoneLast10,
+  DEFAULT_SUB_AREA_LOCATIONS,
+  normalizeSubAreaList,
 } from '../utils/storeEnhancementsHelpers';
 import {
   buildSyncedAuthorsAndPublishers,
@@ -117,6 +119,7 @@ const DEFAULT_SETTINGS_TEMPLATE: StoreSettings = {
   address: 'Nilkhet Book Market, Dhaka - 1205, Bangladesh',
   insideDhakaCharge: 60,
   subAreaCharge: 90,
+  subAreaLocations: [...DEFAULT_SUB_AREA_LOCATIONS],
   outsideDhakaCharge: 120,
   freeShippingThreshold: 2000,
   logoUrl: '',
@@ -263,6 +266,9 @@ function sanitizeStoreSettings<T extends Partial<StoreSettings>>(st: T): T {
   if ('footerLogoUrl' in copy) copy.footerLogoUrl = sanitizeImageUrl(copy.footerLogoUrl);
   if ('faviconUrl' in copy) copy.faviconUrl = sanitizeImageUrl(copy.faviconUrl);
   if ('footerPaymentBannerUrl' in copy) copy.footerPaymentBannerUrl = sanitizeImageUrl(copy.footerPaymentBannerUrl);
+  if ('subAreaLocations' in copy && Array.isArray(copy.subAreaLocations)) {
+    copy.subAreaLocations = normalizeSubAreaList(copy.subAreaLocations);
+  }
   if (copy.adminProfile && copy.adminProfile.avatarUrl) {
     copy.adminProfile = {
       ...copy.adminProfile,
@@ -2644,8 +2650,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
 
     // 2. Calculate verified subtotal, delivery fee, & coupon discount using unified checkout pricing helper
+    const lowerNotes = (orderData.notes || '').toLowerCase();
     const deliveryMode =
-      (orderData.notes || '').toLowerCase().includes('sundarban') ? 'sundarban' : 'standard';
+      lowerNotes.includes('sundarban') ||
+      lowerNotes.includes('hub delivery') ||
+      lowerNotes.includes('point delivery')
+        ? 'sundarban'
+        : 'standard';
     const remoteCouponProfile = orderData.couponCode
       ? await fetchCustomerCouponProfile(orderData.phone, currentUser?.uid)
       : null;
@@ -2654,6 +2665,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       cart: verifiedItems,
       products,
       district: orderData.district,
+      city: orderData.city,
       deliveryType: deliveryMode,
       settings,
       couponCode: orderData.couponCode,

@@ -98,7 +98,19 @@ import {
   transferOrderToCourier,
   syncCourierOrderStatus,
 } from '../utils/steadfastCourierService';
-import { DEFAULT_CANCEL_EXCHANGE_POLICY } from '../utils/storeEnhancementsHelpers';
+import {
+  DEFAULT_CANCEL_EXCHANGE_POLICY,
+  DEFAULT_SUB_AREA_LOCATIONS,
+  getEffectiveSubAreaLocations,
+  normalizeSubAreaList,
+} from '../utils/storeEnhancementsHelpers';
+import {
+  buildProductCategoryFields,
+  getProductCategories,
+  productCategoriesMatchQuery,
+  productHasCategory,
+  toggleProductCategorySelection,
+} from '../utils/productCategoryHelpers';
 import { detectAdminNewCustomerActivity, playAdminIncomingRingtone, unlockChatAudioContext, DEFAULT_LIVE_CHAT_QUICK_REPLIES } from '../utils/chatSoundAndValidation';
 import { resolveDashboardHeaderCapiStatus } from '../utils/facebookCapiHelpers';
 import { renderGreenReviewIcon } from '../components/ProductCard';
@@ -595,6 +607,7 @@ export function AdminDashboard() {
   const [settingsSuccess, setSettingsSuccess] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSubTab, setSettingsSubTab] = useState<'header' | 'footer' | 'shipping' | 'social' | 'seo' | 'homepage'>('header');
+  const [newSubAreaInput, setNewSubAreaInput] = useState('');
   const [specialOfferTickNow, setSpecialOfferTickNow] = useState<number>(() => Date.now());
 
   useEffect(() => {
@@ -623,6 +636,8 @@ export function AdminDashboard() {
   const [prodType, setProdType] = useState<'book' | 'stationery'>('book');
   const [prodPrice, setProdPrice] = useState(350);
   const [prodCategory, setProdCategory] = useState('Fiction & Literature');
+  const [prodCategories, setProdCategories] = useState<string[]>(['Fiction & Literature']);
+  const [prodCategorySearch, setProdCategorySearch] = useState('');
   const [prodAuthor, setProdAuthor] = useState('');
   const [prodImage, setProdImage] = useState('');
   const [prodExtraImages, setProdExtraImages] = useState('');
@@ -701,7 +716,6 @@ export function AdminDashboard() {
   const [prodOutsideDhakaFee, setProdOutsideDhakaFee] = useState<number>(120);
   const [prodSubAreaFee, setProdSubAreaFee] = useState<number>(90);
   const [prodSundarbanDeliveryFee, setProdSundarbanDeliveryFee] = useState<number>(120);
-  const [prodOtherCourierDeliveryFee, setProdOtherCourierDeliveryFee] = useState<number>(100);
   const [prodWeightNote, setProdWeightNote] = useState('Weight-based extra charge: ৳20 added per extra kg/item when weight increases.');
 
   // In-Form Customer Reviews for this product
@@ -1219,7 +1233,7 @@ export function AdminDashboard() {
         title: newTitle,
         slug: newSlug,
         description: p.description || '',
-        category: p.category,
+        ...buildProductCategoryFields(getProductCategories(p)),
         author: p.author || '',
         publisher: p.publisher || '',
         isbn: p.isbn || '',
@@ -1310,7 +1324,6 @@ export function AdminDashboard() {
     setProdOutsideDhakaFee(120);
     setProdSubAreaFee(90);
     setProdSundarbanDeliveryFee(120);
-    setProdOtherCourierDeliveryFee(100);
     setProdWeightNote('Weight-based extra charge: ৳20 added per extra kg/item when weight increases.');
     setInFormReviews([]);
     setNewRevName('');
@@ -1325,6 +1338,8 @@ export function AdminDashboard() {
       setProdRegularPrice(450);
       const firstBookCat = categories.find(c => c.type === 'book')?.name || '';
       setProdCategory(firstBookCat);
+      setProdCategories(firstBookCat ? [firstBookCat] : []);
+      setProdCategorySearch('');
       setProdAuthor('');
       setProdPublisher('');
       setProdIsbn('');
@@ -1357,6 +1372,8 @@ export function AdminDashboard() {
       setProdRegularPrice(290);
       const firstStatCat = categories.find(c => c.type === 'stationery')?.name || '';
       setProdCategory(firstStatCat);
+      setProdCategories(firstStatCat ? [firstStatCat] : []);
+      setProdCategorySearch('');
       setProdAuthor('');
       setProdPublisher('');
       setProdIsbn('');
@@ -1397,7 +1414,10 @@ export function AdminDashboard() {
     setIsCustomSlug(false);
     setProdPrice(p.price || 350);
     setProdRegularPrice(p.previousPrice || (p.price ? p.price + 100 : 450));
-    setProdCategory(p.category);
+    const existingCategories = getProductCategories(p);
+    setProdCategories(existingCategories);
+    setProdCategory(existingCategories[0] || p.category || '');
+    setProdCategorySearch('');
     setProdAuthor(p.author || '');
     setProdPublisher(p.publisher || '');
     setProdIsbn(p.isbn || '');
@@ -1425,7 +1445,6 @@ export function AdminDashboard() {
     setProdOutsideDhakaFee(p.outsideDhakaFee ?? 120);
     setProdSubAreaFee(p.subAreaFee ?? 90);
     setProdSundarbanDeliveryFee(p.sundarbanDeliveryFee ?? 120);
-    setProdOtherCourierDeliveryFee(p.otherCourierDeliveryFee ?? 100);
     setProdWeightNote(p.weightNote || 'Weight-based extra charge: ৳20 added per extra kg/item when weight increases.');
     setProdBookFormat(p.bookFormat || (p.isOriginalBadge !== false ? 'original' : 'copy'));
     setProdPdfUrl(p.pdfUrl || '');
@@ -1495,6 +1514,17 @@ export function AdminDashboard() {
 
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    const resolvedCategoryFields = buildProductCategoryFields(
+      prodCategories.length > 0 ? prodCategories : prodCategory ? [prodCategory] : []
+    );
+    if (resolvedCategoryFields.categories.length === 0) {
+      setToast({
+        show: true,
+        type: 'error',
+        message: 'কমপক্ষে ১টি ক্যাটাগরি (Category) সিলেক্ট করুন।',
+      });
+      return;
+    }
     const primaryImg = prodImage.trim() || prodGalleryUrls[0] || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600';
     const extraList = prodExtraImages
       ? prodExtraImages.split(/[\n,]+/).map(s => s.trim()).filter(s => s.length > 5)
@@ -1546,7 +1576,7 @@ export function AdminDashboard() {
         (prodType === 'book'
           ? 'Authentic book publication from MR. BOOKS.'
           : 'Premium stationery and office supply item.'),
-      category: prodCategory,
+      ...resolvedCategoryFields,
       author: prodType === 'book' ? prodAuthor.trim() : (prodBrand.trim() || 'Stationery Brand'),
       publisher: prodType === 'book' ? prodPublisher.trim() : undefined,
       isbn: prodType === 'book' ? prodIsbn : undefined,
@@ -1592,7 +1622,6 @@ export function AdminDashboard() {
       outsideDhakaFee: Number(prodOutsideDhakaFee) || 120,
       subAreaFee: Number(prodSubAreaFee) || 90,
       sundarbanDeliveryFee: Number(prodSundarbanDeliveryFee) || 120,
-      otherCourierDeliveryFee: Number(prodOtherCourierDeliveryFee) || 100,
       weightNote: prodWeightNote.trim() || 'Weight-based extra charge: ৳20 added per extra kg/item when weight increases.',
       deliveryEstimate: prodDeliveryEstimate.trim() || '2-3 Business Days',
       deliveryTimingTitle: prodDeliveryTimingTitle.trim() || 'Delivery Timing',
@@ -5608,7 +5637,7 @@ export function AdminDashboard() {
                         (p.author || '').toLowerCase().includes(q) ||
                         (p.publisher || '').toLowerCase().includes(q) ||
                         (p.seriesName || '').toLowerCase().includes(q) ||
-                        (p.category || '').toLowerCase().includes(q)
+                        productCategoriesMatchQuery(p, q)
                       );
                     });
 
@@ -5645,9 +5674,11 @@ export function AdminDashboard() {
                                   </p>
                                   <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                                     <div className="flex flex-wrap items-center gap-1.5">
-                                      <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-medium">
-                                        {p.category}
-                                      </span>
+                                      {getProductCategories(p).map(catName => (
+                                        <span key={catName} className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-medium">
+                                          {catName}
+                                        </span>
+                                      ))}
                                       <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-medium">
                                         {p.isOriginalBadge !== false ? 'Original' : 'Active'}
                                       </span>
@@ -5746,9 +5777,23 @@ export function AdminDashboard() {
                                       </div>
                                     </td>
                                     <td className="py-3 px-3">
-                                      <span className="inline-block px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 text-[11px] font-medium truncate max-w-full" title={p.category}>
-                                        {p.category}
-                                      </span>
+                                      {(() => {
+                                        const cats = getProductCategories(p);
+                                        const primary = cats[0] || p.category;
+                                        const extraCount = Math.max(0, cats.length - 1);
+                                        return (
+                                          <div className="flex items-center gap-1 max-w-full" title={cats.join(', ')}>
+                                            <span className="inline-block px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 text-[11px] font-medium truncate">
+                                              {primary}
+                                            </span>
+                                            {extraCount > 0 && (
+                                              <span className="inline-block px-1.5 py-0.5 rounded-md bg-rose-50 text-[#D71920] border border-rose-200 text-[10px] font-bold shrink-0">
+                                                +{extraCount}
+                                              </span>
+                                            )}
+                                          </div>
+                                        );
+                                      })()}
                                     </td>
                                     <td className="py-3 px-3">
                                       <span className={`inline-block px-2 py-0.5 rounded-md text-[11px] font-semibold border ${
@@ -6693,7 +6738,7 @@ export function AdminDashboard() {
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                         <div>
                           <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
                             Inside Dhaka (৳)
@@ -6736,34 +6781,22 @@ export function AdminDashboard() {
                             className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920] disabled:bg-slate-50 tabular-nums"
                           />
                         </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
-                            Sundarban Courier (৳)
+                          <label
+                            htmlFor="prod-hub-delivery-fee"
+                            className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1"
+                          >
+                            Hub Delivery (৳)
                           </label>
                           <input
+                            id="prod-hub-delivery-fee"
+                            data-testid="prod-hub-delivery-fee"
                             type="number"
                             min={0}
                             disabled={prodIsFreeDelivery}
                             placeholder="120"
                             value={prodIsFreeDelivery ? 0 : prodSundarbanDeliveryFee}
                             onChange={e => setProdSundarbanDeliveryFee(Number(e.target.value))}
-                            className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920] disabled:bg-slate-50 tabular-nums"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
-                            Other Courier — Steadfast/SA (৳)
-                          </label>
-                          <input
-                            type="number"
-                            min={0}
-                            disabled={prodIsFreeDelivery}
-                            placeholder="100"
-                            value={prodIsFreeDelivery ? 0 : prodOtherCourierDeliveryFee}
-                            onChange={e => setProdOtherCourierDeliveryFee(Number(e.target.value))}
                             className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920] disabled:bg-slate-50 tabular-nums"
                           />
                         </div>
@@ -7214,24 +7247,133 @@ export function AdminDashboard() {
                         Organization &amp; Inventory
                       </h4>
 
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          Category <span className="text-[#D71920]">*</span>
-                        </label>
-                        <select
-                          value={prodCategory}
-                          onChange={e => setProdCategory(e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920] cursor-pointer"
-                        >
-                          <option value="">-- Select Category --</option>
-                          {categories
-                            .filter(c => c.type === prodType)
-                            .map(c => (
-                              <option key={c.id} value={c.name} className="bg-white text-slate-900">
-                                {c.name}
-                              </option>
+                      <div data-testid="product-multi-category-picker" className="space-y-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <label className="block text-xs font-semibold text-slate-700">
+                            Categories <span className="text-[#D71920]">*</span>
+                          </label>
+                          <span className="text-[11px] font-semibold text-slate-500 tabular-nums">
+                            {prodCategories.length} selected
+                          </span>
+                        </div>
+
+                        {prodCategories.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {prodCategories.map((catName, idx) => (
+                              <span
+                                key={`sel-cat-${catName}`}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-50 text-[#D71920] border border-rose-200 text-[11px] font-semibold"
+                              >
+                                <span className="truncate max-w-[140px]">
+                                  {catName}
+                                  {idx === 0 && prodCategories.length > 1 ? ' (Primary)' : ''}
+                                </span>
+                                <button
+                                  type="button"
+                                  aria-label={`Remove ${catName}`}
+                                  onClick={() => {
+                                    const next = toggleProductCategorySelection(prodCategories, catName);
+                                    setProdCategories(next);
+                                    setProdCategory(next[0] || '');
+                                  }}
+                                  className="text-[#D71920]/70 hover:text-[#D71920] cursor-pointer"
+                                >
+                                  <X size={11} />
+                                </button>
+                              </span>
                             ))}
-                        </select>
+                          </div>
+                        )}
+
+                        {(() => {
+                          const seenCatNames = new Set<string>();
+                          const allChoices: { id: string; name: string }[] = [];
+                          for (const c of categories.filter(cat => cat.type === prodType)) {
+                            const cleanName = (c.name || '').trim();
+                            if (!cleanName) continue;
+                            const key = cleanName.toLowerCase();
+                            if (seenCatNames.has(key)) continue;
+                            seenCatNames.add(key);
+                            allChoices.push({ id: c.id, name: cleanName });
+                          }
+                          for (const extraName of prodCategories) {
+                            const cleanName = (extraName || '').trim();
+                            if (!cleanName) continue;
+                            const key = cleanName.toLowerCase();
+                            if (seenCatNames.has(key)) continue;
+                            seenCatNames.add(key);
+                            allChoices.push({ id: `extra-${key}`, name: cleanName });
+                          }
+                          const q = prodCategorySearch.trim().toLowerCase();
+                          const visibleChoices = q
+                            ? allChoices.filter(c => c.name.toLowerCase().includes(q))
+                            : allChoices;
+
+                          return (
+                            <div className="rounded-lg border border-slate-200 bg-slate-50/40 overflow-hidden">
+                              {allChoices.length > 5 && (
+                                <div className="px-2.5 py-2 border-b border-slate-200 bg-white flex items-center gap-1.5">
+                                  <Search size={12} className="text-slate-400 shrink-0" />
+                                  <input
+                                    type="text"
+                                    value={prodCategorySearch}
+                                    onChange={e => setProdCategorySearch(e.target.value)}
+                                    placeholder="Filter categories..."
+                                    className="w-full text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none bg-transparent"
+                                  />
+                                  {prodCategorySearch && (
+                                    <button
+                                      type="button"
+                                      aria-label="Clear category search"
+                                      onClick={() => setProdCategorySearch('')}
+                                      className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                              <div className="max-h-48 overflow-y-auto divide-y divide-slate-100 bg-white">
+                                {visibleChoices.length === 0 ? (
+                                  <p className="px-3 py-3 text-[11px] text-slate-400 text-center">
+                                    No matching categories found.
+                                  </p>
+                                ) : (
+                                  visibleChoices.map(c => {
+                                    const checked = prodCategories.some(
+                                      sel => sel.toLowerCase() === c.name.toLowerCase()
+                                    );
+                                    return (
+                                      <label
+                                        key={c.id}
+                                        className={`flex items-center gap-2.5 px-3 py-2 text-xs cursor-pointer transition-colors ${
+                                          checked
+                                            ? 'bg-rose-50/60 text-slate-900 font-semibold'
+                                            : 'text-slate-700 hover:bg-slate-50'
+                                        }`}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={checked}
+                                          onChange={() => {
+                                            const next = toggleProductCategorySelection(
+                                              prodCategories,
+                                              c.name
+                                            );
+                                            setProdCategories(next);
+                                            setProdCategory(next[0] || '');
+                                          }}
+                                          className="w-4 h-4 rounded border-slate-300 text-[#D71920] accent-[#D71920] cursor-pointer shrink-0"
+                                        />
+                                        <span className="truncate">{c.name}</span>
+                                      </label>
+                                    );
+                                  })
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       <div>
@@ -7976,7 +8118,7 @@ export function AdminDashboard() {
                   {categories
                     .filter(c => !categorySearchQuery || c.name.toLowerCase().includes(categorySearchQuery.toLowerCase()))
                     .map((cat, idx) => {
-                      const itemCount = products.filter(p => p.category.toLowerCase() === cat.name.toLowerCase()).length;
+                      const itemCount = products.filter(p => productHasCategory(p, cat.name)).length;
                       return (
                         <tr key={cat.id} className="hover:bg-[#FFF9F9] transition-colors group">
                           <td className="py-3.5 px-4 text-center"><input type="checkbox" className="accent-[#D71920] rounded" /></td>
@@ -12292,6 +12434,134 @@ export function AdminDashboard() {
                         className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-[#171717] font-bold"
                       />
                     </div>
+
+                    {/* Dynamic Sub-Area Locations Manager */}
+                    {(() => {
+                      const activeSubAreas = getEffectiveSubAreaLocations(settingsForm);
+                      const handleAddSubArea = () => {
+                        const cleaned = newSubAreaInput.trim();
+                        if (!cleaned) return;
+                        const nextList = normalizeSubAreaList([...activeSubAreas, cleaned]);
+                        setSettingsForm(prev => ({ ...prev, subAreaLocations: nextList }));
+                        setNewSubAreaInput('');
+                      };
+                      const handleRemoveSubArea = (name: string) => {
+                        const nextList = activeSubAreas.filter(
+                          a => a.toLowerCase() !== name.toLowerCase()
+                        );
+                        setSettingsForm(prev => ({ ...prev, subAreaLocations: nextList }));
+                      };
+                      const missingDefaults = DEFAULT_SUB_AREA_LOCATIONS.filter(
+                        d => !activeSubAreas.some(a => a.toLowerCase() === d.toLowerCase())
+                      );
+
+                      return (
+                        <div
+                          data-testid="admin-sub-area-locations-manager"
+                          className="p-4 rounded-xl bg-slate-50/90 border border-slate-200 col-span-1 sm:col-span-3 space-y-3"
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div>
+                              <span className="font-bold text-slate-900 block text-xs uppercase tracking-wide">
+                                Sub-Area Locations ({activeSubAreas.length})
+                              </span>
+                              <span className="text-[11px] text-slate-600 block mt-0.5">
+                                Customers selecting or typing these areas at checkout automatically receive the{' '}
+                                <strong>Sub Area Delivery Fee (৳{settingsForm.subAreaCharge ?? 90})</strong>.
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                await updateSettings({
+                                  subAreaCharge: settingsForm.subAreaCharge ?? 90,
+                                  subAreaLocations: activeSubAreas,
+                                });
+                                setToast({
+                                  show: true,
+                                  type: 'success',
+                                  message: 'Sub-Area fee & locations saved!',
+                                });
+                              }}
+                              className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-semibold cursor-pointer self-start sm:self-auto shrink-0"
+                            >
+                              Save Sub-Areas
+                            </button>
+                          </div>
+
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <input
+                              type="text"
+                              data-testid="admin-sub-area-input"
+                              value={newSubAreaInput}
+                              onChange={e => setNewSubAreaInput(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleAddSubArea();
+                                }
+                              }}
+                              placeholder="Add area or district (e.g. Gazipur, Savar, Uttara, Ashulia)..."
+                              className="flex-1 px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#D71920]"
+                            />
+                            <button
+                              type="button"
+                              data-testid="admin-sub-area-add-btn"
+                              onClick={handleAddSubArea}
+                              className="px-3.5 py-2 rounded-lg bg-[#D71920] hover:bg-[#B9151B] text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                            >
+                              <Plus size={13} />
+                              <span>Add Location</span>
+                            </button>
+                          </div>
+
+                          {activeSubAreas.length === 0 ? (
+                            <p className="text-[11px] text-slate-500 py-1">
+                              No Sub-Area locations configured yet. Add locations above or click a quick suggestion below.
+                            </p>
+                          ) : (
+                            <div className="flex flex-wrap gap-1.5">
+                              {activeSubAreas.map(area => (
+                                <span
+                                  key={area}
+                                  data-testid={`sub-area-chip-${area}`}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-800 text-xs font-medium shadow-2xs"
+                                >
+                                  <span>{area}</span>
+                                  <button
+                                    type="button"
+                                    aria-label={`Remove ${area}`}
+                                    onClick={() => handleRemoveSubArea(area)}
+                                    className="text-slate-400 hover:text-[#D71920] cursor-pointer"
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {missingDefaults.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-200/80 text-[11px]">
+                              <span className="text-slate-500 font-medium">Quick add:</span>
+                              {missingDefaults.map(suggestion => (
+                                <button
+                                  key={`quick-${suggestion}`}
+                                  type="button"
+                                  onClick={() => {
+                                    const nextList = normalizeSubAreaList([...activeSubAreas, suggestion]);
+                                    setSettingsForm(prev => ({ ...prev, subAreaLocations: nextList }));
+                                  }}
+                                  className="px-2 py-0.5 rounded-md bg-white border border-dashed border-slate-300 text-slate-700 hover:border-[#D71920] hover:text-[#D71920] cursor-pointer transition-colors"
+                                >
+                                  + {suggestion}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {/* Returning Customer "Use Old Address" Autofill Feature */}
                     <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200 col-span-1 sm:col-span-3 space-y-3">

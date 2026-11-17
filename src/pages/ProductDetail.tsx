@@ -40,7 +40,12 @@ import {
   resolveProductDetailsPresentation,
   resolveEffectiveBookPages,
   resolveBookDetailsHeaderPreview,
+  formatStockStatusLabel,
 } from '../utils/storeEnhancementsHelpers';
+import {
+  getProductCategories,
+  productHasCategory,
+} from '../utils/productCategoryHelpers';
 import {
   resolveProductSeriesInfo,
   getSeriesBooksForProduct,
@@ -299,9 +304,16 @@ export function ProductDetail() {
     setActivePage('books');
   };
 
-  // Related products in same category
+  const assignedCategories = useMemo(() => getProductCategories(product), [product]);
+  const primaryCategory = assignedCategories[0] || product.category || '';
+
+  // Related products sharing any assigned category or matching type
   const relatedProducts = products
-    .filter(p => p.id !== product.id && (p.category === product.category || p.type === product.type))
+    .filter(
+      p =>
+        p.id !== product.id &&
+        (assignedCategories.some(cat => productHasCategory(p, cat)) || p.type === product.type)
+    )
     .slice(0, 4);
 
   const handleAddToCart = () => {
@@ -354,10 +366,10 @@ export function ProductDetail() {
             <span className="text-neutral-300" aria-hidden="true">/</span>
             <button
               type="button"
-              onClick={() => { setSelectedCategoryFilter(product.category); setActivePage(product.type === 'book' ? 'books' : 'stationery'); }}
+              onClick={() => { setSelectedCategoryFilter(primaryCategory || 'all'); setActivePage(product.type === 'book' ? 'books' : 'stationery'); }}
               className="hover:text-[#D71920] text-neutral-600 transition-colors cursor-pointer shrink-0 truncate max-w-[120px] sm:max-w-none"
             >
-              {product.category}
+              {primaryCategory || product.category}
             </button>
             <span className="text-neutral-300" aria-hidden="true">/</span>
             <span className="text-neutral-900 font-medium truncate">
@@ -576,17 +588,22 @@ export function ProductDetail() {
                   </div>
                 )}
 
-                <span className="inline-flex items-center gap-2">
+                <span className="inline-flex items-center flex-wrap gap-1.5">
                   {siteSettings.reviewDisplay !== false && (
                     <span aria-hidden="true" className="text-neutral-400">·</span>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => { setSelectedCategoryFilter(product.category); setActivePage(product.type === 'book' ? 'books' : 'stationery'); }}
-                    className="text-neutral-600 hover:text-[#D71920] font-medium transition-colors cursor-pointer"
-                  >
-                    {product.category}{product.subcategory ? ` / ${product.subcategory}` : ''}
-                  </button>
+                  {(assignedCategories.length > 0 ? assignedCategories : [product.category].filter(Boolean)).map((catName, idx) => (
+                    <React.Fragment key={catName}>
+                      {idx > 0 && <span aria-hidden="true" className="text-neutral-300">,</span>}
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedCategoryFilter(catName); setActivePage(product.type === 'book' ? 'books' : 'stationery'); }}
+                        className="text-neutral-600 hover:text-[#D71920] font-medium transition-colors cursor-pointer"
+                      >
+                        {catName}{idx === 0 && product.subcategory ? ` / ${product.subcategory}` : ''}
+                      </button>
+                    </React.Fragment>
+                  ))}
                 </span>
 
                 {product.type === 'book' && (
@@ -651,8 +668,11 @@ export function ProductDetail() {
                   </>
                 )}
               </div>
-              <span className={`text-xs font-semibold tabular-nums shrink-0 ${activeVariant.stock > 0 ? 'text-emerald-700' : 'text-[#D71920]'}`}>
-                {activeVariant.stock > 0 ? `In Stock (${activeVariant.stock})` : 'Out of Stock'}
+              <span
+                data-testid="product-detail-stock-status"
+                className={`text-xs font-semibold tabular-nums shrink-0 ${activeVariant.stock > 0 ? 'text-emerald-700' : 'text-[#D71920]'}`}
+              >
+                {formatStockStatusLabel(activeVariant.stock)}
               </span>
             </div>
 
@@ -1034,8 +1054,12 @@ export function ProductDetail() {
                         )}
 
                         <div className="py-1.5 border-b border-neutral-200/70 flex items-baseline justify-between gap-3">
-                          <dt className="text-neutral-500 shrink-0">Category</dt>
-                          <dd className="font-medium text-neutral-900 text-right">{product.category}</dd>
+                          <dt className="text-neutral-500 shrink-0">
+                            {assignedCategories.length > 1 ? 'Categories' : 'Category'}
+                          </dt>
+                          <dd className="font-medium text-neutral-900 text-right">
+                            {assignedCategories.length > 0 ? assignedCategories.join(', ') : product.category}
+                          </dd>
                         </div>
 
                         <div className="py-1.5 border-b border-neutral-200/70 last:border-b-0 flex items-baseline justify-between gap-3">
@@ -1126,20 +1150,20 @@ export function ProductDetail() {
                               </div>
                             ) : (
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 text-[11px] tabular-nums">
-                                <div className="flex items-baseline justify-between sm:block">
-                                  <span className="text-neutral-500">Inside Dhaka </span>
+                                <div className="flex items-baseline justify-between sm:justify-start sm:gap-1.5">
+                                  <span className="text-neutral-500">Inside Dhaka</span>
                                   <span className="font-semibold text-neutral-900">৳{insideFee}</span>
                                 </div>
-                                <div className="flex items-baseline justify-between sm:block">
-                                  <span className="text-neutral-500">Outside Dhaka </span>
+                                <div className="flex items-baseline justify-between sm:justify-start sm:gap-1.5">
+                                  <span className="text-neutral-500">Outside Dhaka</span>
                                   <span className="font-semibold text-neutral-900">৳{outsideFee}</span>
                                 </div>
-                                <div className="flex items-baseline justify-between sm:block">
-                                  <span className="text-neutral-500">Sub Area </span>
+                                <div className="flex items-baseline justify-between sm:justify-start sm:gap-1.5">
+                                  <span className="text-neutral-500">Sub Area</span>
                                   <span className="font-semibold text-neutral-900">৳{subAreaFee}</span>
                                 </div>
-                                <div className="flex items-baseline justify-between sm:block">
-                                  <span className="text-neutral-500">Sundarban </span>
+                                <div className="flex items-baseline justify-between sm:justify-start sm:gap-1.5">
+                                  <span className="text-neutral-500">Hub Delivery</span>
                                   <span className="font-semibold text-neutral-900">৳{sundarbanFee}</span>
                                 </div>
                               </div>
@@ -1866,7 +1890,7 @@ export function ProductDetail() {
                   You Might Also Like
                 </h3>
                 <p className="text-xs text-neutral-500 mt-0.5">
-                  Recommended items in {product.category}
+                  Recommended items in {assignedCategories.length > 0 ? assignedCategories.join(', ') : product.category}
                 </p>
               </div>
             </div>
