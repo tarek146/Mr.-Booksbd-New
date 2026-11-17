@@ -4,7 +4,10 @@
  * seamlessly applying real-time Firebase Firestore snapshots.
  */
 
-export const LIVE_CACHE_PREFIX = 'mrb_live_cache_v2:';
+import type { StoreSettings } from '../types';
+
+export const LIVE_CACHE_PREFIX = 'mrb_live_cache_v3:';
+export const LEGACY_CACHE_PREFIX = 'mrb_live_cache_v2:';
 
 function getBrowserStorage(customStorage?: Pick<Storage, 'getItem' | 'setItem'> | null): Pick<Storage, 'getItem' | 'setItem'> | null {
   if (customStorage !== undefined) return customStorage;
@@ -230,9 +233,31 @@ export const KNOWN_CACHE_SLICES = [
   'paymentMethods',
   'settings',
   'homeConfig',
+  'siteSettings',
+  'coupons',
   'reviews',
   'reels'
 ] as const;
+
+export function clearLegacyV2CachedSlices(
+  customStorage?: Pick<Storage, 'removeItem'> | null
+): void {
+  const storage =
+    customStorage !== undefined
+      ? customStorage
+      : typeof window !== 'undefined' && window.localStorage
+        ? window.localStorage
+        : null;
+  if (!storage) return;
+
+  for (const key of KNOWN_CACHE_SLICES) {
+    try {
+      storage.removeItem(`${LEGACY_CACHE_PREFIX}${key}`);
+    } catch {
+      // Ignore storage removal errors
+    }
+  }
+}
 
 export function clearAllCachedSlices(
   customStorage?: Pick<Storage, 'removeItem'> | null
@@ -248,10 +273,181 @@ export function clearAllCachedSlices(
   for (const key of KNOWN_CACHE_SLICES) {
     try {
       storage.removeItem(`${LIVE_CACHE_PREFIX}${key}`);
+      storage.removeItem(`${LEGACY_CACHE_PREFIX}${key}`);
     } catch {
       // Ignore storage removal errors
     }
   }
 }
+
+export interface CriticalHydrationState {
+  settings: boolean;
+  homeConfig: boolean;
+  siteSettings: boolean;
+  banners: boolean;
+  categories: boolean;
+  products: boolean;
+  coupons: boolean;
+  authors?: boolean;
+  publishers?: boolean;
+  productDetailDoc?: boolean;
+}
+
+/**
+ * Ensures the UI stays in clean Skeleton state until ALL critical above-the-fold and
+ * page-specific live storefront slices have confirmed from cache/REST/server, preventing
+ * any flash of stale default arrays or half-hydrated sections.
+ */
+export function areCriticalStoreSlicesReady(
+  state: CriticalHydrationState,
+  activePage: string = 'home'
+): boolean {
+  const coreSettingsReady = Boolean(
+    state.settings && state.homeConfig && state.siteSettings
+  );
+  if (!coreSettingsReady) return false;
+
+  if (activePage === 'product-detail') {
+    return Boolean(
+      (state.products || state.productDetailDoc) &&
+      state.coupons
+    );
+  }
+
+  if (activePage === 'authors') {
+    return Boolean(state.authors && state.products && state.categories);
+  }
+
+  if (activePage === 'publishers') {
+    return Boolean(state.publishers && state.products && state.categories);
+  }
+
+  if (activePage === 'books' || activePage === 'stationery') {
+    return Boolean(state.products && state.categories && state.coupons);
+  }
+
+  // Home & default storefront: require hero banners, categories, products, coupons, and directory slices
+  return Boolean(
+    state.banners &&
+    state.categories &&
+    state.products &&
+    state.coupons &&
+    state.authors &&
+    state.publishers
+  );
+}
+
+/**
+ * On cold browsers (no local cache), keep the skeleton screen visible long enough for
+ * live Firestore/REST responses to arrive instead of timing out at 1200ms and revealing empty/default state.
+ */
+export function resolveColdHydrationTimeoutMs(configuredMs?: number): number {
+  const base = resolveSkeletonMaxDuration(configuredMs);
+  return Math.max(4500, base);
+}
+
+/**
+ * Strictly neutral storefront shell settings used ONLY during cold browser loading
+ * before live Firebase settings arrive. Contains ZERO hardcoded promotional strings,
+ * phone numbers, demo announcements, or fake special offer items.
+ */
+export const COLD_NEUTRAL_SETTINGS: StoreSettings = {
+  storeName: 'MR. BOOKS',
+  tagline: '',
+  phone: '',
+  email: '',
+  address: '',
+  insideDhakaCharge: 60,
+  subAreaCharge: 90,
+  outsideDhakaCharge: 120,
+  freeShippingThreshold: 2000,
+  logoUrl: '',
+  footerLogoUrl: '',
+  faviconUrl: '',
+  facebookUrl: '',
+  instagramUrl: '',
+  youtubeUrl: '',
+  bkashNumber: '',
+  nagadNumber: '',
+  showHeaderIcon: true,
+  headerNameColor1: '#171717',
+  headerNameColor2: '#D71920',
+  showHeaderTagline: false,
+  showHeaderContact: false,
+  enableThemeToggle: true,
+  allowDarkMode: true,
+  enableSkeletonLoading: true,
+  skeletonAnimationStyle: 'shimmer',
+  skeletonMaxDurationMs: 4500,
+  firestoreFetchStrategy: 'cache-first',
+  firestoreQueryLimit: 250,
+  enableIndexedQuerySnapshots: true,
+  productImageFitMode: 'cover',
+  showAnnouncementBar: false,
+  announcementItems: [],
+  facebookPixelId: '',
+  facebookCapiToken: '',
+  gaMeasurementId: '',
+  tiktokPixelId: '',
+  showFooterIcon: true,
+  footerBrandName: 'MR. BOOKS',
+  footerNameColor1: '#FFFFFF',
+  footerNameColor2: '#D71920',
+  footerBgColor: '#121212',
+  footerCardBgColor: '#1c1c1e',
+  footerDescription: '',
+  footerPaymentTitle: 'Payment Options',
+  footerPaymentBannerUrl: '',
+  footerQuickLinksTitle: 'QUICK LINKS',
+  footerQuickLinks: [],
+  footerCategoriesTitle: 'CATEGORIES',
+  footerCategoryLinks: [],
+  footerSocialTitle: 'Social Media',
+  copyrightText: `© ${new Date().getFullYear()} MR. BOOKS`,
+  footerBottomTagline: '',
+  footerPaymentMethods: [],
+  socialLinks: [],
+  showFooterSubscription: false,
+  subscriptionTitle: 'VIP Club',
+  subscriptionSubtitle: '',
+  subscriptionDiscountBadge: '',
+  showFooterTracking: false,
+  trackingTitle: 'Track Order',
+  trackingSubtitle: '',
+  showFooterCoupons: false,
+  couponsTitle: 'Coupons',
+  couponsBadge: '',
+  showFooterPolicy: false,
+  policyTitle: 'Policy',
+  policyBadge: '',
+  cancelExchangePolicyText: '',
+  enableLiveChat: false,
+  enableLiveChatSound: false,
+  liveChatAutoHideSeconds: 4,
+  liveChatRequireContactInfo: false,
+  liveChatShowEmailField: false,
+  liveChatTitle: 'Support',
+  liveChatWelcomeMessage: '',
+  whatsappNumber: '',
+  callNumber: '',
+  telegramUrl: '',
+  messengerUrl: '',
+  metaTitle: 'MR. BOOKS',
+  metaDescription: '',
+  ogImageUrl: '',
+  keywords: '',
+  enableCouponPopup: false,
+  couponsInitialized: true,
+  dismissedDefaultCouponIds: [],
+  specialOffer: {
+    enabled: false,
+    title: 'Special Offer',
+    endTime: 0,
+    autoRemoveExpired: true,
+    showItemCountdown: false,
+    items: [],
+  },
+};
+
 
 

@@ -23,7 +23,7 @@ import {
 } from '../utils/productImageLayoutHelpers';
 
 export function StationeryPage() {
-  const { products, categories, isLoading, settings, homeConfig, searchQuery, setSearchQuery, selectedCategoryFilter, setSelectedCategoryFilter, setActivePage, addToCart, startDirectCheckout } = useStore();
+  const { products, categories, isLoading, isStoreHydrated, settings, homeConfig, searchQuery, setSearchQuery, selectedCategoryFilter, setSelectedCategoryFilter, setActivePage, addToCart, startDirectCheckout } = useStore();
   const imageLayout = getProductImageLayoutClasses(
     resolveProductImageFitMode(settings, homeConfig)
   );
@@ -106,7 +106,7 @@ export function StationeryPage() {
     discountOnly || 
     ratingFilter > 0;
 
-  if (shouldShowSkeletonScreen(isLoading, settings.enableSkeletonLoading)) {
+  if (!isStoreHydrated || shouldShowSkeletonScreen(isLoading, settings.enableSkeletonLoading)) {
     return <BooksCatalogSkeleton />;
   }
 

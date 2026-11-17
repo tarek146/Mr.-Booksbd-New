@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 
 export function Home() {
-  const { products, categories, publishers, reviews, isLoading, settings, homeConfig, siteSettings, setActivePage, setSelectedCategoryFilter } = useStore();
+  const { products, categories, publishers, reviews, isLoading, isStoreHydrated, settings, homeConfig, siteSettings, setActivePage, setSelectedCategoryFilter } = useStore();
   
   const categoryScrollRef = useRef<HTMLDivElement>(null);
   const newArrivalsScrollRef = useRef<HTMLDivElement>(null);
@@ -74,7 +74,7 @@ export function Home() {
     }
   };
 
-  if (shouldShowSkeletonScreen(isLoading, settings.enableSkeletonLoading)) {
+  if (!isStoreHydrated || shouldShowSkeletonScreen(isLoading, settings.enableSkeletonLoading)) {
     return <HomePageSkeleton />;
   }
 

@@ -39,6 +39,7 @@ export function Navbar() {
     searchQuery, 
     setSearchQuery,
     settings,
+    isStoreHydrated,
     darkMode,
     toggleDarkMode,
     isSearchSpotlightOpen,
@@ -135,7 +136,7 @@ export function Navbar() {
     : defaultMarqueeItems
   );
   const marqueeItems = activeAnnouncements.length > 0 ? activeAnnouncements : defaultMarqueeItems;
-  const showAnnouncement = settings.showAnnouncementBar !== false;
+  const showAnnouncement = isStoreHydrated && settings.showAnnouncementBar !== false;
 
   const [logoImgError, setLogoImgError] = useState(false);
   useEffect(() => {

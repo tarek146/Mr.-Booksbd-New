@@ -48,7 +48,6 @@ export const db = (() => {
         localCache: persistentLocalCache({
           tabManager: persistentMultipleTabManager()
         }),
-        experimentalAutoDetectLongPolling: true,
       });
     } catch {
       return getFirestore(app);

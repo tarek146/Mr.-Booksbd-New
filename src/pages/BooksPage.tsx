@@ -37,7 +37,7 @@ import {
 } from '../utils/productImageLayoutHelpers';
 
 export function BooksPage() {
-  const { products, categories, isLoading, settings, homeConfig, searchQuery, setSearchQuery, selectedCategoryFilter, setSelectedCategoryFilter, selectedSeriesFilter, setSelectedSeriesFilter, setActivePage, addToCart, startDirectCheckout } = useStore();
+  const { products, categories, isLoading, isStoreHydrated, settings, homeConfig, searchQuery, setSearchQuery, selectedCategoryFilter, setSelectedCategoryFilter, selectedSeriesFilter, setSelectedSeriesFilter, setActivePage, addToCart, startDirectCheckout } = useStore();
   const imageLayout = getProductImageLayoutClasses(
     resolveProductImageFitMode(settings, homeConfig)
   );
@@ -131,7 +131,7 @@ export function BooksPage() {
     inStockOnly || 
     discountOnly;
 
-  if (shouldShowSkeletonScreen(isLoading, settings.enableSkeletonLoading)) {
+  if (!isStoreHydrated || shouldShowSkeletonScreen(isLoading, settings.enableSkeletonLoading)) {
     return <BooksCatalogSkeleton />;
   }
 

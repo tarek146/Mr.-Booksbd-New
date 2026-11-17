@@ -64,6 +64,7 @@ const WhatsAppIcon = () => (
 export function Footer() {
   const {
     settings,
+    isStoreHydrated,
     setActivePage,
     setSelectedCategoryFilter,
     setSearchQuery,
@@ -296,7 +297,7 @@ export function Footer() {
                     </div>
                   </div>
                   <span className="inline-flex items-center gap-0.5 text-[8.5px] sm:text-[10px] font-extrabold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 px-1.5 sm:px-2 py-0.5 rounded-full shrink-0 whitespace-nowrap">
-                    {settings.couponsBadge || `${activeCouponsList.length} Offers`}
+                    {activeCouponsList.length === 0 ? '0 Offers' : (settings.couponsBadge || `${activeCouponsList.length} Offers`)}
                   </span>
                 </button>
               )}
@@ -345,7 +346,17 @@ export function Footer() {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4 sm:space-y-5">
           
-          {/* Main Footer Links - Modern Boxed Cards */}
+          {!isStoreHydrated ? (
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4" aria-hidden="true">
+              <div className={`md:col-span-4 border rounded-2xl p-4 sm:p-4.5 h-44 animate-pulse ${footerCardBorder}`} style={{ backgroundColor: footerCardBg }} />
+              <div className="md:col-span-5 grid grid-cols-2 gap-3">
+                <div className={`border rounded-2xl p-4 h-44 animate-pulse ${footerCardBorder}`} style={{ backgroundColor: footerCardBg }} />
+                <div className={`border rounded-2xl p-4 h-44 animate-pulse ${footerCardBorder}`} style={{ backgroundColor: footerCardBg }} />
+              </div>
+              <div className={`md:col-span-3 border rounded-2xl p-4 h-44 animate-pulse ${footerCardBorder}`} style={{ backgroundColor: footerCardBg }} />
+            </div>
+          ) : (
+          /* Main Footer Links - Modern Boxed Cards */
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4">
             {/* Brand Box */}
             <div
@@ -607,6 +618,7 @@ export function Footer() {
               </div>
             </div>
           </div>
+          )}
 
           {/* Bottom Boxed Copyright Footer */}
           <div
@@ -614,9 +626,11 @@ export function Footer() {
             style={{ backgroundColor: footerCardBg }}
           >
             <p className={footerMutedText}>{settings.copyrightText || `© ${new Date().getFullYear()} ${settings.storeName || 'MR. BOOKS'} Bangladesh. All rights reserved.`}</p>
-            <div className={`flex items-center gap-3 text-[11px] ${footerMutedText}`}>
-              <span>{settings.footerBottomTagline ?? 'Designed for book lovers in Bangladesh.'}</span>
-            </div>
+            {isStoreHydrated && (
+              <div className={`flex items-center gap-3 text-[11px] ${footerMutedText}`}>
+                <span>{settings.footerBottomTagline ?? 'Designed for book lovers in Bangladesh.'}</span>
+              </div>
+            )}
           </div>
 
       </div>

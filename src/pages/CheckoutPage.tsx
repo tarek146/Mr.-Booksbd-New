@@ -1344,6 +1344,13 @@ export function CheckoutPage() {
                 data-testid="payment-methods-grid"
                 className="grid grid-cols-1 sm:grid-cols-2 gap-3"
               >
+                {!codMethod && onlineMethods.length === 0 && (
+                  <>
+                    <div className="h-16 rounded-lg border border-neutral-200 dark:border-slate-700 bg-neutral-100/80 dark:bg-slate-800/60 animate-pulse" />
+                    <div className="h-16 rounded-lg border border-neutral-200 dark:border-slate-700 bg-neutral-100/80 dark:bg-slate-800/60 animate-pulse" />
+                  </>
+                )}
+
                 {/* Option 1: Cash on Delivery */}
                 {codMethod && (
                   <button

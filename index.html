@@ -9,12 +9,46 @@
     <meta property="og:description" content="Buy books, novels, academic books, and stationery items in Bangladesh with secure manual payment and fast home delivery." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <!-- Preconnect to Firebase & Google Fonts for sub-second connection -->
+    <!-- Preconnect to Firebase, Fonts & Image CDNs for sub-second cold connection -->
     <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
     <link rel="dns-prefetch" href="https://firestore.googleapis.com">
     <link rel="preconnect" href="https://mr-book-new.firebaseapp.com" crossorigin>
-    <link rel="preload" as="image" href="/assets/default-hero-banner.jpg" fetchpriority="high">
-    <!-- Google Fonts: Plus Jakarta Sans & Noto Sans Bengali -->
+    <link rel="dns-prefetch" href="https://firebasestorage.googleapis.com">
+    <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
+    <!-- Zero-Waterfall t=0ms Live Storefront Prefetcher (starts Firestore fetches while JS parses) -->
+    <script>
+      (function () {
+        try {
+          var BASE = 'https://firestore.googleapis.com/v1/projects/mr-book-new/databases/(default)/documents/';
+          var path = (location.pathname || '/').toLowerCase();
+          var hash = (location.hash || '').toLowerCase();
+          var opts = { mode: 'cors', credentials: 'omit' };
+          var getJson = function (url) {
+            return fetch(url, opts).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+          };
+          var p = {
+            settings: getJson(BASE + 'settings?pageSize=20'),
+            banners: getJson(BASE + 'banners?pageSize=50'),
+            categories: getJson(BASE + 'categories?pageSize=100'),
+            products: getJson(BASE + 'products?pageSize=250'),
+            authors: getJson(BASE + 'authors?pageSize=250'),
+            publishers: getJson(BASE + 'publishers?pageSize=250'),
+            coupons: getJson(BASE + 'coupons?pageSize=100'),
+            reels: getJson(BASE + 'reels?pageSize=50'),
+            reviews: getJson(BASE + 'reviews?pageSize=150')
+          };
+          if (path === '/checkout' || path === '/admin' || hash.indexOf('checkout') !== -1 || hash.indexOf('admin') !== -1) {
+            p.payment_methods = getJson(BASE + 'payment_methods?pageSize=50');
+          }
+          var prodMatch = path.match(/^\/(?:product|book)\/([^/?#]+)/);
+          if (prodMatch && prodMatch[1]) {
+            p.productDetail = getJson(BASE + 'products/' + prodMatch[1]);
+          }
+          window.__MRB_PREFETCH__ = { startedAt: Date.now(), promises: p };
+        } catch (e) {}
+      })();
+    </script>
+    <!-- Google Fonts: Plus Jakarta Sans & Hind Siliguri -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">

@@ -81,7 +81,7 @@ function MessengerIcon({ className = "w-4 h-4 shrink-0" }: { className?: string 
 }
 
 export function ProductDetail() {
-  const { products, authors, publishers, isLoading, selectedProductId, setActivePage, addToCart, startDirectCheckout, wishlist, toggleWishlist, setSelectedCategoryFilter, setSelectedSeriesFilter, setSearchQuery, settings, homeConfig, siteSettings, reviews, visitorId, addProductReview, reactToReview } = useStore();
+  const { products, authors, publishers, isLoading, isStoreHydrated, selectedProductId, setActivePage, addToCart, startDirectCheckout, wishlist, toggleWishlist, setSelectedCategoryFilter, setSelectedSeriesFilter, setSearchQuery, settings, homeConfig, siteSettings, reviews, visitorId, addProductReview, reactToReview } = useStore();
   const imageLayout = getProductImageLayoutClasses(
     resolveProductImageFitMode(settings, homeConfig)
   );
@@ -256,7 +256,7 @@ export function ProductDetail() {
     }
   };
 
-  if (shouldShowSkeletonScreen(isLoading, settings.enableSkeletonLoading)) {
+  if (!isStoreHydrated || shouldShowSkeletonScreen(isLoading, settings.enableSkeletonLoading)) {
     return <ProductDetailSkeleton />;
   }
 

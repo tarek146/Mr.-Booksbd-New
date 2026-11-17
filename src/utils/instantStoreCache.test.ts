@@ -2,11 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   LIVE_CACHE_PREFIX,
+  LEGACY_CACHE_PREFIX,
   readCachedSlice,
   writeCachedSlice,
   hasCachedSlice,
   shouldShowSkeletonScreen,
   resolveSkeletonMaxDuration,
+  resolveColdHydrationTimeoutMs,
+  areCriticalStoreSlicesReady,
+  COLD_NEUTRAL_SETTINGS,
+  clearLegacyV2CachedSlices,
   shouldApplyRealtimeSnapshot,
   resolveFirestoreFetchStrategy,
   resolveFirestoreQueryLimit,
@@ -183,6 +188,107 @@ test('executeCacheFirstDocFetch and executeCacheFirstQueryFetch: gracefully reso
   assert.deepEqual(offlineQuery.items, []);
   assert.equal(offlineQuery.source, 'cache');
 });
+
+test('areCriticalStoreSlicesReady: prevents premature skeleton dismissal before settings, banners, categories, products, coupons hydrate', () => {
+  // Partial readiness (products arrived first while banners/settings/categories still loading) MUST stay false
+  assert.equal(
+    areCriticalStoreSlicesReady(
+      {
+        settings: false,
+        homeConfig: false,
+        siteSettings: false,
+        banners: false,
+        categories: false,
+        products: true,
+        coupons: false,
+        authors: false,
+        publishers: false,
+      },
+      'home'
+    ),
+    false
+  );
+
+  // Settings + products ready, but banners missing on home -> still wait
+  assert.equal(
+    areCriticalStoreSlicesReady(
+      {
+        settings: true,
+        homeConfig: true,
+        siteSettings: true,
+        banners: false,
+        categories: true,
+        products: true,
+        coupons: true,
+        authors: true,
+        publishers: true,
+      },
+      'home'
+    ),
+    false
+  );
+
+  // All critical home slices ready -> unlocks render immediately
+  assert.equal(
+    areCriticalStoreSlicesReady(
+      {
+        settings: true,
+        homeConfig: true,
+        siteSettings: true,
+        banners: true,
+        categories: true,
+        products: true,
+        coupons: true,
+        authors: true,
+        publishers: true,
+      },
+      'home'
+    ),
+    true
+  );
+
+  // Direct product detail link can render with single productDoc + core settings even before banners finish
+  assert.equal(
+    areCriticalStoreSlicesReady(
+      {
+        settings: true,
+        homeConfig: true,
+        siteSettings: true,
+        banners: false,
+        categories: false,
+        products: false,
+        productDetailDoc: true,
+        coupons: true,
+      },
+      'product-detail'
+    ),
+    true
+  );
+});
+
+test('resolveColdHydrationTimeoutMs, COLD_NEUTRAL_SETTINGS, and clearLegacyV2CachedSlices uphold zero-stale-flash guarantees', () => {
+  // Cold timeout never drops below 4500ms even if Firestore general.skeletonMaxDurationMs was saved as 1200ms
+  assert.equal(resolveColdHydrationTimeoutMs(1200), 4500);
+  assert.equal(resolveColdHydrationTimeoutMs(undefined), 4500);
+
+  // Neutral cold settings contain zero stale demo announcements, promo items, coupons, or phone numbers
+  assert.equal(COLD_NEUTRAL_SETTINGS.showAnnouncementBar, false);
+  assert.deepEqual(COLD_NEUTRAL_SETTINGS.announcementItems, []);
+  assert.equal(COLD_NEUTRAL_SETTINGS.specialOffer?.enabled, false);
+  assert.deepEqual(COLD_NEUTRAL_SETTINGS.specialOffer?.items, []);
+  assert.equal(COLD_NEUTRAL_SETTINGS.phone, '');
+  assert.equal(COLD_NEUTRAL_SETTINGS.enableCouponPopup, false);
+  assert.equal(COLD_NEUTRAL_SETTINGS.couponsInitialized, true);
+
+  // Clears legacy v2 cache cleanly
+  const storage = createMemoryStorage();
+  storage.setItem(`${LEGACY_CACHE_PREFIX}products`, JSON.stringify([{ id: 'old' }]));
+  storage.setItem(`${LIVE_CACHE_PREFIX}products`, JSON.stringify([{ id: 'live' }]));
+  clearLegacyV2CachedSlices(storage);
+  assert.equal(storage.getItem(`${LEGACY_CACHE_PREFIX}products`), null);
+  assert.ok(storage.getItem(`${LIVE_CACHE_PREFIX}products`));
+});
+
 
 
 

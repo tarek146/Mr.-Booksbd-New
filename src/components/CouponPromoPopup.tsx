@@ -14,6 +14,7 @@ export function CouponPromoPopup() {
   const {
     coupons,
     settings,
+    isStoreHydrated,
     activePage,
     appliedCouponCode,
     setAppliedCouponCode,
@@ -66,7 +67,7 @@ export function CouponPromoPopup() {
 
   // Schedule popup reveal using admin-configured delay
   useEffect(() => {
-    if (!evaluation.show) {
+    if (!isStoreHydrated || !evaluation.show) {
       setIsVisible(false);
       return;
     }
@@ -82,7 +83,7 @@ export function CouponPromoPopup() {
     }, Math.round(delaySec * 1000));
 
     return () => window.clearTimeout(timer);
-  }, [evaluation.show, evaluation.popupKey, settings.couponPopupDelaySeconds]);
+  }, [isStoreHydrated, evaluation.show, evaluation.popupKey, settings.couponPopupDelaySeconds]);
 
   // Live 1s countdown ticker while visible
   useEffect(() => {
@@ -115,7 +116,7 @@ export function CouponPromoPopup() {
     }
   }, [evaluation.allPopupCoupons.length, activeIndex]);
 
-  if (!isVisible || !evaluation.show || evaluation.allPopupCoupons.length === 0) {
+  if (!isStoreHydrated || !isVisible || !evaluation.show || evaluation.allPopupCoupons.length === 0) {
     return null;
   }
 

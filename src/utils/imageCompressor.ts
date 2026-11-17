@@ -147,16 +147,17 @@ export async function compressImageFile(
 
         let outputDataUrl = '';
         if (prefersAlpha) {
-          outputDataUrl = canvas.toDataURL('image/png');
-          // If PNG output is too large for Firestore (> 650KB string), try WebP or JPEG
-          if (outputDataUrl.length > 650 * 1024) {
-            const webpTry = canvas.toDataURL('image/webp', quality);
-            outputDataUrl = isValidImageUrl(webpTry) && webpTry.length < outputDataUrl.length
-              ? webpTry
-              : canvas.toDataURL('image/jpeg', quality);
+          const webpTry = canvas.toDataURL('image/webp', Math.min(0.86, quality));
+          if (isValidImageUrl(webpTry) && webpTry.startsWith('data:image/webp')) {
+            outputDataUrl = webpTry;
+          } else {
+            outputDataUrl = canvas.toDataURL('image/png');
+            if (outputDataUrl.length > 180 * 1024) {
+              outputDataUrl = canvas.toDataURL('image/jpeg', Math.min(0.82, quality));
+            }
           }
         } else {
-          outputDataUrl = canvas.toDataURL('image/jpeg', quality);
+          outputDataUrl = canvas.toDataURL('image/jpeg', Math.min(0.82, quality));
         }
 
         if (isValidImageUrl(outputDataUrl)) {

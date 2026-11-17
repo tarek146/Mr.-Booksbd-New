@@ -40,7 +40,6 @@ import {
   normalizeCouponPhoneLast10,
 } from '../utils/storeEnhancementsHelpers';
 import {
-  DEFAULT_PUBLISHERS_LIST,
   buildSyncedAuthorsAndPublishers,
   countBooksForAuthor,
   countBooksForPublisher,
@@ -63,12 +62,6 @@ import {
 } from '../utils/directCheckoutHelpers';
 import { 
   db, 
-  seedInitialDataIfNeeded,
-  DEFAULT_PAYMENT_METHODS,
-  DEFAULT_PRODUCTS,
-  DEFAULT_CATEGORIES,
-  DEFAULT_AUTHORS,
-  DEFAULT_BANNERS,
   buildIndexedQuery,
   getDocCacheFirst,
   getQueryDocsCacheFirst
@@ -91,17 +84,169 @@ import {
   readCachedSlice,
   writeCachedSlice,
   hasCachedSlice,
-  resolveSkeletonMaxDuration,
   shouldApplyRealtimeSnapshot,
   resolveFirestoreFetchStrategy,
   resolveFirestoreQueryLimit,
-  clearAllCachedSlices
+  clearAllCachedSlices,
+  clearLegacyV2CachedSlices,
+  areCriticalStoreSlicesReady,
+  resolveColdHydrationTimeoutMs,
+  COLD_NEUTRAL_SETTINGS,
+  CriticalHydrationState
 } from '../utils/instantStoreCache';
+import {
+  decodeFirestoreRestCollection,
+  decodeFirestoreRestDocument,
+  getEarlyPrefetchPromise
+} from '../utils/firestoreRestPrefetch';
 import { applyReviewReaction, ReactionType } from '../utils/reviewHelpers';
 import { dedupeById } from '../utils/videoReelHelpers';
 import { getInitialTheme, persistThemeChoice, applyThemeToDom, toggleTheme as toggleThemeHelper } from '../utils/themeHelpers';
 import { mergeLiveChatMessages } from '../utils/chatSoundAndValidation';
 import { extractSeriesFromSearch, buildBooksPathWithSeries, normalizeSeriesName } from '../utils/bookSeriesHelpers';
+
+if (typeof window !== 'undefined') {
+  clearLegacyV2CachedSlices();
+}
+
+const DEFAULT_SETTINGS_TEMPLATE: StoreSettings = {
+  storeName: 'MR. BOOKS',
+  tagline: 'Bookstore & Stationery',
+  phone: '016092384584',
+  email: 'support@mrbooksbd.com',
+  address: 'Nilkhet Book Market, Dhaka - 1205, Bangladesh',
+  insideDhakaCharge: 60,
+  subAreaCharge: 90,
+  outsideDhakaCharge: 120,
+  freeShippingThreshold: 2000,
+  logoUrl: '',
+  footerLogoUrl: '',
+  faviconUrl: '',
+  facebookUrl: 'https://facebook.com/mrbooksbd',
+  instagramUrl: 'https://instagram.com/mrbooksbd',
+  youtubeUrl: 'https://youtube.com',
+  bkashNumber: '01712345678',
+  nagadNumber: '01812345678',
+  showHeaderIcon: true,
+  headerNameColor1: '#171717',
+  headerNameColor2: '#D71920',
+  showHeaderTagline: true,
+  showHeaderContact: true,
+  enableThemeToggle: true,
+  allowDarkMode: true,
+  enableSkeletonLoading: true,
+  skeletonAnimationStyle: 'shimmer',
+  skeletonMaxDurationMs: 1200,
+  firestoreFetchStrategy: 'cache-first',
+  firestoreQueryLimit: 250,
+  enableIndexedQuerySnapshots: true,
+  productImageFitMode: 'cover',
+  showAnnouncementBar: true,
+  announcementItems: [],
+  facebookPixelId: '',
+  facebookCapiToken: '',
+  gaMeasurementId: '',
+  tiktokPixelId: '',
+  showFooterIcon: true,
+  footerBrandName: 'MR. BOOKS',
+  footerNameColor1: '#FFFFFF',
+  footerNameColor2: '#D71920',
+  footerBgColor: '#121212',
+  footerCardBgColor: '#1c1c1e',
+  footerDescription: "Bangladesh's premier online bookstore and stationery shop.",
+  footerPaymentTitle: 'Payment Options',
+  footerPaymentBannerUrl: '',
+  footerQuickLinksTitle: 'QUICK LINKS',
+  footerQuickLinks: DEFAULT_FOOTER_QUICK_LINKS,
+  footerCategoriesTitle: 'CATEGORIES',
+  footerCategoryLinks: [],
+  footerSocialTitle: 'Social Media',
+  copyrightText: `© ${new Date().getFullYear()} MR. BOOKS. All rights reserved.`,
+  footerBottomTagline: 'Designed for book lovers in Bangladesh.',
+  footerPaymentMethods: [
+    { id: 'p1', name: 'bKash Online', icon: 'bkash', isActive: true },
+    { id: 'p2', name: 'Nagad Gateway', icon: 'nagad', isActive: true },
+    { id: 'p3', name: 'Visa / MasterCard', icon: 'visa', isActive: true },
+    { id: 'p4', name: 'Cash on Delivery', icon: 'cod', isActive: true }
+  ],
+  socialLinks: [],
+  showFooterSubscription: true,
+  subscriptionTitle: 'Join MR. BOOKS Readers Club',
+  subscriptionSubtitle: 'Subscribe to get discount coupons & new releases alert.',
+  subscriptionDiscountBadge: '10% OFF',
+  showFooterTracking: true,
+  trackingTitle: 'Real-Time Order Tracking',
+  trackingSubtitle: 'Enter your Order ID or phone number to track your book package.',
+  showFooterCoupons: true,
+  couponsTitle: 'Coupons & Offers',
+  couponsBadge: '',
+  showFooterPolicy: true,
+  policyTitle: 'Cancel & Exchange',
+  policyBadge: '7-Day Easy',
+  cancelExchangePolicyText: DEFAULT_CANCEL_EXCHANGE_POLICY,
+  enableLiveChat: true,
+  enableLiveChatSound: true,
+  liveChatAutoHideSeconds: 4,
+  liveChatRequireContactInfo: false,
+  liveChatShowEmailField: false,
+  liveChatTitle: 'MR. BOOKS Support',
+  liveChatWelcomeMessage: 'আসসালামু আলাইকুম! বই, অর্ডার বা ডেলিভারি নিয়ে যেকোনো প্রশ্ন এখানে লিখুন।',
+  whatsappNumber: '+880 1712-345678',
+  callNumber: '+880 1712-345678',
+  telegramUrl: '',
+  messengerUrl: '',
+  metaTitle: 'MR. BOOKS - Online Bookstore & Stationery in Bangladesh',
+  metaDescription: 'Buy bestselling books, novels, Islamic books, university textbooks, and premium stationery online in Bangladesh.',
+  ogImageUrl: '',
+  keywords: 'bookstore bangladesh, online book shop dhaka, stationery, novel, islamic books, mr books',
+  sundarbanDeliveryCharge: 120,
+  enableSundarbanCourier: true,
+  showSundarbanOnCheckout: true,
+  hubDeliveryLabel: 'Standard Hub Delivery / Point Delivery',
+  hubDeliverySubtitle: 'Courier hub or point pickup · Advance payment',
+  codPaymentIconUrl: '',
+  onlinePaymentIconUrl: '',
+  sundarbanForcesPrepayment: true,
+  extraWeightChargePerKg: 20,
+  deliveryNote: 'Standard Hub Delivery / Point Delivery orders require advance online payment.',
+  enableCheckoutFraudWarning: true,
+  cancellationFraudThreshold: 30,
+  enableUseOldAddress: true,
+  oldAddressButtonLabel: 'Use Saved Address',
+  showCheckoutCoupons: true,
+  showCheckoutProgress: true,
+  directOrderIsolatesCart: true,
+  allowCheckoutItemRemoval: true,
+  merchantId: 'KUSXCIG',
+  defaultLabelSize: '3x3',
+  defaultInvoiceSize: 'A4',
+  invoiceShowProductImage: true,
+  invoiceShowPricingBreakdown: true,
+  labelShowItemDetails: true,
+  invoiceFooterNote: '',
+  labelLogisticsText: 'steadfast.com.bd',
+  ordersDefaultDensity: 'comfortable',
+  ordersShowFraudCheckButton: true,
+  ordersShowItemThumbnails: true,
+  couponsInitialized: true,
+  dismissedDefaultCouponIds: [],
+  enableCouponPopup: true,
+  couponPopupDelaySeconds: 1.5,
+  couponPopupFrequency: 'once_per_session',
+  enableBanglaQr: true,
+  banglaQrImageUrl: '',
+  banglaQrAccountName: 'MR. BOOKS BD',
+  banglaQrNumber: '01712345678',
+  banglaQrInstructions: 'বিকাশ, নগদ, রকেট, উপায় বা যেকোনো ব্যাংক অ্যাপের বাংলা কিউআর (Bangla QR) স্ক্যানার দিয়ে স্ক্যান করে পেমেন্ট করুন এবং ট্রানজেকশন আইডি নিচে দিন।',
+  specialOffer: {
+    enabled: false,
+    title: 'Special Offer',
+    endTime: 0,
+    autoRemoveExpired: true,
+    showItemCountdown: false,
+    items: []
+  }
+};
 
 function sanitizeStoreSettings<T extends Partial<StoreSettings>>(st: T): T {
   const copy: Partial<StoreSettings> = { ...st };
@@ -169,6 +314,7 @@ interface StoreContextType {
   searchQuery: string;
   darkMode: boolean;
   isLoading: boolean;
+  isStoreHydrated: boolean;
   triggerSkeletonPreview: (durationMs?: number) => void;
   cacheTelemetry: {
     lastSource: 'cache' | 'server' | 'local-storage';
@@ -449,24 +595,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const { currentUser, isAdmin } = useAuth();
   
   const [products, setProducts] = useState<Product[]>(() =>
-    dedupeProductsById(
-      readCachedSlice('products', isProductsCacheInitialized() ? [] : DEFAULT_PRODUCTS)
-    )
+    dedupeProductsById(readCachedSlice<Product[]>('products', []))
   );
   const [categories, setCategories] = useState<Category[]>(() =>
-    dedupeById(
-      readCachedSlice('categories', isSliceInitialized(CATEGORIES_INITIALIZED_KEY) ? [] : DEFAULT_CATEGORIES)
-    )
+    dedupeById(readCachedSlice<Category[]>('categories', []))
   );
   const [authors, setAuthors] = useState<Author[]>(() =>
-    dedupeById(
-      readCachedSlice('authors', isSliceInitialized(AUTHORS_INITIALIZED_KEY) ? [] : DEFAULT_AUTHORS)
-    )
+    dedupeById(readCachedSlice<Author[]>('authors', []))
   );
   const [publishers, setPublishers] = useState<Publisher[]>(() =>
-    dedupeById(
-      readCachedSlice('publishers', isSliceInitialized(PUBLISHERS_INITIALIZED_KEY) ? [] : DEFAULT_PUBLISHERS_LIST)
-    )
+    dedupeById(readCachedSlice<Publisher[]>('publishers', []))
   );
   const productsRef = useRef<Product[]>(products);
   const categoriesRef = useRef<Category[]>(categories);
@@ -500,45 +638,27 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     publishersRef.current = publishers;
   }, [publishers]);
   const [banners, setBanners] = useState<Banner[]>(() =>
-    readCachedSlice('banners', DEFAULT_BANNERS)
+    readCachedSlice<Banner[]>('banners', [])
   );
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodConfig[]>(() =>
-    readCachedSlice('paymentMethods', DEFAULT_PAYMENT_METHODS)
+    readCachedSlice<PaymentMethodConfig[]>('paymentMethods', [])
   );
   const [orders, setOrders] = useState<Order[]>([]);
   const [paymentSubmissions, setPaymentSubmissions] = useState<PaymentSubmission[]>([]);
   const [reviews, setReviews] = useState<Review[]>(() =>
-    readCachedSlice('reviews', [])
+    readCachedSlice<Review[]>('reviews', [])
   );
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [reels, setReels] = useState<Reel[]>(() =>
-    readCachedSlice('reels', [])
+    readCachedSlice<Reel[]>('reels', [])
   );
   const [staffMembers, setStaffMembers] = useState<AdminStaffMember[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>(() => {
-    const initialized =
-      typeof window !== 'undefined' &&
-      window.localStorage.getItem('mrb_coupons_initialized') === '1';
-    let dismissed: string[] = [];
-    if (typeof window !== 'undefined') {
-      try {
-        const rawDismissed = window.localStorage.getItem('mrb_dismissed_default_coupons');
-        if (rawDismissed) dismissed = JSON.parse(rawDismissed);
-      } catch {
-        dismissed = [];
-      }
-    }
     const cached = readCachedSlice<Coupon[] | null>('coupons', null);
     if (cached !== null) {
-      return resolveActiveCoupons(cached, {
-        allowFallbackDefaults: !initialized,
-        dismissedIds: dismissed,
-      });
+      return resolveActiveCoupons(cached, { allowFallbackDefaults: false });
     }
-    return resolveActiveCoupons(undefined, {
-      allowFallbackDefaults: !initialized,
-      dismissedIds: dismissed,
-    });
+    return [];
   });
   const [appliedCouponCode, setAppliedCouponCode] = useState<string>('');
   const [customerChatSession, setCustomerChatSession] = useState<LiveChatSession | null>(null);
@@ -833,11 +953,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     applyThemeToDom(darkMode);
   }, [darkMode]);
 
+  const hasWarmStoreCache = hasCachedSlice('products') && hasCachedSlice('settings');
+
   const [isLoading, setIsLoading] = useState<boolean>(() => {
     if (typeof window !== 'undefined' && window.location.search.includes('skeleton=1')) {
       return true;
     }
-    return !hasCachedSlice('products');
+    return !hasWarmStoreCache;
+  });
+
+  const [isStoreHydrated, setIsStoreHydrated] = useState<boolean>(() => {
+    if (typeof window !== 'undefined' && window.location.search.includes('skeleton=1')) {
+      return false;
+    }
+    return hasWarmStoreCache;
   });
 
   const triggerSkeletonPreview = (durationMs = 1500) => {
@@ -849,181 +978,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   
   const [settings, setSettings] = useState<StoreSettings>(() =>
     sanitizeStoreSettings(
-      readCachedSlice<StoreSettings>('settings', {
-        storeName: 'MR. BOOKS',
-        tagline: 'Bookstore & Stationery',
-        phone: '016092384584',
-    email: 'support@mrbooksbd.com',
-    address: 'Nilkhet Book Market, Dhaka - 1205, Bangladesh',
-    insideDhakaCharge: 60,
-    subAreaCharge: 90,
-    outsideDhakaCharge: 120,
-    freeShippingThreshold: 2000,
-    logoUrl: '',
-    footerLogoUrl: '',
-    faviconUrl: '',
-    facebookUrl: 'https://facebook.com/mrbooksbd',
-    instagramUrl: 'https://instagram.com/mrbooksbd',
-    youtubeUrl: 'https://youtube.com',
-    bkashNumber: '01712345678',
-    nagadNumber: '01812345678',
-    showHeaderIcon: true,
-    headerNameColor1: '#171717',
-    headerNameColor2: '#D71920',
-    showHeaderTagline: true,
-    showHeaderContact: true,
-    enableThemeToggle: true,
-    allowDarkMode: true,
-    enableSkeletonLoading: true,
-    skeletonAnimationStyle: 'shimmer',
-    skeletonMaxDurationMs: 1200,
-    firestoreFetchStrategy: 'cache-first',
-    firestoreQueryLimit: 250,
-    enableIndexedQuerySnapshots: true,
-    productImageFitMode: 'cover',
-    showAnnouncementBar: true,
-    announcementItems: [
-      { id: 'ann-1', icon: '⚡', title: 'SPECIAL OFFER:', desc: 'Free Delivery on orders above Tk 1,500 across Bangladesh!', isActive: true },
-      { id: 'ann-2', icon: '🎁', title: 'DISCOUNT COUPON:', desc: 'Use coupon code MRBOOKS10 for 10% instant discount!', isActive: true },
-      { id: 'ann-3', icon: '🚚', title: 'FAST SHIPPING:', desc: '24-48 Hours Express Delivery in Dhaka & 2-3 days nationwide.', isActive: true },
-      { id: 'ann-4', icon: '💳', title: 'EASY PAYMENT:', desc: 'Cash on Delivery, bKash, Nagad, Rocket & Bank Transfer accepted.', isActive: true },
-      { id: 'ann-5', icon: '📚', title: '100% ORIGINAL:', desc: 'Authentic books direct from reputed publishing houses.', isActive: true },
-      { id: 'ann-6', icon: '✍️', title: 'PREMIUM STATIONERY:', desc: 'Imported notebooks, fountain pens, art supplies in stock.', isActive: true },
-    ],
-    facebookPixelId: '123456789012345',
-    facebookCapiToken: '',
-    gaMeasurementId: 'G-XXXXXXXXXX',
-    tiktokPixelId: 'CXXXXXXXXXXXXXXX',
-    showFooterIcon: true,
-    footerBrandName: 'MR. BOOKS',
-    footerNameColor1: '#FFFFFF',
-    footerNameColor2: '#D71920',
-    footerBgColor: '#121212',
-    footerCardBgColor: '#1c1c1e',
-    footerDescription: "Bangladesh's premier online bookstore and stationery shop. Bringing knowledge, timeless literature, and premium supplies directly to your doorstep.",
-    footerPaymentTitle: 'Payment Options',
-    footerPaymentBannerUrl: '',
-    footerQuickLinksTitle: 'QUICK LINKS',
-    footerQuickLinks: DEFAULT_FOOTER_QUICK_LINKS,
-    footerCategoriesTitle: 'CATEGORIES',
-    footerCategoryLinks: [
-      { id: 'cl-1', label: 'Fiction & Literature', category: 'Fiction & Literature', page: 'books', isActive: true },
-      { id: 'cl-2', label: 'Islamic Books', category: 'Islamic Books', page: 'books', isActive: true },
-      { id: 'cl-3', label: 'Academic & University', category: 'Academic & University', page: 'books', isActive: true },
-      { id: 'cl-4', label: 'Bangla Novels & Poetry', category: 'Bangla Novels & Poetry', page: 'books', isActive: true },
-      { id: 'cl-5', label: 'Diaries & Pens', category: 'all', page: 'stationery', isActive: true },
-    ],
-    footerSocialTitle: 'Social Media',
-    copyrightText: `© ${new Date().getFullYear()} MR. BOOKS Bangladesh. All rights reserved.`,
-    footerBottomTagline: 'Designed for book lovers in Bangladesh.',
-    footerPaymentMethods: [
-      { id: 'p1', name: 'bKash Online', icon: 'bkash', isActive: true },
-      { id: 'p2', name: 'Nagad Gateway', icon: 'nagad', isActive: true },
-      { id: 'p3', name: 'Visa / MasterCard', icon: 'visa', isActive: true },
-      { id: 'p4', name: 'Cash on Delivery', icon: 'cod', isActive: true }
-    ],
-    socialLinks: [
-      { id: 's1', name: 'Facebook', url: 'https://facebook.com/mrbooksbd', icon: 'facebook', isActive: true },
-      { id: 's2', name: 'Instagram', url: 'https://instagram.com/mrbooksbd', icon: 'instagram', isActive: true },
-      { id: 's3', name: 'YouTube', url: 'https://youtube.com', icon: 'youtube', isActive: true },
-      { id: 's4', name: 'TikTok', url: 'https://tiktok.com', icon: 'tiktok', isActive: true },
-      { id: 's5', name: 'WhatsApp', url: 'https://wa.me/8801712345678', icon: 'message-circle', isActive: true }
-    ],
-    // Footer 4-Option Utility Strip Defaults
-    showFooterSubscription: true,
-    subscriptionTitle: 'Join MR. BOOKS Readers Club',
-    subscriptionSubtitle: 'Subscribe to get 10% OFF discount coupon & new releases alert directly to your phone/email.',
-    subscriptionDiscountBadge: '10% OFF',
-    showFooterTracking: true,
-    trackingTitle: 'Real-Time Order Tracking',
-    trackingSubtitle: 'Enter your Order ID (ORD-...) or phone number to track your book package.',
-    showFooterCoupons: true,
-    couponsTitle: 'Coupons & Offers',
-    couponsBadge: '3 Active',
-    showFooterPolicy: true,
-    policyTitle: 'Cancel & Exchange',
-    policyBadge: '7-Day Easy',
-    cancelExchangePolicyText: DEFAULT_CANCEL_EXCHANGE_POLICY,
-    enableLiveChat: true,
-    enableLiveChatSound: true,
-    liveChatAutoHideSeconds: 4,
-    liveChatRequireContactInfo: false,
-    liveChatShowEmailField: false,
-    liveChatTitle: 'MR. BOOKS Support',
-    liveChatWelcomeMessage: 'আসসালামু আলাইকুম! বই, অর্ডার বা ডেলিভারি নিয়ে যেকোনো প্রশ্ন এখানে লিখুন।',
-    // Direct Contact Buttons (Product Detail & Support)
-    whatsappNumber: '+880 1712-345678',
-    callNumber: '+880 1712-345678',
-    telegramUrl: 'https://t.me/mrbooksbd',
-    messengerUrl: 'https://m.me/mrbooksbd',
-    metaTitle: 'MR. BOOKS - Premium Online Bookstore & Stationery in Bangladesh',
-    metaDescription: 'Buy bestselling books, novels, Islamic books, university textbooks, and premium stationery online in Bangladesh with fast nationwide delivery.',
-    ogImageUrl: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=1200&auto=format&fit=crop&q=80',
-    keywords: 'bookstore bangladesh, online book shop dhaka, stationery, novel, islamic books, mr books',
-    sundarbanDeliveryCharge: 120,
-    enableSundarbanCourier: true,
-    showSundarbanOnCheckout: true,
-    hubDeliveryLabel: 'Standard Hub Delivery / Point Delivery',
-    hubDeliverySubtitle: 'Courier hub or point pickup · Advance payment',
-    codPaymentIconUrl: '',
-    onlinePaymentIconUrl: '',
-    sundarbanForcesPrepayment: true,
-    extraWeightChargePerKg: 20,
-    deliveryNote: 'Standard Hub Delivery / Point Delivery orders require advance online payment.',
-    enableCheckoutFraudWarning: true,
-    cancellationFraudThreshold: 30,
-    enableUseOldAddress: true,
-    oldAddressButtonLabel: 'Use Saved Address',
-    showCheckoutCoupons: true,
-    showCheckoutProgress: true,
-    directOrderIsolatesCart: true,
-    allowCheckoutItemRemoval: true,
-    merchantId: 'KUSXCIG',
-    defaultLabelSize: '3x3',
-    defaultInvoiceSize: 'A4',
-    invoiceShowProductImage: true,
-    invoiceShowPricingBreakdown: true,
-    labelShowItemDetails: true,
-    invoiceFooterNote: '',
-    labelLogisticsText: 'steadfast.com.bd',
-    ordersDefaultDensity: 'comfortable',
-    ordersShowFraudCheckButton: true,
-    ordersShowItemThumbnails: true,
-    couponsInitialized: false,
-    dismissedDefaultCouponIds: [],
-    enableCouponPopup: true,
-    couponPopupDelaySeconds: 1.5,
-    couponPopupFrequency: 'once_per_session',
-    enableBanglaQr: true,
-    banglaQrImageUrl: '',
-    banglaQrAccountName: 'MR. BOOKS BD',
-    banglaQrNumber: '01712345678',
-    banglaQrInstructions: 'বিকাশ, নগদ, রকেট, উপায় বা যেকোনো ব্যাংক অ্যাপের বাংলা কিউআর (Bangla QR) স্ক্যানার দিয়ে স্ক্যান করে পেমেন্ট করুন এবং ট্রানজেকশন আইডি নিচে দিন।',
-
-    specialOffer: {
-      enabled: true,
-      title: 'Special Offer',
-      endTime: Date.now() + 48 * 60 * 60 * 1000,
-      autoRemoveExpired: true,
-      showItemCountdown: true,
-      items: [
-        { productId: 'prod-1', discountPercentage: 23, soldPercentage: 64, onlinePaymentOnly: false },
-        { productId: 'prod-2', discountPercentage: 15, soldPercentage: 89, onlinePaymentOnly: true },
-        { productId: 'prod-3', discountPercentage: 20, soldPercentage: 75, onlinePaymentOnly: false },
-        { productId: 'prod-4', discountPercentage: 18, soldPercentage: 50, onlinePaymentOnly: false }
-      ]
-    },
-    adminProfile: {
-      name: 'MR. BOOKS Admin',
-      email: 'mr.booksbd700@gmail.com',
-      phone: '+880 1712-345678',
-      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300',
-      designation: 'Store Owner & Managing Director',
-      bio: 'Primary administrator for MR. BOOKS e-commerce platform. Managing catalog, sales fulfillment, courier logistics, and staff access.',
-      whatsapp: '+880 1712-345678',
-      roleTitle: 'Super Administrator'
-    }
-      })
+      readCachedSlice<StoreSettings>('settings', COLD_NEUTRAL_SETTINGS)
     )
   );
 
@@ -1197,15 +1152,57 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
 
 
+  const hasLiveSettingsRef = useRef<boolean>(hasWarmStoreCache);
+  const criticalHydrationRef = useRef<CriticalHydrationState>({
+    settings: hasWarmStoreCache,
+    homeConfig: hasWarmStoreCache,
+    siteSettings: hasWarmStoreCache,
+    banners: hasWarmStoreCache,
+    categories: hasWarmStoreCache,
+    products: hasWarmStoreCache,
+    coupons: hasWarmStoreCache,
+    authors: hasWarmStoreCache,
+    publishers: hasWarmStoreCache,
+    productDetailDoc: false,
+  });
+
+  const markSliceHydrated = (slice: keyof CriticalHydrationState) => {
+    if (!criticalHydrationRef.current[slice]) {
+      criticalHydrationRef.current[slice] = true;
+    }
+    const forceSkel =
+      typeof window !== 'undefined' && window.location.search.includes('skeleton=1');
+    if (areCriticalStoreSlicesReady(criticalHydrationRef.current, activePageRef.current)) {
+      setIsStoreHydrated(true);
+      if (!forceSkel) {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  // Re-evaluate hydration gate if user switches pages during initial load
+  useEffect(() => {
+    if (isStoreHydrated) return;
+    if (areCriticalStoreSlicesReady(criticalHydrationRef.current, activePage)) {
+      const forceSkel =
+        typeof window !== 'undefined' && window.location.search.includes('skeleton=1');
+      setIsStoreHydrated(true);
+      if (!forceSkel) {
+        setIsLoading(false);
+      }
+    }
+  }, [activePage, isStoreHydrated]);
+
   // Safety ceiling so Skeleton Screens never hang on offline or high-latency connections
   useEffect(() => {
     if (!isLoading) return;
     if (typeof window !== 'undefined' && window.location.search.includes('skeleton=1')) {
       return;
     }
-    const maxMs = resolveSkeletonMaxDuration(settings.skeletonMaxDurationMs);
+    const maxMs = resolveColdHydrationTimeoutMs(settings.skeletonMaxDurationMs);
     const timer = setTimeout(() => {
       setIsLoading(false);
+      setIsStoreHydrated(true);
     }, maxMs);
     return () => clearTimeout(timer);
   }, [isLoading, settings.skeletonMaxDurationMs]);
@@ -1291,10 +1288,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         recordSource(settingsRes.source);
         const st = sanitizeStoreSettings(settingsRes.data);
         setSettings(prev => {
-          const merged = { ...prev, ...st };
+          const base = hasLiveSettingsRef.current ? prev : DEFAULT_SETTINGS_TEMPLATE;
+          const merged = { ...base, ...st };
+          hasLiveSettingsRef.current = true;
           writeCachedSlice('settings', merged);
           return merged;
         });
+        markSliceHydrated('settings');
+      } else if (settingsRes.source === 'server') {
+        setSettings(prev => {
+          const merged = hasLiveSettingsRef.current ? prev : DEFAULT_SETTINGS_TEMPLATE;
+          hasLiveSettingsRef.current = true;
+          return merged;
+        });
+        markSliceHydrated('settings');
       }
 
       if (homeConfigRes.data) {
@@ -1304,12 +1311,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           writeCachedSlice('homeConfig', merged);
           return merged;
         });
-      } else if (settingsRes.data) {
+        markSliceHydrated('homeConfig');
+      } else if (settingsRes.data || homeConfigRes.source === 'server') {
         setHomeConfig(prev => {
           const merged = resolveHomeConfig(prev, settingsRes.data);
           writeCachedSlice('homeConfig', merged);
           return merged;
         });
+        markSliceHydrated('homeConfig');
       }
 
       if (siteSettingsRes.data) {
@@ -1317,6 +1326,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const resolvedSite = resolveSiteSettings(siteSettingsRes.data, homeConfigRes.data);
         setSiteSettings(resolvedSite);
         writeCachedSlice('siteSettings', resolvedSite);
+        markSliceHydrated('siteSettings');
+      } else if (siteSettingsRes.source === 'server') {
+        const resolvedSite = resolveSiteSettings(DEFAULT_SITE_SETTINGS, homeConfigRes.data);
+        setSiteSettings(resolvedSite);
+        markSliceHydrated('siteSettings');
       }
 
       if (productsRes.items.length > 0 || productsRes.source === 'server') {
@@ -1327,6 +1341,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (productsRes.source === 'server') {
           markProductsCacheInitialized();
         }
+        markSliceHydrated('products');
       }
 
       if (categoriesRes.items.length > 0 || categoriesRes.source === 'server') {
@@ -1338,6 +1353,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (categoriesRes.source === 'server') {
           markSliceInitialized(CATEGORIES_INITIALIZED_KEY);
         }
+        markSliceHydrated('categories');
       }
 
       if (authorsRes.items.length > 0 || authorsRes.source === 'server') {
@@ -1349,6 +1365,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (authorsRes.source === 'server') {
           markSliceInitialized(AUTHORS_INITIALIZED_KEY);
         }
+        markSliceHydrated('authors');
       }
 
       const pubDirRes = await getDocCacheFirst<{ items?: Publisher[]; initialized?: boolean }>(
@@ -1381,15 +1398,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (reconciledPubs.markInitialized) {
           markSliceInitialized(PUBLISHERS_INITIALIZED_KEY);
         }
+        markSliceHydrated('publishers');
       }
 
-      if (bannersRes.items.length > 0) {
+      if (bannersRes.items.length > 0 || bannersRes.source === 'server') {
         recordSource(bannersRes.source);
         setBanners(bannersRes.items);
-        writeCachedSlice('banners', bannersRes.items);
+        if (bannersRes.items.length > 0) {
+          writeCachedSlice('banners', bannersRes.items);
+        }
+        markSliceHydrated('banners');
       }
 
-      if (paymentsRes.items.length > 0) {
+      if (paymentsRes.items.length > 0 || paymentsRes.source === 'server') {
         recordSource(paymentsRes.source);
         const sanitizedMethods = paymentsRes.items.map(m => sanitizePaymentMethod(m));
         setPaymentMethods(sanitizedMethods);
@@ -1435,6 +1456,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     } finally {
       if (typeof window === 'undefined' || !window.location.search.includes('skeleton=1')) {
         setIsLoading(false);
+        setIsStoreHydrated(true);
       }
     }
   };
@@ -1449,16 +1471,276 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     void refreshStoreCacheFirst(true);
   };
 
-  // 1. Cache-First Hydration (`getDocFromCache` / `getDocsFromCache` -> Network Fallback)
-  //    + Indexed Firestore Query Snapshots for Zero-Latency Real-Time Synchronization
+  // 1. Zero-Waterfall REST Prefetch (<head> t=0ms) + IndexedDB Cache-First + Real-Time Firestore Listeners
   useEffect(() => {
+    let cancelled = false;
     const serverConfirmed: Record<string, boolean> = {};
     const forceSkeleton = typeof window !== 'undefined' && window.location.search.includes('skeleton=1');
     const strategy = resolveFirestoreFetchStrategy(settings.firestoreFetchStrategy);
     const enableIndexing = settings.enableIndexedQuerySnapshots !== false;
     const queryLimit = resolveFirestoreQueryLimit(settings.firestoreQueryLimit);
 
-    if (strategy !== 'realtime-snapshot') {
+    const applyIncomingSettings = (rawSt: StoreSettings, isServer: boolean) => {
+      const st = sanitizeStoreSettings(rawSt);
+      setSettings(prev => {
+        const base = hasLiveSettingsRef.current ? prev : DEFAULT_SETTINGS_TEMPLATE;
+        const merged = { ...base, ...st };
+        hasLiveSettingsRef.current = true;
+        writeCachedSlice('settings', merged);
+        return merged;
+      });
+      if (isServer) {
+        serverConfirmed.settings = true;
+      }
+      markSliceHydrated('settings');
+    };
+
+    const applyResolvedPublishersFromListeners = () => {
+      const reconciled = resolveAuthoritativePublishersList(
+        primaryPublishersSnapshotRef.current,
+        backupPublishersDocRef.current
+      );
+      if (!reconciled) return;
+      publishersRef.current = reconciled.items;
+      setPublishers(reconciled.items);
+      writeCachedSlice('publishers', reconciled.items);
+      if (reconciled.markInitialized) {
+        markSliceInitialized(PUBLISHERS_INITIALIZED_KEY);
+      }
+      markSliceHydrated('publishers');
+    };
+
+    // Consume <head> t=0ms parallel REST prefetch promises immediately
+    const hasEarlyPrefetch = Boolean(getEarlyPrefetchPromise('products'));
+    if (strategy !== 'realtime-snapshot' && hasEarlyPrefetch) {
+      const pSettings = getEarlyPrefetchPromise('settings');
+      if (pSettings) {
+        pSettings
+          .then(raw => {
+            if (cancelled) return;
+            const docs = decodeFirestoreRestCollection<Record<string, any>>(raw);
+            if (!docs) return;
+
+            const generalDoc = docs.find(d => d.id === 'general') as (StoreSettings & { id: string }) | undefined;
+            if (!serverConfirmed.settings) {
+              if (generalDoc) {
+                applyIncomingSettings(generalDoc, true);
+              } else {
+                serverConfirmed.settings = true;
+                setSettings(prev => {
+                  const next = hasLiveSettingsRef.current ? prev : DEFAULT_SETTINGS_TEMPLATE;
+                  hasLiveSettingsRef.current = true;
+                  return next;
+                });
+                markSliceHydrated('settings');
+              }
+            }
+
+            const homeCfgDoc = docs.find(d => d.id === 'homeConfig') as (Partial<HomeConfig> & { id: string }) | undefined;
+            if (!serverConfirmed.homeConfig) {
+              serverConfirmed.homeConfig = true;
+              if (homeCfgDoc) {
+                setHomeConfig(prev => {
+                  const merged = resolveHomeConfig({ ...prev, ...homeCfgDoc }, generalDoc);
+                  writeCachedSlice('homeConfig', merged);
+                  return merged;
+                });
+              } else {
+                setHomeConfig(prev => {
+                  const merged = resolveHomeConfig(prev, generalDoc);
+                  writeCachedSlice('homeConfig', merged);
+                  return merged;
+                });
+              }
+              markSliceHydrated('homeConfig');
+            }
+
+            const siteSettingsDoc = docs.find(d => d.id === 'siteSettings') as (Partial<SiteSettings> & { id: string }) | undefined;
+            if (!serverConfirmed.siteSettings) {
+              serverConfirmed.siteSettings = true;
+              const resolved = resolveSiteSettings(siteSettingsDoc || DEFAULT_SITE_SETTINGS, homeCfgDoc);
+              setSiteSettings(resolved);
+              writeCachedSlice('siteSettings', resolved);
+              markSliceHydrated('siteSettings');
+            }
+
+            const pubDirDoc = docs.find(d => d.id === 'publishers_directory') as
+              | { id: string; items?: Publisher[]; initialized?: boolean }
+              | undefined;
+            backupPublishersDocRef.current = {
+              received: true,
+              fromServer: true,
+              exists: Boolean(pubDirDoc),
+              initialized: Boolean(pubDirDoc?.initialized),
+              items: Array.isArray(pubDirDoc?.items) ? pubDirDoc.items : [],
+            };
+            applyResolvedPublishersFromListeners();
+          })
+          .catch(() => {});
+      }
+
+      const pBanners = getEarlyPrefetchPromise('banners');
+      if (pBanners) {
+        pBanners
+          .then(raw => {
+            if (cancelled || serverConfirmed.banners) return;
+            const decoded = decodeFirestoreRestCollection<Banner>(raw);
+            if (decoded === null) return;
+            serverConfirmed.banners = true;
+            setBanners(decoded);
+            if (decoded.length > 0) {
+              writeCachedSlice('banners', decoded);
+            }
+            markSliceHydrated('banners');
+          })
+          .catch(() => {});
+      }
+
+      const pCategories = getEarlyPrefetchPromise('categories');
+      if (pCategories) {
+        pCategories
+          .then(raw => {
+            if (cancelled || serverConfirmed.categories) return;
+            const decoded = decodeFirestoreRestCollection<Category>(raw);
+            if (decoded === null) return;
+            serverConfirmed.categories = true;
+            const deduped = dedupeById(decoded);
+            categoriesRef.current = deduped;
+            setCategories(deduped);
+            writeCachedSlice('categories', deduped);
+            markSliceInitialized(CATEGORIES_INITIALIZED_KEY);
+            markSliceHydrated('categories');
+          })
+          .catch(() => {});
+      }
+
+      const pProducts = getEarlyPrefetchPromise('products');
+      if (pProducts) {
+        pProducts
+          .then(raw => {
+            if (cancelled || serverConfirmed.products) return;
+            const decoded = decodeFirestoreRestCollection<Product>(raw);
+            if (decoded === null) return;
+            serverConfirmed.products = true;
+            const deduped = dedupeProductsById(decoded);
+            setProducts(deduped);
+            writeCachedSlice('products', deduped);
+            markProductsCacheInitialized();
+            markSliceHydrated('products');
+            setCacheTelemetry(prev => ({
+              lastSource: 'server',
+              cacheHits: prev.cacheHits,
+              networkFetches: prev.networkFetches + 1,
+              lastSyncAt: Date.now()
+            }));
+          })
+          .catch(() => {});
+      }
+
+      const pProductDetail = getEarlyPrefetchPromise('productDetail');
+      if (pProductDetail) {
+        pProductDetail
+          .then(raw => {
+            if (cancelled) return;
+            const decoded = decodeFirestoreRestDocument<Product>(raw);
+            if (decoded) {
+              setProducts(prev =>
+                prev.some(item => item.id === decoded.id) ? prev : dedupeProductsById([decoded, ...prev])
+              );
+              markSliceHydrated('productDetailDoc');
+            }
+          })
+          .catch(() => {});
+      }
+
+      const pAuthors = getEarlyPrefetchPromise('authors');
+      if (pAuthors) {
+        pAuthors
+          .then(raw => {
+            if (cancelled || serverConfirmed.authors) return;
+            const decoded = decodeFirestoreRestCollection<Author>(raw);
+            if (decoded === null) return;
+            serverConfirmed.authors = true;
+            const deduped = dedupeById(decoded);
+            authorsRef.current = deduped;
+            setAuthors(deduped);
+            writeCachedSlice('authors', deduped);
+            markSliceInitialized(AUTHORS_INITIALIZED_KEY);
+            markSliceHydrated('authors');
+          })
+          .catch(() => {});
+      }
+
+      const pPublishers = getEarlyPrefetchPromise('publishers');
+      if (pPublishers) {
+        pPublishers
+          .then(raw => {
+            if (cancelled || serverConfirmed.publishers) return;
+            const decoded = decodeFirestoreRestCollection<Publisher>(raw);
+            if (decoded === null) return;
+            serverConfirmed.publishers = true;
+            const deduped = dedupeById(decoded);
+            primaryPublishersSnapshotRef.current = {
+              received: true,
+              fromServer: true,
+              items: deduped,
+            };
+            applyResolvedPublishersFromListeners();
+          })
+          .catch(() => {});
+      }
+
+      const pCoupons = getEarlyPrefetchPromise('coupons');
+      if (pCoupons) {
+        pCoupons
+          .then(raw => {
+            if (cancelled || serverConfirmed.coupons) return;
+            const decoded = decodeFirestoreRestCollection<Coupon>(raw);
+            if (decoded === null) return;
+            serverConfirmed.coupons = true;
+            if (decoded.length > 0) {
+              decoded.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+              const loaded = resolveActiveCoupons(decoded, { allowFallbackDefaults: false });
+              setCoupons(loaded);
+              writeCachedSlice('coupons', loaded);
+            } else {
+              setCoupons([]);
+              writeCachedSlice('coupons', []);
+            }
+            markSliceHydrated('coupons');
+          })
+          .catch(() => {});
+      }
+
+      const pReviews = getEarlyPrefetchPromise('reviews');
+      if (pReviews) {
+        pReviews
+          .then(raw => {
+            if (cancelled || serverConfirmed.reviews) return;
+            const decoded = decodeFirestoreRestCollection<Review>(raw);
+            if (decoded === null) return;
+            serverConfirmed.reviews = true;
+            setReviews(decoded);
+            writeCachedSlice('reviews', decoded);
+          })
+          .catch(() => {});
+      }
+
+      const pReels = getEarlyPrefetchPromise('reels');
+      if (pReels) {
+        pReels
+          .then(raw => {
+            if (cancelled || serverConfirmed.reels) return;
+            const decoded = decodeFirestoreRestCollection<Reel>(raw);
+            if (decoded === null) return;
+            serverConfirmed.reels = true;
+            const deduped = dedupeById(decoded);
+            setReels(deduped);
+            writeCachedSlice('reels', deduped);
+          })
+          .catch(() => {});
+      }
+    } else if (strategy !== 'realtime-snapshot') {
       void refreshStoreCacheFirst(strategy === 'network-first');
     }
 
@@ -1467,7 +1749,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const authorsQuery = buildIndexedQuery(collection(db, 'authors'), enableIndexing, queryLimit);
     const publishersQuery = buildIndexedQuery(collection(db, 'publishers'), enableIndexing, queryLimit);
     const bannersQuery = buildIndexedQuery(collection(db, 'banners'), enableIndexing, queryLimit);
-    const paymentsQuery = buildIndexedQuery(collection(db, 'payment_methods'), enableIndexing, queryLimit);
     const reviewsQuery = buildIndexedQuery(collection(db, 'reviews'), enableIndexing, queryLimit);
     const reelsQuery = buildIndexedQuery(collection(db, 'reels'), enableIndexing, queryLimit);
 
@@ -1497,9 +1778,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             networkFetches: !fromCache ? prev.networkFetches + 1 : prev.networkFetches,
             lastSyncAt: Date.now()
           }));
-        }
-        if (!forceSkeleton) {
-          setIsLoading(false);
+          markSliceHydrated('products');
         }
       },
       (err) => {
@@ -1529,6 +1808,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           if (!fromCache) {
             markSliceInitialized(CATEGORIES_INITIALIZED_KEY);
           }
+          markSliceHydrated('categories');
         }
       },
       (err) => {
@@ -1558,26 +1838,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           if (!fromCache) {
             markSliceInitialized(AUTHORS_INITIALIZED_KEY);
           }
+          markSliceHydrated('authors');
         }
       },
       (err) => {
         console.warn('Authors realtime listener notice:', err.message);
       }
     );
-
-    const applyResolvedPublishersFromListeners = () => {
-      const reconciled = resolveAuthoritativePublishersList(
-        primaryPublishersSnapshotRef.current,
-        backupPublishersDocRef.current
-      );
-      if (!reconciled) return;
-      publishersRef.current = reconciled.items;
-      setPublishers(reconciled.items);
-      writeCachedSlice('publishers', reconciled.items);
-      if (reconciled.markInitialized) {
-        markSliceInitialized(PUBLISHERS_INITIALIZED_KEY);
-      }
-    };
 
     const unsubPublishers = onSnapshot(
       publishersQuery,
@@ -1588,6 +1855,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         if (fromCache && snapshot.empty && serverConfirmed.publishers) {
+          return;
+        }
+        if (fromCache && serverConfirmed.publishers) {
           return;
         }
         if (!fromCache) {
@@ -1612,6 +1882,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       (snap) => {
         const fromCache = snap.metadata.fromCache;
         if (fromCache && Date.now() - lastPublisherMutationAtRef.current < 2500) {
+          return;
+        }
+        if (fromCache && serverConfirmed.publishers) {
           return;
         }
         const data = snap.exists() ? snap.data() : undefined;
@@ -1646,49 +1919,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           if (nextBanners.length > 0) {
             writeCachedSlice('banners', nextBanners);
           }
+          markSliceHydrated('banners');
         }
       },
       (err) => {
         console.warn('Banners realtime listener notice:', err.message);
-      }
-    );
-
-    const unsubPayments = onSnapshot(
-      paymentsQuery,
-      { includeMetadataChanges: true },
-      (snapshot) => {
-        const fromCache = snapshot.metadata.fromCache;
-        if (!shouldApplyRealtimeSnapshot(snapshot.empty, fromCache, Boolean(serverConfirmed.payment_methods))) {
-          return;
-        }
-        if (!fromCache) {
-          serverConfirmed.payment_methods = true;
-        }
-        const loadedPaymentMethods = snapshot.docs.map(d =>
-          sanitizePaymentMethod({ ...d.data(), id: d.id } as PaymentMethodConfig)
-        );
-        if (!fromCache && loadedPaymentMethods.length > 0) {
-          const hasUpay = loadedPaymentMethods.some(m => m.type === 'upay');
-          const upayDef = DEFAULT_PAYMENT_METHODS.find(m => m.type === 'upay');
-          if (!hasUpay && upayDef && typeof window !== 'undefined' && window.localStorage.getItem('mrb_upay_seeded_v1') !== 'true') {
-            window.localStorage.setItem('mrb_upay_seeded_v1', 'true');
-            loadedPaymentMethods.push(upayDef);
-            setDoc(doc(db, 'payment_methods', upayDef.id), cleanForFirestore(upayDef)).catch(() => {});
-          }
-          const hasBanglaQr = loadedPaymentMethods.some(m => m.type === 'bangla_qr');
-          const banglaQrDef = DEFAULT_PAYMENT_METHODS.find(m => m.type === 'bangla_qr');
-          if (!hasBanglaQr && banglaQrDef && typeof window !== 'undefined' && window.localStorage.getItem('mrb_banglaqr_seeded_v1') !== 'true') {
-            window.localStorage.setItem('mrb_banglaqr_seeded_v1', 'true');
-            loadedPaymentMethods.push(banglaQrDef);
-            setDoc(doc(db, 'payment_methods', banglaQrDef.id), cleanForFirestore(banglaQrDef)).catch(() => {});
-          }
-        }
-        const finalMethods = loadedPaymentMethods.length > 0 ? loadedPaymentMethods : DEFAULT_PAYMENT_METHODS;
-        setPaymentMethods(finalMethods);
-        writeCachedSlice('paymentMethods', finalMethods);
-      },
-      (err) => {
-        console.warn('Payments realtime listener notice:', err.message);
       }
     );
 
@@ -1705,12 +1940,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }
         if (snap.exists()) {
           const rawSt = snap.data() as StoreSettings;
+          applyIncomingSettings(rawSt, !fromCache);
           const st = sanitizeStoreSettings(rawSt);
-          setSettings(prev => {
-            const merged = { ...prev, ...st };
-            writeCachedSlice('settings', merged);
-            return merged;
-          });
           if (
             !fromCache &&
             (rawSt.logoUrl !== st.logoUrl ||
@@ -1729,6 +1960,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               { merge: true }
             ).catch(() => {});
           }
+        } else if (!fromCache) {
+          setSettings(prev => {
+            const next = hasLiveSettingsRef.current ? prev : DEFAULT_SETTINGS_TEMPLATE;
+            hasLiveSettingsRef.current = true;
+            return next;
+          });
+          markSliceHydrated('settings');
         }
       },
       (err) => {
@@ -1762,6 +2000,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               return nextSettings;
             });
           }
+          markSliceHydrated('homeConfig');
+        } else if (!fromCache) {
+          markSliceHydrated('homeConfig');
         }
       },
       (err) => {
@@ -1785,6 +2026,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           const resolved = resolveSiteSettings(rawSite);
           setSiteSettings(resolved);
           writeCachedSlice('siteSettings', resolved);
+          markSliceHydrated('siteSettings');
+        } else if (!fromCache) {
+          markSliceHydrated('siteSettings');
         }
       },
       (err) => {
@@ -1876,39 +2120,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       { includeMetadataChanges: true },
       (snapshot) => {
         const fromCache = snapshot.metadata.fromCache;
+        if (!shouldApplyRealtimeSnapshot(snapshot.empty, fromCache, Boolean(serverConfirmed.coupons))) {
+          return;
+        }
+        if (!fromCache) {
+          serverConfirmed.coupons = true;
+        }
         if (!snapshot.empty) {
           const rawDocs = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Coupon));
           rawDocs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
           const loaded = resolveActiveCoupons(rawDocs, { allowFallbackDefaults: false });
           setCoupons(loaded);
           writeCachedSlice('coupons', loaded);
+          markSliceHydrated('coupons');
         } else if (!fromCache) {
-          let isInit = false;
-          let dismissed: string[] = [];
-          try {
-            if (typeof window !== 'undefined') {
-              isInit = window.localStorage.getItem('mrb_coupons_initialized') === '1';
-              const rawDismissed = window.localStorage.getItem('mrb_dismissed_default_coupons');
-              if (rawDismissed) dismissed = JSON.parse(rawDismissed);
-            }
-          } catch {
-            // ignore
-          }
-          if (settingsRef.current?.couponsInitialized) isInit = true;
-          if (Array.isArray(settingsRef.current?.dismissedDefaultCouponIds)) {
-            dismissed = Array.from(new Set([...dismissed, ...settingsRef.current.dismissedDefaultCouponIds]));
-          }
-          if (isInit) {
-            setCoupons([]);
-            writeCachedSlice('coupons', []);
-          } else {
-            const fallback = resolveActiveCoupons(undefined, {
-              allowFallbackDefaults: true,
-              dismissedIds: dismissed,
-            });
-            setCoupons(fallback);
-            writeCachedSlice('coupons', fallback);
-          }
+          setCoupons([]);
+          writeCachedSlice('coupons', []);
+          markSliceHydrated('coupons');
         }
       },
       (err) => {
@@ -1917,13 +2145,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     );
 
     return () => {
+      cancelled = true;
       unsubProducts();
       unsubCategories();
       unsubAuthors();
       unsubPublishers();
       unsubPublishersSettingsBackup();
       unsubBanners();
-      unsubPayments();
       unsubSettings();
       unsubHomeConfig();
       unsubSiteSettings();
@@ -1932,6 +2160,76 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       unsubCoupons();
     };
   }, [settings.firestoreFetchStrategy, settings.enableIndexedQuerySnapshots, settings.firestoreQueryLimit]);
+
+  // 1b. Deferred / On-Demand Payment Methods Listener (saves ~845KB on initial Homepage cold load)
+  useEffect(() => {
+    const needsPaymentsNow = activePage === 'checkout' || activePage === 'admin';
+    if (!needsPaymentsNow && !isStoreHydrated) return;
+
+    let cancelled = false;
+    let delayTimer: ReturnType<typeof setTimeout> | null = null;
+    let unsubPayments: (() => void) | null = null;
+    let serverConfirmedPayments = false;
+
+    const startPaymentsSync = () => {
+      if (cancelled) return;
+      const enableIndexing = settings.enableIndexedQuerySnapshots !== false;
+      const queryLimit = resolveFirestoreQueryLimit(settings.firestoreQueryLimit);
+      const paymentsQuery = buildIndexedQuery(collection(db, 'payment_methods'), enableIndexing, queryLimit);
+
+      const earlyPayments = getEarlyPrefetchPromise('payment_methods');
+      if (earlyPayments) {
+        earlyPayments
+          .then(raw => {
+            if (cancelled || serverConfirmedPayments) return;
+            const decoded = decodeFirestoreRestCollection<PaymentMethodConfig>(raw);
+            if (decoded !== null) {
+              serverConfirmedPayments = true;
+              const sanitized = decoded.map(m => sanitizePaymentMethod(m));
+              setPaymentMethods(sanitized);
+              writeCachedSlice('paymentMethods', sanitized);
+            }
+          })
+          .catch(() => {});
+      }
+
+      unsubPayments = onSnapshot(
+        paymentsQuery,
+        { includeMetadataChanges: true },
+        (snapshot) => {
+          const fromCache = snapshot.metadata.fromCache;
+          if (!shouldApplyRealtimeSnapshot(snapshot.empty, fromCache, serverConfirmedPayments)) {
+            return;
+          }
+          if (!fromCache) {
+            serverConfirmedPayments = true;
+          }
+          const loadedPaymentMethods = snapshot.docs.map(d =>
+            sanitizePaymentMethod({ ...d.data(), id: d.id } as PaymentMethodConfig)
+          );
+          if (loadedPaymentMethods.length > 0 || !fromCache) {
+            setPaymentMethods(loadedPaymentMethods);
+            writeCachedSlice('paymentMethods', loadedPaymentMethods);
+          }
+        },
+        (err) => {
+          console.warn('Payments realtime listener notice:', err.message);
+        }
+      );
+    };
+
+    if (needsPaymentsNow) {
+      startPaymentsSync();
+    } else {
+      delayTimer = setTimeout(startPaymentsSync, 2500);
+    }
+
+    return () => {
+      cancelled = true;
+      if (delayTimer) clearTimeout(delayTimer);
+      if (unsubPayments) unsubPayments();
+    };
+  }, [activePage, isStoreHydrated, settings.enableIndexedQuerySnapshots, settings.firestoreQueryLimit]);
 
   // 2. Auth-aware protected listeners: Orders & Payment Submissions
   // Prevents anonymous/customer permission-denied errors and protects customer privacy
@@ -4243,6 +4541,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       searchQuery,
       darkMode,
       isLoading,
+      isStoreHydrated,
       triggerSkeletonPreview,
       cacheTelemetry,
       refreshStoreCacheFirst,

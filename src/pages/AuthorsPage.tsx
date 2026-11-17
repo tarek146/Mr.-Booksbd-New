@@ -6,14 +6,14 @@ import { Award, ArrowRight } from 'lucide-react';
 import { countBooksForAuthor } from '../utils/publisherAndDeliveryHelpers';
 
 export function AuthorsPage() {
-  const { authors, products, isLoading, settings, setActivePage, setSearchQuery } = useStore();
+  const { authors, products, isLoading, isStoreHydrated, settings, setActivePage, setSearchQuery } = useStore();
 
   const handleAuthorClick = (authorName: string) => {
     setSearchQuery(authorName);
     setActivePage('books');
   };
 
-  if (shouldShowSkeletonScreen(isLoading, settings.enableSkeletonLoading)) {
+  if (!isStoreHydrated || shouldShowSkeletonScreen(isLoading, settings.enableSkeletonLoading)) {
     return <AuthorsPageSkeleton />;
   }
 
