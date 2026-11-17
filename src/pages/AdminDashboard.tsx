@@ -104,6 +104,16 @@ import { resolveDashboardHeaderCapiStatus } from '../utils/facebookCapiHelpers';
 import { renderGreenReviewIcon } from '../components/ProductCard';
 import { compressImageFile, isValidImageUrl, sanitizeImageUrl } from '../utils/imageCompressor';
 import {
+  ADMIN_BRAND_COLOR_PRESETS,
+  DEFAULT_ADMIN_BRAND_NAME,
+  DEFAULT_ADMIN_ICON_BG_COLOR,
+  DEFAULT_ADMIN_NAME_COLOR_1,
+  DEFAULT_ADMIN_NAME_COLOR_2,
+  DEFAULT_ADMIN_SUBTITLE,
+  normalizeHexColor,
+  resolveAdminPanelBranding,
+} from '../utils/adminBrandingHelpers';
+import {
   sortPaymentMethods,
   getPaymentMethodDisplayMeta,
   getPaymentMethodSubOptions,
@@ -2265,24 +2275,63 @@ export function AdminDashboard() {
 
     const totalVisibleCount = visibleSections.reduce((sum, s) => sum + s.visibleItems.length, 0);
     let serialCounter = 0;
+    const adminBrand = resolveAdminPanelBranding(settings);
 
     return (
       <div className="flex flex-col h-full justify-between">
         <div className="flex flex-col min-h-0 flex-1">
           {/* Clean Brand Header */}
-          <div className="px-4 py-3.5 border-b border-slate-800 flex items-center justify-between shrink-0">
+          <div
+            className="px-4 py-3.5 border-b border-slate-800 flex items-center justify-between shrink-0"
+            data-testid="admin-sidebar-brand-header"
+          >
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-[#D71920] flex items-center justify-center text-white shrink-0">
-                <BookOpen size={17} />
-              </div>
-              <div className="min-w-0">
-                <div className="font-bold text-sm tracking-tight text-white truncate">
-                  MR. BOOKS BD
+              {adminBrand.hasCustomLogo ? (
+                <img
+                  src={adminBrand.logoUrl}
+                  alt={adminBrand.displayName || 'Admin Panel Logo'}
+                  data-testid="admin-sidebar-custom-logo"
+                  className="h-8 w-auto max-w-[140px] object-contain rounded-lg shrink-0"
+                />
+              ) : adminBrand.showIconBadge ? (
+                <div
+                  data-testid="admin-sidebar-default-icon"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0 transition-colors"
+                  style={{ backgroundColor: adminBrand.iconBgColor }}
+                >
+                  <BookOpen size={17} />
                 </div>
-                <div className="text-[11px] text-slate-400 truncate">
-                  Store Admin Console
+              ) : null}
+
+              {(adminBrand.displayName || adminBrand.subtitle || (!adminBrand.hasCustomLogo && !adminBrand.showIconBadge)) && (
+                <div className="min-w-0">
+                  {(adminBrand.displayName || (!adminBrand.hasCustomLogo && !adminBrand.showIconBadge)) && (
+                    <div
+                      data-testid="admin-sidebar-brand-name"
+                      className="font-bold text-sm tracking-tight truncate"
+                    >
+                      {adminBrand.lastWord ? (
+                        <>
+                          <span className="mr-1" style={{ color: adminBrand.color1 }}>{adminBrand.firstPart}</span>
+                          <span style={{ color: adminBrand.color2 }}>{adminBrand.lastWord}</span>
+                        </>
+                      ) : (
+                        <span style={{ color: adminBrand.color1 }}>
+                          {adminBrand.displayName || DEFAULT_ADMIN_BRAND_NAME}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {adminBrand.subtitle && (
+                    <div
+                      data-testid="admin-sidebar-brand-subtitle"
+                      className="text-[11px] text-slate-400 truncate"
+                    >
+                      {adminBrand.subtitle}
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
             </div>
             {/* Mobile Close Button */}
             <button 
@@ -9581,6 +9630,14 @@ export function AdminDashboard() {
                         showHeaderIcon: true,
                         headerNameColor1: '#171717',
                         headerNameColor2: '#D71920',
+                        adminLogoUrl: '',
+                        showAdminIcon: true,
+                        adminIconBgColor: DEFAULT_ADMIN_ICON_BG_COLOR,
+                        adminBrandName: DEFAULT_ADMIN_BRAND_NAME,
+                        adminPanelSubtitle: DEFAULT_ADMIN_SUBTITLE,
+                        adminNameColor1: DEFAULT_ADMIN_NAME_COLOR_1,
+                        adminNameColor2: DEFAULT_ADMIN_NAME_COLOR_2,
+                        adminUseTwoToneName: false,
                         footerLogoUrl: '',
                         showFooterIcon: true,
                         footerBrandName: 'MR. BOOKS',
@@ -9622,13 +9679,13 @@ export function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Bottom Sub-Tab Selector Grid (1. Header & Logo, 2. Footer & Links, 3. Payment & Shipping, 4. Social Media, 5. SEO & Support, 6. Home Page Settings) */}
+              {/* Bottom Sub-Tab Selector Grid (1. Header & Admin Logo, 2. Footer & Links, 3. Payment & Shipping, 4. Social Media, 5. SEO & Support, 6. Home Page Settings) */}
               <div className="p-2 sm:p-2.5 bg-white grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5 sm:gap-2">
                 {[
                   {
                     id: 'header' as const,
-                    num: '1. Header & Logo',
-                    sub: 'Logo, Name, Colors, Favicon & Notice',
+                    num: '1. Header & Admin Logo',
+                    sub: 'Header, Admin Brand, Colors & Favicon',
                     icon: BookOpen
                   },
                   {
@@ -10262,10 +10319,23 @@ export function AdminDashboard() {
                 <div className="space-y-4">
                   {/* Live Header Brand Preview Box */}
                   <div className="p-3.5 rounded-xl bg-[#F7F7F8] border border-[#E5E5E5] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="space-y-0.5">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-[#D71920] block">
-                        Live Header Brand Preview
-                      </span>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-[#D71920]">
+                          Live Header Brand Preview
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            document
+                              .getElementById('admin-panel-branding-settings')
+                              ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          }}
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-900 text-white hover:bg-slate-800 cursor-pointer transition-colors"
+                        >
+                          Admin Panel Logo &amp; Name ↓
+                        </button>
+                      </div>
                       <p className="text-[11px] text-[#5F6368]">
                         Upload a Logo OR type a Store Name below. If you clear the Store Name, the default icon also disappears automatically.
                       </p>
@@ -10627,6 +10697,436 @@ export function AdminDashboard() {
                           placeholder="e.g. +880 1712-345678"
                           className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-[#171717] font-bold"
                         />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row 3B: Admin Panel Sidebar Branding (Custom Logo, Name, Subtitle & Text Color) */}
+                  <div
+                    id="admin-panel-branding-settings"
+                    data-testid="admin-panel-branding-settings"
+                    className="p-4 rounded-xl bg-[#F7F7F8] border border-neutral-200 space-y-3.5 text-xs"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-neutral-200">
+                      <div>
+                        <span className="font-black text-neutral-900 block">
+                          Admin Panel Sidebar Logo, Name &amp; Text Color
+                        </span>
+                        <span className="text-[11px] text-neutral-500">
+                          Customize the top-left Admin Console brand block: upload a custom logo picture, edit the title &amp; subtitle, or set your preferred text colors.
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSettingsForm(prev => ({
+                              ...prev,
+                              adminLogoUrl: '',
+                              showAdminIcon: true,
+                              adminIconBgColor: DEFAULT_ADMIN_ICON_BG_COLOR,
+                              adminBrandName: DEFAULT_ADMIN_BRAND_NAME,
+                              adminPanelSubtitle: DEFAULT_ADMIN_SUBTITLE,
+                              adminNameColor1: DEFAULT_ADMIN_NAME_COLOR_1,
+                              adminNameColor2: DEFAULT_ADMIN_NAME_COLOR_2,
+                              adminUseTwoToneName: false,
+                            }));
+                            setToast({ show: true, type: 'success', message: 'Admin panel branding reset to defaults. Click Save to apply.' });
+                          }}
+                          className="px-2.5 py-1.5 rounded-lg border border-neutral-300 bg-white hover:bg-neutral-100 text-neutral-700 text-[11px] font-bold cursor-pointer transition-colors"
+                        >
+                          Reset Default
+                        </button>
+                        <button
+                          type="button"
+                          disabled={settingsSaving}
+                          data-testid="save-admin-brand-btn"
+                          onClick={async () => {
+                            setSettingsSaving(true);
+                            try {
+                              await updateSettings({
+                                adminLogoUrl: sanitizeImageUrl(settingsForm.adminLogoUrl),
+                                showAdminIcon: settingsForm.showAdminIcon !== false,
+                                adminIconBgColor: normalizeHexColor(
+                                  settingsForm.adminIconBgColor,
+                                  DEFAULT_ADMIN_ICON_BG_COLOR
+                                ),
+                                adminBrandName: settingsForm.adminBrandName ?? DEFAULT_ADMIN_BRAND_NAME,
+                                adminPanelSubtitle: settingsForm.adminPanelSubtitle ?? DEFAULT_ADMIN_SUBTITLE,
+                                adminNameColor1: normalizeHexColor(
+                                  settingsForm.adminNameColor1,
+                                  DEFAULT_ADMIN_NAME_COLOR_1
+                                ),
+                                adminNameColor2: normalizeHexColor(
+                                  settingsForm.adminNameColor2,
+                                  DEFAULT_ADMIN_NAME_COLOR_2
+                                ),
+                                adminUseTwoToneName: Boolean(settingsForm.adminUseTwoToneName),
+                              });
+                              setToast({ show: true, type: 'success', message: 'Admin panel logo & branding saved!' });
+                            } finally {
+                              setSettingsSaving(false);
+                            }
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-[#D71920] hover:bg-[#B9151B] disabled:opacity-50 text-white text-[11px] font-bold cursor-pointer inline-flex items-center gap-1 shadow-2xs transition-colors"
+                        >
+                          <Check size={12} />
+                          <span>{settingsSaving ? 'Saving...' : 'Save Admin Brand'}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Live Dark Sidebar Preview */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-white border border-neutral-200">
+                      <div className="space-y-0.5">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-[#D71920] block">
+                          Live Sidebar Header Preview
+                        </span>
+                        <p className="text-[11px] text-neutral-500">
+                          Instant preview on the dark admin console sidebar. Leave brand name blank if you only want your logo image displayed.
+                        </p>
+                      </div>
+                      <div
+                        data-testid="admin-brand-live-preview"
+                        className="px-4 py-2.5 rounded-xl bg-[#0F172A] border border-slate-800 flex items-center gap-2.5 min-w-[230px] max-w-full shrink-0"
+                      >
+                        {(() => {
+                          const previewBrand = resolveAdminPanelBranding(settingsForm);
+                          if (previewBrand.isEmpty) {
+                            return <span className="text-xs italic text-slate-400">Empty (Add Logo or Name)</span>;
+                          }
+                          return (
+                            <>
+                              {previewBrand.hasCustomLogo ? (
+                                <img
+                                  src={previewBrand.logoUrl}
+                                  alt="Admin Logo Preview"
+                                  onError={() => setSettingsForm(prev => ({ ...prev, adminLogoUrl: '' }))}
+                                  className="h-8 w-auto max-w-[130px] object-contain rounded-lg shrink-0"
+                                />
+                              ) : previewBrand.showIconBadge ? (
+                                <div
+                                  className="w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0"
+                                  style={{ backgroundColor: previewBrand.iconBgColor }}
+                                >
+                                  <BookOpen size={17} />
+                                </div>
+                              ) : null}
+
+                              {(previewBrand.displayName || previewBrand.subtitle) && (
+                                <div className="min-w-0">
+                                  {previewBrand.displayName && (
+                                    <div className="font-bold text-sm tracking-tight truncate">
+                                      {previewBrand.lastWord ? (
+                                        <>
+                                          <span className="mr-1" style={{ color: previewBrand.color1 }}>{previewBrand.firstPart}</span>
+                                          <span style={{ color: previewBrand.color2 }}>{previewBrand.lastWord}</span>
+                                        </>
+                                      ) : (
+                                        <span style={{ color: previewBrand.color1 }}>{previewBrand.displayName}</span>
+                                      )}
+                                    </div>
+                                  )}
+                                  {previewBrand.subtitle && (
+                                    <div className="text-[11px] text-slate-400 truncate">
+                                      {previewBrand.subtitle}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Controls Grid: Left = Logo Upload & Icon, Right = Name, Subtitle & Color */}
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
+                      {/* Left: Admin Logo Upload / URL + Icon Badge Option */}
+                      <div className="lg:col-span-5 p-3 rounded-xl bg-white border border-neutral-200 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="font-bold text-neutral-900 block">Admin Logo Picture (Optional)</span>
+                            <span className="text-[11px] text-neutral-500">Replaces the default book icon</span>
+                          </div>
+                          {isValidImageUrl(settingsForm.adminLogoUrl) && (
+                            <button
+                              type="button"
+                              data-testid="remove-admin-logo-btn"
+                              onClick={async () => {
+                                setSettingsForm(prev => ({ ...prev, adminLogoUrl: '' }));
+                                await updateSettings({ adminLogoUrl: '' });
+                                setToast({ show: true, type: 'success', message: 'Admin panel logo removed!' });
+                              }}
+                              className="text-[11px] font-bold text-red-600 hover:underline cursor-pointer"
+                            >
+                              Remove Logo
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-xl bg-[#0F172A] border border-slate-700 flex items-center justify-center overflow-hidden shrink-0">
+                            {isValidImageUrl(settingsForm.adminLogoUrl) ? (
+                              <img
+                                src={settingsForm.adminLogoUrl}
+                                alt="Admin Logo Thumbnail"
+                                onError={() => setSettingsForm(prev => ({ ...prev, adminLogoUrl: '' }))}
+                                className="w-full h-full object-contain p-1"
+                              />
+                            ) : (
+                              <div
+                                className="w-7 h-7 rounded-md flex items-center justify-center text-white"
+                                style={{
+                                  backgroundColor: normalizeHexColor(
+                                    settingsForm.adminIconBgColor,
+                                    DEFAULT_ADMIN_ICON_BG_COLOR
+                                  ),
+                                }}
+                              >
+                                <BookOpen size={14} />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 space-y-1.5 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <label className="px-3 py-1.5 bg-[#0F172A] hover:bg-slate-800 text-white rounded-lg text-[11px] font-bold cursor-pointer inline-flex items-center gap-1.5 transition-colors">
+                                <Upload size={12} />
+                                <span>Upload Logo</span>
+                                <input
+                                  type="file"
+                                  accept="image/*,.svg,.ico"
+                                  data-testid="admin-logo-file-input"
+                                  className="hidden"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    e.target.value = '';
+                                    if (!file) return;
+                                    try {
+                                      const dataUrl = await compressImageFile(file, 400, 400, 0.9);
+                                      setSettingsForm(prev => ({ ...prev, adminLogoUrl: dataUrl }));
+                                      await updateSettings({ adminLogoUrl: dataUrl });
+                                      setToast({ show: true, type: 'success', message: 'Admin panel logo uploaded & saved!' });
+                                    } catch (err: any) {
+                                      console.error('Admin logo upload error:', err);
+                                      setToast({ show: true, type: 'error', message: err?.message || 'Failed to upload admin logo' });
+                                    }
+                                  }}
+                                />
+                              </label>
+                              <span className="text-[10px] text-neutral-500 truncate">PNG, SVG, WebP</span>
+                            </div>
+                            <input
+                              type="text"
+                              data-testid="admin-logo-url-input"
+                              placeholder="Or paste Admin Logo URL (https://...)"
+                              value={isValidImageUrl(settingsForm.adminLogoUrl) ? settingsForm.adminLogoUrl : ''}
+                              onChange={e => setSettingsForm(prev => ({ ...prev, adminLogoUrl: sanitizeImageUrl(e.target.value) }))}
+                              className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-300 bg-[#F7F7F8] text-xs text-neutral-900"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Fallback Book Icon Controls */}
+                        <div className="pt-2 border-t border-neutral-200/80 flex items-center justify-between gap-2 flex-wrap">
+                          <label className={`flex items-center gap-1.5 text-[11px] font-bold cursor-pointer ${
+                            isValidImageUrl(settingsForm.adminLogoUrl) ? 'opacity-50 text-neutral-400' : 'text-neutral-800'
+                          }`}>
+                            <input
+                              type="checkbox"
+                              disabled={isValidImageUrl(settingsForm.adminLogoUrl)}
+                              checked={!isValidImageUrl(settingsForm.adminLogoUrl) && settingsForm.showAdminIcon !== false}
+                              onChange={e => setSettingsForm(prev => ({ ...prev, showAdminIcon: e.target.checked }))}
+                              className="w-3.5 h-3.5 accent-[#D71920]"
+                            />
+                            <span>Show Default Book Icon</span>
+                          </label>
+
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold text-neutral-500 uppercase">Icon BG</span>
+                            <input
+                              type="color"
+                              disabled={isValidImageUrl(settingsForm.adminLogoUrl) || settingsForm.showAdminIcon === false}
+                              value={normalizeHexColor(settingsForm.adminIconBgColor, DEFAULT_ADMIN_ICON_BG_COLOR)}
+                              onChange={e => setSettingsForm(prev => ({ ...prev, adminIconBgColor: e.target.value }))}
+                              className="w-6 h-6 rounded cursor-pointer border border-neutral-300 bg-transparent p-0 disabled:opacity-40"
+                              title="Default Icon Background Color"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Brand Name, Subtitle & Name Text Color */}
+                      <div className="lg:col-span-7 p-3 rounded-xl bg-white border border-neutral-200 space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="font-bold text-[#5F6368] uppercase text-[11px]">
+                                Admin Panel Name
+                              </label>
+                              {(settingsForm.adminBrandName ?? DEFAULT_ADMIN_BRAND_NAME) !== '' && (
+                                <button
+                                  type="button"
+                                  data-testid="clear-admin-brand-name-btn"
+                                  onClick={() => setSettingsForm(prev => ({ ...prev, adminBrandName: '' }))}
+                                  className="text-[10px] font-bold text-[#D71920] hover:underline cursor-pointer"
+                                >
+                                  Clear Name
+                                </button>
+                              )}
+                            </div>
+                            <input
+                              type="text"
+                              data-testid="admin-brand-name-input"
+                              value={settingsForm.adminBrandName ?? DEFAULT_ADMIN_BRAND_NAME}
+                              onChange={e => setSettingsForm(prev => ({ ...prev, adminBrandName: e.target.value }))}
+                              placeholder="e.g. MR. BOOKS BD"
+                              className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-[#F7F7F8] text-[#171717] font-bold text-xs"
+                            />
+                          </div>
+
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="font-bold text-[#5F6368] uppercase text-[11px]">
+                                Subtitle Text (Optional)
+                              </label>
+                              {(settingsForm.adminPanelSubtitle ?? DEFAULT_ADMIN_SUBTITLE) !== '' && (
+                                <button
+                                  type="button"
+                                  onClick={() => setSettingsForm(prev => ({ ...prev, adminPanelSubtitle: '' }))}
+                                  className="text-[10px] font-bold text-neutral-500 hover:text-neutral-800 hover:underline cursor-pointer"
+                                >
+                                  Hide
+                                </button>
+                              )}
+                            </div>
+                            <input
+                              type="text"
+                              data-testid="admin-brand-subtitle-input"
+                              value={settingsForm.adminPanelSubtitle ?? DEFAULT_ADMIN_SUBTITLE}
+                              onChange={e => setSettingsForm(prev => ({ ...prev, adminPanelSubtitle: e.target.value }))}
+                              placeholder="e.g. Store Admin Console"
+                              className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-[#F7F7F8] text-[#171717] font-medium text-xs"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Brand Name Text Color Picker + Quick Swatches + Optional Two-Tone */}
+                        <div className="pt-2 border-t border-neutral-200/80 space-y-2.5">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <span className="font-bold text-[#5F6368] uppercase text-[11px]">
+                              Admin Name Text Color
+                            </span>
+                            <label className="flex items-center gap-1.5 text-[11px] font-bold text-neutral-700 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                data-testid="admin-brand-twotone-toggle"
+                                checked={Boolean(settingsForm.adminUseTwoToneName)}
+                                onChange={e =>
+                                  setSettingsForm(prev => ({
+                                    ...prev,
+                                    adminUseTwoToneName: e.target.checked,
+                                    adminNameColor2: prev.adminNameColor2 || DEFAULT_ADMIN_NAME_COLOR_2,
+                                  }))
+                                }
+                                className="w-3.5 h-3.5 accent-[#D71920]"
+                              />
+                              <span>Two-Tone Last Word Color</span>
+                            </label>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 items-center">
+                            {/* Primary Text Color Picker + Hex */}
+                            <div className="flex items-center gap-1.5 bg-[#F7F7F8] border border-neutral-300 rounded-xl px-2.5 py-1.5">
+                              <input
+                                type="color"
+                                data-testid="admin-brand-color1-picker"
+                                value={normalizeHexColor(settingsForm.adminNameColor1, DEFAULT_ADMIN_NAME_COLOR_1)}
+                                onChange={e => setSettingsForm(prev => ({ ...prev, adminNameColor1: e.target.value.toUpperCase() }))}
+                                className="w-6 h-6 rounded cursor-pointer border border-neutral-300 bg-transparent p-0 shrink-0"
+                              />
+                              <input
+                                type="text"
+                                data-testid="admin-brand-color1-hex"
+                                value={settingsForm.adminNameColor1 || DEFAULT_ADMIN_NAME_COLOR_1}
+                                onChange={e => setSettingsForm(prev => ({ ...prev, adminNameColor1: e.target.value }))}
+                                className="w-full text-xs font-mono font-bold text-neutral-800 bg-transparent focus:outline-none uppercase"
+                                placeholder="#FFFFFF"
+                              />
+                            </div>
+
+                            {/* Optional 2nd Word Color Picker */}
+                            {settingsForm.adminUseTwoToneName ? (
+                              <div className="flex items-center gap-1.5 bg-[#F7F7F8] border border-neutral-300 rounded-xl px-2.5 py-1.5">
+                                <input
+                                  type="color"
+                                  data-testid="admin-brand-color2-picker"
+                                  value={normalizeHexColor(settingsForm.adminNameColor2, DEFAULT_ADMIN_NAME_COLOR_2)}
+                                  onChange={e => setSettingsForm(prev => ({ ...prev, adminNameColor2: e.target.value.toUpperCase() }))}
+                                  className="w-6 h-6 rounded cursor-pointer border border-neutral-300 bg-transparent p-0 shrink-0"
+                                />
+                                <input
+                                  type="text"
+                                  data-testid="admin-brand-color2-hex"
+                                  value={settingsForm.adminNameColor2 || DEFAULT_ADMIN_NAME_COLOR_2}
+                                  onChange={e => setSettingsForm(prev => ({ ...prev, adminNameColor2: e.target.value }))}
+                                  className="w-full text-xs font-mono font-bold text-neutral-800 bg-transparent focus:outline-none uppercase"
+                                  placeholder="#D71920"
+                                />
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[10px] font-bold text-neutral-500">Presets:</span>
+                                {ADMIN_BRAND_COLOR_PRESETS.map(preset => {
+                                  const isSelected =
+                                    normalizeHexColor(settingsForm.adminNameColor1, DEFAULT_ADMIN_NAME_COLOR_1) === preset.hex;
+                                  return (
+                                    <button
+                                      key={preset.hex}
+                                      type="button"
+                                      title={`${preset.label} (${preset.hex})`}
+                                      onClick={() =>
+                                        setSettingsForm(prev => ({ ...prev, adminNameColor1: preset.hex }))
+                                      }
+                                      className={`w-5 h-5 rounded-full border cursor-pointer transition-transform ${
+                                        isSelected
+                                          ? 'ring-2 ring-offset-1 ring-slate-900 scale-110 border-neutral-400'
+                                          : 'border-neutral-300 hover:scale-105'
+                                      }`}
+                                      style={{ backgroundColor: preset.hex }}
+                                    />
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+
+                          {settingsForm.adminUseTwoToneName && (
+                            <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                              <span className="text-[10px] font-bold text-neutral-500">Primary Presets:</span>
+                              {ADMIN_BRAND_COLOR_PRESETS.map(preset => {
+                                const isSelected =
+                                  normalizeHexColor(settingsForm.adminNameColor1, DEFAULT_ADMIN_NAME_COLOR_1) === preset.hex;
+                                return (
+                                  <button
+                                    key={preset.hex}
+                                    type="button"
+                                    title={`${preset.label} (${preset.hex})`}
+                                    onClick={() =>
+                                      setSettingsForm(prev => ({ ...prev, adminNameColor1: preset.hex }))
+                                    }
+                                    className={`w-5 h-5 rounded-full border cursor-pointer transition-transform ${
+                                      isSelected
+                                        ? 'ring-2 ring-offset-1 ring-slate-900 scale-110 border-neutral-400'
+                                        : 'border-neutral-300 hover:scale-105'
+                                    }`}
+                                    style={{ backgroundColor: preset.hex }}
+                                  />
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

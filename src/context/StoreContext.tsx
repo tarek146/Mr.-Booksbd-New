@@ -130,6 +130,14 @@ const DEFAULT_SETTINGS_TEMPLATE: StoreSettings = {
   showHeaderIcon: true,
   headerNameColor1: '#171717',
   headerNameColor2: '#D71920',
+  adminLogoUrl: '',
+  showAdminIcon: true,
+  adminIconBgColor: '#D71920',
+  adminBrandName: 'MR. BOOKS BD',
+  adminPanelSubtitle: 'Store Admin Console',
+  adminNameColor1: '#FFFFFF',
+  adminNameColor2: '#D71920',
+  adminUseTwoToneName: false,
   showHeaderTagline: true,
   showHeaderContact: true,
   enableThemeToggle: true,
@@ -251,6 +259,7 @@ const DEFAULT_SETTINGS_TEMPLATE: StoreSettings = {
 function sanitizeStoreSettings<T extends Partial<StoreSettings>>(st: T): T {
   const copy: Partial<StoreSettings> = { ...st };
   if ('logoUrl' in copy) copy.logoUrl = sanitizeImageUrl(copy.logoUrl);
+  if ('adminLogoUrl' in copy) copy.adminLogoUrl = sanitizeImageUrl(copy.adminLogoUrl);
   if ('footerLogoUrl' in copy) copy.footerLogoUrl = sanitizeImageUrl(copy.footerLogoUrl);
   if ('faviconUrl' in copy) copy.faviconUrl = sanitizeImageUrl(copy.faviconUrl);
   if ('footerPaymentBannerUrl' in copy) copy.footerPaymentBannerUrl = sanitizeImageUrl(copy.footerPaymentBannerUrl);

@@ -356,6 +356,15 @@ export interface StoreSettings {
   showHeaderContact?: boolean;
   showAnnouncementBar?: boolean;
   announcementItems?: AnnouncementItem[];
+  // Admin Console Sidebar Brand Header Customizations
+  adminLogoUrl?: string;
+  showAdminIcon?: boolean;
+  adminIconBgColor?: string;
+  adminBrandName?: string;
+  adminPanelSubtitle?: string;
+  adminNameColor1?: string;
+  adminNameColor2?: string;
+  adminUseTwoToneName?: boolean;
   // Dark Theme & Display Customizations
   enableThemeToggle?: boolean;
   allowDarkMode?: boolean;
