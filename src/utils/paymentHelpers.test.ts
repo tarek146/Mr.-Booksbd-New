@@ -6,6 +6,7 @@ import {
   validatePaymentTransactionPopup,
   getActiveOnlinePaymentMethods,
   getPaymentMethodSubOptions,
+  resolveSinglePaymentQrInfo,
 } from './reviewHelpers';
 import { PaymentMethodConfig } from '../types';
 
@@ -84,7 +85,6 @@ describe('Payment Methods & Bangla QR Helpers', () => {
   ];
 
   it('correctly sorts payment methods by priority: cod, bkash, nagad, rocket, upay, bangla_qr, bank', () => {
-    // Pass in reverse order
     const reversed = [...sampleMethods].reverse();
     const sorted = sortPaymentMethods(reversed);
     assert.strictEqual(sorted[0].type, 'cod');
@@ -140,7 +140,6 @@ describe('Payment Methods & Bangla QR Helpers', () => {
     assert.strictEqual(defaultSubs.paymentOption.label, 'পেমেন্ট');
     assert.strictEqual(defaultSubs.paymentOption.accountType, 'Merchant');
 
-    // Now test custom Admin overrides for both Send Money and Payment
     const customBkash: PaymentMethodConfig = {
       ...legacyBkash,
       sendMoneyOption: {
@@ -177,6 +176,79 @@ describe('Payment Methods & Bangla QR Helpers', () => {
     assert.strictEqual(customSubs.paymentOption.accountNumber, '01799998888');
     assert.strictEqual(customSubs.paymentOption.instructions, 'মার্চেন্ট নাম্বারে পেমেন্ট করুন');
     assert.strictEqual(customSubs.paymentOption.qrCodeUrl, 'https://example.com/pay-qr.png');
+  });
+
+  it('resolves a single gateway QR without Bangla/English language split and preserves legacy fields', () => {
+    const bkashWithSingleQr: PaymentMethodConfig = {
+      id: 'bkash-single',
+      name: 'বিকাশ',
+      type: 'bkash',
+      accountName: 'MR. BOOKS',
+      accountNumber: '01712345678',
+      instructions: 'Send money',
+      qrCodeUrl: 'https://example.com/bkash-custom.png',
+      isActive: true,
+      displayOrder: 2,
+      sendMoneyOption: {
+        id: 'send_money',
+        enabled: true,
+        label: 'সেন্ড মানি',
+        accountType: 'Personal',
+        accountName: 'MR. BOOKS',
+        accountNumber: '01712345678',
+        instructions: 'Send money',
+        qrCodeUrl: 'https://example.com/bkash-custom.png',
+      },
+      paymentOption: {
+        id: 'payment',
+        enabled: true,
+        label: 'পেমেন্ট',
+        accountType: 'Merchant',
+        accountName: 'MR. BOOKS Merchant',
+        accountNumber: '01799998888',
+        instructions: 'Make payment',
+        qrCodeUrl: '',
+      },
+    };
+
+    const subs = getPaymentMethodSubOptions(bkashWithSingleQr);
+    const smInfo = resolveSinglePaymentQrInfo({
+      method: bkashWithSingleQr,
+      subOption: subs.sendMoneyOption,
+      banglaQrImageUrl: 'https://example.com/global-bangla-qr.png',
+    });
+    assert.strictEqual(smInfo.customQrUrl, 'https://example.com/bkash-custom.png');
+    assert.strictEqual(smInfo.title, 'বিকাশ কিউআর কোড');
+    assert.strictEqual(smInfo.subtitle, 'সেন্ড মানি · Personal');
+
+    // Payment sub-option has empty qrCodeUrl -> must NOT leak Send Money QR or global Bangla QR
+    const payInfo = resolveSinglePaymentQrInfo({
+      method: bkashWithSingleQr,
+      subOption: subs.paymentOption,
+      banglaQrImageUrl: 'https://example.com/global-bangla-qr.png',
+    });
+    assert.strictEqual(payInfo.customQrUrl, '');
+    assert.strictEqual(payInfo.title, 'বিকাশ কিউআর কোড');
+
+    // Legacy method that only saved bengaliQrCodeUrl still displays its uploaded image cleanly
+    const legacyNagad: PaymentMethodConfig = {
+      id: 'nagad-legacy',
+      name: 'নগদ',
+      type: 'nagad',
+      accountName: 'MR. BOOKS',
+      accountNumber: '01812345678',
+      instructions: 'Send money',
+      bengaliQrCodeUrl: 'https://example.com/nagad-uploaded.png',
+      isActive: true,
+      displayOrder: 3,
+    };
+    const nagadSubs = getPaymentMethodSubOptions(legacyNagad);
+    const nagadInfo = resolveSinglePaymentQrInfo({
+      method: legacyNagad,
+      subOption: nagadSubs.sendMoneyOption,
+    });
+    assert.strictEqual(nagadInfo.customQrUrl, 'https://example.com/nagad-uploaded.png');
+    assert.strictEqual(nagadInfo.title, 'নগদ কিউআর কোড');
   });
 
   it('validates transaction submission for Bangla QR with valid 11-digit phone', () => {

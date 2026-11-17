@@ -149,13 +149,10 @@ export function getPaymentMethodDisplayMeta(method: PaymentMethodConfig): {
   const isLegacyPlaceholder = LEGACY_PLACEHOLDER_LOGOS.some(url => rawLogo.startsWith(url));
   const customLogoUrl = isValidImageUrl(rawLogo) && !isLegacyPlaceholder ? rawLogo : undefined;
 
-  const rawQr = (method.qrCodeUrl || '').trim();
-  const rawEnglishQr = (method.englishQrCodeUrl || method.qrCodeUrl || '').trim();
-  const rawBengaliQr = (method.bengaliQrCodeUrl || '').trim();
-
+  const rawQr = (method.qrCodeUrl || method.englishQrCodeUrl || method.bengaliQrCodeUrl || '').trim();
   const qrCodeUrl = isValidImageUrl(rawQr) ? rawQr : undefined;
-  const englishQrCodeUrl = isValidImageUrl(rawEnglishQr) ? rawEnglishQr : qrCodeUrl;
-  const bengaliQrCodeUrl = isValidImageUrl(rawBengaliQr) ? rawBengaliQr : undefined;
+  const englishQrCodeUrl = qrCodeUrl;
+  const bengaliQrCodeUrl = undefined;
 
   const isDefaultName =
     !method.name ||
@@ -404,9 +401,25 @@ export function getPaymentMethodSubOptions(method: PaymentMethodConfig): {
     return isValidImageUrl(trimmed) ? trimmed : undefined;
   };
 
-  const smQr = cleanImg(rawSm?.qrCodeUrl) || meta.qrCodeUrl;
-  const smEnQr = cleanImg(rawSm?.englishQrCodeUrl || rawSm?.qrCodeUrl) || meta.englishQrCodeUrl || smQr;
-  const smBnQr = cleanImg(rawSm?.bengaliQrCodeUrl) || meta.bengaliQrCodeUrl;
+  const rawSmQr =
+    cleanImg(rawSm?.qrCodeUrl) ||
+    cleanImg(rawSm?.englishQrCodeUrl) ||
+    cleanImg(rawSm?.bengaliQrCodeUrl);
+  const rawPayQr =
+    cleanImg(rawPay?.qrCodeUrl) ||
+    cleanImg(rawPay?.englishQrCodeUrl) ||
+    cleanImg(rawPay?.bengaliQrCodeUrl);
+
+  const smExplicitEmpty =
+    Boolean(rawSm) &&
+    'qrCodeUrl' in (rawSm as object) &&
+    !rawSmQr;
+  const payExplicitEmpty =
+    Boolean(rawPay) &&
+    'qrCodeUrl' in (rawPay as object) &&
+    !rawPayQr;
+
+  const smQr = rawSmQr || (smExplicitEmpty ? undefined : meta.qrCodeUrl);
 
   const sendMoneyOption: PaymentSubOptionConfig = {
     id: 'send_money',
@@ -419,13 +432,17 @@ export function getPaymentMethodSubOptions(method: PaymentMethodConfig): {
     accountNumber: (rawSm?.accountNumber || '').trim() || method.accountNumber || '01712345678',
     instructions: (rawSm?.instructions || '').trim() || meta.instructionText,
     qrCodeUrl: smQr,
-    englishQrCodeUrl: smEnQr,
-    bengaliQrCodeUrl: smBnQr,
+    englishQrCodeUrl: smQr,
+    bengaliQrCodeUrl: '',
   };
 
-  const payQr = cleanImg(rawPay?.qrCodeUrl) || meta.qrCodeUrl;
-  const payEnQr = cleanImg(rawPay?.englishQrCodeUrl || rawPay?.qrCodeUrl) || meta.englishQrCodeUrl || payQr;
-  const payBnQr = cleanImg(rawPay?.bengaliQrCodeUrl) || meta.bengaliQrCodeUrl;
+  const payQr =
+    rawPayQr ||
+    (payExplicitEmpty
+      ? undefined
+      : rawSmQr && rawSmQr === meta.qrCodeUrl
+      ? undefined
+      : meta.qrCodeUrl);
 
   const paymentOption: PaymentSubOptionConfig = {
     id: 'payment',
@@ -438,8 +455,8 @@ export function getPaymentMethodSubOptions(method: PaymentMethodConfig): {
     accountNumber: (rawPay?.accountNumber || '').trim() || method.accountNumber || '01712345678',
     instructions: (rawPay?.instructions || '').trim() || getDefaultMerchantPaymentInstruction(method.type),
     qrCodeUrl: payQr,
-    englishQrCodeUrl: payEnQr,
-    bengaliQrCodeUrl: payBnQr,
+    englishQrCodeUrl: payQr,
+    bengaliQrCodeUrl: '',
   };
 
   const activeSubOptions: PaymentSubOptionConfig[] = [];
@@ -453,6 +470,94 @@ export function getPaymentMethodSubOptions(method: PaymentMethodConfig): {
     sendMoneyOption,
     paymentOption,
     activeSubOptions,
+  };
+}
+
+export interface ResolvedPaymentQrInfo {
+  customQrUrl: string;
+  title: string;
+  subtitle: string;
+  accountNumber: string;
+  accountName: string;
+  accountType: string;
+}
+
+/**
+ * Formats a clean single gateway QR title (e.g. "বিকাশ কিউআর কোড", "নগদ কিউআর কোড")
+ * with no Bangla/English split phrasing.
+ */
+export function formatSinglePaymentQrTitle(
+  method: PaymentMethodConfig,
+  displayTitle?: string
+): string {
+  const base = (
+    displayTitle ||
+    getPaymentMethodDisplayMeta(method).displayTitle ||
+    method.name ||
+    ''
+  ).trim();
+  if (!base) return 'পেমেন্ট কিউআর কোড';
+  if (/(qr|কিউআর)/i.test(base)) {
+    return base.includes('কোড') || /\bQR\b/i.test(base) ? base : `${base} কোড`;
+  }
+  return `${base} কিউআর কোড`;
+}
+
+/**
+ * Resolves the single authoritative QR image URL and display metadata for a payment method/sub-option.
+ * Preserves legacy qrCodeUrl / englishQrCodeUrl / bengaliQrCodeUrl fields from Firestore while never
+ * leaking global Bangla QR settings onto gateways like bKash or Nagad.
+ */
+export function resolveSinglePaymentQrInfo({
+  method,
+  subOption,
+  banglaQrImageUrl,
+}: {
+  method: PaymentMethodConfig;
+  subOption?: PaymentSubOptionConfig;
+  banglaQrImageUrl?: string;
+}): ResolvedPaymentQrInfo {
+  const meta = getPaymentMethodDisplayMeta(method);
+  const cleanImg = (url?: string) => {
+    const trimmed = (url || '').trim();
+    return isValidImageUrl(trimmed) ? trimmed : '';
+  };
+
+  const subQr =
+    cleanImg(subOption?.qrCodeUrl) ||
+    cleanImg(subOption?.englishQrCodeUrl) ||
+    cleanImg(subOption?.bengaliQrCodeUrl);
+
+  const methodQr =
+    cleanImg(meta.qrCodeUrl) ||
+    cleanImg(meta.englishQrCodeUrl) ||
+    cleanImg(meta.bengaliQrCodeUrl);
+
+  const fallbackBanglaQr =
+    method.type === 'bangla_qr' ? cleanImg(banglaQrImageUrl) : '';
+
+  const customQrUrl =
+    subQr ||
+    (!subOption ? methodQr : '') ||
+    (subOption?.id === 'send_money' && !method.sendMoneyOption ? methodQr : '') ||
+    (subOption?.id === 'payment' && !method.paymentOption ? methodQr : '') ||
+    fallbackBanglaQr;
+
+  const accountNumber = (subOption?.accountNumber || method.accountNumber || '').trim();
+  const accountName = (subOption?.accountName || method.accountName || '').trim();
+  const accountType = (subOption?.accountType || meta.accountType || 'Personal').trim();
+  const subLabel = (subOption?.label || '').trim();
+  const subtitle = [subLabel, accountType !== 'None' ? accountType : '']
+    .filter(Boolean)
+    .join(' · ');
+
+  return {
+    customQrUrl,
+    title: formatSinglePaymentQrTitle(method, meta.displayTitle),
+    subtitle,
+    accountNumber,
+    accountName,
+    accountType,
   };
 }
 

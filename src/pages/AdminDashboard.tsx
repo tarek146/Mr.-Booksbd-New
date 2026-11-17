@@ -885,6 +885,10 @@ export function AdminDashboard() {
     setPmAccName(nextAccName);
     setPmAccNum(nextAccNum);
     setPmInst(nextInst);
+    setPmLogoUrl('');
+    setPmQrCodeUrl('');
+    setPmEnglishQrCodeUrl('');
+    setPmBengaliQrCodeUrl('');
 
     const resolvedSubs = getPaymentMethodSubOptions({
       id: 'temp',
@@ -938,7 +942,13 @@ export function AdminDashboard() {
   const handleSavePaymentMethod = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // Ensure at least one sub-option is enabled for non-COD methods
+      const smSingleQr = (
+        pmSendMoneyOption.qrCodeUrl ||
+        pmSendMoneyOption.englishQrCodeUrl ||
+        pmSendMoneyOption.bengaliQrCodeUrl ||
+        ''
+      ).trim();
+
       const cleanSendMoney: PaymentSubOptionConfig = {
         ...pmSendMoneyOption,
         id: 'send_money',
@@ -948,10 +958,17 @@ export function AdminDashboard() {
         accountName: (pmSendMoneyOption.accountName || pmAccName || 'MR. BOOKS').trim(),
         accountNumber: (pmSendMoneyOption.accountNumber || pmAccNum).trim(),
         instructions: (pmSendMoneyOption.instructions || pmInst).trim(),
-        qrCodeUrl: (pmSendMoneyOption.englishQrCodeUrl || pmSendMoneyOption.qrCodeUrl || '').trim(),
-        englishQrCodeUrl: (pmSendMoneyOption.englishQrCodeUrl || pmSendMoneyOption.qrCodeUrl || '').trim(),
-        bengaliQrCodeUrl: (pmSendMoneyOption.bengaliQrCodeUrl || '').trim(),
+        qrCodeUrl: smSingleQr,
+        englishQrCodeUrl: smSingleQr,
+        bengaliQrCodeUrl: '',
       };
+
+      const paySingleQr = (
+        pmPaymentOption.qrCodeUrl ||
+        pmPaymentOption.englishQrCodeUrl ||
+        pmPaymentOption.bengaliQrCodeUrl ||
+        ''
+      ).trim();
 
       const cleanPayment: PaymentSubOptionConfig = {
         ...pmPaymentOption,
@@ -962,9 +979,9 @@ export function AdminDashboard() {
         accountName: (pmPaymentOption.accountName || pmAccName || 'MR. BOOKS').trim(),
         accountNumber: (pmPaymentOption.accountNumber || cleanSendMoney.accountNumber || pmAccNum).trim(),
         instructions: (pmPaymentOption.instructions || getDefaultMerchantPaymentInstruction(pmType)).trim(),
-        qrCodeUrl: (pmPaymentOption.englishQrCodeUrl || pmPaymentOption.qrCodeUrl || '').trim(),
-        englishQrCodeUrl: (pmPaymentOption.englishQrCodeUrl || pmPaymentOption.qrCodeUrl || '').trim(),
-        bengaliQrCodeUrl: (pmPaymentOption.bengaliQrCodeUrl || '').trim(),
+        qrCodeUrl: paySingleQr,
+        englishQrCodeUrl: paySingleQr,
+        bengaliQrCodeUrl: '',
       };
 
       if (pmType !== 'cod' && !cleanSendMoney.enabled && !cleanPayment.enabled) {
@@ -973,10 +990,11 @@ export function AdminDashboard() {
 
       // Sync primary enabled sub-option to top-level fields for backward compatibility
       const primarySub = cleanSendMoney.enabled ? cleanSendMoney : cleanPayment;
-      const resolvedEnglishQr =
-        primarySub.englishQrCodeUrl || pmEnglishQrCodeUrl.trim() || pmQrCodeUrl.trim();
-      const resolvedBengaliQr =
-        primarySub.bengaliQrCodeUrl || pmBengaliQrCodeUrl.trim();
+      const resolvedSingleQr =
+        primarySub.qrCodeUrl ||
+        pmQrCodeUrl.trim() ||
+        pmEnglishQrCodeUrl.trim() ||
+        pmBengaliQrCodeUrl.trim();
 
       const payload: Partial<PaymentMethodConfig> = {
         name: pmName.trim() || 'পেমেন্ট মেথড',
@@ -994,9 +1012,9 @@ export function AdminDashboard() {
         requireSenderPhone: pmType === 'cod' ? false : pmRequireSenderPhone,
         instructions: pmType === 'cod' ? pmInst.trim() : primarySub.instructions,
         logoUrl: pmLogoUrl.trim() || '',
-        qrCodeUrl: pmType === 'cod' ? '' : resolvedEnglishQr,
-        englishQrCodeUrl: pmType === 'cod' ? '' : resolvedEnglishQr,
-        bengaliQrCodeUrl: pmType === 'cod' ? '' : resolvedBengaliQr,
+        qrCodeUrl: pmType === 'cod' ? '' : resolvedSingleQr,
+        englishQrCodeUrl: pmType === 'cod' ? '' : resolvedSingleQr,
+        bengaliQrCodeUrl: '',
         ...(pmType !== 'cod'
           ? {
               sendMoneyOption: cleanSendMoney,
@@ -1080,62 +1098,6 @@ export function AdminDashboard() {
         }
       } catch (err: any) {
         setToast({ show: true, type: 'error', message: err.message || 'Failed to upload icon' });
-      }
-    }
-  };
-
-  const handlePmQrFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEditForId?: string) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      try {
-        const compressed = await compressImageFile(file, 700, 700, 0.88);
-        if (isEditForId) {
-          await updatePaymentMethod(isEditForId, { qrCodeUrl: compressed, englishQrCodeUrl: compressed });
-          setToast({ show: true, type: 'success', message: 'English Payment QR Code uploaded & saved to Firestore!' });
-        } else {
-          setPmQrCodeUrl(compressed);
-          setPmEnglishQrCodeUrl(compressed);
-          setToast({ show: true, type: 'success', message: 'English Payment QR Code image attached!' });
-        }
-      } catch (err: any) {
-        setToast({ show: true, type: 'error', message: err.message || 'Failed to upload QR code image' });
-      }
-    }
-  };
-
-  const handlePmEnglishQrFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEditForId?: string) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      try {
-        const compressed = await compressImageFile(file, 700, 700, 0.88);
-        if (isEditForId) {
-          await updatePaymentMethod(isEditForId, { qrCodeUrl: compressed, englishQrCodeUrl: compressed });
-          setToast({ show: true, type: 'success', message: 'English Payment QR Code uploaded & saved to Firestore!' });
-        } else {
-          setPmEnglishQrCodeUrl(compressed);
-          setPmQrCodeUrl(compressed);
-          setToast({ show: true, type: 'success', message: 'English Payment QR Code image attached!' });
-        }
-      } catch (err: any) {
-        setToast({ show: true, type: 'error', message: err.message || 'Failed to upload English QR code' });
-      }
-    }
-  };
-
-  const handlePmBengaliQrFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEditForId?: string) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      try {
-        const compressed = await compressImageFile(file, 700, 700, 0.88);
-        if (isEditForId) {
-          await updatePaymentMethod(isEditForId, { bengaliQrCodeUrl: compressed });
-          setToast({ show: true, type: 'success', message: 'Bengali / Bangla QR Code uploaded & saved to Firestore!' });
-        } else {
-          setPmBengaliQrCodeUrl(compressed);
-          setToast({ show: true, type: 'success', message: 'Bengali / Bangla QR Code image attached!' });
-        }
-      } catch (err: any) {
-        setToast({ show: true, type: 'error', message: err.message || 'Failed to upload Bengali QR code' });
       }
     }
   };
@@ -3045,34 +3007,29 @@ export function AdminDashboard() {
                         }
                       };
 
+                      const activeSubQrUrl =
+                        activeSub.qrCodeUrl ||
+                        activeSub.englishQrCodeUrl ||
+                        activeSub.bengaliQrCodeUrl ||
+                        '';
+
                       const handleSubQrFileUpload = async (
-                        e: React.ChangeEvent<HTMLInputElement>,
-                        qrLang: 'en' | 'bn'
+                        e: React.ChangeEvent<HTMLInputElement>
                       ) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
                         try {
                           const compressed = await compressImageFile(file, 700, 700, 0.88);
-                          if (qrLang === 'en') {
-                            updateActiveSub({
-                              qrCodeUrl: compressed,
-                              englishQrCodeUrl: compressed,
-                            });
-                            setToast({
-                              show: true,
-                              type: 'success',
-                              message: `${activeSub.label} English QR Code attached!`,
-                            });
-                          } else {
-                            updateActiveSub({
-                              bengaliQrCodeUrl: compressed,
-                            });
-                            setToast({
-                              show: true,
-                              type: 'success',
-                              message: `${activeSub.label} Bangla QR Code attached!`,
-                            });
-                          }
+                          updateActiveSub({
+                            qrCodeUrl: compressed,
+                            englishQrCodeUrl: compressed,
+                            bengaliQrCodeUrl: '',
+                          });
+                          setToast({
+                            show: true,
+                            type: 'success',
+                            message: `${activeSub.label} QR Code attached!`,
+                          });
                         } catch (err: any) {
                           setToast({
                             show: true,
@@ -3292,119 +3249,66 @@ export function AdminDashboard() {
                               />
                             </div>
 
-                            {/* Dual QR Codes (English QR & Bangla QR) for this specific Sub-Option */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                              {/* English QR for Sub-Option */}
-                              <div className="p-3 rounded-xl bg-[#FFF0F6]/50 border border-[#FFADD2] space-y-2">
+                            {/* Single Unified QR Code Uploader for this Sub-Option */}
+                            <div className="pt-1">
+                              <div className="p-3 rounded-xl bg-neutral-50 border border-[#E5E5E5] space-y-2.5">
                                 <div className="flex items-center justify-between">
-                                  <span className="font-bold text-[10px] uppercase text-[#171717] flex items-center gap-1">
-                                    <QrCode size={12} className="text-[#E2136E]" />
-                                    <span>{activeSub.label} — English QR</span>
+                                  <span className="font-bold text-[10px] uppercase tracking-wider text-[#171717] flex items-center gap-1.5">
+                                    <QrCode size={13} className="text-[#E2136E]" />
+                                    <span>{activeSub.label} — Payment QR Code (কিউআর কোড)</span>
                                   </span>
-                                  {isValidImageUrl(activeSub.englishQrCodeUrl || activeSub.qrCodeUrl) && (
+                                  {isValidImageUrl(activeSubQrUrl) && (
                                     <button
                                       type="button"
-                                      onClick={() => updateActiveSub({ qrCodeUrl: '', englishQrCodeUrl: '' })}
+                                      onClick={() =>
+                                        updateActiveSub({
+                                          qrCodeUrl: '',
+                                          englishQrCodeUrl: '',
+                                          bengaliQrCodeUrl: '',
+                                        })
+                                      }
                                       className="text-[10px] font-bold text-[#D71920] hover:underline cursor-pointer"
                                     >
-                                      Remove
+                                      Remove QR
                                     </button>
                                   )}
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <div className="w-11 h-11 rounded-lg bg-white border border-[#FFADD2] flex items-center justify-center overflow-hidden shrink-0 p-0.5">
-                                    {isValidImageUrl(activeSub.englishQrCodeUrl || activeSub.qrCodeUrl) ? (
+                                <div className="flex items-center gap-2.5">
+                                  <div className="w-12 h-12 rounded-lg bg-white border border-[#E5E5E5] flex items-center justify-center overflow-hidden shrink-0 p-1">
+                                    {isValidImageUrl(activeSubQrUrl) ? (
                                       <img
-                                        src={activeSub.englishQrCodeUrl || activeSub.qrCodeUrl}
-                                        alt="Sub EN QR"
+                                        src={activeSubQrUrl}
+                                        alt={`${activeSub.label} QR Code`}
                                         className="w-full h-full object-contain"
                                       />
                                     ) : (
-                                      <span className="text-[8px] font-bold text-[#E2136E]">Auto QR</span>
+                                      <QrCode size={18} className="text-neutral-400" />
                                     )}
                                   </div>
                                   <input
                                     type="text"
-                                    placeholder="QR Image URL"
-                                    value={
-                                      isValidImageUrl(activeSub.englishQrCodeUrl || activeSub.qrCodeUrl)
-                                        ? activeSub.englishQrCodeUrl || activeSub.qrCodeUrl || ''
-                                        : ''
-                                    }
+                                    placeholder="Paste QR Image URL or upload image →"
+                                    data-testid={`subopt-qr-url-${pmEditingSubTab}`}
+                                    value={isValidImageUrl(activeSubQrUrl) ? activeSubQrUrl : ''}
                                     onChange={e => {
                                       const v = sanitizeImageUrl(e.target.value);
-                                      updateActiveSub({ qrCodeUrl: v, englishQrCodeUrl: v });
+                                      updateActiveSub({
+                                        qrCodeUrl: v,
+                                        englishQrCodeUrl: v,
+                                        bengaliQrCodeUrl: '',
+                                      });
                                     }}
-                                    className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg border border-[#E5E5E5] bg-white text-[11px] text-[#171717]"
+                                    className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-[#E5E5E5] bg-white text-xs text-[#171717] focus:outline-none focus:border-[#E2136E]"
                                   />
-                                  <label className="px-2.5 py-1.5 bg-[#E2136E] hover:bg-[#c81060] text-white font-bold rounded-lg text-[10px] cursor-pointer shrink-0 flex items-center gap-1">
-                                    <Upload size={11} />
-                                    <span>Upload</span>
+                                  <label className="px-3 py-2 bg-[#171717] hover:bg-neutral-800 text-white font-bold rounded-lg text-[11px] cursor-pointer shrink-0 flex items-center gap-1.5 transition-colors">
+                                    <Upload size={12} />
+                                    <span>Upload QR</span>
                                     <input
                                       type="file"
                                       accept="image/*"
                                       className="hidden"
                                       onChange={e => {
-                                        handleSubQrFileUpload(e, 'en');
-                                        e.target.value = '';
-                                      }}
-                                    />
-                                  </label>
-                                </div>
-                              </div>
-
-                              {/* Bangla QR for Sub-Option */}
-                              <div className="p-3 rounded-xl bg-emerald-50/50 border border-emerald-200 space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <span className="font-bold text-[10px] uppercase text-[#171717] flex items-center gap-1">
-                                    <QrCode size={12} className="text-emerald-600" />
-                                    <span>{activeSub.label} — বাংলা কিউআর</span>
-                                  </span>
-                                  {isValidImageUrl(activeSub.bengaliQrCodeUrl) && (
-                                    <button
-                                      type="button"
-                                      onClick={() => updateActiveSub({ bengaliQrCodeUrl: '' })}
-                                      className="text-[10px] font-bold text-[#D71920] hover:underline cursor-pointer"
-                                    >
-                                      Remove
-                                    </button>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <div className="w-11 h-11 rounded-lg bg-white border border-emerald-200 flex items-center justify-center overflow-hidden shrink-0 p-0.5">
-                                    {isValidImageUrl(activeSub.bengaliQrCodeUrl) ? (
-                                      <img
-                                        src={activeSub.bengaliQrCodeUrl}
-                                        alt="Sub BN QR"
-                                        className="w-full h-full object-contain"
-                                      />
-                                    ) : (
-                                      <span className="text-[8px] font-bold text-emerald-600">Auto BN</span>
-                                    )}
-                                  </div>
-                                  <input
-                                    type="text"
-                                    placeholder="Bangla QR URL"
-                                    value={
-                                      isValidImageUrl(activeSub.bengaliQrCodeUrl)
-                                        ? activeSub.bengaliQrCodeUrl || ''
-                                        : ''
-                                    }
-                                    onChange={e => {
-                                      const v = sanitizeImageUrl(e.target.value);
-                                      updateActiveSub({ bengaliQrCodeUrl: v });
-                                    }}
-                                    className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg border border-[#E5E5E5] bg-white text-[11px] text-[#171717]"
-                                  />
-                                  <label className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-[10px] cursor-pointer shrink-0 flex items-center gap-1">
-                                    <Upload size={11} />
-                                    <span>Upload</span>
-                                    <input
-                                      type="file"
-                                      accept="image/*"
-                                      className="hidden"
-                                      onChange={e => {
-                                        handleSubQrFileUpload(e, 'bn');
+                                        handleSubQrFileUpload(e);
                                         e.target.value = '';
                                       }}
                                     />

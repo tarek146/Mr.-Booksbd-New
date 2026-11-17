@@ -6,6 +6,7 @@ import {
   getActiveOnlinePaymentMethods,
   validatePaymentTransactionPopup,
   getPaymentMethodSubOptions,
+  resolveSinglePaymentQrInfo,
 } from '../utils/reviewHelpers';
 import {
   Copy,
@@ -30,21 +31,20 @@ import {
 function generateFallbackPaymentQrDataUrl(
   method: PaymentMethodConfig,
   totalAmount: number,
-  language: 'en' | 'bn' = 'en',
   subOption?: PaymentSubOptionConfig
 ): string {
   if (typeof document === 'undefined') return '';
   try {
+    const qrInfo = resolveSinglePaymentQrInfo({ method, subOption });
     const meta = getPaymentMethodDisplayMeta(method);
-    const effectiveAccType = subOption?.accountType || meta.accountType;
-    const effectiveAccNum = subOption?.accountNumber || method.accountNumber;
-    const effectiveAccName = subOption?.accountName || method.accountName;
-    const effectiveSubLabelBn = subOption?.label || '';
-    const effectiveSubLabelEn = subOption?.englishLabel || '';
+    const effectiveAccType = qrInfo.accountType;
+    const effectiveAccNum = qrInfo.accountNumber;
+    const effectiveAccName = qrInfo.accountName;
+    const effectiveSubLabel = subOption?.label || '';
 
     const canvas = document.createElement('canvas');
     canvas.width = 640;
-    canvas.height = 760;
+    canvas.height = 750;
     const ctx = canvas.getContext('2d');
     if (!ctx) return '';
 
@@ -61,53 +61,41 @@ function generateFallbackPaymentQrDataUrl(
         ? '#006A4E'
         : '#1E3A8A';
 
-    const isBn = language === 'bn';
     const accTypeLabelBn =
       effectiveAccType === 'Merchant' ? 'মার্চেন্ট' : effectiveAccType === 'Agent' ? 'এজেন্ট' : 'ব্যক্তিগত';
-    const accTypeLabel = isBn
-      ? accTypeLabelBn
-      : effectiveAccType && effectiveAccType !== 'None'
-      ? effectiveAccType
-      : 'Personal';
 
-    // White card background
+    // Crisp white card background
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Top brand header bar
     ctx.fillStyle = brandColor;
-    ctx.fillRect(0, 0, canvas.width, 130);
+    ctx.fillRect(0, 0, canvas.width, 124);
 
-    // Brand Title & Account Type
+    // Gateway QR title
     ctx.fillStyle = '#FFFFFF';
     ctx.textAlign = 'center';
-    ctx.font = '900 30px Hind Siliguri, Inter, system-ui, sans-serif';
-    ctx.fillText(
-      isBn ? `${meta.displayTitle} (বাংলা কিউআর)` : `${meta.englishName} Payment QR`,
-      canvas.width / 2,
-      58
-    );
+    ctx.font = '800 30px Hind Siliguri, Inter, system-ui, sans-serif';
+    ctx.fillText(qrInfo.title, canvas.width / 2, 56);
 
-    ctx.font = '700 19px Hind Siliguri, Inter, system-ui, sans-serif';
+    ctx.font = '600 18px Hind Siliguri, Inter, system-ui, sans-serif';
     ctx.fillText(
-      isBn
-        ? `${effectiveSubLabelBn ? effectiveSubLabelBn + ' • ' : ''}${accTypeLabel} একাউন্ট • মোট প্রদেয়: ৳${totalAmount}`
-        : `${effectiveSubLabelEn ? effectiveSubLabelEn + ' • ' : ''}${accTypeLabel} Account • Payable: ৳${totalAmount}`,
+      `${effectiveSubLabel ? effectiveSubLabel + ' • ' : ''}${accTypeLabelBn} • প্রদেয়: ৳${totalAmount}`,
       canvas.width / 2,
-      98
+      94
     );
 
     // QR Code outer frame
     const qrBoxSize = 380;
     const qrBoxX = (canvas.width - qrBoxSize) / 2;
-    const qrBoxY = 165;
+    const qrBoxY = 160;
 
-    ctx.strokeStyle = '#E2E8F0';
-    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#E5E7EB';
+    ctx.lineWidth = 3;
     ctx.strokeRect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize);
 
     // Deterministic 25x25 QR matrix from payment payload
-    const payload = `${meta.englishName}|${language}|${accTypeLabel}|${effectiveAccNum}|BDT:${totalAmount}`;
+    const payload = `${meta.englishName}|${accTypeLabelBn}|${effectiveAccNum}|BDT:${totalAmount}`;
     let seed = 2166136261;
     for (let i = 0; i < payload.length; i++) {
       seed ^= payload.charCodeAt(i);
@@ -133,7 +121,7 @@ function generateFallbackPaymentQrDataUrl(
           const isBorder = r === 0 || r === 6 || c === 0 || c === 6;
           const isInner = r >= 2 && r <= 4 && c >= 2 && c <= 4;
           if (isBorder || isInner) {
-            ctx.fillStyle = isInner ? brandColor : '#0F172A';
+            ctx.fillStyle = isInner ? brandColor : '#111827';
             ctx.fillRect(
               startX + (colOffset + c) * cellSize,
               startY + (rowOffset + r) * cellSize,
@@ -149,18 +137,16 @@ function generateFallbackPaymentQrDataUrl(
     drawFinderPattern(0, modules - 7);
     drawFinderPattern(modules - 7, 0);
 
-    ctx.fillStyle = '#0F172A';
+    ctx.fillStyle = '#111827';
     for (let r = 0; r < modules; r++) {
       for (let c = 0; c < modules; c++) {
         if (isFinderArea(r, c)) continue;
-        // Timing pattern
         if (r === 6 || c === 6) {
           if ((r + c) % 2 === 0) {
             ctx.fillRect(startX + c * cellSize, startY + r * cellSize, cellSize, cellSize);
           }
           continue;
         }
-        // Center badge reserve (10..14)
         if (r >= 10 && r <= 14 && c >= 10 && c <= 14) continue;
 
         seed ^= (r * 31 + c * 17) & 0xff;
@@ -171,48 +157,48 @@ function generateFallbackPaymentQrDataUrl(
       }
     }
 
-    // Center brand badge inside QR
+    // Center gateway badge inside QR
     const centerBox = cellSize * 5;
     const centerX = startX + 10 * cellSize;
     const centerY = startY + 10 * cellSize;
     ctx.fillStyle = brandColor;
     ctx.fillRect(centerX, centerY, centerBox, centerBox);
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = '900 16px Inter, system-ui, sans-serif';
-    ctx.fillText(
-      isBn ? 'বাংলা' : meta.englishName.slice(0, 5).toUpperCase(),
-      centerX + centerBox / 2,
-      centerY + centerBox / 2 + 6
-    );
+    ctx.font = '800 15px Inter, system-ui, sans-serif';
+    const shortBrand =
+      method.type === 'bkash'
+        ? 'bKash'
+        : method.type === 'nagad'
+        ? 'Nagad'
+        : method.type === 'rocket'
+        ? 'Rocket'
+        : method.type === 'upay'
+        ? 'Upay'
+        : method.type === 'bank'
+        ? 'Bank'
+        : 'PAY';
+    ctx.fillText(shortBrand, centerX + centerBox / 2, centerY + centerBox / 2 + 5);
 
-    // Bottom Payment Number & Account Details
-    ctx.fillStyle = '#64748B';
+    // Bottom Account Details
+    ctx.fillStyle = '#6B7280';
     ctx.font = '700 15px Hind Siliguri, Inter, system-ui, sans-serif';
-    ctx.fillText(
-      isBn ? `${meta.displayTitle} একাউন্ট নম্বর` : `${method.type.toUpperCase()} ACCOUNT / NUMBER`,
-      canvas.width / 2,
-      592
-    );
+    ctx.fillText(`${meta.displayTitle} একাউন্ট নম্বর`, canvas.width / 2, 588);
 
-    ctx.fillStyle = '#0F172A';
-    ctx.font = '900 36px Inter, monospace, sans-serif';
-    ctx.fillText(effectiveAccNum || '', canvas.width / 2, 640);
+    ctx.fillStyle = '#111827';
+    ctx.font = '800 36px Inter, monospace, sans-serif';
+    ctx.fillText(effectiveAccNum || '', canvas.width / 2, 636);
 
     ctx.fillStyle = brandColor;
-    ctx.font = '700 17px Hind Siliguri, Inter, system-ui, sans-serif';
+    ctx.font = '700 16px Hind Siliguri, Inter, system-ui, sans-serif';
     ctx.fillText(
-      isBn ? `${effectiveAccName || 'MR. BOOKS'} • স্ক্যান করে পেমেন্ট করুন` : `${effectiveAccName || 'MR. BOOKS'} • Scan with App to Pay`,
+      `${effectiveAccName || 'MR. BOOKS'} • স্ক্যান করে পেমেন্ট করুন`,
       canvas.width / 2,
-      685
+      682
     );
 
-    ctx.fillStyle = '#94A3B8';
-    ctx.font = '600 13px Hind Siliguri, Inter, system-ui, sans-serif';
-    ctx.fillText(
-      isBn ? 'MR. BOOKS অফিসিয়াল বাংলা কিউআর পেমেন্ট ভেরিফিকেশন' : 'MR. BOOKS Official Payment Verification QR',
-      canvas.width / 2,
-      725
-    );
+    ctx.fillStyle = '#9CA3AF';
+    ctx.font = '600 13px Inter, system-ui, sans-serif';
+    ctx.fillText('MR. BOOKS Official Payment QR', canvas.width / 2, 718);
 
     return canvas.toDataURL('image/png');
   } catch {
@@ -622,11 +608,9 @@ export function PaymentInstructions({
   const { settings } = useStore();
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [popupError, setPopupError] = useState('');
-  const [qrLanguage, setQrLanguage] = useState<'bn' | 'en'>('bn');
   const [qrModalMethod, setQrModalMethod] = useState<{
     method: PaymentMethodConfig;
     subOption: PaymentSubOptionConfig;
-    language: 'bn' | 'en';
   } | null>(null);
   const [activeTabId, setActiveTabId] = useState<string>(selectedMethod.id);
   const [selectedSubOptionId, setSelectedSubOptionId] = useState<PaymentSubOptionType>('send_money');
@@ -686,12 +670,11 @@ export function PaymentInstructions({
   const handleDownloadQrImage = async (
     method: PaymentMethodConfig,
     imageUrl: string,
-    lang: 'bn' | 'en' = qrLanguage,
     subOpt?: PaymentSubOptionConfig
   ) => {
     const methodMeta = getPaymentMethodDisplayMeta(method);
     const subTag = subOpt?.id === 'payment' ? 'payment' : 'send-money';
-    const fileName = `${(methodMeta.englishName || method.type || 'payment').toLowerCase().replace(/\s+/g, '-')}-${subTag}-${lang}-qr.png`;
+    const fileName = `${(methodMeta.englishName || method.type || 'payment').toLowerCase().replace(/\s+/g, '-')}-${subTag}-qr.png`;
 
     try {
       if (imageUrl && imageUrl.startsWith('data:')) {
@@ -722,7 +705,7 @@ export function PaymentInstructions({
         }
       }
 
-      const generated = generateFallbackPaymentQrDataUrl(method, totalAmount, lang, subOpt);
+      const generated = generateFallbackPaymentQrDataUrl(method, totalAmount, subOpt);
       if (generated) {
         const link = document.createElement('a');
         link.href = generated;
@@ -733,7 +716,7 @@ export function PaymentInstructions({
       }
     } catch (err) {
       console.warn('QR download fallback triggered:', err);
-      const generated = generateFallbackPaymentQrDataUrl(method, totalAmount, lang, subOpt);
+      const generated = generateFallbackPaymentQrDataUrl(method, totalAmount, subOpt);
       if (generated) {
         const link = document.createElement('a');
         link.href = generated;
@@ -860,26 +843,24 @@ export function PaymentInstructions({
     [currentActiveMethod]
   );
 
-  const englishQrSrc = useMemo(() => {
-    if (!isModalOpen) return '';
-    return (
-      activeSubOption?.englishQrCodeUrl ||
-      activeSubOption?.qrCodeUrl ||
-      (activeSubOption?.id === 'send_money' ? activeMeta.englishQrCodeUrl || activeMeta.qrCodeUrl : '') ||
-      generateFallbackPaymentQrDataUrl(currentActiveMethod, totalAmount, 'en', activeSubOption)
-    );
-  }, [isModalOpen, activeSubOption, activeMeta, currentActiveMethod, totalAmount]);
+  const activeQrInfo = useMemo(
+    () =>
+      resolveSinglePaymentQrInfo({
+        method: currentActiveMethod,
+        subOption: activeSubOption,
+        banglaQrImageUrl:
+          settings?.enableBanglaQr !== false ? settings?.banglaQrImageUrl : undefined,
+      }),
+    [currentActiveMethod, activeSubOption, settings?.banglaQrImageUrl, settings?.enableBanglaQr]
+  );
 
-  const bengaliQrSrc = useMemo(() => {
+  const activeQrSrc = useMemo(() => {
     if (!isModalOpen) return '';
     return (
-      activeSubOption?.bengaliQrCodeUrl ||
-      (activeSubOption?.id === 'send_money' ? activeMeta.bengaliQrCodeUrl : '') ||
-      (currentActiveMethod.type === 'bangla_qr' ? activeSubOption?.qrCodeUrl || activeMeta.qrCodeUrl : '') ||
-      (settings?.banglaQrImageUrl && settings.enableBanglaQr !== false ? settings.banglaQrImageUrl : '') ||
-      generateFallbackPaymentQrDataUrl(currentActiveMethod, totalAmount, 'bn', activeSubOption)
+      activeQrInfo.customQrUrl ||
+      generateFallbackPaymentQrDataUrl(currentActiveMethod, totalAmount, activeSubOption)
     );
-  }, [isModalOpen, activeSubOption, activeMeta, currentActiveMethod, settings?.banglaQrImageUrl, settings?.enableBanglaQr, totalAmount]);
+  }, [isModalOpen, activeQrInfo.customQrUrl, currentActiveMethod, totalAmount, activeSubOption]);
 
   return (
     <>
@@ -894,14 +875,7 @@ export function PaymentInstructions({
         const effectiveAccountName = activeSubOption?.accountName || currentActiveMethod.accountName;
         const effectiveAccountType = activeSubOption?.accountType || activeMeta.accountType;
         const effectiveInstructions = activeSubOption?.instructions || activeMeta.instructionText;
-
-        const activeQrSrc = qrLanguage === 'bn' ? bengaliQrSrc : englishQrSrc;
-        const activeQrLabel =
-          qrLanguage === 'bn'
-            ? currentActiveMethod.type === 'bangla_qr'
-              ? `বাংলা কিউআর (${activeSubOption.label})`
-              : `${activeMeta.displayTitle} ${activeSubOption.label} কিউআর`
-            : `${activeMeta.englishName} (${activeSubOption.englishLabel || activeSubOption.label}) QR`;
+        const activeQrLabel = activeQrInfo.title;
 
         return (
           <div
@@ -1050,16 +1024,17 @@ export function PaymentInstructions({
                       )}
                     </div>
 
-                    {/* Right: Compact QR Thumbnail + Quick Actions */}
+                    {/* Right: Single QR Thumbnail + Quick Actions */}
                     <div className="flex items-center gap-2 shrink-0 border-l border-neutral-200 dark:border-slate-700 pl-3">
-                      <div
+                      <button
+                        type="button"
                         onClick={() =>
                           setQrModalMethod({
                             method: currentActiveMethod,
                             subOption: activeSubOption,
-                            language: qrLanguage,
                           })
                         }
+                        aria-label={`Enlarge ${activeQrLabel}`}
                         title="Click to enlarge QR Code"
                         className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-white border border-neutral-200 dark:border-slate-700 p-1 flex items-center justify-center shrink-0 cursor-pointer hover:border-neutral-400 transition-colors"
                       >
@@ -1068,7 +1043,7 @@ export function PaymentInstructions({
                           alt={activeQrLabel}
                           className="w-full h-full object-contain"
                         />
-                      </div>
+                      </button>
 
                       <div className="flex flex-col gap-1">
                         <div className="px-2 py-0.5 rounded border border-neutral-200 dark:border-slate-700 bg-neutral-50 dark:bg-slate-800 text-[10px] font-semibold text-neutral-600 dark:text-slate-300 text-center">
@@ -1082,7 +1057,6 @@ export function PaymentInstructions({
                               setQrModalMethod({
                                 method: currentActiveMethod,
                                 subOption: activeSubOption,
-                                language: qrLanguage,
                               })
                             }
                             data-testid="popup-view-large-qr-btn"
@@ -1094,8 +1068,9 @@ export function PaymentInstructions({
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleDownloadQrImage(currentActiveMethod, activeQrSrc, qrLanguage, activeSubOption)}
+                            onClick={() => handleDownloadQrImage(currentActiveMethod, activeQrSrc, activeSubOption)}
                             data-testid="popup-download-qr-btn"
+                            aria-label="Download QR"
                             title="Download QR"
                             className="px-1.5 py-1 rounded border border-neutral-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-neutral-100 text-neutral-700 dark:text-slate-200 text-[10px] font-medium inline-flex items-center gap-0.5 cursor-pointer"
                           >
@@ -1190,39 +1165,29 @@ export function PaymentInstructions({
         );
       })()}
 
-      {/* ENLARGED PAYMENT QR CODE MODAL */}
+      {/* SINGLE CLEAN PAYMENT QR CODE MODAL */}
       {qrModalMethod && (() => {
         const method = qrModalMethod.method;
         const subOpt = qrModalMethod.subOption;
-        const currentLang = qrModalMethod.language;
-        const qrMeta = getPaymentMethodDisplayMeta(method);
+        const qrInfo = resolveSinglePaymentQrInfo({
+          method,
+          subOption: subOpt,
+          banglaQrImageUrl:
+            settings?.enableBanglaQr !== false ? settings?.banglaQrImageUrl : undefined,
+        });
 
-        const englishQrSrc =
-          subOpt?.englishQrCodeUrl ||
-          subOpt?.qrCodeUrl ||
-          (subOpt?.id === 'send_money' ? qrMeta.englishQrCodeUrl || qrMeta.qrCodeUrl : '') ||
-          generateFallbackPaymentQrDataUrl(method, totalAmount, 'en', subOpt);
+        const displayQrSrc =
+          qrInfo.customQrUrl ||
+          generateFallbackPaymentQrDataUrl(method, totalAmount, subOpt);
 
-        const bengaliQrSrc =
-          subOpt?.bengaliQrCodeUrl ||
-          (subOpt?.id === 'send_money' ? qrMeta.bengaliQrCodeUrl : '') ||
-          (method.type === 'bangla_qr' ? subOpt?.qrCodeUrl || qrMeta.qrCodeUrl : '') ||
-          (settings?.banglaQrImageUrl && settings.enableBanglaQr !== false ? settings.banglaQrImageUrl : '') ||
-          generateFallbackPaymentQrDataUrl(method, totalAmount, 'bn', subOpt);
-
-        const displayQrSrc = currentLang === 'bn' ? bengaliQrSrc : englishQrSrc;
-        const qrTitle =
-          currentLang === 'bn'
-            ? method.type === 'bangla_qr'
-              ? `বাংলা কিউআর (${subOpt.label})`
-              : `${qrMeta.displayTitle} ${subOpt.label} কিউআর`
-            : `${qrMeta.englishName} (${subOpt.englishLabel || subOpt.label}) QR`;
+        const qrCopyId = `qr-modal-${method.id}-${subOpt.id}`;
+        const isQrCopied = copiedKey === qrCopyId;
 
         return (
           <div
             role="dialog"
             aria-modal="true"
-            aria-label={`${qrMeta.displayTitle} QR Code`}
+            aria-label={qrInfo.title}
             data-testid="payment-qr-modal"
             className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/65 backdrop-blur-[1px] animate-in fade-in duration-150"
             onClick={e => {
@@ -1231,80 +1196,96 @@ export function PaymentInstructions({
               }
             }}
           >
-            <div className="w-full max-w-xs bg-white dark:bg-[#121722] rounded-xl border border-neutral-200 dark:border-slate-800 p-4 shadow-xl space-y-3 relative text-center">
-              <div className="flex items-center justify-between border-b border-neutral-100 dark:border-slate-800 pb-2.5">
-                <div className="flex items-center gap-2 text-left">
+            <div className="w-full max-w-[340px] sm:max-w-sm bg-white dark:bg-[#121722] rounded-2xl border border-neutral-200 dark:border-slate-800 p-4 sm:p-5 shadow-2xl space-y-3.5 animate-in zoom-in-95 duration-150">
+              {/* Minimal Clean Gateway Header */}
+              <div className="flex items-center justify-between gap-3 pb-3 border-b border-neutral-100 dark:border-slate-800">
+                <div className="flex items-center gap-2.5 min-w-0 text-left">
                   <PaymentBrandIcon method={method} size="sm" />
-                  <div>
-                    <h4 className="text-xs font-semibold text-neutral-900 dark:text-white leading-tight">
-                      {qrTitle}
+                  <div className="min-w-0">
+                    <h4 className="text-sm font-semibold text-neutral-900 dark:text-white leading-tight truncate">
+                      {qrInfo.title}
                     </h4>
-                    <span className="text-[11px] font-mono text-neutral-500 dark:text-slate-400">
-                      {subOpt.accountNumber || method.accountNumber}
-                    </span>
+                    <p className="text-[11px] text-neutral-500 dark:text-slate-400 mt-0.5 truncate">
+                      {qrInfo.subtitle || qrInfo.accountType}
+                    </p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setQrModalMethod(null)}
                   aria-label="Close QR Modal"
-                  className="w-7 h-7 rounded-md bg-neutral-100 hover:bg-neutral-200 dark:bg-slate-800 text-neutral-500 flex items-center justify-center cursor-pointer"
+                  className="w-8 h-8 rounded-lg border border-neutral-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-neutral-100 text-neutral-500 hover:text-neutral-900 dark:text-slate-400 dark:hover:text-white flex items-center justify-center shrink-0 transition-colors cursor-pointer"
                 >
-                  <X size={14} />
+                  <X size={15} />
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-1 bg-neutral-100 dark:bg-slate-800 p-1 rounded-lg">
-                <button
-                  type="button"
-                  onClick={() => setQrModalMethod({ method, subOption: subOpt, language: 'bn' })}
-                  className={`py-1 rounded text-xs font-medium cursor-pointer ${
-                    currentLang === 'bn'
-                      ? 'bg-white dark:bg-[#1E283A] text-neutral-900 dark:text-white shadow-2xs'
-                      : 'text-neutral-500'
-                  }`}
-                >
-                  বাংলা QR
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setQrModalMethod({ method, subOption: subOpt, language: 'en' })}
-                  className={`py-1 rounded text-xs font-medium cursor-pointer ${
-                    currentLang === 'en'
-                      ? 'bg-white dark:bg-[#1E283A] text-neutral-900 dark:text-white shadow-2xs'
-                      : 'text-neutral-500'
-                  }`}
-                >
-                  English QR
-                </button>
-              </div>
-
-              <div className="bg-neutral-50 dark:bg-[#161D2B] border border-neutral-200 dark:border-slate-700 rounded-lg p-2.5 flex items-center justify-center">
+              {/* Primary Single QR Showcase */}
+              <div className="bg-white rounded-xl border border-neutral-200/90 dark:border-slate-700 p-3 flex items-center justify-center">
                 {displayQrSrc ? (
                   <img
                     src={displayQrSrc}
-                    alt={qrTitle}
-                    className="w-full max-h-[260px] object-contain rounded bg-white mx-auto"
+                    alt={qrInfo.title}
+                    data-testid="payment-qr-image"
+                    className="w-full max-h-[268px] object-contain mx-auto"
                   />
                 ) : (
-                  <div className="py-10 text-xs text-neutral-400">QR Code Unavailable</div>
+                  <div className="py-12 text-xs text-neutral-400">QR Code Unavailable</div>
                 )}
               </div>
 
-              <div className="flex items-center gap-2">
+              {/* Compact Account & Payable Strip */}
+              <div className="rounded-xl border border-neutral-200/90 dark:border-slate-700/80 bg-neutral-50/70 dark:bg-slate-800/40 px-3.5 py-2.5 flex items-center justify-between gap-3">
+                <div className="min-w-0 text-left">
+                  <div className="text-[10px] font-medium uppercase tracking-wider text-neutral-500 dark:text-slate-400">
+                    Account Number
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-sm font-bold font-mono tabular-nums text-neutral-900 dark:text-white select-all truncate">
+                      {qrInfo.accountNumber}
+                    </span>
+                    {qrInfo.accountNumber && (
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(qrInfo.accountNumber, qrCopyId)}
+                        className={`px-2 py-0.5 rounded border text-[10px] font-medium inline-flex items-center gap-1 transition-colors cursor-pointer ${
+                          isQrCopied
+                            ? 'bg-emerald-600 border-emerald-600 text-white'
+                            : 'bg-white dark:bg-slate-800 border-neutral-200 dark:border-slate-600 text-neutral-700 dark:text-slate-200 hover:bg-neutral-100'
+                        }`}
+                      >
+                        {isQrCopied ? <Check size={10} /> : <Copy size={10} />}
+                        <span>{isQrCopied ? 'Copied' : 'Copy'}</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="text-right shrink-0 pl-3 border-l border-neutral-200 dark:border-slate-700">
+                  <div className="text-[10px] font-medium uppercase tracking-wider text-neutral-500 dark:text-slate-400">
+                    Payable
+                  </div>
+                  <div className="text-sm font-bold text-neutral-900 dark:text-white tabular-nums mt-0.5">
+                    ৳{totalAmount}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2 pt-0.5">
                 <button
                   type="button"
-                  onClick={() => handleDownloadQrImage(method, displayQrSrc, currentLang, subOpt)}
+                  onClick={() => handleDownloadQrImage(method, displayQrSrc, subOpt)}
                   data-testid="download-qr-btn"
-                  className="flex-1 h-9 px-3 rounded-lg bg-neutral-900 dark:bg-[#D71920] hover:bg-neutral-800 text-white font-medium text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="flex-1 h-10 px-4 rounded-xl bg-neutral-900 dark:bg-[#D71920] hover:bg-neutral-800 dark:hover:bg-[#B9151B] text-white font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                 >
-                  <Download size={13} />
+                  <Download size={14} />
                   <span>Download QR</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setQrModalMethod(null)}
-                  className="h-9 px-3 rounded-lg border border-neutral-200 dark:border-slate-700 text-neutral-700 dark:text-slate-200 font-medium text-xs cursor-pointer"
+                  className="h-10 px-4 rounded-xl border border-neutral-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-neutral-50 text-neutral-700 dark:text-slate-200 font-medium text-xs cursor-pointer transition-colors"
                 >
                   Close
                 </button>
