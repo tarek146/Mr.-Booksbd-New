@@ -4,6 +4,18 @@ export const DEFAULT_HOME_CONFIG: HomeConfig = {
   showReviews: true,
   showAuthors: true,
   newArrivalsTitle: 'New Arrivals Collection',
+  bestSellingTitle: 'Best Selling Books',
+  allBooksTitle: 'All Books',
+  showCategoriesStrip: true,
+  showCategoryProductRows: false,
+  showOfferSection: true,
+  showNewArrivalsSection: true,
+  showBestSellingSection: true,
+  showAllBooksSection: true,
+  showStationerySection: false,
+  newArrivalsLimit: 10,
+  bestSellingLimit: 10,
+  allBooksLimit: 20,
   reviewsSlotReplacement: 'reviews',
   authorsSlotReplacement: 'writers',
   reviewIconStyle: 'heart',
@@ -20,6 +32,32 @@ export function resolveNewArrivalsTitle(
     return DEFAULT_HOME_CONFIG.newArrivalsTitle || 'New Arrivals Collection';
   }
   return raw;
+}
+
+export function resolveBestSellingTitle(
+  homeConfig?: Partial<HomeConfig> | null
+): string {
+  const raw = homeConfig?.bestSellingTitle?.trim();
+  return raw || DEFAULT_HOME_CONFIG.bestSellingTitle || 'Best Selling Books';
+}
+
+export function resolveAllBooksTitle(
+  homeConfig?: Partial<HomeConfig> | null
+): string {
+  const raw = homeConfig?.allBooksTitle?.trim();
+  return raw || DEFAULT_HOME_CONFIG.allBooksTitle || 'All Books';
+}
+
+export function resolveAllBooksLimit(
+  homeConfig?: Partial<HomeConfig> | null
+): number {
+  const raw = homeConfig?.allBooksLimit;
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) {
+    return DEFAULT_HOME_CONFIG.allBooksLimit || 20;
+  }
+  const rounded = Math.floor(raw);
+  if (rounded < 1) return DEFAULT_HOME_CONFIG.allBooksLimit || 20;
+  return Math.min(rounded, 25);
 }
 
 /**
@@ -64,6 +102,45 @@ export function resolveHomeConfig(
     showReviews,
     showAuthors,
     newArrivalsTitle: resolveNewArrivalsTitle(rawConfig),
+    bestSellingTitle: resolveBestSellingTitle(rawConfig),
+    allBooksTitle: resolveAllBooksTitle(rawConfig),
+    showCategoriesStrip:
+      typeof rawConfig?.showCategoriesStrip === 'boolean'
+        ? rawConfig.showCategoriesStrip
+        : DEFAULT_HOME_CONFIG.showCategoriesStrip,
+    showCategoryProductRows:
+      typeof rawConfig?.showCategoryProductRows === 'boolean'
+        ? rawConfig.showCategoryProductRows
+        : DEFAULT_HOME_CONFIG.showCategoryProductRows,
+    showOfferSection:
+      typeof rawConfig?.showOfferSection === 'boolean'
+        ? rawConfig.showOfferSection
+        : DEFAULT_HOME_CONFIG.showOfferSection,
+    showNewArrivalsSection:
+      typeof rawConfig?.showNewArrivalsSection === 'boolean'
+        ? rawConfig.showNewArrivalsSection
+        : DEFAULT_HOME_CONFIG.showNewArrivalsSection,
+    showBestSellingSection:
+      typeof rawConfig?.showBestSellingSection === 'boolean'
+        ? rawConfig.showBestSellingSection
+        : DEFAULT_HOME_CONFIG.showBestSellingSection,
+    showAllBooksSection:
+      typeof rawConfig?.showAllBooksSection === 'boolean'
+        ? rawConfig.showAllBooksSection
+        : DEFAULT_HOME_CONFIG.showAllBooksSection,
+    showStationerySection:
+      typeof rawConfig?.showStationerySection === 'boolean'
+        ? rawConfig.showStationerySection
+        : DEFAULT_HOME_CONFIG.showStationerySection,
+    newArrivalsLimit:
+      typeof rawConfig?.newArrivalsLimit === 'number' && rawConfig.newArrivalsLimit > 0
+        ? Math.min(Math.floor(rawConfig.newArrivalsLimit), 25)
+        : DEFAULT_HOME_CONFIG.newArrivalsLimit,
+    bestSellingLimit:
+      typeof rawConfig?.bestSellingLimit === 'number' && rawConfig.bestSellingLimit > 0
+        ? Math.min(Math.floor(rawConfig.bestSellingLimit), 25)
+        : DEFAULT_HOME_CONFIG.bestSellingLimit,
+    allBooksLimit: resolveAllBooksLimit(rawConfig),
     reviewsSlotReplacement,
     authorsSlotReplacement,
     reviewIconStyle:

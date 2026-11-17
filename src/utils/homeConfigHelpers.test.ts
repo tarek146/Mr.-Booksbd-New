@@ -105,4 +105,30 @@ describe('homeConfigHelpers', () => {
     assert.ok(homeConfigMirror);
     assert.equal(homeConfigMirror.productImageFitMode, 'contain');
   });
+
+  it('disables automatic per-category product rows by default and configures core 4 sections + All Books cap', () => {
+    const cfg = resolveHomeConfig(undefined, undefined);
+    assert.equal(cfg.showCategoryProductRows, false);
+    assert.equal(cfg.showOfferSection, true);
+    assert.equal(cfg.showNewArrivalsSection, true);
+    assert.equal(cfg.showBestSellingSection, true);
+    assert.equal(cfg.showAllBooksSection, true);
+    assert.equal(cfg.allBooksLimit, 20);
+    assert.equal(cfg.bestSellingTitle, 'Best Selling Books');
+    assert.equal(cfg.allBooksTitle, 'All Books');
+
+    const customCfg = resolveHomeConfig({
+      showCategoryProductRows: true,
+      allBooksLimit: 25,
+      bestSellingTitle: 'Top Picks',
+      allBooksTitle: 'Complete Library',
+    });
+    assert.equal(customCfg.showCategoryProductRows, true);
+    assert.equal(customCfg.allBooksLimit, 25);
+    assert.equal(customCfg.bestSellingTitle, 'Top Picks');
+    assert.equal(customCfg.allBooksTitle, 'Complete Library');
+
+    const overCap = resolveHomeConfig({ allBooksLimit: 80 });
+    assert.equal(overCap.allBooksLimit, 25);
+  });
 });

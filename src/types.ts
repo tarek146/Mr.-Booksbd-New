@@ -621,6 +621,18 @@ export interface HomeConfig {
   showReviews: boolean;
   showAuthors: boolean;
   newArrivalsTitle?: string;
+  bestSellingTitle?: string;
+  allBooksTitle?: string;
+  showCategoriesStrip?: boolean;
+  showCategoryProductRows?: boolean;
+  showOfferSection?: boolean;
+  showNewArrivalsSection?: boolean;
+  showBestSellingSection?: boolean;
+  showAllBooksSection?: boolean;
+  showStationerySection?: boolean;
+  newArrivalsLimit?: number;
+  bestSellingLimit?: number;
+  allBooksLimit?: number;
   reviewsSlotReplacement?: 'reviews' | 'trust_features' | 'publishers_spotlight' | 'reading_benefits' | 'off';
   authorsSlotReplacement?: 'writers' | 'publishers_spotlight' | 'bestsellers_showcase' | 'trust_features' | 'reading_benefits' | 'off';
   reviewIconStyle?: 'heart' | 'verified_shield' | 'thumbs_up' | 'check_badge' | 'sparkles' | 'book_love' | 'star';
