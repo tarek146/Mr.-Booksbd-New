@@ -41,6 +41,7 @@ import {
   DEFAULT_SUB_AREA_LOCATIONS,
   normalizeSubAreaList,
 } from '../utils/storeEnhancementsHelpers';
+import { calculateCheckoutOnlinePaymentSummary } from '../utils/onlinePaymentPolicyHelpers';
 import {
   buildSyncedAuthorsAndPublishers,
   countBooksForAuthor,
@@ -2685,6 +2686,42 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const verifiedDiscount = pricing.discount;
     const verifiedTotal = pricing.total;
 
+    const onlineSummary = calculateCheckoutOnlinePaymentSummary({
+      checkoutItems: verifiedItems,
+      products,
+      subtotal: verifiedSubtotal,
+      deliveryCharge: verifiedDeliveryFee,
+      discount: verifiedDiscount,
+      total: verifiedTotal,
+      deliveryType: deliveryMode,
+      sundarbanForcesPrepayment: settings.sundarbanForcesPrepayment,
+    });
+
+    if (onlineSummary.isOnlineRequired && orderData.paymentMethodId === 'cod') {
+      throw new Error(
+        onlineSummary.isPartialAdvance
+          ? `Online advance payment (${onlineSummary.requiredPercent}%) is required for items in your order.`
+          : 'Online payment is required for items in your order.'
+      );
+    }
+
+    const isCodOrder = orderData.paymentMethodId === 'cod';
+    const resolvedAdvancePaidAmount = isCodOrder
+      ? 0
+      : onlineSummary.isOnlineRequired
+      ? onlineSummary.payNowAmount
+      : verifiedTotal;
+    const resolvedDueOnDelivery = isCodOrder
+      ? verifiedTotal
+      : onlineSummary.isPartialAdvance
+      ? onlineSummary.dueOnDelivery
+      : 0;
+    const resolvedCourierCodAmount = onlineSummary.isPartialAdvance
+      ? onlineSummary.dueOnDelivery
+      : isCodOrder
+      ? verifiedTotal
+      : 0;
+
     // 6. Generate order ID and format secure record
     const orderId = 'MRB-' + Date.now().toString().slice(-6) + Math.floor(100 + Math.random() * 900);
     const resolvedUserId = currentUser?.uid || orderData.userId || ('guest-' + Date.now());
@@ -2708,10 +2745,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       discount: verifiedDiscount,
       ...(pricing.appliedCoupon?.valid ? { couponCode: pricing.appliedCoupon.code } : {}),
       total: verifiedTotal,
+      ...(onlineSummary.isOnlineRequired
+        ? {
+            onlinePaymentRequired: true,
+            onlinePaymentPercent: onlineSummary.requiredPercent,
+          }
+        : {}),
+      ...(resolvedAdvancePaidAmount > 0 ? { advancePaidAmount: resolvedAdvancePaidAmount } : {}),
+      ...(resolvedDueOnDelivery > 0 ? { dueOnDeliveryAmount: resolvedDueOnDelivery } : {}),
+      courierCodAmount: resolvedCourierCodAmount,
       paymentMethodId: orderData.paymentMethodId,
       paymentMethodName: orderData.paymentMethodName,
       paymentStatus: 'unpaid',
-      orderStatus: orderData.paymentMethodId === 'cod' ? 'confirmed' : 'awaiting_payment',
+      orderStatus: isCodOrder ? 'confirmed' : 'awaiting_payment',
       createdAt: Date.now(),
       updatedAt: Date.now()
     };

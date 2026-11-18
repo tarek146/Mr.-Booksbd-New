@@ -8,7 +8,6 @@ import { FeaturedAuthorsSection } from '../components/FeaturedAuthorsSection';
 import { HomePageSkeleton } from '../components/SkeletonScreens';
 import { shouldShowSkeletonScreen } from '../utils/instantStoreCache';
 import { buildEnrichedPublishersList } from '../utils/publisherAndDeliveryHelpers';
-import { productHasCategory } from '../utils/productCategoryHelpers';
 import {
   resolveHomeReviewsSlotMode,
   resolveHomeAuthorsSlotMode,
@@ -21,8 +20,12 @@ import {
   getNewArrivalsBooks,
   getBestSellingBooks,
   getHomeAllBooks,
-  getActiveStoreProducts,
+  getHomeStationeryItems,
 } from '../utils/homeCatalogHelpers';
+import {
+  getHomeVisibleCategorySliderItems,
+  getHomeCategoryProductSections,
+} from '../utils/categoryHomeHelpers';
 import {
   ArrowRight,
   ChevronRight,
@@ -75,28 +78,24 @@ export function Home() {
   );
 
   const featuredStationery = useMemo(
-    () => getActiveStoreProducts(products).filter(p => p.type === 'stationery'),
+    () => getHomeStationeryItems(products),
     [products]
   );
 
   const homeCategories = useMemo(
-    () => categories.filter(c => c.showOnHome !== false),
+    () => getHomeVisibleCategorySliderItems(categories),
     [categories]
   );
 
-  // Per-category product rows are disabled by default (showCategoryProductRows === false)
-  // so adding new categories never floods the homepage automatically.
-  const categoryProductSections = useMemo(() => {
-    if (homeConfig.showCategoryProductRows !== true) return [];
-    const active = getActiveStoreProducts(products);
-    return categories
-      .filter(cat => cat.showOnHome !== false)
-      .map(cat => ({
-        category: cat,
-        items: active.filter(p => productHasCategory(p, cat.name)),
-      }))
-      .filter(sec => sec.items.length > 0);
-  }, [categories, products, homeConfig.showCategoryProductRows]);
+  const bookCategorySections = useMemo(() => {
+    if (homeConfig.enableCategoryProductSections === false) return [];
+    return getHomeCategoryProductSections(categories, products, 'book');
+  }, [categories, products, homeConfig.enableCategoryProductSections]);
+
+  const stationeryCategorySections = useMemo(() => {
+    if (homeConfig.enableCategoryProductSections === false) return [];
+    return getHomeCategoryProductSections(categories, products, 'stationery');
+  }, [categories, products, homeConfig.enableCategoryProductSections]);
 
   const navigateToAllBooks = () => {
     setSelectedCategoryFilter('all');
@@ -404,28 +403,35 @@ export function Home() {
         </section>
       )}
 
-      {/* Optional Dynamic Category Product Rows (Disabled by default; controllable in Admin Panel) */}
-      {categoryProductSections.length > 0 && (
-        <div data-testid="home-category-rows-section">
-          {categoryProductSections.map(({ category, items }) => (
+      {/* 5. Admin-Selected Book Category Product Sections (Rendered cleanly by Serial Order) */}
+      {bookCategorySections.length > 0 && (
+        <div data-testid="home-book-category-rows-section">
+          {bookCategorySections.map(({ category, visibleItems, totalCount, hasMore, remainingCount }) => (
             <section
               key={category.id}
-              className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4"
+              data-testid={`home-category-section-${category.id}`}
+              className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 sm:py-4"
             >
               <div className="flex items-baseline justify-between gap-4 mb-3 pb-2 border-b border-neutral-200/80">
-                <h2 className="text-lg sm:text-xl font-bold text-[#171717] tracking-tight">
-                  {category.name}
-                </h2>
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <h2 className="text-lg sm:text-xl font-bold text-[#171717] tracking-tight">
+                    {category.name}
+                  </h2>
+                  <span className="text-xs text-neutral-500 tabular-nums">
+                    · {visibleItems.length} of {totalCount}
+                  </span>
+                </div>
                 <button
                   type="button"
+                  data-testid={`home-category-seemore-${category.id}`}
                   onClick={() => {
                     setSelectedSeriesFilter('');
                     setSelectedCategoryFilter(category.name);
-                    setActivePage(category.type === 'stationery' ? 'stationery' : 'books');
+                    setActivePage('books');
                   }}
                   className="text-xs font-semibold text-[#D71920] hover:text-[#B9151B] flex items-center gap-1 group cursor-pointer whitespace-nowrap shrink-0"
                 >
-                  <span>View All ({items.length})</span>
+                  <span>See More</span>
                   <ArrowRight
                     size={13}
                     className="group-hover:translate-x-0.5 transition-transform"
@@ -438,7 +444,7 @@ export function Home() {
                   type="button"
                   onClick={() => scrollCategoryProducts(category.id, 'left')}
                   className="absolute -left-2.5 sm:-left-3.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white border border-[#E5E5E5] shadow-md flex items-center justify-center text-[#171717] hover:bg-[#D71920] hover:text-white hover:border-[#D71920] transition-all z-20 opacity-90 sm:opacity-0 sm:hover:opacity-100 cursor-pointer active:scale-90"
-                  aria-label="Scroll Left"
+                  aria-label={`Scroll ${category.name} Left`}
                 >
                   <ChevronLeft size={18} />
                 </button>
@@ -447,7 +453,7 @@ export function Home() {
                   type="button"
                   onClick={() => scrollCategoryProducts(category.id, 'right')}
                   className="absolute -right-2.5 sm:-right-3.5 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white border border-[#E5E5E5] shadow-md flex items-center justify-center text-[#171717] hover:bg-[#D71920] hover:text-white hover:border-[#D71920] transition-all z-20 opacity-90 sm:opacity-0 sm:hover:opacity-100 cursor-pointer active:scale-90"
-                  aria-label="Scroll Right"
+                  aria-label={`Scroll ${category.name} Right`}
                 >
                   <ChevronRight size={18} />
                 </button>
@@ -459,7 +465,7 @@ export function Home() {
                   className="flex items-stretch gap-3 sm:gap-4 overflow-x-auto scrollbar-none scroll-smooth snap-x snap-mandatory py-1 px-0.5"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
-                  {items.map(product => (
+                  {visibleItems.map(product => (
                     <div
                       key={product.id}
                       className="w-[calc(50%-6px)] sm:w-[calc(33.333%-10px)] md:w-[calc(25%-12px)] lg:w-[calc(20%-13px)] shrink-0 snap-start flex flex-col"
@@ -469,27 +475,48 @@ export function Home() {
                   ))}
                 </div>
               </div>
+
+              {hasMore && (
+                <div className="mt-4 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedSeriesFilter('');
+                      setSelectedCategoryFilter(category.name);
+                      setActivePage('books');
+                    }}
+                    className="inline-flex items-center gap-2 px-5 py-2 rounded-xl border border-neutral-200 hover:border-[#D71920] bg-white text-xs font-semibold text-[#171717] hover:text-[#D71920] transition-colors cursor-pointer group"
+                  >
+                    <span>See More ({remainingCount} remaining)</span>
+                    <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
+                  </button>
+                </div>
+              )}
             </section>
           ))}
         </div>
       )}
 
-      {/* Optional Stationery Section (Toggleable in Admin Panel -> Home Visibility) */}
-      {homeConfig.showStationerySection === true && featuredStationery.length > 0 && (
+      {/* 6. Dedicated Stationery Row & Stationery Category Sections (Always Strictly Below All Books & Above Testimonials) */}
+      {homeConfig.showStationerySection !== false && featuredStationery.length > 0 && (
         <section
           data-testid="home-stationery-section"
           className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5"
         >
           <div className="flex items-baseline justify-between gap-4 mb-3.5 pb-2 border-b border-neutral-200/80">
             <h2 className="text-lg sm:text-xl font-bold text-[#171717] tracking-tight">
-              Premium Stationery
+              Stationery Collection
             </h2>
             <button
               type="button"
-              onClick={() => setActivePage('stationery')}
+              onClick={() => {
+                setSelectedSeriesFilter('');
+                setSelectedCategoryFilter('all');
+                setActivePage('stationery');
+              }}
               className="text-xs font-semibold text-[#D71920] hover:text-[#B9151B] flex items-center gap-1 group cursor-pointer whitespace-nowrap shrink-0"
             >
-              <span>All Stationery</span>
+              <span>See More ({featuredStationery.length})</span>
               <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
             </button>
           </div>
@@ -529,6 +556,78 @@ export function Home() {
             </div>
           </div>
         </section>
+      )}
+
+      {homeConfig.showStationerySection !== false && stationeryCategorySections.length > 0 && (
+        <div data-testid="home-stationery-category-rows-section">
+          {stationeryCategorySections.map(({ category, visibleItems, totalCount, hasMore, remainingCount }) => (
+            <section
+              key={category.id}
+              data-testid={`home-category-section-${category.id}`}
+              className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4"
+            >
+              <div className="flex items-baseline justify-between gap-4 mb-3 pb-2 border-b border-neutral-200/80">
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <h2 className="text-lg sm:text-xl font-bold text-[#171717] tracking-tight">
+                    {category.name}
+                  </h2>
+                  <span className="text-xs text-neutral-500 tabular-nums">
+                    · {visibleItems.length} of {totalCount}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  data-testid={`home-category-seemore-${category.id}`}
+                  onClick={() => {
+                    setSelectedSeriesFilter('');
+                    setSelectedCategoryFilter(category.name);
+                    setActivePage('stationery');
+                  }}
+                  className="text-xs font-semibold text-[#D71920] hover:text-[#B9151B] flex items-center gap-1 group cursor-pointer whitespace-nowrap shrink-0"
+                >
+                  <span>See More</span>
+                  <ArrowRight
+                    size={13}
+                    className="group-hover:translate-x-0.5 transition-transform"
+                  />
+                </button>
+              </div>
+
+              <div className="relative">
+                <div
+                  className="flex items-stretch gap-3 sm:gap-4 overflow-x-auto scrollbar-none scroll-smooth snap-x snap-mandatory py-1 px-0.5"
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
+                  {visibleItems.map(product => (
+                    <div
+                      key={product.id}
+                      className="w-[calc(50%-6px)] sm:w-[calc(33.333%-10px)] md:w-[calc(25%-12px)] lg:w-[calc(20%-13px)] shrink-0 snap-start flex flex-col"
+                    >
+                      <ProductCard product={product} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {hasMore && (
+                <div className="mt-4 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedSeriesFilter('');
+                      setSelectedCategoryFilter(category.name);
+                      setActivePage('stationery');
+                    }}
+                    className="inline-flex items-center gap-2 px-5 py-2 rounded-xl border border-neutral-200 hover:border-[#D71920] bg-white text-xs font-semibold text-[#171717] hover:text-[#D71920] transition-colors cursor-pointer group"
+                  >
+                    <span>See More ({remainingCount} remaining)</span>
+                    <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
+                  </button>
+                </div>
+              )}
+            </section>
+          ))}
+        </div>
       )}
 
       {/* Verified Customer Reviews & Testimonials (Controlled by Firebase siteSettings.reviewDisplay & homeConfig.showReviews) */}

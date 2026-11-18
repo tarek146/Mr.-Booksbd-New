@@ -23,6 +23,7 @@ import {
   Building2
 } from 'lucide-react';
 import { AuthModal } from './AuthModal';
+import { sortCategoriesBySerial } from '../utils/categoryHomeHelpers';
 import { AnimatedSearchInput } from './AnimatedSearchInput';
 import { SearchResultsDropdown } from './SearchResultsDropdown';
 import { isValidImageUrl } from '../utils/imageCompressor';
@@ -118,9 +119,10 @@ export function Navbar() {
     setMobileMenuOpen(false);
   };
 
-  // Group categories into books and stationery
-  const bookCategories = categories.filter(c => c.type === 'book');
-  const stationeryCategories = categories.filter(c => c.type === 'stationery');
+  // Group categories into books and stationery sorted by Admin serial order
+  const orderedCategories = sortCategoriesBySerial(categories);
+  const bookCategories = orderedCategories.filter(c => c.type === 'book');
+  const stationeryCategories = orderedCategories.filter(c => c.type === 'stationery');
 
   const defaultMarqueeItems = [
     { id: 'ann-1', icon: '⚡', title: 'SPECIAL OFFER:', desc: 'Free Delivery on orders above Tk 1,500 across Bangladesh!', isActive: true },

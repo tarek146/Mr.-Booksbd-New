@@ -260,11 +260,19 @@ export function computeOrderDocumentFinancials(
       : Math.max(0, Number(order.total) || computedTotal);
 
   const isPaidOnline = order.paymentStatus === 'approved';
-  const paidAmount = isPaidOnline ? grandTotal : 0;
+  const hasPartialAdvance =
+    typeof order.advancePaidAmount === 'number' &&
+    order.advancePaidAmount > 0 &&
+    order.advancePaidAmount < grandTotal;
+  const paidAmount = isPaidOnline
+    ? hasPartialAdvance
+      ? Math.min(grandTotal, Number(order.advancePaidAmount))
+      : grandTotal
+    : 0;
   const hasExplicitCod =
     typeof order.courierCodAmount === 'number' && !Number.isNaN(order.courierCodAmount);
   const amountToCollect = isPaidOnline
-    ? 0
+    ? Math.max(0, grandTotal - paidAmount)
     : Math.max(0, hasExplicitCod ? Number(order.courierCodAmount) : grandTotal);
 
   return {
@@ -293,6 +301,7 @@ export function calculateEditedOrderFinancials(input: {
   discount: number;
   codCharge: number;
   paymentStatus: Order['paymentStatus'];
+  advancePaidAmount?: number;
 }) {
   const subtotal = (input.items || []).reduce(
     (sum, item) => sum + Math.max(0, Number(item.price) || 0) * Math.max(1, Number(item.quantity) || 1),
@@ -302,7 +311,12 @@ export function calculateEditedOrderFinancials(input: {
   const discount = Math.max(0, Number(input.discount) || 0);
   const codCharge = Math.max(0, Number(input.codCharge) || 0);
   const total = Math.max(0, subtotal + deliveryCharge + codCharge - discount);
-  const courierCodAmount = input.paymentStatus === 'approved' ? 0 : total;
+  const partialAdvance =
+    typeof input.advancePaidAmount === 'number' && input.advancePaidAmount > 0
+      ? Math.min(total, input.advancePaidAmount)
+      : total;
+  const courierCodAmount =
+    input.paymentStatus === 'approved' ? Math.max(0, total - partialAdvance) : total;
 
   return {
     subtotal,

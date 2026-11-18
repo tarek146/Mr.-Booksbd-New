@@ -8,11 +8,12 @@ export const DEFAULT_HOME_CONFIG: HomeConfig = {
   allBooksTitle: 'All Books',
   showCategoriesStrip: true,
   showCategoryProductRows: false,
+  enableCategoryProductSections: true,
   showOfferSection: true,
   showNewArrivalsSection: true,
   showBestSellingSection: true,
   showAllBooksSection: true,
-  showStationerySection: false,
+  showStationerySection: true,
   newArrivalsLimit: 10,
   bestSellingLimit: 10,
   allBooksLimit: 20,
@@ -112,6 +113,10 @@ export function resolveHomeConfig(
       typeof rawConfig?.showCategoryProductRows === 'boolean'
         ? rawConfig.showCategoryProductRows
         : DEFAULT_HOME_CONFIG.showCategoryProductRows,
+    enableCategoryProductSections:
+      typeof rawConfig?.enableCategoryProductSections === 'boolean'
+        ? rawConfig.enableCategoryProductSections
+        : DEFAULT_HOME_CONFIG.enableCategoryProductSections,
     showOfferSection:
       typeof rawConfig?.showOfferSection === 'boolean'
         ? rawConfig.showOfferSection

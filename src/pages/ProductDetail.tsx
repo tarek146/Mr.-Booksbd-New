@@ -46,6 +46,7 @@ import {
   getProductCategories,
   productHasCategory,
 } from '../utils/productCategoryHelpers';
+import { formatOnlinePaymentRequirementBadge } from '../utils/onlinePaymentPolicyHelpers';
 import {
   resolveProductSeriesInfo,
   getSeriesBooksForProduct,
@@ -650,6 +651,30 @@ export function ProductDetail() {
                 ) : null}
               </div>
             )}
+
+            {/* Subtle Mandatory Online Payment Notice (if configured for this product) */}
+            {(() => {
+              const onlineReqBadge = formatOnlinePaymentRequirementBadge(product);
+              if (!onlineReqBadge) return null;
+              const reqPercent = Math.min(100, Math.max(1, Math.round(Number(product.onlinePaymentPercent) || 100)));
+              const sampleAdvance = reqPercent >= 100
+                ? activeVariant.price
+                : Math.round((activeVariant.price * reqPercent) / 100);
+              const sampleDue = Math.max(0, activeVariant.price - sampleAdvance);
+              return (
+                <div
+                  data-testid="product-online-payment-notice"
+                  className="px-3.5 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3 text-xs"
+                >
+                  <span className="font-medium text-neutral-800 dark:text-slate-200">
+                    <span className="font-semibold text-[#D71920]">{onlineReqBadge}</span>
+                    {reqPercent < 100 && sampleDue > 0
+                      ? ` · Pay ৳${sampleAdvance} online, ৳${sampleDue} + delivery via COD`
+                      : ' · Cash on Delivery unavailable'}
+                  </span>
+                </div>
+              );
+            })()}
 
             {/* Clean Hairline-Separated Price & Availability Row */}
             <div className="py-3.5 border-y border-neutral-200 dark:border-[#263347] flex items-center justify-between gap-4">

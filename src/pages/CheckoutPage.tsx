@@ -51,6 +51,7 @@ import {
 import { useCheckoutFraudCheck } from '../hooks/useCheckoutFraudCheck';
 import { computeCheckoutCompletion } from '../utils/checkoutProgressHelpers';
 import { getUnincludedCartItems } from '../utils/directCheckoutHelpers';
+import { calculateCheckoutOnlinePaymentSummary } from '../utils/onlinePaymentPolicyHelpers';
 import {
   resolveProductImageFitMode,
   getProductImageLayoutClasses,
@@ -372,7 +373,16 @@ export function CheckoutPage() {
     }
   }, [sortedPaymentMethods, selectedPaymentId]);
 
+  // Ensure COD is deselected whenever Hub delivery or product online payment policy enforces prepayment
   const handleSelectPaymentMethod = (method: PaymentMethodConfig) => {
+    if (method.type === 'cod' && isCodDisabled) {
+      setErrorMsg(
+        onlinePaymentSummary.isPartialAdvance
+          ? `Online advance payment (${onlinePaymentSummary.requiredPercent}%) is required for items in this order. Cash on Delivery is unavailable.`
+          : 'Online payment is required for this order. Cash on Delivery is unavailable.'
+      );
+      return;
+    }
     const isSwitchingMethod = selectedPaymentId !== method.id;
     setSelectedPaymentId(method.id);
     setErrorMsg('');
@@ -523,6 +533,44 @@ export function CheckoutPage() {
   const discount = pricingSummary.discount;
   const total = pricingSummary.total;
 
+  const onlinePaymentSummary = useMemo(
+    () =>
+      calculateCheckoutOnlinePaymentSummary({
+        checkoutItems,
+        products,
+        subtotal,
+        deliveryCharge,
+        discount,
+        total,
+        deliveryType,
+        sundarbanForcesPrepayment: settings.sundarbanForcesPrepayment,
+      }),
+    [
+      checkoutItems,
+      products,
+      subtotal,
+      deliveryCharge,
+      discount,
+      total,
+      deliveryType,
+      settings.sundarbanForcesPrepayment,
+    ]
+  );
+
+  const isCodDisabled = onlinePaymentSummary.isOnlineRequired;
+
+  // Automatically switch from COD to first active online payment method if product policy or delivery requires online payment
+  useEffect(() => {
+    if (!isCodDisabled) return;
+    const current = sortedPaymentMethods.find(m => m.id === selectedPaymentId);
+    if (!current || current.type === 'cod') {
+      const firstOnline = sortedPaymentMethods.find(m => m.type !== 'cod');
+      if (firstOnline) {
+        setSelectedPaymentId(firstOnline.id);
+      }
+    }
+  }, [isCodDisabled, sortedPaymentMethods, selectedPaymentId]);
+
   // Auto re-validate applied coupon when phone/profile/subtotal changes (e.g. firstOrderOnly check)
   useEffect(() => {
     if (!appliedCouponCode) return;
@@ -657,12 +705,14 @@ export function CheckoutPage() {
     const effectiveTrxId = overridePayment ? overridePayment.cleanTrxId : transactionId;
 
     if (
-      deliveryType === 'sundarban' &&
-      settings.sundarbanForcesPrepayment !== false &&
+      (onlinePaymentSummary.isOnlineRequired ||
+        (deliveryType === 'sundarban' && settings.sundarbanForcesPrepayment !== false)) &&
       effectiveMethod?.type === 'cod'
     ) {
       setErrorMsg(
-        'Standard Hub Delivery / Point Delivery requires advance online payment (bKash/Nagad/Rocket/Bank). Cash on Delivery is disabled for Hub / Point Delivery.'
+        onlinePaymentSummary.isPartialAdvance
+          ? `Online advance payment (${onlinePaymentSummary.requiredPercent}%) is required for items in your order. Cash on Delivery is disabled.`
+          : 'Online payment (bKash/Nagad/Rocket/Bank) is required for this order. Cash on Delivery is disabled.'
       );
       return;
     }
@@ -751,6 +801,29 @@ export function CheckoutPage() {
         discount,
         ...(appliedCouponCode ? { couponCode: appliedCouponCode } : {}),
         total,
+        ...(onlinePaymentSummary.isOnlineRequired
+          ? {
+              onlinePaymentRequired: true,
+              onlinePaymentPercent: onlinePaymentSummary.requiredPercent,
+            }
+          : {}),
+        advancePaidAmount:
+          effectiveMethod.type === 'cod'
+            ? 0
+            : onlinePaymentSummary.isOnlineRequired
+            ? onlinePaymentSummary.payNowAmount
+            : total,
+        dueOnDeliveryAmount:
+          effectiveMethod.type === 'cod'
+            ? total
+            : onlinePaymentSummary.isPartialAdvance
+            ? onlinePaymentSummary.dueOnDelivery
+            : 0,
+        courierCodAmount: onlinePaymentSummary.isPartialAdvance
+          ? onlinePaymentSummary.dueOnDelivery
+          : effectiveMethod.type === 'cod'
+          ? total
+          : 0,
         paymentMethodId: effectiveMethod.id,
         paymentMethodName: resolvedPaymentMethodName,
       });
@@ -784,7 +857,7 @@ export function CheckoutPage() {
             providerName: resolvedPaymentMethodName,
             transactionReference: effectiveTrxId.trim(),
             senderIdentifier: effectiveSender.trim(),
-            claimedAmount: total,
+            claimedAmount: onlinePaymentSummary.payNowAmount,
           });
         } catch (proofErr) {
           console.warn('Payment proof submission deferred:', proofErr);
@@ -1398,9 +1471,33 @@ export function CheckoutPage() {
                   Payment Method
                 </h2>
                 <p className="text-xs text-neutral-500 dark:text-slate-400 mt-0.5">
-                  Select Cash on Delivery or Online Payment to complete your order.
+                  {onlinePaymentSummary.isOnlineRequired
+                    ? onlinePaymentSummary.isPartialAdvance
+                      ? `Online advance payment (${onlinePaymentSummary.requiredPercent}% · ৳${onlinePaymentSummary.payNowAmount}) is required to confirm this order.`
+                      : '100% online payment is required for this order.'
+                    : 'Select Cash on Delivery or Online Payment to complete your order.'}
                 </p>
               </div>
+
+              {onlinePaymentSummary.isOnlineRequired && (
+                <div
+                  data-testid="checkout-online-payment-required-notice"
+                  className="rounded-lg border border-amber-200 dark:border-amber-800/60 bg-amber-50/70 dark:bg-amber-950/20 px-3.5 py-2.5 text-xs text-amber-900 dark:text-amber-200 leading-relaxed"
+                >
+                  {onlinePaymentSummary.isPartialAdvance ? (
+                    <>
+                      <span className="font-semibold">Advance Online Payment Required ({onlinePaymentSummary.requiredPercent}%):</span>{' '}
+                      Pay <strong className="tabular-nums">৳{onlinePaymentSummary.payNowAmount}</strong> online now via bKash/Nagad/Rocket/Bank. Remaining{' '}
+                      <strong className="tabular-nums">৳{onlinePaymentSummary.dueOnDelivery}</strong> will be collected on delivery.
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-semibold">Online Payment Only:</span>{' '}
+                      Items in your order require 100% online prepayment. Cash on Delivery is unavailable.
+                    </>
+                  )}
+                </div>
+              )}
 
               <div
                 data-testid="payment-methods-grid"
@@ -1417,37 +1514,42 @@ export function CheckoutPage() {
                 {codMethod && (
                   <button
                     type="button"
+                    disabled={isCodDisabled}
                     data-testid="payment-card-cod"
                     onClick={() => handleSelectPaymentMethod(codMethod)}
-                    className={`px-3.5 py-3 rounded-lg border text-left transition-colors flex items-center justify-between gap-2.5 cursor-pointer ${
-                      !isOnlineSelected
-                        ? 'border-[#D71920] bg-[#FFF1F2]/50 dark:bg-[#D71920]/10'
-                        : 'border-neutral-200 dark:border-slate-700 bg-white dark:bg-[#121722] hover:border-neutral-300'
+                    className={`px-3.5 py-3 rounded-lg border text-left transition-colors flex items-center justify-between gap-2.5 ${
+                      isCodDisabled
+                        ? 'border-neutral-200 dark:border-slate-800 bg-neutral-100/70 dark:bg-slate-900/50 opacity-60 cursor-not-allowed'
+                        : !isOnlineSelected
+                        ? 'border-[#D71920] bg-[#FFF1F2]/50 dark:bg-[#D71920]/10 cursor-pointer'
+                        : 'border-neutral-200 dark:border-slate-700 bg-white dark:bg-[#121722] hover:border-neutral-300 cursor-pointer'
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <CheckoutCodPaymentIcon
                         customIconUrl={settings.codPaymentIconUrl}
-                        isSelected={!isOnlineSelected}
+                        isSelected={!isOnlineSelected && !isCodDisabled}
                       />
                       <div className="min-w-0">
                         <div className="font-semibold text-xs sm:text-sm text-neutral-900 dark:text-white leading-tight">
                           Cash on Delivery
                         </div>
                         <div className="text-[11px] text-neutral-500 dark:text-slate-400 mt-0.5 leading-snug">
-                          Pay cash upon delivery
+                          {isCodDisabled
+                            ? 'Unavailable — Online payment required'
+                            : 'Pay cash upon delivery'}
                         </div>
                       </div>
                     </div>
 
                     <div
                       className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
-                        !isOnlineSelected
+                        !isOnlineSelected && !isCodDisabled
                           ? 'border-[#D71920] bg-[#D71920]'
                           : 'border-neutral-300 dark:border-slate-600'
                       }`}
                     >
-                      {!isOnlineSelected && (
+                      {!isOnlineSelected && !isCodDisabled && (
                         <div className="w-1.5 h-1.5 rounded-full bg-white" />
                       )}
                     </div>
@@ -1514,7 +1616,9 @@ export function CheckoutPage() {
                     });
                   }}
                   isSubmittingOrder={loading}
-                  totalAmount={total}
+                  totalAmount={onlinePaymentSummary.payNowAmount}
+                  dueOnDeliveryAmount={onlinePaymentSummary.dueOnDelivery}
+                  requiredPercent={onlinePaymentSummary.requiredPercent}
                   transactionId={transactionId}
                   setTransactionId={setTransactionId}
                   senderNumber={senderNumber}
@@ -1781,16 +1885,43 @@ export function CheckoutPage() {
                   </div>
                 )}
 
-                <div className="pt-3 border-t border-neutral-200 dark:border-slate-800 flex items-center justify-between">
-                  <span className="text-sm font-semibold text-neutral-900 dark:text-white">
-                    Total Payable
-                  </span>
-                  <span
-                    data-testid="checkout-total-payable"
-                    className="text-xl font-bold text-[#D71920] tabular-nums"
-                  >
-                    ৳{total}
-                  </span>
+                <div className="pt-3 border-t border-neutral-200 dark:border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-neutral-900 dark:text-white">
+                      {onlinePaymentSummary.isPartialAdvance ? 'Order Total' : 'Total Payable'}
+                    </span>
+                    <span
+                      data-testid="checkout-total-payable"
+                      className={`${onlinePaymentSummary.isPartialAdvance ? 'text-base font-bold text-neutral-900 dark:text-white' : 'text-xl font-bold text-[#D71920]'} tabular-nums`}
+                    >
+                      ৳{total}
+                    </span>
+                  </div>
+
+                  {onlinePaymentSummary.isPartialAdvance && (
+                    <>
+                      <div
+                        data-testid="checkout-advance-payable-row"
+                        className="flex items-center justify-between text-xs pt-1"
+                      >
+                        <span className="font-semibold text-[#D71920]">
+                          Advance Online Now ({onlinePaymentSummary.requiredPercent}%)
+                        </span>
+                        <span className="text-base font-bold text-[#D71920] tabular-nums">
+                          ৳{onlinePaymentSummary.payNowAmount}
+                        </span>
+                      </div>
+                      <div
+                        data-testid="checkout-due-on-delivery-row"
+                        className="flex items-center justify-between text-xs text-neutral-600 dark:text-slate-300"
+                      >
+                        <span>Due on Delivery (Cash)</span>
+                        <span className="font-semibold text-neutral-900 dark:text-white tabular-nums">
+                          ৳{onlinePaymentSummary.dueOnDelivery}
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 

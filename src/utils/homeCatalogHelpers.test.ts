@@ -8,6 +8,7 @@ import {
   getNewArrivalsBooks,
   getBestSellingBooks,
   getHomeAllBooks,
+  getHomeStationeryItems,
 } from './homeCatalogHelpers';
 
 function makeBook(id: string, overrides: Partial<Product> = {}): Product {
@@ -147,5 +148,26 @@ describe('homeCatalogHelpers', () => {
     assert.equal(clampHomeSectionLimit(-5, 20, 25), 20);
     assert.equal(clampHomeSectionLimit(23.8, 20, 25), 23);
     assert.equal(clampHomeSectionLimit(99, 20, 25), 25);
+  });
+
+  it('strictly keeps stationery out of All Books, New Arrivals, and Best Selling even when no books exist, and isolates stationery in getHomeStationeryItems', () => {
+    const onlyStationery = [
+      makeBook('s1', { type: 'stationery', createdAt: 2000 }),
+      makeBook('s2', { type: 'stationery', createdAt: 3000 }),
+    ];
+
+    assert.equal(getNewArrivalsBooks(onlyStationery).length, 0);
+    assert.equal(getBestSellingBooks(onlyStationery, []).length, 0);
+    assert.equal(getHomeAllBooks(onlyStationery).items.length, 0);
+
+    const mixed = [...onlyStationery, makeBook('b1', { type: 'book', createdAt: 4000 })];
+    assert.deepEqual(
+      getHomeStationeryItems(mixed).map(p => p.id),
+      ['s2', 's1']
+    );
+    assert.deepEqual(
+      getHomeAllBooks(mixed).items.map(p => p.id),
+      ['b1']
+    );
   });
 });

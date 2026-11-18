@@ -28,11 +28,9 @@ export function getNewArrivalsBooks(
   limit: number = DEFAULT_NEW_ARRIVALS_LIMIT
 ): Product[] {
   const safeLimit = clampHomeSectionLimit(limit, DEFAULT_NEW_ARRIVALS_LIMIT, 25);
-  const active = getActiveStoreProducts(products);
-  const books = active.filter(p => p.type === 'book');
-  const pool = books.length > 0 ? books : active;
+  const books = getActiveStoreProducts(products).filter(p => p.type === 'book');
 
-  return [...pool]
+  return [...books]
     .sort((a, b) => {
       const aNewFlag = a.isNewProduct ? 1 : 0;
       const bNewFlag = b.isNewProduct ? 1 : 0;
@@ -61,12 +59,10 @@ export function getBestSellingBooks(
   limit: number = DEFAULT_BEST_SELLING_LIMIT
 ): Product[] {
   const safeLimit = clampHomeSectionLimit(limit, DEFAULT_BEST_SELLING_LIMIT, 25);
-  const active = getActiveStoreProducts(products);
-  const books = active.filter(p => p.type === 'book');
-  const pool = books.length > 0 ? books : active;
+  const books = getActiveStoreProducts(products).filter(p => p.type === 'book');
   const salesMap = buildProductSalesCountMap(orders);
 
-  return [...pool]
+  return [...books]
     .sort((a, b) => {
       const aSold = salesMap.get(a.id) || 0;
       const bSold = salesMap.get(b.id) || 0;
@@ -89,6 +85,17 @@ export function getBestSellingBooks(
     .slice(0, safeLimit);
 }
 
+export function getHomeStationeryItems(products: Product[]): Product[] {
+  return [...getActiveStoreProducts(products)]
+    .filter(p => p.type === 'stationery')
+    .sort((a, b) => {
+      const aInStock = (a.stock ?? 0) > 0 ? 1 : 0;
+      const bInStock = (b.stock ?? 0) > 0 ? 1 : 0;
+      if (bInStock !== aInStock) return bInStock - aInStock;
+      return (b.createdAt || 0) - (a.createdAt || 0);
+    });
+}
+
 export interface HomeAllBooksResult {
   items: Product[];
   totalBooksCount: number;
@@ -105,11 +112,9 @@ export function getHomeAllBooks(
     DEFAULT_ALL_BOOKS_LIMIT,
     MAX_HOME_ALL_BOOKS_LIMIT
   );
-  const active = getActiveStoreProducts(products);
-  const books = active.filter(p => p.type === 'book');
-  const pool = books.length > 0 ? books : active;
+  const books = getActiveStoreProducts(products).filter(p => p.type === 'book');
 
-  const ordered = [...pool].sort((a, b) => {
+  const ordered = [...books].sort((a, b) => {
     const aInStock = (a.stock ?? 0) > 0 ? 1 : 0;
     const bInStock = (b.stock ?? 0) > 0 ? 1 : 0;
     if (bInStock !== aInStock) return bInStock - aInStock;

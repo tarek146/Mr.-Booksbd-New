@@ -25,6 +25,7 @@ import {
   productHasCategory,
   productCategoriesMatchQuery,
 } from '../utils/productCategoryHelpers';
+import { sortCategoriesBySerial } from '../utils/categoryHomeHelpers';
 
 export function StationeryPage() {
   const { products, categories, isLoading, isStoreHydrated, settings, homeConfig, searchQuery, setSearchQuery, selectedCategoryFilter, setSelectedCategoryFilter, setActivePage, addToCart, startDirectCheckout } = useStore();
@@ -88,7 +89,7 @@ export function StationeryPage() {
   }, [stationeryItems, sortBy]);
 
   const allStationeryCount = products.filter(p => p.type === 'stationery').length;
-  const stationeryCategories = categories.filter(c => c.type === 'stationery');
+  const stationeryCategories = sortCategoriesBySerial(categories.filter(c => c.type === 'stationery'));
 
   const handleResetFilters = () => {
     setSelectedCategoryFilter('all');

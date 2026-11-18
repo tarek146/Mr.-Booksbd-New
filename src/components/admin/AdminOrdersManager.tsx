@@ -56,6 +56,7 @@ import {
 } from '../../utils/bookkeepingCsvHelpers';
 import {
   calculateEditedOrderFinancials,
+  computeOrderDocumentFinancials,
   formatOrderAddressLine,
   resolveOrderWeightKg,
 } from '../../utils/orderDocumentHelpers';
@@ -171,6 +172,10 @@ function FullPageOrderEdit({
     discount: Number(discountInput) || 0,
     codCharge: Number(codChargeInput) || 0,
     paymentStatus,
+    advancePaidAmount:
+      paymentStatus === 'approved' && typeof order.advancePaidAmount === 'number'
+        ? order.advancePaidAmount
+        : undefined,
   });
   const { subtotal, deliveryCharge: deliveryNum, discount, codCharge, total, courierCodAmount } = financialPreview;
   const parsedWeightKg = Math.max(0, Number(weightKgInput) || 0);
@@ -569,7 +574,11 @@ function FullPageOrderEdit({
                 ৳{courierCodAmount}
               </span>
               {paymentStatus === 'approved' && (
-                <span className="ml-2 text-xs font-bold text-emerald-300">(Order Total ৳{total} · Paid Online)</span>
+                <span className="ml-2 text-xs font-bold text-emerald-300">
+                  {courierCodAmount > 0 && order.advancePaidAmount
+                    ? `(Order Total ৳${total} · Advance Paid ৳${order.advancePaidAmount})`
+                    : `(Order Total ৳${total} · Paid Online)`}
+                </span>
               )}
             </div>
           </div>
@@ -1243,10 +1252,8 @@ export function AdminOrdersManager({
             const isSelected = selectedIds.includes(order.id);
             const waPhone = cleanWhatsappPhone(order.phone);
             const cleanAddress = formatOrderAddressLine(order);
-            const codCollectible =
-              order.paymentStatus === 'approved'
-                ? 0
-                : order.courierCodAmount ?? order.total ?? 0;
+            const docFinancials = computeOrderDocumentFinancials(order, products);
+            const codCollectible = docFinancials.amountToCollect;
 
             return (
               <div
@@ -1535,6 +1542,15 @@ export function AdminOrdersManager({
                     <div className="text-[11px] text-slate-500 tabular-nums truncate">
                       {order.paymentMethodName || 'Cash on Delivery'} · Delivery ৳{order.deliveryCharge || 0}
                     </div>
+                    {order.onlinePaymentRequired &&
+                      typeof order.advancePaidAmount === 'number' &&
+                      order.advancePaidAmount > 0 &&
+                      typeof order.dueOnDeliveryAmount === 'number' &&
+                      order.dueOnDeliveryAmount > 0 && (
+                        <div className="text-[11px] font-medium text-[#D71920] tabular-nums truncate">
+                          Advance ৳{order.advancePaidAmount.toLocaleString()} ({order.onlinePaymentPercent || ''}% Online) · Due COD ৳{order.dueOnDeliveryAmount.toLocaleString()}
+                        </div>
+                      )}
 
                     <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                       <select

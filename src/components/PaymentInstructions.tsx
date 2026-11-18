@@ -578,6 +578,8 @@ interface PaymentInstructionsProps {
   ) => Promise<void> | void;
   isSubmittingOrder?: boolean;
   totalAmount: number;
+  dueOnDeliveryAmount?: number;
+  requiredPercent?: number;
   transactionId: string;
   setTransactionId: (val: string) => void;
   senderNumber: string;
@@ -596,6 +598,8 @@ export function PaymentInstructions({
   onSubmitPaymentAndOrder,
   isSubmittingOrder = false,
   totalAmount,
+  dueOnDeliveryAmount = 0,
+  requiredPercent = 0,
   transactionId,
   setTransactionId,
   senderNumber,
@@ -821,7 +825,16 @@ export function PaymentInstructions({
         <div className="flex items-center gap-2 min-w-0 text-xs text-neutral-600 dark:text-slate-300">
           <PaymentBrandIcon method={currentActiveMethod} size="sm" />
           <span className="truncate">
-            Selected: <strong className="text-neutral-900 dark:text-white">{meta.englishName || meta.displayTitle}</strong> · Payable <strong className="text-neutral-900 dark:text-white tabular-nums">৳{totalAmount}</strong>
+            {dueOnDeliveryAmount > 0 ? (
+              <>
+                <strong className="text-neutral-900 dark:text-white">{meta.englishName || meta.displayTitle}</strong> ·{' '}
+                Advance ({requiredPercent}%): <strong className="text-neutral-900 dark:text-white tabular-nums">৳{totalAmount}</strong> · COD <strong className="text-neutral-900 dark:text-white tabular-nums">৳{dueOnDeliveryAmount}</strong>
+              </>
+            ) : (
+              <>
+                Selected: <strong className="text-neutral-900 dark:text-white">{meta.englishName || meta.displayTitle}</strong> · Payable <strong className="text-neutral-900 dark:text-white tabular-nums">৳{totalAmount}</strong>
+              </>
+            )}
           </span>
         </div>
         <button
@@ -895,16 +908,21 @@ export function PaymentInstructions({
               <div className="px-4 py-3 border-b border-neutral-200 dark:border-slate-800 flex items-center justify-between gap-3 bg-neutral-50/50 dark:bg-slate-900/40">
                 <div className="min-w-0">
                   <h3 className="text-sm font-semibold text-neutral-900 dark:text-white leading-tight">
-                    Online Payment
+                    {dueOnDeliveryAmount > 0 ? `Online Advance Payment (${requiredPercent}%)` : 'Online Payment'}
                   </h3>
                   <p className="text-[11px] text-neutral-500 dark:text-slate-400 truncate mt-0.5">
-                    Select gateway, send payment &amp; submit TrxID
+                    {dueOnDeliveryAmount > 0
+                      ? `Remaining ৳${dueOnDeliveryAmount} payable on delivery · Total ৳${totalAmount + dueOnDeliveryAmount}`
+                      : 'Select gateway, send payment & submit TrxID'}
                   </p>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  <div className="px-2.5 py-1 rounded-md bg-rose-50 dark:bg-rose-950/40 border border-rose-200/80 dark:border-rose-900/50 text-xs font-bold text-[#D71920] dark:text-rose-400 tabular-nums">
-                    Payable: ৳{totalAmount}
+                  <div
+                    data-testid="payment-modal-payable-badge"
+                    className="px-2.5 py-1 rounded-md bg-rose-50 dark:bg-rose-950/40 border border-rose-200/80 dark:border-rose-900/50 text-xs font-bold text-[#D71920] dark:text-rose-400 tabular-nums"
+                  >
+                    {dueOnDeliveryAmount > 0 ? `Advance: ৳${totalAmount}` : `Payable: ৳${totalAmount}`}
                   </div>
                   <button
                     type="button"

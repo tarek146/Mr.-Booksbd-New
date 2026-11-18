@@ -91,6 +91,17 @@ import { AdminCourierManager } from '../components/admin/AdminCourierManager';
 import { AdminPaymentTransactionsManager } from '../components/admin/AdminPaymentTransactionsManager';
 import { AdminTabErrorBoundary } from '../components/admin/AdminTabErrorBoundary';
 import { AdminSettingsPanel } from '../components/admin/settings/AdminSettingsPanel';
+import { CategoryEditorModal } from '../components/admin/CategoryEditorModal';
+import { ProductCategorySelector } from '../components/admin/ProductCategorySelector';
+import { ProductOnlinePaymentCard } from '../components/admin/ProductOnlinePaymentCard';
+import {
+  clampOnlinePaymentPercent,
+  getProductOnlinePaymentRequirement,
+} from '../utils/onlinePaymentPolicyHelpers';
+import {
+  clampCategoryHomeLimit,
+  sortCategoriesBySerial,
+} from '../utils/categoryHomeHelpers';
 import type { SettingsSubTabId } from '../components/admin/settings/settingsShared';
 import {
   resolveCourierProviders,
@@ -103,7 +114,6 @@ import {
   getProductCategories,
   productCategoriesMatchQuery,
   productHasCategory,
-  toggleProductCategorySelection,
 } from '../utils/productCategoryHelpers';
 import { detectAdminNewCustomerActivity, playAdminIncomingRingtone, unlockChatAudioContext } from '../utils/chatSoundAndValidation';
 import { resolveDashboardHeaderCapiStatus } from '../utils/facebookCapiHelpers';
@@ -498,6 +508,10 @@ export function AdminDashboard() {
   const [catType, setCatType] = useState<'book' | 'stationery'>('book');
   const [catImage, setCatImage] = useState('');
   const [catShowOnHome, setCatShowOnHome] = useState(true);
+  const [catShowProductsOnHome, setCatShowProductsOnHome] = useState(false);
+  const [catHomeProductLimit, setCatHomeProductLimit] = useState<number>(5);
+  const [catHomeFeaturedProductIds, setCatHomeFeaturedProductIds] = useState<string[]>([]);
+  const [catDisplayOrder, setCatDisplayOrder] = useState<number>(1);
 
   // Banner management state
   const [showAddBannerModal, setShowAddBannerModal] = useState(false);
@@ -638,9 +652,9 @@ export function AdminDashboard() {
   const [prodTitle, setProdTitle] = useState('');
   const [prodType, setProdType] = useState<'book' | 'stationery'>('book');
   const [prodPrice, setProdPrice] = useState(350);
-  const [prodCategory, setProdCategory] = useState('Fiction & Literature');
-  const [prodCategories, setProdCategories] = useState<string[]>(['Fiction & Literature']);
-  const [prodCategorySearch, setProdCategorySearch] = useState('');
+  const [prodCategory, setProdCategory] = useState('');
+  const [prodCategories, setProdCategories] = useState<string[]>([]);
+  const [isProdCategoryDropdownOpen, setIsProdCategoryDropdownOpen] = useState(false);
   const [prodAuthor, setProdAuthor] = useState('');
   const [prodImage, setProdImage] = useState('');
   const [prodExtraImages, setProdExtraImages] = useState('');
@@ -691,6 +705,8 @@ export function AdminDashboard() {
   const [newHighlightInput, setNewHighlightInput] = useState('');
   const [prodDeliveryChargeType, setProdDeliveryChargeType] = useState<'standard' | 'free' | 'custom'>('standard');
   const [prodCustomDeliveryFee, setProdCustomDeliveryFee] = useState<number>(60);
+  const [prodRequireOnlinePayment, setProdRequireOnlinePayment] = useState<boolean>(false);
+  const [prodOnlinePaymentPercent, setProdOnlinePaymentPercent] = useState<number>(100);
   const [prodGalleryUrls, setProdGalleryUrls] = useState<string[]>([]);
   const [galleryUrlInput, setGalleryUrlInput] = useState('');
   const [customVariants, setCustomVariants] = useState<{ id: string; name: string; price: number; regularPrice?: number; stock: number; sku: string; pages?: number; description?: string }[]>([]);
@@ -1263,6 +1279,10 @@ export function AdminDashboard() {
         highlights: p.highlights && p.highlights.length > 0 ? [...p.highlights] : ['১০০% আসল মুদ্রিত বই', 'দ্রুততম ক্যাশ অন ডেলিভারি'],
         deliveryChargeType: p.deliveryChargeType || 'standard',
         customDeliveryFee: p.customDeliveryFee || 60,
+        requireOnlinePayment: Boolean(p.requireOnlinePayment),
+        ...(p.requireOnlinePayment
+          ? { onlinePaymentPercent: clampOnlinePaymentPercent(p.onlinePaymentPercent, 100) }
+          : {}),
         deliveryEstimate: p.deliveryEstimate || '2-3 Business Days',
         deliveryTimingTitle: p.deliveryTimingTitle || 'Delivery Timing',
         insideDhakaDelivery: p.insideDhakaDelivery || '24-48 Hours (1-2 Days)',
@@ -1339,10 +1359,11 @@ export function AdminDashboard() {
     if (type === 'book') {
       setProdPrice(350);
       setProdRegularPrice(450);
-      const firstBookCat = categories.find(c => c.type === 'book')?.name || '';
-      setProdCategory(firstBookCat);
-      setProdCategories(firstBookCat ? [firstBookCat] : []);
-      setProdCategorySearch('');
+      setProdRequireOnlinePayment(false);
+      setProdOnlinePaymentPercent(100);
+      setProdCategory('');
+      setProdCategories([]);
+      setIsProdCategoryDropdownOpen(false);
       setProdAuthor('');
       setProdPublisher('');
       setProdIsbn('');
@@ -1373,10 +1394,11 @@ export function AdminDashboard() {
     } else {
       setProdPrice(220);
       setProdRegularPrice(290);
-      const firstStatCat = categories.find(c => c.type === 'stationery')?.name || '';
-      setProdCategory(firstStatCat);
-      setProdCategories(firstStatCat ? [firstStatCat] : []);
-      setProdCategorySearch('');
+      setProdRequireOnlinePayment(false);
+      setProdOnlinePaymentPercent(100);
+      setProdCategory('');
+      setProdCategories([]);
+      setIsProdCategoryDropdownOpen(false);
       setProdAuthor('');
       setProdPublisher('');
       setProdIsbn('');
@@ -1420,7 +1442,7 @@ export function AdminDashboard() {
     const existingCategories = getProductCategories(p);
     setProdCategories(existingCategories);
     setProdCategory(existingCategories[0] || p.category || '');
-    setProdCategorySearch('');
+    setIsProdCategoryDropdownOpen(false);
     setProdAuthor(p.author || '');
     setProdPublisher(p.publisher || '');
     setProdIsbn(p.isbn || '');
@@ -1442,6 +1464,8 @@ export function AdminDashboard() {
     setProdHighlights(p.highlights || []);
     setProdDeliveryChargeType(p.deliveryChargeType || 'standard');
     setProdCustomDeliveryFee(p.customDeliveryFee || 60);
+    setProdRequireOnlinePayment(Boolean(p.requireOnlinePayment));
+    setProdOnlinePaymentPercent(clampOnlinePaymentPercent(p.onlinePaymentPercent, 100));
     setProdIsFreeDelivery(Boolean(p.isFreeDelivery || p.deliveryChargeType === 'free'));
     setProdHomeDeliveryFee(p.homeDeliveryFee ?? (p.customDeliveryFee || 60));
     setProdInsideDhakaFee(p.insideDhakaFee ?? p.homeDeliveryFee ?? 60);
@@ -1521,6 +1545,7 @@ export function AdminDashboard() {
       prodCategories.length > 0 ? prodCategories : prodCategory ? [prodCategory] : []
     );
     if (resolvedCategoryFields.categories.length === 0) {
+      setIsProdCategoryDropdownOpen(true);
       setToast({
         show: true,
         type: 'error',
@@ -1620,6 +1645,10 @@ export function AdminDashboard() {
       isFreeDelivery: prodIsFreeDelivery,
       deliveryChargeType: prodIsFreeDelivery ? 'free' : prodDeliveryChargeType,
       customDeliveryFee: prodIsFreeDelivery ? 0 : (prodDeliveryChargeType === 'custom' ? Number(prodCustomDeliveryFee) || 60 : 0),
+      requireOnlinePayment: prodRequireOnlinePayment,
+      onlinePaymentPercent: prodRequireOnlinePayment
+        ? clampOnlinePaymentPercent(prodOnlinePaymentPercent, 100)
+        : undefined,
       homeDeliveryFee: Number(prodHomeDeliveryFee) || 60,
       insideDhakaFee: Number(prodInsideDhakaFee) || 60,
       outsideDhakaFee: Number(prodOutsideDhakaFee) || 120,
@@ -1901,32 +1930,97 @@ export function AdminDashboard() {
     }
   };
 
+  const handleMoveCategorySerial = async (catId: string, direction: 'up' | 'down') => {
+    const ordered = sortCategoriesBySerial(categories);
+    const idx = ordered.findIndex(c => c.id === catId);
+    if (idx < 0) return;
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= ordered.length) return;
+
+    const currentCat = ordered[idx];
+    const swapCat = ordered[targetIdx];
+    const currentOrder = idx + 1;
+    const swapOrder = targetIdx + 1;
+
+    try {
+      await Promise.all([
+        updateCategory(currentCat.id, { displayOrder: swapOrder }),
+        updateCategory(swapCat.id, { displayOrder: currentOrder }),
+      ]);
+      setToast({
+        show: true,
+        type: 'success',
+        message: `Updated serial order for "${currentCat.name}".`,
+      });
+    } catch (err: any) {
+      setToast({
+        show: true,
+        type: 'error',
+        message: 'Failed to update category order: ' + (err?.message || 'Unknown error'),
+      });
+    }
+  };
+
   const handleSaveCategory = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!catName) return;
+    const trimmedName = catName.trim();
+    if (!trimmedName) return;
 
-    const slug = catName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const slug = trimmedName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || ('cat-' + Date.now());
+    const safeLimit = clampCategoryHomeLimit(catHomeProductLimit);
+    const compatibleFeaturedIds = catHomeFeaturedProductIds.filter(id => {
+      const p = products.find(item => item.id === id);
+      return p && p.type === catType;
+    });
+    const safeOrder = Number.isFinite(catDisplayOrder) && catDisplayOrder >= 0 ? Math.floor(catDisplayOrder) : categories.length + 1;
 
     try {
       if (editingCatId) {
         await updateCategory(editingCatId, {
-          name: catName,
+          name: trimmedName,
           type: catType,
           slug,
           image: catImage,
-          showOnHome: catShowOnHome
+          showOnHome: catShowOnHome,
+          showProductsOnHome: catShowProductsOnHome,
+          homeProductLimit: safeLimit,
+          homeFeaturedProductIds: compatibleFeaturedIds,
+          displayOrder: safeOrder,
         });
         setToast({ show: true, type: 'success', message: 'Category updated and synced to Firebase in real-time!' });
       } else {
         await addCategory({
           id: 'cat-' + Date.now(),
-          name: catName,
+          name: trimmedName,
           type: catType,
           slug,
           image: catImage,
-          showOnHome: catShowOnHome
+          showOnHome: catShowOnHome,
+          showProductsOnHome: catShowProductsOnHome,
+          homeProductLimit: safeLimit,
+          homeFeaturedProductIds: compatibleFeaturedIds,
+          displayOrder: safeOrder,
         });
         setToast({ show: true, type: 'success', message: 'Category created and saved directly to Firebase in real-time!' });
+      }
+
+      // If admin selected specific items for this category's Homepage section, ensure they belong to this category
+      if (catShowProductsOnHome && compatibleFeaturedIds.length > 0) {
+        const productsToTag = compatibleFeaturedIds
+          .map(id => products.find(p => p.id === id))
+          .filter((p): p is Product => Boolean(p && !productHasCategory(p, trimmedName)));
+
+        if (productsToTag.length > 0) {
+          await Promise.all(
+            productsToTag.map(prod => {
+              const existingCats = getProductCategories(prod);
+              const nextCats = existingCats.includes(trimmedName)
+                ? existingCats
+                : [...existingCats, trimmedName];
+              return updateProduct(prod.id, buildProductCategoryFields(nextCats));
+            })
+          );
+        }
       }
 
       setShowAddCatModal(false);
@@ -1934,6 +2028,10 @@ export function AdminDashboard() {
       setCatName('');
       setCatImage('');
       setCatShowOnHome(true);
+      setCatShowProductsOnHome(false);
+      setCatHomeProductLimit(5);
+      setCatHomeFeaturedProductIds([]);
+      setCatDisplayOrder(categories.length + 1);
     } catch (err: any) {
       setToast({ show: true, type: 'error', message: 'Firebase Error: ' + (err.message || 'Failed to save category') });
     }
@@ -5763,6 +5861,15 @@ export function AdminDashboard() {
                                             {p.deliveryEstimate && (
                                               <span className="truncate">{p.deliveryEstimate}</span>
                                             )}
+                                            {(() => {
+                                              const req = getProductOnlinePaymentRequirement(p);
+                                              if (!req.required) return null;
+                                              return (
+                                                <span className="font-semibold text-[#D71920] shrink-0 tabular-nums">
+                                                  · {req.percent}% Online
+                                                </span>
+                                              );
+                                            })()}
                                           </div>
                                         </div>
                                       </div>
@@ -7244,140 +7351,32 @@ export function AdminDashboard() {
                       )}
                     </div>
 
+                    {/* WIDGET 4B: MANDATORY ONLINE PAYMENT & ADVANCE % POLICY */}
+                    <ProductOnlinePaymentCard
+                      requireOnlinePayment={prodRequireOnlinePayment}
+                      onToggleRequireOnlinePayment={setProdRequireOnlinePayment}
+                      onlinePaymentPercent={prodOnlinePaymentPercent}
+                      onChangeOnlinePaymentPercent={setProdOnlinePaymentPercent}
+                      samplePrice={prodPrice}
+                    />
+
                     {/* WIDGET 5: ORGANIZATION & INVENTORY */}
                     <div className="bg-white border border-slate-200 rounded-xl p-5 text-slate-900 space-y-4">
                       <h4 className="font-bold text-xs uppercase tracking-wider text-slate-500">
                         Organization &amp; Inventory
                       </h4>
 
-                      <div data-testid="product-multi-category-picker" className="space-y-2.5">
-                        <div className="flex items-center justify-between gap-2">
-                          <label className="block text-xs font-semibold text-slate-700">
-                            Categories <span className="text-[#D71920]">*</span>
-                          </label>
-                          <span className="text-[11px] font-semibold text-slate-500 tabular-nums">
-                            {prodCategories.length} selected
-                          </span>
-                        </div>
-
-                        {prodCategories.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5">
-                            {prodCategories.map((catName, idx) => (
-                              <span
-                                key={`sel-cat-${catName}`}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-50 text-[#D71920] border border-rose-200 text-[11px] font-semibold"
-                              >
-                                <span className="truncate max-w-[140px]">
-                                  {catName}
-                                  {idx === 0 && prodCategories.length > 1 ? ' (Primary)' : ''}
-                                </span>
-                                <button
-                                  type="button"
-                                  aria-label={`Remove ${catName}`}
-                                  onClick={() => {
-                                    const next = toggleProductCategorySelection(prodCategories, catName);
-                                    setProdCategories(next);
-                                    setProdCategory(next[0] || '');
-                                  }}
-                                  className="text-[#D71920]/70 hover:text-[#D71920] cursor-pointer"
-                                >
-                                  <X size={11} />
-                                </button>
-                              </span>
-                            ))}
-                          </div>
-                        )}
-
-                        {(() => {
-                          const seenCatNames = new Set<string>();
-                          const allChoices: { id: string; name: string }[] = [];
-                          for (const c of categories.filter(cat => cat.type === prodType)) {
-                            const cleanName = (c.name || '').trim();
-                            if (!cleanName) continue;
-                            const key = cleanName.toLowerCase();
-                            if (seenCatNames.has(key)) continue;
-                            seenCatNames.add(key);
-                            allChoices.push({ id: c.id, name: cleanName });
-                          }
-                          for (const extraName of prodCategories) {
-                            const cleanName = (extraName || '').trim();
-                            if (!cleanName) continue;
-                            const key = cleanName.toLowerCase();
-                            if (seenCatNames.has(key)) continue;
-                            seenCatNames.add(key);
-                            allChoices.push({ id: `extra-${key}`, name: cleanName });
-                          }
-                          const q = prodCategorySearch.trim().toLowerCase();
-                          const visibleChoices = q
-                            ? allChoices.filter(c => c.name.toLowerCase().includes(q))
-                            : allChoices;
-
-                          return (
-                            <div className="rounded-lg border border-slate-200 bg-slate-50/40 overflow-hidden">
-                              {allChoices.length > 5 && (
-                                <div className="px-2.5 py-2 border-b border-slate-200 bg-white flex items-center gap-1.5">
-                                  <Search size={12} className="text-slate-400 shrink-0" />
-                                  <input
-                                    type="text"
-                                    value={prodCategorySearch}
-                                    onChange={e => setProdCategorySearch(e.target.value)}
-                                    placeholder="Filter categories..."
-                                    className="w-full text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none bg-transparent"
-                                  />
-                                  {prodCategorySearch && (
-                                    <button
-                                      type="button"
-                                      aria-label="Clear category search"
-                                      onClick={() => setProdCategorySearch('')}
-                                      className="text-slate-400 hover:text-slate-700 cursor-pointer"
-                                    >
-                                      <X size={12} />
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                              <div className="max-h-48 overflow-y-auto divide-y divide-slate-100 bg-white">
-                                {visibleChoices.length === 0 ? (
-                                  <p className="px-3 py-3 text-[11px] text-slate-400 text-center">
-                                    No matching categories found.
-                                  </p>
-                                ) : (
-                                  visibleChoices.map(c => {
-                                    const checked = prodCategories.some(
-                                      sel => sel.toLowerCase() === c.name.toLowerCase()
-                                    );
-                                    return (
-                                      <label
-                                        key={c.id}
-                                        className={`flex items-center gap-2.5 px-3 py-2 text-xs cursor-pointer transition-colors ${
-                                          checked
-                                            ? 'bg-rose-50/60 text-slate-900 font-semibold'
-                                            : 'text-slate-700 hover:bg-slate-50'
-                                        }`}
-                                      >
-                                        <input
-                                          type="checkbox"
-                                          checked={checked}
-                                          onChange={() => {
-                                            const next = toggleProductCategorySelection(
-                                              prodCategories,
-                                              c.name
-                                            );
-                                            setProdCategories(next);
-                                            setProdCategory(next[0] || '');
-                                          }}
-                                          className="w-4 h-4 rounded border-slate-300 text-[#D71920] accent-[#D71920] cursor-pointer shrink-0"
-                                        />
-                                        <span className="truncate">{c.name}</span>
-                                      </label>
-                                    );
-                                  })
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </div>
+                      <ProductCategorySelector
+                        categories={categories}
+                        productType={prodType}
+                        selectedCategories={prodCategories}
+                        onChange={next => {
+                          setProdCategories(next);
+                          setProdCategory(next[0] || '');
+                        }}
+                        isOpen={isProdCategoryDropdownOpen}
+                        onOpenChange={setIsProdCategoryDropdownOpen}
+                      />
 
                       <div>
                         <div className="flex items-center justify-between mb-1">
@@ -8034,8 +8033,13 @@ export function AdminDashboard() {
                     setCatType('book');
                     setCatImage('https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80');
                     setCatShowOnHome(true);
+                    setCatShowProductsOnHome(false);
+                    setCatHomeProductLimit(5);
+                    setCatHomeFeaturedProductIds([]);
+                    setCatDisplayOrder(categories.length + 1);
                     setShowAddCatModal(true);
                   }}
+                  data-testid="admin-add-category-btn"
                   className="px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl text-xs flex items-center gap-1 shadow-md cursor-pointer transition-colors"
                 >
                   <Plus size={14} /> Category
@@ -8047,6 +8051,10 @@ export function AdminDashboard() {
                     setCatType('stationery');
                     setCatImage('https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?w=600&auto=format&fit=crop&q=80');
                     setCatShowOnHome(true);
+                    setCatShowProductsOnHome(false);
+                    setCatHomeProductLimit(5);
+                    setCatHomeFeaturedProductIds([]);
+                    setCatDisplayOrder(categories.length + 1);
                     setShowAddCatModal(true);
                   }}
                   className="px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-white font-bold rounded-xl text-xs flex items-center gap-1 shadow-md cursor-pointer transition-colors"
@@ -8060,6 +8068,10 @@ export function AdminDashboard() {
                     setCatType('book');
                     setCatImage('https://images.unsplash.com/photo-1512820790803-83ca734da794?w=600&auto=format&fit=crop&q=80');
                     setCatShowOnHome(true);
+                    setCatShowProductsOnHome(false);
+                    setCatHomeProductLimit(5);
+                    setCatHomeFeaturedProductIds([]);
+                    setCatDisplayOrder(categories.length + 1);
                     setShowAddCatModal(true);
                   }}
                   className="px-4 py-2 bg-white hover:bg-neutral-100 text-neutral-800 border border-neutral-300 font-bold rounded-xl text-xs flex items-center gap-1 shadow-xs cursor-pointer transition-colors"
@@ -8107,24 +8119,27 @@ export function AdminDashboard() {
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-[#F7F7F8] text-neutral-500 font-bold uppercase tracking-wider border-b border-[#E5E5E5] text-[11px]">
-                    <th className="py-3 px-4 w-10 text-center"><input type="checkbox" className="accent-[#D71920] rounded" /></th>
                     <th className="py-3 px-4">Category</th>
-                    <th className="py-3 px-4">Parent</th>
                     <th className="py-3 px-4">Products</th>
                     <th className="py-3 px-4">Type</th>
-                    <th className="py-3 px-4">Pos</th>
-                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4">Serial</th>
+                    <th className="py-3 px-4">Top Slider</th>
+                    <th className="py-3 px-4">Home Products</th>
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#EEEEEE]">
-                  {categories
-                    .filter(c => !categorySearchQuery || c.name.toLowerCase().includes(categorySearchQuery.toLowerCase()))
-                    .map((cat, idx) => {
-                      const itemCount = products.filter(p => productHasCategory(p, cat.name)).length;
+                  {(() => {
+                    const orderedCats = sortCategoriesBySerial(categories).filter(
+                      c => !categorySearchQuery || c.name.toLowerCase().includes(categorySearchQuery.toLowerCase())
+                    );
+                    return orderedCats.map((cat, idx) => {
+                      const itemCount = products.filter(p => p.type === cat.type && productHasCategory(p, cat.name)).length;
+                      const showProdsOnHome = cat.showProductsOnHome === true;
+                      const catLimit = clampCategoryHomeLimit(cat.homeProductLimit);
+
                       return (
                         <tr key={cat.id} className="hover:bg-[#FFF9F9] transition-colors group">
-                          <td className="py-3.5 px-4 text-center"><input type="checkbox" className="accent-[#D71920] rounded" /></td>
                           <td className="py-3.5 px-4">
                             <div className="flex items-center gap-3">
                               <div className="w-11 h-11 rounded-xl overflow-hidden shrink-0 border border-neutral-200 bg-neutral-100">
@@ -8137,58 +8152,103 @@ export function AdminDashboard() {
                                 )}
                               </div>
                               <div className="min-w-0">
-                                <h4 className="font-black text-xs text-neutral-900 uppercase truncate">{cat.name}</h4>
+                                <h4 className="font-bold text-xs text-neutral-900 truncate">{cat.name}</h4>
                                 <p className="text-[11px] text-neutral-400 font-mono mt-0.5">/{cat.slug}</p>
                               </div>
                             </div>
                           </td>
-                          <td className="py-3.5 px-4 text-neutral-400 font-bold">—</td>
                           <td className="py-3.5 px-4">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            <span className="text-xs font-semibold text-neutral-700 tabular-nums">
                               {itemCount} {itemCount === 1 ? 'item' : 'items'}
                             </span>
                           </td>
                           <td className="py-3.5 px-4">
-                            <span className="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-black">
-                              Main (1)
+                            <span className={`text-[11px] font-semibold ${cat.type === 'stationery' ? 'text-amber-700' : 'text-neutral-700'}`}>
+                              {cat.type === 'stationery' ? 'Stationery' : 'Books'}
                             </span>
                           </td>
                           <td className="py-3.5 px-4">
-                            <div className="flex items-center gap-1.5 bg-neutral-100 px-2 py-1 rounded-lg border border-neutral-200 w-fit">
-                              <span className="font-bold text-neutral-800">{idx}</span>
+                            <div className="inline-flex items-center gap-1 bg-neutral-100 px-1.5 py-1 rounded-lg border border-neutral-200">
+                              <span className="font-bold text-neutral-800 tabular-nums px-1 min-w-5 text-center">
+                                {typeof cat.displayOrder === 'number' ? cat.displayOrder : idx + 1}
+                              </span>
+                              <button
+                                type="button"
+                                aria-label={`Move ${cat.name} up`}
+                                onClick={() => handleMoveCategorySerial(cat.id, 'up')}
+                                disabled={idx === 0}
+                                className="p-1 rounded hover:bg-white text-neutral-600 hover:text-[#D71920] disabled:opacity-30 cursor-pointer transition-colors"
+                              >
+                                <ArrowUp size={12} />
+                              </button>
+                              <button
+                                type="button"
+                                aria-label={`Move ${cat.name} down`}
+                                onClick={() => handleMoveCategorySerial(cat.id, 'down')}
+                                disabled={idx === orderedCats.length - 1}
+                                className="p-1 rounded hover:bg-white text-neutral-600 hover:text-[#D71920] disabled:opacity-30 cursor-pointer transition-colors"
+                              >
+                                <ArrowDown size={12} />
+                              </button>
                             </div>
                           </td>
                           <td className="py-3.5 px-4">
                             <button
+                              type="button"
                               onClick={() => updateCategory(cat.id, { showOnHome: !(cat.showOnHome !== false) })}
-                              className={`px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider cursor-pointer transition-colors ${
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition-colors ${
                                 cat.showOnHome !== false
-                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                                  : 'bg-neutral-100 text-neutral-600 border border-neutral-300'
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
                               }`}
-                              title="Click to toggle status"
+                              title="Toggle Top Slider visibility"
                             >
-                              {cat.showOnHome !== false ? 'Active' : 'Hidden'}
+                              {cat.showOnHome !== false ? 'Slider On' : 'Hidden'}
+                            </button>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateCategory(cat.id, {
+                                  showProductsOnHome: !showProdsOnHome,
+                                  homeProductLimit: catLimit,
+                                })
+                              }
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition-colors tabular-nums ${
+                                showProdsOnHome
+                                  ? 'bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/30'
+                                  : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
+                              }`}
+                              title="Toggle this category's products section on Homepage"
+                            >
+                              {showProdsOnHome ? `On (${catLimit})` : 'Off'}
                             </button>
                           </td>
                           <td className="py-3.5 px-4 text-right">
                             <div className="flex items-center justify-end gap-2">
-                              <button 
+                              <button
+                                type="button"
                                 onClick={() => {
                                   setEditingCatId(cat.id);
                                   setCatName(cat.name);
                                   setCatType(cat.type);
                                   setCatImage(cat.image || '');
                                   setCatShowOnHome(cat.showOnHome !== false);
+                                  setCatShowProductsOnHome(cat.showProductsOnHome === true);
+                                  setCatHomeProductLimit(clampCategoryHomeLimit(cat.homeProductLimit));
+                                  setCatHomeFeaturedProductIds(Array.isArray(cat.homeFeaturedProductIds) ? cat.homeFeaturedProductIds : []);
+                                  setCatDisplayOrder(typeof cat.displayOrder === 'number' ? cat.displayOrder : idx + 1);
                                   setShowAddCatModal(true);
                                 }}
+                                data-testid={`admin-edit-category-${cat.id}`}
                                 className="p-1.5 rounded-lg border border-neutral-200 bg-white text-neutral-700 hover:text-[#D71920] hover:border-[#D71920] cursor-pointer transition-colors"
                                 title="Edit Category"
                               >
                                 <Edit2 size={13} />
                               </button>
-                              <button 
+                              <button
+                                type="button"
                                 onClick={() => deleteCategory(cat.id)}
                                 className="p-1.5 rounded-lg border border-neutral-200 bg-white text-neutral-700 hover:text-red-600 hover:border-red-300 cursor-pointer transition-colors"
                                 title="Delete Category"
@@ -8199,145 +8259,36 @@ export function AdminDashboard() {
                           </td>
                         </tr>
                       );
-                    })}
+                    });
+                  })()}
                 </tbody>
               </table>
             </div>
 
-            {/* Modal for Add / Edit Category */}
-            {showAddCatModal && (
-              <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-                <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-[#E5E5E5] space-y-5 my-8">
-                  <div className="flex items-center justify-between pb-3 border-b border-[#EEEEEE]">
-                    <h3 className="text-lg font-black text-[#171717]">
-                      {editingCatId ? 'Edit Category' : 'Add New Category'}
-                    </h3>
-                    <button 
-                      onClick={() => setShowAddCatModal(false)}
-                      className="text-[#777777] hover:text-[#171717] text-lg font-bold p-1 cursor-pointer"
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  <form onSubmit={handleSaveCategory} className="space-y-4 text-xs">
-                    <div>
-                      <label className="block font-bold text-[#171717] mb-1 uppercase tracking-wider text-[11px]">Category Name</label>
-                      <input 
-                        type="text" 
-                        required 
-                        placeholder="e.g. Science Fiction & Space"
-                        value={catName} 
-                        onChange={e => setCatName(e.target.value)} 
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block font-bold text-[#171717] mb-1 uppercase tracking-wider text-[11px]">Category Type</label>
-                      <select 
-                        value={catType} 
-                        onChange={e => setCatType(e.target.value as any)} 
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
-                      >
-                        <option value="book">Book Category</option>
-                        <option value="stationery">Stationery Category</option>
-                      </select>
-                    </div>
-
-                    {/* Show on Homepage Toggle Switch */}
-                    <div className="flex items-center justify-between p-3.5 rounded-2xl bg-[#F7F7F8] border border-[#E5E5E5]">
-                      <div>
-                        <span className="font-bold text-xs text-[#171717] block">Show Category on Homepage (হোমপেজ অন বাটন)</span>
-                        <span className="text-[10px] text-[#5F6368] leading-tight block mt-0.5">
-                          Turn on to display this category's items in the homepage category slider.
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setCatShowOnHome(!catShowOnHome)}
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                          catShowOnHome ? 'bg-[#D71920]' : 'bg-neutral-300'
-                        }`}
-                      >
-                        <span
-                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                            catShowOnHome ? 'translate-x-5' : 'translate-x-0'
-                          }`}
-                        />
-                      </button>
-                    </div>
-
-                    {/* Category Image Upload & URL */}
-                    <div>
-                      <label className="block font-bold text-[#171717] mb-1 uppercase tracking-wider text-[11px]">
-                        Category Picture (URL or Upload Image File)
-                      </label>
-                      <div className="flex gap-2">
-                        <input 
-                          type="url" 
-                          placeholder="https://example.com/category-photo.jpg"
-                          value={catImage} 
-                          onChange={e => setCatImage(e.target.value)} 
-                          className="flex-1 px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F8] text-[#171717]"
-                        />
-                        <label className="px-4 py-2.5 bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/30 rounded-xl font-bold flex items-center gap-1.5 cursor-pointer hover:bg-[#D71920] hover:text-white transition-colors">
-                          <Upload size={14} /> Upload
-                          <input type="file" accept="image/*" onChange={handleCategoryFileUpload} className="hidden" />
-                        </label>
-                      </div>
-
-                      {/* Photo Preview & Presets */}
-                      <div className="mt-3 flex items-center gap-3">
-                        <div className="w-14 h-14 rounded-xl overflow-hidden border border-[#E5E5E5] bg-neutral-100 shrink-0 flex items-center justify-center">
-                          {catImage ? (
-                            <img src={catImage} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="text-[#D71920] font-bold text-xs">Preview</span>
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <div className="text-[10px] text-[#5F6368] font-bold mb-1">Preset Pictures:</div>
-                          <div className="flex flex-wrap gap-1">
-                            {[
-                              { name: 'Novels', url: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80' },
-                              { name: 'Islamic', url: 'https://images.unsplash.com/photo-1585036156171-384164a8c675?w=600&auto=format&fit=crop&q=80' },
-                              { name: 'Academic', url: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=600&auto=format&fit=crop&q=80' },
-                              { name: 'Stationery', url: 'https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?w=600&auto=format&fit=crop&q=80' }
-                            ].map((preset, i) => (
-                              <button
-                                key={i}
-                                type="button"
-                                onClick={() => setCatImage(preset.url)}
-                                className="text-[10px] px-2 py-0.5 rounded bg-neutral-100 hover:bg-[#FFF1F2] hover:text-[#D71920] border border-[#E5E5E5] font-semibold cursor-pointer"
-                              >
-                                {preset.name}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end gap-2.5 pt-3 border-t border-[#EEEEEE]">
-                      <button 
-                        type="button" 
-                        onClick={() => setShowAddCatModal(false)}
-                        className="px-5 py-2.5 bg-neutral-100 text-[#171717] font-bold rounded-xl hover:bg-neutral-200 cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                      <button 
-                        type="submit"
-                        className="px-6 py-2.5 bg-[#D71920] hover:bg-[#B9151B] text-white font-bold rounded-xl shadow-md cursor-pointer flex items-center gap-1.5"
-                      >
-                        <Check size={14} /> Save Category
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            )}
+            <CategoryEditorModal
+              isOpen={showAddCatModal}
+              editingCatId={editingCatId}
+              catName={catName}
+              setCatName={setCatName}
+              catType={catType}
+              setCatType={setCatType}
+              catImage={catImage}
+              setCatImage={setCatImage}
+              catShowOnHome={catShowOnHome}
+              setCatShowOnHome={setCatShowOnHome}
+              catShowProductsOnHome={catShowProductsOnHome}
+              setCatShowProductsOnHome={setCatShowProductsOnHome}
+              catHomeProductLimit={catHomeProductLimit}
+              setCatHomeProductLimit={setCatHomeProductLimit}
+              catHomeFeaturedProductIds={catHomeFeaturedProductIds}
+              setCatHomeFeaturedProductIds={setCatHomeFeaturedProductIds}
+              catDisplayOrder={catDisplayOrder}
+              setCatDisplayOrder={setCatDisplayOrder}
+              products={products}
+              onClose={() => setShowAddCatModal(false)}
+              onSave={handleSaveCategory}
+              onUploadFile={handleCategoryFileUpload}
+            />
           </div>
         )}
 

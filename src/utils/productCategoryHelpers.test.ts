@@ -3,10 +3,12 @@ import assert from 'node:assert/strict';
 import {
   buildProductCategoryFields,
   getProductCategories,
+  getSelectableProductCategories,
   productCategoriesMatchQuery,
   productHasCategory,
   toggleProductCategorySelection,
 } from './productCategoryHelpers';
+import { Category } from '../types';
 
 test('getProductCategories merges categories array and legacy category without duplicates', () => {
   assert.deepEqual(
@@ -51,4 +53,26 @@ test('toggleProductCategorySelection and buildProductCategoryFields toggle & nor
   const fields = buildProductCategoryFields(selected);
   assert.equal(fields.category, 'Islamic Books');
   assert.deepEqual(fields.categories, ['Islamic Books', 'Academic & Textbooks']);
+  assert.deepEqual(buildProductCategoryFields([]), { category: '', categories: [] });
+});
+
+test('getSelectableProductCategories sorts by displayOrder, filters strictly by type, and deduplicates', () => {
+  const cats: Category[] = [
+    { id: 'c1', name: 'Thriller & Mystery', type: 'book', slug: 'thriller', displayOrder: 3 },
+    { id: 'c2', name: 'Pen/Calculator', type: 'stationery', slug: 'pen', displayOrder: 1 },
+    { id: 'c3', name: 'Islamic Books', type: 'book', slug: 'islamic', displayOrder: 1 },
+    { id: 'c4', name: 'islamic books', type: 'book', slug: 'islamic-dup', displayOrder: 2 },
+  ];
+
+  const bookOptions = getSelectableProductCategories(cats, 'book', ['Legacy Custom']);
+  assert.deepEqual(
+    bookOptions.map(o => o.name),
+    ['Islamic Books', 'Thriller & Mystery', 'Legacy Custom']
+  );
+
+  const statOptions = getSelectableProductCategories(cats, 'stationery', []);
+  assert.deepEqual(
+    statOptions.map(o => o.name),
+    ['Pen/Calculator']
+  );
 });

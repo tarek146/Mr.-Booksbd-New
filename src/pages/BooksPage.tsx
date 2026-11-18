@@ -39,6 +39,7 @@ import {
   productHasCategory,
   productCategoriesMatchQuery,
 } from '../utils/productCategoryHelpers';
+import { sortCategoriesBySerial } from '../utils/categoryHomeHelpers';
 
 export function BooksPage() {
   const { products, categories, isLoading, isStoreHydrated, settings, homeConfig, searchQuery, setSearchQuery, selectedCategoryFilter, setSelectedCategoryFilter, selectedSeriesFilter, setSelectedSeriesFilter, setActivePage, addToCart, startDirectCheckout } = useStore();
@@ -46,8 +47,8 @@ export function BooksPage() {
     resolveProductImageFitMode(settings, homeConfig)
   );
 
-  // Local filter states for advanced shop page
-  const [productTypeFilter, setProductTypeFilter] = useState<'all' | 'book' | 'stationery'>('all');
+  // Local filter states for books library page (Books isolated from Stationery by default)
+  const [productTypeFilter, setProductTypeFilter] = useState<'all' | 'book' | 'stationery'>('book');
   const [minPrice, setMinPrice] = useState<number>(0);
   const [maxPrice, setMaxPrice] = useState<number>(3000);
   const [inStockOnly, setInStockOnly] = useState<boolean>(false);
@@ -117,7 +118,7 @@ export function BooksPage() {
     setSelectedSeriesFilter('');
     setSelectedCategoryFilter('all');
     setSearchQuery('');
-    setProductTypeFilter('all');
+    setProductTypeFilter('book');
     setMinPrice(0);
     setMaxPrice(3000);
     setInStockOnly(false);
@@ -129,7 +130,7 @@ export function BooksPage() {
     selectedSeriesFilter !== '' ||
     selectedCategoryFilter !== 'all' || 
     searchQuery !== '' || 
-    productTypeFilter !== 'all' || 
+    productTypeFilter !== 'book' || 
     minPrice > 0 || 
     maxPrice < 3000 || 
     inStockOnly || 
@@ -262,7 +263,11 @@ export function BooksPage() {
             >
               All Categories
             </button>
-            {categories.map(cat => (
+            {sortCategoriesBySerial(
+              categories.filter(cat =>
+                productTypeFilter === 'all' ? true : cat.type === productTypeFilter
+              )
+            ).map(cat => (
               <button 
                 key={cat.id}
                 onClick={() => setSelectedCategoryFilter(cat.name)}

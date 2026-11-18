@@ -116,6 +116,14 @@ test('computeOrderDocumentFinancials resolves product fallback image, regular/of
   assert.equal(paidFin.isPaidOnline, true);
   assert.equal(paidFin.amountToCollect, 0);
   assert.equal(paidFin.paidAmount, 280);
+
+  // Partial advance approved order collects remaining balance
+  const partialPaidFin = computeOrderDocumentFinancials(
+    { ...BASE_ORDER, paymentStatus: 'approved', advancePaidAmount: 80, dueOnDeliveryAmount: 200 },
+    SAMPLE_PRODUCTS
+  );
+  assert.equal(partialPaidFin.paidAmount, 80);
+  assert.equal(partialPaidFin.amountToCollect, 200);
 });
 
 test('calculateEditedOrderFinancials updates subtotal, grandTotal, and courierCodAmount atomically on order edits', () => {

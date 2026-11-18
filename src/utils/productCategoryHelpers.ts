@@ -1,4 +1,5 @@
-import { Product } from '../types';
+import { Category, Product, ProductType } from '../types';
+import { sortCategoriesBySerial } from './categoryHomeHelpers';
 
 /**
  * Normalizes and deduplicates an array of category names case-insensitively while preserving order.
@@ -89,4 +90,37 @@ export function buildProductCategoryFields(selectedCategories: string[]): {
     category: normalized[0] || '',
     categories: normalized,
   };
+}
+
+/**
+ * Builds deduplicated, serial-sorted selectable categories for the Admin Product Editor
+ * strictly matching the given product type while preserving any legacy selected names.
+ */
+export function getSelectableProductCategories(
+  categories: Category[],
+  productType: ProductType,
+  selectedCategories: string[] = []
+): { id: string; name: string }[] {
+  const seenCatNames = new Set<string>();
+  const choices: { id: string; name: string }[] = [];
+
+  for (const cat of sortCategoriesBySerial(categories).filter(c => c.type === productType)) {
+    const cleanName = (cat.name || '').trim();
+    if (!cleanName) continue;
+    const key = cleanName.toLowerCase();
+    if (seenCatNames.has(key)) continue;
+    seenCatNames.add(key);
+    choices.push({ id: cat.id, name: cleanName });
+  }
+
+  for (const extraName of selectedCategories) {
+    const cleanName = (extraName || '').trim();
+    if (!cleanName) continue;
+    const key = cleanName.toLowerCase();
+    if (seenCatNames.has(key)) continue;
+    seenCatNames.add(key);
+    choices.push({ id: `extra-${key}`, name: cleanName });
+  }
+
+  return choices;
 }

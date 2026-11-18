@@ -25,6 +25,10 @@ export function OrderSuccessPage() {
   }
 
   const paymentMethod = paymentMethods.find(m => m.id === order.paymentMethodId);
+  const payableAmount =
+    order.onlinePaymentRequired && typeof order.advancePaidAmount === 'number' && order.advancePaidAmount > 0
+      ? order.advancePaidAmount
+      : order.total;
 
   const handleSubmitPayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +48,7 @@ export function OrderSuccessPage() {
         providerName: order.paymentMethodName,
         transactionReference: transactionRef,
         senderIdentifier: senderIdentifier,
-        claimedAmount: order.total
+        claimedAmount: payableAmount
       });
       setSubmitted(true);
     } catch (err: any) {
@@ -107,8 +111,11 @@ export function OrderSuccessPage() {
                 Enter Your Transaction ID (TrxID)
               </h2>
               <p className="text-xs text-[#5F6368] mt-1">
-                Please send <strong className="text-[#D71920]">৳{order.total}</strong> to{' '}
+                Please send <strong className="text-[#D71920]">৳{payableAmount}</strong> to{' '}
                 <strong className="text-[#171717]">{paymentMethod?.accountNumber}</strong> ({order.paymentMethodName}), then enter your details below.
+                {typeof order.dueOnDeliveryAmount === 'number' && order.dueOnDeliveryAmount > 0
+                  ? ` Remaining ৳${order.dueOnDeliveryAmount} will be payable on delivery.`
+                  : ''}
               </p>
             </div>
 

@@ -82,6 +82,8 @@ export interface Product {
   specialOfferTitle?: string;
   specialOfferActive?: boolean;
   specialOfferDiscount?: number;
+  requireOnlinePayment?: boolean;
+  onlinePaymentPercent?: number;
   createdAt: number;
 }
 
@@ -138,6 +140,10 @@ export interface Order {
   courierTrackingSteps?: CourierTrackingStep[];
   weightKg?: number;
   codCharge?: number;
+  onlinePaymentRequired?: boolean;
+  onlinePaymentPercent?: number;
+  advancePaidAmount?: number;
+  dueOnDeliveryAmount?: number;
   isTrashed?: boolean;
   trashedAt?: number;
 }
@@ -248,6 +254,10 @@ export interface Category {
   type: ProductType;
   image?: string;
   showOnHome?: boolean;
+  showProductsOnHome?: boolean;
+  homeProductLimit?: number;
+  homeFeaturedProductIds?: string[];
+  displayOrder?: number;
 }
 
 export interface Author {
@@ -625,6 +635,7 @@ export interface HomeConfig {
   allBooksTitle?: string;
   showCategoriesStrip?: boolean;
   showCategoryProductRows?: boolean;
+  enableCategoryProductSections?: boolean;
   showOfferSection?: boolean;
   showNewArrivalsSection?: boolean;
   showBestSellingSection?: boolean;

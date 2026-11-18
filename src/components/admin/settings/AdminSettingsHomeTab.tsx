@@ -35,8 +35,8 @@ export const AdminSettingsHomeTab: React.FC<HomeVisibilityTabProps> = ({
   const showBestSellingOnHome = homeConfig.showBestSellingSection !== false;
   const showAllBooksOnHome = homeConfig.showAllBooksSection !== false;
   const showCategoriesStripOnHome = homeConfig.showCategoriesStrip !== false;
-  const showCategoryRowsOnHome = homeConfig.showCategoryProductRows === true;
-  const showStationeryOnHome = homeConfig.showStationerySection === true;
+  const showCategorySectionsOnHome = homeConfig.enableCategoryProductSections !== false;
+  const showStationeryOnHome = homeConfig.showStationerySection !== false;
 
   return (
     <div
@@ -168,24 +168,24 @@ export const AdminSettingsHomeTab: React.FC<HomeVisibilityTabProps> = ({
 
           <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border border-slate-200 bg-slate-50/40">
             <div className="min-w-0">
-              <div className="text-xs font-medium text-slate-900">Per-Category Book Rows</div>
+              <div className="text-xs font-medium text-slate-900">Category Product Sections</div>
               <p className="text-[11px] text-slate-500 mt-0.5 truncate">
-                {showCategoryRowsOnHome
-                  ? 'Showing separate rows per category'
-                  : 'Off (keeps homepage clean)'}
+                {showCategorySectionsOnHome
+                  ? 'Shows categories turned ON in Categories'
+                  : 'All category rows hidden'}
               </p>
             </div>
             <SettingsSwitch
-              checked={showCategoryRowsOnHome}
-              ariaLabel="Toggle Per-Category Book Rows on Home page"
+              checked={showCategorySectionsOnHome}
+              ariaLabel="Toggle Category Product Sections on Home page"
               testId="home-config-category-rows-toggle"
               onChange={async () => {
-                const nextVal = !showCategoryRowsOnHome;
-                await updateHomeConfig({ showCategoryProductRows: nextVal });
+                const nextVal = !showCategorySectionsOnHome;
+                await updateHomeConfig({ enableCategoryProductSections: nextVal });
                 setToast({
                   show: true,
                   type: 'success',
-                  message: `Per-Category Book Rows ${nextVal ? 'enabled' : 'disabled'} on Home.`,
+                  message: `Category Product Sections ${nextVal ? 'enabled' : 'hidden'} on Home.`,
                 });
               }}
             />
