@@ -1,6 +1,6 @@
 import React from 'react';
 import { useStore } from '../context/StoreContext';
-import { Home, ShoppingBag, ShoppingCart, Truck, Search } from 'lucide-react';
+import { Home, BookOpen, ShoppingBag, Truck, Search } from 'lucide-react';
 
 export function MobileBottomNav() {
   const { activePage, setActivePage, cart, isSearchSpotlightOpen, setIsSearchSpotlightOpen } = useStore();
@@ -17,7 +17,7 @@ export function MobileBottomNav() {
     {
       id: 'books',
       label: 'Books',
-      icon: ShoppingBag,
+      icon: BookOpen,
       page: 'books'
     },
     {
@@ -29,7 +29,7 @@ export function MobileBottomNav() {
     {
       id: 'cart',
       label: 'Bag',
-      icon: ShoppingCart,
+      icon: ShoppingBag,
       page: 'cart',
       badge: totalCartItems
     },

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { 
   BookOpen, 
   ShoppingBag, 
+  ShoppingCart,
   Heart, 
   ShieldCheck, 
   Menu, 
@@ -305,9 +306,12 @@ export function Navbar() {
               {/* Cart Button */}
               <button 
                 onClick={() => setActivePage('cart')}
+                data-testid="navbar-cart-btn"
+                aria-label="Open Bag"
                 className="relative flex items-center gap-2 px-3.5 py-2 bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/25 rounded-full font-bold hover:bg-[#D71920] hover:text-white transition-all group cursor-pointer"
               >
-                <ShoppingBag size={18} />
+                <ShoppingCart size={18} className="md:hidden" data-testid="navbar-mobile-cart-icon" />
+                <ShoppingBag size={18} className="hidden md:block" data-testid="navbar-desktop-bag-icon" />
                 <span className="text-xs hidden sm:inline">
                   {totalCartCount > 0 ? `৳${cartSubtotal}` : 'Bag'}
                 </span>
