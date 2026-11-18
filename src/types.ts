@@ -634,6 +634,7 @@ export interface HomeConfig {
   bestSellingTitle?: string;
   allBooksTitle?: string;
   showCategoriesStrip?: boolean;
+  categoriesAutoSlide?: boolean;
   showCategoryProductRows?: boolean;
   enableCategoryProductSections?: boolean;
   showOfferSection?: boolean;

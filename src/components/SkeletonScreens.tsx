@@ -55,12 +55,12 @@ export function CategoryRowSkeleton() {
         <SkeletonBlock className="h-3.5 w-16 rounded-md" />
       </div>
       <div className="flex items-center gap-2 sm:gap-2.5 overflow-hidden py-1">
-        {Array.from({ length: 8 }).map((_, idx) => (
+        {Array.from({ length: 9 }).map((_, idx) => (
           <div
             key={idx}
-            className="w-[96px] sm:w-[114px] md:w-[124px] shrink-0 bg-white dark:bg-[#121722] border border-[#E5E5E5] dark:border-slate-800 rounded-2xl p-2 flex flex-col items-center space-y-2"
+            className="w-[104px] sm:w-[118px] md:w-[126px] shrink-0 bg-white dark:bg-[#121722] border border-[#E5E5E5] dark:border-slate-800 rounded-xl p-2 flex flex-col items-center space-y-2"
           >
-            <SkeletonBlock className="w-full h-20 sm:h-24 rounded-xl" />
+            <SkeletonBlock className="w-full h-20 sm:h-24 rounded-lg" />
             <SkeletonBlock className="h-3 w-4/5 rounded-md" />
           </div>
         ))}

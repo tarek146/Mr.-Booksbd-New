@@ -1981,7 +1981,7 @@ export function AdminDashboard() {
           type: catType,
           slug,
           image: catImage,
-          showOnHome: catShowOnHome,
+          showOnHome: true,
           showProductsOnHome: catShowProductsOnHome,
           homeProductLimit: safeLimit,
           homeFeaturedProductIds: compatibleFeaturedIds,
@@ -1995,7 +1995,7 @@ export function AdminDashboard() {
           type: catType,
           slug,
           image: catImage,
-          showOnHome: catShowOnHome,
+          showOnHome: true,
           showProductsOnHome: catShowProductsOnHome,
           homeProductLimit: safeLimit,
           homeFeaturedProductIds: compatibleFeaturedIds,
@@ -8123,7 +8123,6 @@ export function AdminDashboard() {
                     <th className="py-3 px-4">Products</th>
                     <th className="py-3 px-4">Type</th>
                     <th className="py-3 px-4">Serial</th>
-                    <th className="py-3 px-4">Top Slider</th>
                     <th className="py-3 px-4">Home Products</th>
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
@@ -8195,20 +8194,6 @@ export function AdminDashboard() {
                           <td className="py-3.5 px-4">
                             <button
                               type="button"
-                              onClick={() => updateCategory(cat.id, { showOnHome: !(cat.showOnHome !== false) })}
-                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition-colors ${
-                                cat.showOnHome !== false
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                  : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
-                              }`}
-                              title="Toggle Top Slider visibility"
-                            >
-                              {cat.showOnHome !== false ? 'Slider On' : 'Hidden'}
-                            </button>
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <button
-                              type="button"
                               onClick={() =>
                                 updateCategory(cat.id, {
                                   showProductsOnHome: !showProdsOnHome,
@@ -8274,8 +8259,6 @@ export function AdminDashboard() {
               setCatType={setCatType}
               catImage={catImage}
               setCatImage={setCatImage}
-              catShowOnHome={catShowOnHome}
-              setCatShowOnHome={setCatShowOnHome}
               catShowProductsOnHome={catShowProductsOnHome}
               setCatShowProductsOnHome={setCatShowProductsOnHome}
               catHomeProductLimit={catHomeProductLimit}

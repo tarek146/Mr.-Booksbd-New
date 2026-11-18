@@ -16,8 +16,6 @@ export interface CategoryEditorModalProps {
   setCatType: (v: ProductType) => void;
   catImage: string;
   setCatImage: (v: string) => void;
-  catShowOnHome: boolean;
-  setCatShowOnHome: (v: boolean) => void;
   catShowProductsOnHome: boolean;
   setCatShowProductsOnHome: (v: boolean) => void;
   catHomeProductLimit: number;
@@ -43,8 +41,6 @@ export const CategoryEditorModal: React.FC<CategoryEditorModalProps> = ({
   setCatType,
   catImage,
   setCatImage,
-  catShowOnHome,
-  setCatShowOnHome,
   catShowProductsOnHome,
   setCatShowProductsOnHome,
   catHomeProductLimit,
@@ -206,36 +202,7 @@ export const CategoryEditorModal: React.FC<CategoryEditorModalProps> = ({
             </div>
           </div>
 
-          {/* Toggle 1: Top Homepage Slider */}
-          <div className="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#F7F7F8] border border-[#E5E5E5]">
-            <div className="min-w-0">
-              <span className="font-bold text-xs text-[#171717] block">
-                Show Category on Homepage Slider
-              </span>
-              <span className="text-[11px] text-[#5F6368] leading-snug block mt-0.5">
-                Displays this category card in the top Browse Categories bar.
-              </span>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={catShowOnHome}
-              aria-label="Toggle category in homepage top slider"
-              data-testid="category-modal-slider-toggle"
-              onClick={() => setCatShowOnHome(!catShowOnHome)}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                catShowOnHome ? 'bg-[#D71920]' : 'bg-neutral-300'
-              }`}
-            >
-              <span
-                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                  catShowOnHome ? 'translate-x-5' : 'translate-x-0'
-                }`}
-              />
-            </button>
-          </div>
-
-          {/* Toggle 2: Show Related Products Section on Homepage */}
+          {/* Toggle: Show Related Products Section on Homepage */}
           <div className="rounded-2xl border border-[#E5E5E5] bg-[#FAFAFB] overflow-hidden">
             <div className="flex items-center justify-between gap-3 p-3.5">
               <div className="min-w-0">

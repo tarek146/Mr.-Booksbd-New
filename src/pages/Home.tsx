@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Hero } from '../components/Hero';
 import { SpecialOfferSection } from '../components/SpecialOfferSection';
@@ -26,6 +26,10 @@ import {
   getHomeVisibleCategorySliderItems,
   getHomeCategoryProductSections,
 } from '../utils/categoryHomeHelpers';
+import {
+  computeNextCategorySlideOffset,
+  computeDirectionalCategorySlideOffset,
+} from '../utils/categorySliderHelpers';
 import {
   ArrowRight,
   ChevronRight,
@@ -56,6 +60,8 @@ export function Home() {
   } = useStore();
 
   const categoryScrollRef = useRef<HTMLDivElement>(null);
+  const categoryPauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isCategoryPausedRef = useRef(false);
   const newArrivalsScrollRef = useRef<HTMLDivElement>(null);
   const bestSellingScrollRef = useRef<HTMLDivElement>(null);
   const stationeryScrollRef = useRef<HTMLDivElement>(null);
@@ -127,6 +133,71 @@ export function Home() {
     }
   };
 
+  const pauseCategoryAutoSlideTemporarily = (delayMs = 3500) => {
+    isCategoryPausedRef.current = true;
+    if (categoryPauseTimerRef.current) {
+      clearTimeout(categoryPauseTimerRef.current);
+    }
+    categoryPauseTimerRef.current = setTimeout(() => {
+      isCategoryPausedRef.current = false;
+    }, delayMs);
+  };
+
+  const slideCategoriesStrip = (direction: 'left' | 'right') => {
+    const el = categoryScrollRef.current;
+    if (!el) return;
+    pauseCategoryAutoSlideTemporarily();
+    const firstCard = el.firstElementChild as HTMLElement | null;
+    const cardUnit = firstCard ? firstCard.offsetWidth + 10 : 130;
+    const stepCount = el.clientWidth < 640 ? 2 : 3;
+    const targetLeft = computeDirectionalCategorySlideOffset(
+      {
+        scrollLeft: el.scrollLeft,
+        clientWidth: el.clientWidth,
+        scrollWidth: el.scrollWidth,
+        stepWidth: cardUnit * stepCount,
+      },
+      direction
+    );
+    el.scrollTo({ left: targetLeft, behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    if (homeConfig.categoriesAutoSlide === false || homeCategories.length <= 1) {
+      return;
+    }
+
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) return;
+
+    const timer = setInterval(() => {
+      const el = categoryScrollRef.current;
+      if (!el || isCategoryPausedRef.current) return;
+      if (el.scrollWidth <= el.clientWidth + 4) return;
+
+      const firstCard = el.firstElementChild as HTMLElement | null;
+      const cardUnit = firstCard ? firstCard.offsetWidth + 10 : 130;
+      const stepCount = el.clientWidth < 640 ? 1 : 2;
+      const nextLeft = computeNextCategorySlideOffset({
+        scrollLeft: el.scrollLeft,
+        clientWidth: el.clientWidth,
+        scrollWidth: el.scrollWidth,
+        stepWidth: cardUnit * stepCount,
+      });
+      el.scrollTo({ left: nextLeft, behavior: 'smooth' });
+    }, 2600);
+
+    return () => {
+      clearInterval(timer);
+      if (categoryPauseTimerRef.current) {
+        clearTimeout(categoryPauseTimerRef.current);
+      }
+    };
+  }, [homeConfig.categoriesAutoSlide, homeCategories.length]);
+
   if (!isStoreHydrated || shouldShowSkeletonScreen(isLoading, settings.enableSkeletonLoading)) {
     return <HomePageSkeleton />;
   }
@@ -136,8 +207,8 @@ export function Home() {
       {/* Hero Banner */}
       <Hero />
 
-      {/* Compact Quick Categories Navigation Strip (Browse by Category without flooding Home with product rows) */}
-      {homeConfig.showCategoriesStrip !== false && homeCategories.length > 0 && (
+      {/* All Categories Section (Always visible below banner in one clean auto-sliding + manual horizontal line) */}
+      {homeCategories.length > 0 && (
         <section
           data-testid="home-categories-strip"
           className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 sm:pt-3 pb-3 bg-white"
@@ -156,11 +227,28 @@ export function Home() {
             </button>
           </div>
 
-          <div className="relative group/cat-slider">
+          <div
+            className="relative group/cat-slider"
+            onMouseEnter={() => {
+              isCategoryPausedRef.current = true;
+            }}
+            onMouseLeave={() => {
+              isCategoryPausedRef.current = false;
+            }}
+            onTouchStart={() => {
+              isCategoryPausedRef.current = true;
+              if (categoryPauseTimerRef.current) {
+                clearTimeout(categoryPauseTimerRef.current);
+              }
+            }}
+            onTouchEnd={() => {
+              pauseCategoryAutoSlideTemporarily(3000);
+            }}
+          >
             <button
               type="button"
-              onClick={() => scrollContainer(categoryScrollRef, 'left')}
-              className="absolute -left-2 sm:-left-3 top-1/2 -translate-y-1/2 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white border border-[#E5E5E5] shadow-md flex items-center justify-center text-[#171717] hover:bg-[#D71920] hover:text-white hover:border-[#D71920] transition-all z-20 opacity-90 sm:opacity-0 sm:group-hover/cat-slider:opacity-100 cursor-pointer active:scale-90"
+              onClick={() => slideCategoriesStrip('left')}
+              className="absolute -left-2 sm:-left-3 top-1/2 -translate-y-1/2 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/95 border border-[#E5E5E5] shadow-md flex items-center justify-center text-[#171717] hover:bg-[#D71920] hover:text-white hover:border-[#D71920] transition-all z-20 opacity-90 sm:opacity-0 sm:group-hover/cat-slider:opacity-100 cursor-pointer active:scale-90"
               aria-label="Scroll Categories Left"
             >
               <ChevronLeft size={16} />
@@ -168,8 +256,8 @@ export function Home() {
 
             <button
               type="button"
-              onClick={() => scrollContainer(categoryScrollRef, 'right')}
-              className="absolute -right-2 sm:-right-3 top-1/2 -translate-y-1/2 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white border border-[#E5E5E5] shadow-md flex items-center justify-center text-[#171717] hover:bg-[#D71920] hover:text-white hover:border-[#D71920] transition-all z-20 opacity-90 sm:opacity-0 sm:group-hover/cat-slider:opacity-100 cursor-pointer active:scale-90"
+              onClick={() => slideCategoriesStrip('right')}
+              className="absolute -right-2 sm:-right-3 top-1/2 -translate-y-1/2 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/95 border border-[#E5E5E5] shadow-md flex items-center justify-center text-[#171717] hover:bg-[#D71920] hover:text-white hover:border-[#D71920] transition-all z-20 opacity-90 sm:opacity-0 sm:group-hover/cat-slider:opacity-100 cursor-pointer active:scale-90"
               aria-label="Scroll Categories Right"
             >
               <ChevronRight size={16} />
@@ -177,7 +265,8 @@ export function Home() {
 
             <div
               ref={categoryScrollRef}
-              className="flex items-center gap-2 sm:gap-2.5 overflow-x-auto scrollbar-none scroll-smooth snap-x snap-mandatory py-1 px-0.5"
+              data-testid="home-categories-grid"
+              className="flex flex-nowrap items-stretch gap-2 sm:gap-2.5 overflow-x-auto scrollbar-none scroll-smooth snap-x snap-mandatory touch-pan-x py-1 px-0.5"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {homeCategories.map(cat => (
@@ -189,7 +278,7 @@ export function Home() {
                     setSelectedCategoryFilter(cat.name);
                     setActivePage(cat.type === 'stationery' ? 'stationery' : 'books');
                   }}
-                  className="w-[96px] sm:w-[114px] md:w-[122px] shrink-0 snap-start bg-white border border-[#E5E5E5] hover:border-[#D71920]/70 rounded-xl p-2 text-center cursor-pointer shadow-2xs hover:shadow-md transition-all duration-200 group flex flex-col justify-between items-center overflow-hidden"
+                  className="w-[104px] sm:w-[118px] md:w-[126px] shrink-0 snap-start bg-white border border-[#E5E5E5] hover:border-[#D71920]/70 rounded-xl p-2 text-center cursor-pointer shadow-2xs hover:shadow-md transition-all duration-200 group flex flex-col justify-between items-center overflow-hidden"
                 >
                   <div className="w-full h-20 sm:h-24 rounded-lg overflow-hidden bg-neutral-100 relative mb-1.5">
                     {cat.image ? (

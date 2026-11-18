@@ -7,6 +7,7 @@ export const DEFAULT_HOME_CONFIG: HomeConfig = {
   bestSellingTitle: 'Best Selling Books',
   allBooksTitle: 'All Books',
   showCategoriesStrip: true,
+  categoriesAutoSlide: true,
   showCategoryProductRows: false,
   enableCategoryProductSections: true,
   showOfferSection: true,
@@ -109,6 +110,10 @@ export function resolveHomeConfig(
       typeof rawConfig?.showCategoriesStrip === 'boolean'
         ? rawConfig.showCategoriesStrip
         : DEFAULT_HOME_CONFIG.showCategoriesStrip,
+    categoriesAutoSlide:
+      typeof rawConfig?.categoriesAutoSlide === 'boolean'
+        ? rawConfig.categoriesAutoSlide
+        : DEFAULT_HOME_CONFIG.categoriesAutoSlide,
     showCategoryProductRows:
       typeof rawConfig?.showCategoryProductRows === 'boolean'
         ? rawConfig.showCategoryProductRows

@@ -41,7 +41,7 @@ export function sortCategoriesBySerial(categories: Category[]): Category[] {
 }
 
 export function getHomeVisibleCategorySliderItems(categories: Category[]): Category[] {
-  return sortCategoriesBySerial(categories).filter(c => c.showOnHome !== false);
+  return sortCategoriesBySerial(categories);
 }
 
 export function getProductsEligibleForCategoryModal(

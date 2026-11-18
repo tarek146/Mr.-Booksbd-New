@@ -34,7 +34,7 @@ export const AdminSettingsHomeTab: React.FC<HomeVisibilityTabProps> = ({
   const showNewArrivalsOnHome = homeConfig.showNewArrivalsSection !== false;
   const showBestSellingOnHome = homeConfig.showBestSellingSection !== false;
   const showAllBooksOnHome = homeConfig.showAllBooksSection !== false;
-  const showCategoriesStripOnHome = homeConfig.showCategoriesStrip !== false;
+  const categoriesAutoSlideOn = homeConfig.categoriesAutoSlide !== false;
   const showCategorySectionsOnHome = homeConfig.enableCategoryProductSections !== false;
   const showStationeryOnHome = homeConfig.showStationerySection !== false;
 
@@ -145,22 +145,24 @@ export const AdminSettingsHomeTab: React.FC<HomeVisibilityTabProps> = ({
 
           <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border border-slate-200 bg-slate-50/40">
             <div className="min-w-0">
-              <div className="text-xs font-medium text-slate-900">Categories Quick Strip</div>
+              <div className="text-xs font-medium text-slate-900">Categories Auto-Slide</div>
               <p className="text-[11px] text-slate-500 mt-0.5 truncate">
-                Compact category cards bar
+                {categoriesAutoSlideOn
+                  ? 'Single-line auto-sliding ON'
+                  : 'Manual horizontal swipe only'}
               </p>
             </div>
             <SettingsSwitch
-              checked={showCategoriesStripOnHome}
-              ariaLabel="Toggle Categories Quick Strip on Home page"
-              testId="home-config-categories-strip-toggle"
+              checked={categoriesAutoSlideOn}
+              ariaLabel="Toggle Categories Auto-Slide on Home page"
+              testId="home-config-categories-autoslide-toggle"
               onChange={async () => {
-                const nextVal = !showCategoriesStripOnHome;
-                await updateHomeConfig({ showCategoriesStrip: nextVal });
+                const nextVal = !categoriesAutoSlideOn;
+                await updateHomeConfig({ categoriesAutoSlide: nextVal });
                 setToast({
                   show: true,
                   type: 'success',
-                  message: `Categories Quick Strip ${nextVal ? 'enabled' : 'hidden'} on Home.`,
+                  message: `Categories Auto-Slide ${nextVal ? 'enabled' : 'paused'} on Home.`,
                 });
               }}
             />
