@@ -738,7 +738,7 @@ export function CheckoutPage() {
       if (overridePayment) {
         setIsPaymentModalOpen(false);
       }
-      setErrorMsg('No items selected for this order. Add a product or load your Cart items.');
+      setErrorMsg('No items selected for this order. Add a product or load your Bag items.');
       return;
     }
 
@@ -898,7 +898,7 @@ export function CheckoutPage() {
             className="inline-flex items-center gap-1.5 text-xs font-medium text-neutral-600 dark:text-slate-400 hover:text-[#D71920] transition-colors cursor-pointer"
           >
             <ArrowLeft size={15} />
-            <span>Back to Cart</span>
+            <span>Back to Bag</span>
           </button>
 
           <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-slate-400">
@@ -960,7 +960,7 @@ export function CheckoutPage() {
                         onClick={clearDirectCheckout}
                         className="px-2.5 py-1 rounded-md border border-neutral-300 dark:border-slate-600 text-neutral-800 dark:text-slate-200 font-medium cursor-pointer"
                       >
-                        Load Cart ({cart.reduce((s, i) => s + i.quantity, 0)})
+                        Load Bag ({cart.reduce((s, i) => s + i.quantity, 0)})
                       </button>
                     )}
                     <button
@@ -1005,14 +1005,14 @@ export function CheckoutPage() {
               {isDirectCheckout && unincludedCartItems.length > 0 && (
                 <div className="pt-2 border-t border-neutral-100 dark:border-slate-800 flex items-center justify-between gap-2">
                   <span className="text-[11px] text-neutral-600 dark:text-slate-300 truncate">
-                    {unincludedCartUnits} {unincludedCartUnits === 1 ? 'item' : 'items'} in Cart
+                    {unincludedCartUnits} {unincludedCartUnits === 1 ? 'item' : 'items'} in Bag
                   </span>
                   <button
                     type="button"
                     onClick={includeCartInDirectCheckout}
                     className="px-2.5 py-1 rounded-md border border-neutral-300 dark:border-slate-600 bg-neutral-50 dark:bg-slate-800 hover:border-[#D71920] hover:text-[#D71920] text-[11px] font-semibold text-neutral-800 dark:text-slate-200 cursor-pointer shrink-0"
                   >
-                    Include Cart
+                    Include Bag
                   </button>
                 </div>
               )}
@@ -1264,7 +1264,7 @@ export function CheckoutPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
                     <label htmlFor="checkout-district" className={labelClass}>
-                      District <span className="text-[#D71920]">*</span>
+                      Division | District <span className="text-[#D71920]">*</span>
                     </label>
                     <select
                       id="checkout-district"
@@ -1297,7 +1297,7 @@ export function CheckoutPage() {
                   </div>
                   <div>
                     <label htmlFor="checkout-city" className={labelClass}>
-                      Thana / Area <span className="text-[#D71920]">*</span>
+                      District - Thana Area <span className="text-[#D71920]">*</span>
                     </label>
                     <input
                       id="checkout-city"
@@ -1662,7 +1662,7 @@ export function CheckoutPage() {
                         onClick={clearDirectCheckout}
                         className="h-8 px-3 rounded-lg border border-neutral-300 dark:border-slate-600 bg-white dark:bg-[#0E1420] hover:border-[#D71920] hover:text-[#D71920] text-neutral-800 dark:text-slate-200 font-medium transition-colors cursor-pointer"
                       >
-                        Load Cart Items ({cart.reduce((s, i) => s + i.quantity, 0)})
+                        Load Bag Items ({cart.reduce((s, i) => s + i.quantity, 0)})
                       </button>
                     )}
                     <button
@@ -1720,7 +1720,7 @@ export function CheckoutPage() {
                 </div>
               )}
 
-              {/* Optional prompt to include existing Cart items during isolated direct checkout */}
+              {/* Optional prompt to include existing Bag items during isolated direct checkout */}
               {isDirectCheckout && unincludedCartItems.length > 0 && (
                 <div
                   data-testid="checkout-include-cart-prompt"
@@ -1728,7 +1728,7 @@ export function CheckoutPage() {
                 >
                   <div className="min-w-0">
                     <p className="font-medium text-neutral-800 dark:text-slate-200 truncate">
-                      {unincludedCartUnits} {unincludedCartUnits === 1 ? 'item' : 'items'} saved in Cart
+                      {unincludedCartUnits} {unincludedCartUnits === 1 ? 'item' : 'items'} saved in Bag
                     </p>
                     <p className="text-[11px] text-neutral-500 dark:text-slate-400 truncate">
                       Include {unincludedCartItems.length === 1 ? 'it' : 'them'} with this order?
@@ -1740,7 +1740,7 @@ export function CheckoutPage() {
                     onClick={includeCartInDirectCheckout}
                     className="px-2.5 py-1.5 rounded-md border border-neutral-300 dark:border-slate-600 bg-white dark:bg-[#0E1420] hover:border-[#D71920] hover:text-[#D71920] text-neutral-800 dark:text-slate-200 text-[11px] font-semibold transition-colors cursor-pointer shrink-0"
                   >
-                    Include Cart
+                    Include Bag
                   </button>
                 </div>
               )}

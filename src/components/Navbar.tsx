@@ -259,24 +259,30 @@ export function Navbar() {
                 </a>
               )}
 
-              {/* Theme Toggle Button (Day / Dark Mode) - PC / Tablet only (Mobile has it inside the menu drawer) */}
+              {/* Theme Toggle Button (Sun / Moon) - PC / Tablet only (Mobile has it inside the menu drawer) */}
               {settings.enableThemeToggle !== false && (
                 <button
                   type="button"
                   onClick={toggleDarkMode}
                   data-testid="theme-toggle-btn"
-                  title={darkMode ? 'ডে মোডে ফিরুন (Switch to Day Mode)' : 'ডার্ক মোড চালু করুন (Switch to Dark Mode)'}
-                  aria-label={darkMode ? 'Switch to Day Mode' : 'Switch to Dark Mode'}
-                  className={`hidden md:flex relative p-2 sm:p-2.5 rounded-full border transition-all items-center justify-center cursor-pointer shadow-2xs group ${
+                  title={darkMode ? 'Moon · Switch to Sun' : 'Sun · Switch to Moon'}
+                  aria-label={darkMode ? 'Moon (Switch to Sun)' : 'Sun (Switch to Moon)'}
+                  className={`hidden md:flex items-center gap-1.5 px-3 py-2 rounded-full border transition-all justify-center cursor-pointer shadow-2xs group text-xs font-bold whitespace-nowrap ${
                     darkMode
                       ? 'border-amber-400/50 bg-[#161C28] text-amber-400 hover:border-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.25)]'
                       : 'border-neutral-200 bg-white hover:bg-[#FFF1F2] hover:text-[#D71920] hover:border-[#D71920]/40 text-neutral-700'
                   }`}
                 >
                   {darkMode ? (
-                    <Sun size={18} className="group-hover:rotate-90 transition-transform duration-300" />
+                    <>
+                      <Moon size={16} className="group-hover:-rotate-12 transition-transform duration-300 shrink-0" />
+                      <span>Moon</span>
+                    </>
                   ) : (
-                    <Moon size={18} className="group-hover:-rotate-12 transition-transform duration-300" />
+                    <>
+                      <Sun size={16} className="text-amber-500 group-hover:rotate-90 transition-transform duration-300 shrink-0" />
+                      <span>Sun</span>
+                    </>
                   )}
                 </button>
               )}
@@ -303,7 +309,7 @@ export function Navbar() {
               >
                 <ShoppingBag size={18} />
                 <span className="text-xs hidden sm:inline">
-                  {totalCartCount > 0 ? `৳${cartSubtotal}` : 'Cart'}
+                  {totalCartCount > 0 ? `৳${cartSubtotal}` : 'Bag'}
                 </span>
                 {totalCartCount > 0 && (
                   <span className="w-5 h-5 bg-[#D71920] group-hover:bg-white group-hover:text-[#D71920] text-white text-[11px] font-bold rounded-full flex items-center justify-center shadow-xs transition-colors">
@@ -757,7 +763,7 @@ export function Navbar() {
                       <button
                         type="button"
                         onClick={toggleDarkMode}
-                        aria-label={darkMode ? 'Switch to Day Mode' : 'Switch to Dark Mode'}
+                        aria-label={darkMode ? 'Moon (Switch to Sun)' : 'Sun (Switch to Moon)'}
                         className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-2xs ${
                           darkMode
                             ? 'border-amber-400/50 bg-[#161C28] text-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.2)]'
@@ -766,13 +772,13 @@ export function Navbar() {
                       >
                         {darkMode ? (
                           <>
-                            <Sun size={16} className="text-amber-400" />
-                            <span>Day Mode</span>
+                            <Moon size={16} className="text-amber-400" />
+                            <span>Moon</span>
                           </>
                         ) : (
                           <>
-                            <Moon size={16} className="text-neutral-700" />
-                            <span>Dark Mode</span>
+                            <Sun size={16} className="text-amber-500" />
+                            <span>Sun</span>
                           </>
                         )}
                       </button>
@@ -961,17 +967,17 @@ export function Navbar() {
                       >
                         <div className="flex items-center gap-2.5">
                           {darkMode ? (
-                            <Sun size={18} className="text-amber-400" />
+                            <Moon size={18} className="text-amber-400" />
                           ) : (
-                            <Moon size={18} className="text-neutral-700" />
+                            <Sun size={18} className="text-amber-500" />
                           )}
                           <div className="text-left">
-                            <div className="text-xs font-black">{darkMode ? 'ডার্ক মোড সক্রিয়' : 'ডে মোড (লাইট)'}</div>
-                            <div className="text-[10px] text-neutral-400">{darkMode ? 'ডার্ক থিম রানিং' : 'ডিফল্ট ডে থিম'}</div>
+                            <div className="text-xs font-black">{darkMode ? 'Moon' : 'Sun'}</div>
+                            <div className="text-[10px] text-neutral-400">{darkMode ? 'রাতের থিম (Dark)' : 'দিনের থিম (Light)'}</div>
                           </div>
                         </div>
                         <span className="text-[11px] font-black px-2.5 py-1 rounded-xl bg-[#D71920] text-white shadow-xs">
-                          {darkMode ? 'Switch to Day' : 'Switch to Dark'}
+                          {darkMode ? 'Switch to Sun' : 'Switch to Moon'}
                         </span>
                       </button>
                     </div>

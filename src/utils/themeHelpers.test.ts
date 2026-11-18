@@ -16,16 +16,16 @@ test('toggleTheme toggles false to true and true to false', () => {
   assert.equal(toggleTheme(true), false);
 });
 
-test('getThemeDisplayInfo returns accurate localized labels and actions', () => {
+test('getThemeDisplayInfo returns accurate Sun/Moon labels and actions', () => {
   const lightInfo = getThemeDisplayInfo(false);
   assert.equal(lightInfo.mode, 'light');
-  assert.equal(lightInfo.labelBn, 'ডে মোড');
-  assert.equal(lightInfo.actionBn, 'ডার্ক মোড চালু করুন');
-  assert.equal(lightInfo.tooltip.includes('Dark Mode'), true);
+  assert.equal(lightInfo.labelEn, 'Sun');
+  assert.equal(lightInfo.actionEn, 'Switch to Moon');
+  assert.equal(lightInfo.tooltip.includes('Sun'), true);
 
   const darkInfo = getThemeDisplayInfo(true);
   assert.equal(darkInfo.mode, 'dark');
-  assert.equal(darkInfo.labelBn, 'ডার্ক মোড');
-  assert.equal(darkInfo.actionBn, 'ডে মোডে ফিরুন');
-  assert.equal(darkInfo.tooltip.includes('Light Mode'), true);
+  assert.equal(darkInfo.labelEn, 'Moon');
+  assert.equal(darkInfo.actionEn, 'Switch to Sun');
+  assert.equal(darkInfo.tooltip.includes('Moon'), true);
 });

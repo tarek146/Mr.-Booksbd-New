@@ -577,7 +577,7 @@ export function BooksPage() {
                               }}
                               className="px-2.5 sm:px-3 py-1.5 border border-[#D71920] text-[#D71920] hover:bg-[#FFF1F2] rounded-xl text-[11px] font-bold flex items-center gap-1 cursor-pointer"
                             >
-                              <ShoppingBag size={12} /> <span className="hidden sm:inline">Cart</span>
+                              <ShoppingBag size={12} /> <span className="hidden sm:inline">Bag</span>
                             </button>
                           </div>
                         </div>

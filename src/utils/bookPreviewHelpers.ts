@@ -138,7 +138,7 @@ export function getEffectiveBookPreviewPages(product: Product): BookPreviewPage[
     product.pages ? `📄 মোট পৃষ্ঠা সংখ্যা: ${product.pages} পৃষ্ঠা` : '',
     product.language ? `🌐 ভাষা: ${product.language}` : '🌐 ভাষা: বাংলা',
     product.isbn ? `🔢 ISBN: ${product.isbn}` : '',
-    `\nসম্পূর্ণ বইটি পড়তে এবং অরিজিনাল প্রিন্ট কপি আপনার সংগ্রহে রাখতে এখনই "Buy Now" অথবা "Add to Cart" বাটনে ক্লিক করে অর্ডার সম্পন্ন করুন।`,
+    `\nসম্পূর্ণ বইটি পড়তে এবং অরিজিনাল প্রিন্ট কপি আপনার সংগ্রহে রাখতে এখনই "Buy Now" অথবা "Add to Bag" বাটনে ক্লিক করে অর্ডার সম্পন্ন করুন।`,
   ]
     .filter(Boolean)
     .join('\n');

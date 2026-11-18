@@ -97,9 +97,9 @@ export function CartPage() {
         <div className="w-20 h-20 bg-[#FFF1F2] text-[#D71920] rounded-full flex items-center justify-center mb-4 border border-[#D71920]/25">
           <ShoppingBag size={36} />
         </div>
-        <h2 className="text-2xl font-black text-[#171717] mb-2">Your Shopping Cart is Empty</h2>
+        <h2 className="text-2xl font-black text-[#171717] mb-2">Your Shopping Bag is Empty</h2>
         <p className="text-xs sm:text-sm text-[#5F6368] mb-6 max-w-sm">
-          Looks like you haven't added any books or stationery items to your cart yet.
+          Looks like you haven't added any books or stationery items to your bag yet.
         </p>
         <button 
           onClick={() => setActivePage('books')}
@@ -122,7 +122,7 @@ export function CartPage() {
             </div>
             <div>
               <h1 className="text-2xl sm:text-3xl font-black text-[#171717] tracking-tight">
-                Shopping Cart
+                Shopping Bag
               </h1>
               <p className="text-xs text-[#5F6368]">{totalCartCount} items in your order</p>
             </div>

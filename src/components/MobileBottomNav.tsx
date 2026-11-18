@@ -28,7 +28,7 @@ export function MobileBottomNav() {
     },
     {
       id: 'cart',
-      label: 'Cart',
+      label: 'Bag',
       icon: ShoppingCart,
       page: 'cart',
       badge: totalCartItems

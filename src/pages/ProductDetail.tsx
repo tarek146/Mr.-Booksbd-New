@@ -383,14 +383,14 @@ export function ProductDetail() {
         {addedAlert && (
           <div className="mb-4 px-4 py-3 rounded-lg bg-[#FFF1F2] border border-[#D71920]/25 text-[#D71920] text-xs font-semibold flex items-center justify-between">
             <span className="flex items-center gap-2">
-              <CheckCircle2 size={15} /> Added "{product.title}" ({activeVariant.name}) to cart
+              <CheckCircle2 size={15} /> Added "{product.title}" ({activeVariant.name}) to bag
             </span>
             <button
               type="button"
               onClick={() => setActivePage('cart')}
               className="underline font-bold hover:text-[#C5161C] cursor-pointer shrink-0 ml-3"
             >
-              View Cart
+              View Bag
             </button>
           </div>
         )}
@@ -775,7 +775,7 @@ export function ProductDetail() {
                     onClick={handleAddToCart}
                     className="w-full py-3 sm:py-3.5 bg-white hover:bg-[#FFF1F2] text-[#D71920] border border-[#D71920] font-semibold rounded-lg transition-colors flex items-center justify-center gap-1.5 text-xs sm:text-sm cursor-pointer active:scale-[0.98]"
                   >
-                    <ShoppingBag size={15} /> Add to Cart
+                    <ShoppingBag size={15} /> Add to Bag
                   </button>
 
                   <button

@@ -390,10 +390,10 @@ export function ProductCard({ product }: ProductCardProps) {
               <button 
                 onClick={handleAddToCart}
                 className="border border-[#D71920] text-[#D71920] hover:bg-[#FFF1F2] py-1.5 px-1 rounded-lg text-[10px] sm:text-[11px] font-bold flex items-center justify-center gap-0.5 transition-all active:scale-95 cursor-pointer"
-                title="Add to Cart"
+                title="Add to Bag"
               >
                 <ShoppingBag size={11} />
-                <span>Cart</span>
+                <span>Bag</span>
               </button>
             </div>
           )}

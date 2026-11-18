@@ -73,19 +73,19 @@ export function getThemeDisplayInfo(isDark: boolean) {
   if (isDark) {
     return {
       mode: 'dark' as ThemeMode,
-      labelBn: 'ডার্ক মোড',
-      labelEn: 'Dark Mode',
-      actionBn: 'ডে মোডে ফিরুন',
-      actionEn: 'Switch to Day Mode',
-      tooltip: 'ডে মোডে ফিরুন (Light Mode)'
+      labelBn: 'রাত (Moon)',
+      labelEn: 'Moon',
+      actionBn: 'দিনে ফিরুন (Sun)',
+      actionEn: 'Switch to Sun',
+      tooltip: 'Moon · Switch to Sun (Light Mode)'
     };
   }
   return {
     mode: 'light' as ThemeMode,
-    labelBn: 'ডে মোড',
-    labelEn: 'Day Mode',
-    actionBn: 'ডার্ক মোড চালু করুন',
-    actionEn: 'Switch to Dark Mode',
-    tooltip: 'ডার্ক মোড চালু করুন (Dark Mode)'
+    labelBn: 'দিন (Sun)',
+    labelEn: 'Sun',
+    actionBn: 'রাতে যান (Moon)',
+    actionEn: 'Switch to Moon',
+    tooltip: 'Sun · Switch to Moon (Dark Mode)'
   };
 }
