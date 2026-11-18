@@ -364,6 +364,9 @@ export interface StoreSettings {
   showHeaderIcon?: boolean;
   headerNameColor1?: string;
   headerNameColor2?: string;
+  headerBrandColorMode?: 'two_tone' | 'word' | 'letter';
+  headerWordColors?: string[];
+  headerLetterColors?: string[];
   showHeaderTagline?: boolean;
   showHeaderContact?: boolean;
   showAnnouncementBar?: boolean;

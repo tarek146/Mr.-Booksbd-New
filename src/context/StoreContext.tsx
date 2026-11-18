@@ -32,6 +32,10 @@ import {
   buildHomeConfigMirrorFromSettings,
 } from '../utils/homeConfigHelpers';
 import {
+  normalizeHeaderBrandColorMode,
+  sanitizeHexColorArray,
+} from '../utils/headerBrandColorHelpers';
+import {
   DEFAULT_COUPONS,
   DEFAULT_CANCEL_EXCHANGE_POLICY,
   DEFAULT_FOOTER_QUICK_LINKS,
@@ -134,6 +138,9 @@ const DEFAULT_SETTINGS_TEMPLATE: StoreSettings = {
   showHeaderIcon: true,
   headerNameColor1: '#171717',
   headerNameColor2: '#D71920',
+  headerBrandColorMode: 'two_tone',
+  headerWordColors: [],
+  headerLetterColors: [],
   adminLogoUrl: '',
   showAdminIcon: true,
   adminIconBgColor: '#D71920',
@@ -269,6 +276,15 @@ function sanitizeStoreSettings<T extends Partial<StoreSettings>>(st: T): T {
   if ('footerPaymentBannerUrl' in copy) copy.footerPaymentBannerUrl = sanitizeImageUrl(copy.footerPaymentBannerUrl);
   if ('subAreaLocations' in copy && Array.isArray(copy.subAreaLocations)) {
     copy.subAreaLocations = normalizeSubAreaList(copy.subAreaLocations);
+  }
+  if ('headerBrandColorMode' in copy) {
+    copy.headerBrandColorMode = normalizeHeaderBrandColorMode(copy.headerBrandColorMode);
+  }
+  if ('headerWordColors' in copy) {
+    copy.headerWordColors = sanitizeHexColorArray(copy.headerWordColors, 40);
+  }
+  if ('headerLetterColors' in copy) {
+    copy.headerLetterColors = sanitizeHexColorArray(copy.headerLetterColors, 120);
   }
   if (copy.adminProfile && copy.adminProfile.avatarUrl) {
     copy.adminProfile = {

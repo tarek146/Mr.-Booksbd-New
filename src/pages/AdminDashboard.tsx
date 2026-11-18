@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -68,7 +68,7 @@ import {
   MessageCircle
 } from 'lucide-react';
 import { BulkProductImportModal } from '../components/BulkProductImportModal';
-import { Product, Author, Publisher, Banner, BookPreviewPage, Order, PaymentMethodConfig, PaymentSubOptionConfig, AdminStaffMember, AdminStaffRole, AdminProfile, Review, LiveChatSession } from '../types';
+import { Product, Author, Publisher, Banner, BookPreviewPage, Order, PaymentMethodConfig, PaymentSubOptionConfig, AdminStaffMember, AdminStaffRole, AdminProfile, Review, LiveChatSession, StoreSettings } from '../types';
 import {
   DEFAULT_PUBLISHERS_LIST,
   countBooksForAuthor,
@@ -627,8 +627,23 @@ export function AdminDashboard() {
   const [newSubAreaInput, setNewSubAreaInput] = useState('');
   const [specialOfferTickNow, setSpecialOfferTickNow] = useState<number>(() => Date.now());
 
+  const lastSyncedSettingsJsonRef = useRef<string>('');
+  const settingsDirtyRef = useRef(false);
+  const handleSettingsFormChange: React.Dispatch<React.SetStateAction<StoreSettings>> = useCallback(
+    updater => {
+      settingsDirtyRef.current = true;
+      setSettingsForm(updater);
+    },
+    []
+  );
   useEffect(() => {
-    setSettingsForm(settings);
+    const serialized = JSON.stringify(settings);
+    if (serialized !== lastSyncedSettingsJsonRef.current) {
+      lastSyncedSettingsJsonRef.current = serialized;
+      if (!settingsDirtyRef.current) {
+        setSettingsForm(settings);
+      }
+    }
   }, [settings]);
 
   useEffect(() => {
@@ -9645,7 +9660,7 @@ export function AdminDashboard() {
           <AdminSettingsPanel
             settings={settings}
             settingsForm={settingsForm}
-            setSettingsForm={setSettingsForm}
+            setSettingsForm={handleSettingsFormChange}
             settingsSubTab={settingsSubTab}
             setSettingsSubTab={setSettingsSubTab}
             settingsSaving={settingsSaving}
@@ -9654,7 +9669,10 @@ export function AdminDashboard() {
             setSettingsSuccess={setSettingsSuccess}
             newSubAreaInput={newSubAreaInput}
             setNewSubAreaInput={setNewSubAreaInput}
-            updateSettings={updateSettings}
+            updateSettings={async patch => {
+              await updateSettings(patch);
+              settingsDirtyRef.current = false;
+            }}
             siteSettings={siteSettings}
             updateSiteSettings={updateSiteSettings}
             homeConfig={homeConfig}

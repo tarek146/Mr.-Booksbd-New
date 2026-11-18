@@ -28,6 +28,7 @@ import { sortCategoriesBySerial } from '../utils/categoryHomeHelpers';
 import { AnimatedSearchInput } from './AnimatedSearchInput';
 import { SearchResultsDropdown } from './SearchResultsDropdown';
 import { isValidImageUrl } from '../utils/imageCompressor';
+import { resolveHeaderBrandSegments } from '../utils/headerBrandColorHelpers';
 
 export function Navbar() {
   const { 
@@ -151,31 +152,33 @@ export function Navbar() {
   const hasStoreName = rawStoreName.length > 0;
   const showBookIcon = !hasCustomLogo && hasStoreName && settings.showHeaderIcon !== false;
 
-  const isDarkText = (colorStr: string) => {
-    const s = (colorStr || '').toLowerCase().trim();
-    return s === '#171717' || s === '#111827' || s === '#000000' || s === '#000' || s === 'black' || s === '#1f2937';
-  };
-
-  // In Dark Mode, the first word automatically becomes crisp white (#FFFFFF)
-  // so "MR." is vividly clear against the dark header, while "BOOKS" remains brand red (#D71920).
-  const headerColor1 = darkMode
-    ? (isDarkText(settings.headerNameColor1 || '#171717') ? '#FFFFFF' : (settings.headerNameColor1 || '#FFFFFF'))
-    : (settings.headerNameColor1 || '#171717');
-  const headerColor2 = settings.headerNameColor2 || '#D71920';
+  const resolvedBrand = resolveHeaderBrandSegments(rawStoreName, settings, darkMode);
+  const headerColor2 = resolvedBrand.iconColor;
 
   const renderBrandTitle = (nameStr: string) => {
     const trimmed = nameStr.trim();
     if (!trimmed) return null;
-    const parts = trimmed.split(/\s+/);
-    if (parts.length <= 1) {
-      return <span style={{ color: headerColor1 }}>{trimmed}</span>;
-    }
-    const lastWord = parts[parts.length - 1];
-    const firstPart = parts.slice(0, -1).join(' ');
+    const brandSegments =
+      trimmed === rawStoreName
+        ? resolvedBrand.segments
+        : resolveHeaderBrandSegments(trimmed, settings, darkMode).segments;
     return (
       <>
-        <span style={{ color: headerColor1 }}>{firstPart}</span>{' '}
-        <span style={{ color: headerColor2 }}>{lastWord}</span>
+        {brandSegments.map((seg, idx) =>
+          seg.isWhitespace ? (
+            <span key={`ws-${idx}`} className="inline-block w-[0.26em] whitespace-pre" aria-hidden="true">
+              {' '}
+            </span>
+          ) : (
+            <span
+              key={`seg-${idx}`}
+              data-testid={`header-brand-seg-${idx}`}
+              style={{ color: seg.color }}
+            >
+              {seg.text}
+            </span>
+          )
+        )}
       </>
     );
   };

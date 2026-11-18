@@ -1,5 +1,5 @@
-import React from 'react';
-import { BookOpen, Check, Plus, Trash2, Upload } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { BookOpen, Check, Palette, Plus, RotateCcw, Trash2, Upload } from 'lucide-react';
 import { compressImageFile, isValidImageUrl, sanitizeImageUrl } from '../../../utils/imageCompressor';
 import {
   ADMIN_BRAND_COLOR_PRESETS,
@@ -11,6 +11,17 @@ import {
   normalizeHexColor,
   resolveAdminPanelBranding,
 } from '../../../utils/adminBrandingHelpers';
+import {
+  HEADER_COLOR_QUICK_PALETTE,
+  type HeaderBrandColorMode,
+  applyColorToWordInLetterList,
+  buildLetterColorsList,
+  buildWordColorsList,
+  extractHeaderCharTokens,
+  extractHeaderWords,
+  normalizeHeaderBrandColorMode,
+  resolveHeaderBrandSegments,
+} from '../../../utils/headerBrandColorHelpers';
 import {
   type CacheTelemetryState,
   type SettingsFormTabProps,
@@ -45,6 +56,32 @@ export const AdminSettingsHeaderTab: React.FC<AdminSettingsHeaderTabProps> = ({
   const showIcon = !hasLogo && hasName && settingsForm.showHeaderIcon !== false;
   const c1 = settingsForm.headerNameColor1 || '#171717';
   const c2 = settingsForm.headerNameColor2 || '#D71920';
+  const colorMode: HeaderBrandColorMode = normalizeHeaderBrandColorMode(settingsForm.headerBrandColorMode);
+  const resolvedPreview = useMemo(
+    () => resolveHeaderBrandSegments(rawName, settingsForm, false),
+    [rawName, settingsForm]
+  );
+  const headerWords = useMemo(() => extractHeaderWords(rawName), [rawName]);
+  const headerCharTokens = useMemo(() => extractHeaderCharTokens(rawName), [rawName]);
+  const nonWsLetterTokens = useMemo(
+    () => headerCharTokens.filter(t => !t.isWhitespace),
+    [headerCharTokens]
+  );
+  const resolvedWordColors = useMemo(
+    () => buildWordColorsList(rawName, settingsForm.headerWordColors, c1, c2),
+    [rawName, settingsForm.headerWordColors, c1, c2]
+  );
+  const resolvedLetterColors = useMemo(
+    () => buildLetterColorsList(rawName, settingsForm.headerLetterColors, c1, c2),
+    [rawName, settingsForm.headerLetterColors, c1, c2]
+  );
+  const [selectedLetterIdx, setSelectedLetterIdx] = useState(0);
+  const safeSelectedLetterIdx =
+    nonWsLetterTokens.length === 0 ? 0 : Math.min(selectedLetterIdx, nonWsLetterTokens.length - 1);
+  const activeLetterToken = nonWsLetterTokens[safeSelectedLetterIdx];
+  const activeLetterColor = resolvedLetterColors[safeSelectedLetterIdx] || normalizeHexColor(c1, '#171717');
+  const activeLetterWord = activeLetterToken ? headerWords[activeLetterToken.wordIndex] || '' : '';
+
   const adminBrandPreview = resolveAdminPanelBranding(settingsForm);
 
   return (
@@ -55,7 +92,10 @@ export const AdminSettingsHeaderTab: React.FC<AdminSettingsHeaderTabProps> = ({
           title="Storefront Header Brand & Favicon"
           description="Configure your top navigation logo, browser favicon, brand name, and contact hotline."
           action={
-            <div className="px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 flex items-center gap-2">
+            <div
+              data-testid="header-brand-live-preview"
+              className="px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 flex items-center gap-2"
+            >
               {!hasLogo && !hasName ? (
                 <span className="text-[11px] text-slate-400 italic">No Logo or Name</span>
               ) : (
@@ -71,7 +111,7 @@ export const AdminSettingsHeaderTab: React.FC<AdminSettingsHeaderTabProps> = ({
                   {showIcon && (
                     <span
                       className="w-6 h-6 rounded-md flex items-center justify-center text-white shrink-0"
-                      style={{ backgroundColor: c2 }}
+                      style={{ backgroundColor: resolvedPreview.iconColor }}
                     >
                       <BookOpen size={13} />
                     </span>
@@ -79,18 +119,21 @@ export const AdminSettingsHeaderTab: React.FC<AdminSettingsHeaderTabProps> = ({
                   {hasName && (
                     <div className="leading-none">
                       <div className="text-sm font-bold tracking-tight">
-                        {(() => {
-                          const parts = rawName.split(/\s+/);
-                          if (parts.length <= 1) return <span style={{ color: c1 }}>{rawName}</span>;
-                          const last = parts[parts.length - 1];
-                          const first = parts.slice(0, -1).join(' ');
-                          return (
-                            <>
-                              <span style={{ color: c1 }}>{first}</span>{' '}
-                              <span style={{ color: c2 }}>{last}</span>
-                            </>
-                          );
-                        })()}
+                        {resolvedPreview.segments.map((seg, idx) =>
+                          seg.isWhitespace ? (
+                            <span
+                              key={`pws-${idx}`}
+                              className="inline-block w-[0.26em] whitespace-pre"
+                              aria-hidden="true"
+                            >
+                              {' '}
+                            </span>
+                          ) : (
+                            <span key={`pseg-${idx}`} style={{ color: seg.color }}>
+                              {seg.text}
+                            </span>
+                          )
+                        )}
                       </div>
                       {settingsForm.showHeaderTagline !== false && settingsForm.tagline && (
                         <div className="text-[8.5px] uppercase font-medium tracking-wider text-slate-500 mt-0.5">
@@ -315,6 +358,387 @@ export const AdminSettingsHeaderTab: React.FC<AdminSettingsHeaderTabProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Per-Word & Per-Letter Individual Color Customizer */}
+          {hasName && (
+            <div
+              data-testid="header-brand-colorizer"
+              className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-2.5"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-md bg-white border border-slate-200 flex items-center justify-center text-slate-700 shrink-0">
+                    <Palette size={13} />
+                  </span>
+                  <div>
+                    <div className="text-xs font-semibold text-slate-800">
+                      Individual Word &amp; Letter Colors
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      Color each word or every single letter independently
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div
+                    role="group"
+                    aria-label="Header store name color mode"
+                    className="inline-flex items-center p-0.5 rounded-lg bg-white border border-slate-200"
+                  >
+                    {(
+                      [
+                        { id: 'two_tone', label: '2-Tone' },
+                        { id: 'word', label: 'Per Word' },
+                        { id: 'letter', label: 'Per Letter' },
+                      ] as const
+                    ).map(opt => {
+                      const active = colorMode === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          data-testid={`header-color-mode-${opt.id}`}
+                          aria-pressed={active}
+                          onClick={() => {
+                            setSettingsForm(prev => ({
+                              ...prev,
+                              headerBrandColorMode: opt.id,
+                              headerWordColors:
+                                opt.id === 'word'
+                                  ? buildWordColorsList(rawName, prev.headerWordColors, c1, c2)
+                                  : prev.headerWordColors,
+                              headerLetterColors:
+                                opt.id === 'letter'
+                                  ? buildLetterColorsList(rawName, prev.headerLetterColors, c1, c2)
+                                  : prev.headerLetterColors,
+                            }));
+                          }}
+                          className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
+                            active
+                              ? 'bg-[#D71920] text-white shadow-2xs'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {colorMode !== 'two_tone' && (
+                    <button
+                      type="button"
+                      data-testid="save-header-brand-colors-btn"
+                      disabled={settingsSaving}
+                      onClick={async () => {
+                        setSettingsSaving(true);
+                        try {
+                          const nextWords = buildWordColorsList(
+                            rawName,
+                            settingsForm.headerWordColors,
+                            c1,
+                            c2
+                          );
+                          const nextLetters = buildLetterColorsList(
+                            rawName,
+                            settingsForm.headerLetterColors,
+                            c1,
+                            c2
+                          );
+                          await updateSettings({
+                            storeName: settingsForm.storeName,
+                            headerNameColor1: c1,
+                            headerNameColor2: c2,
+                            headerBrandColorMode: colorMode,
+                            headerWordColors: nextWords,
+                            headerLetterColors: nextLetters,
+                          });
+                          setToast({
+                            show: true,
+                            type: 'success',
+                            message: 'Header brand colors saved.',
+                          });
+                        } finally {
+                          setSettingsSaving(false);
+                        }
+                      }}
+                      className="h-7 px-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-[11px] font-medium inline-flex items-center gap-1 cursor-pointer transition-colors"
+                    >
+                      <Check size={11} />
+                      <span>{settingsSaving ? 'Saving...' : 'Save Colors'}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Per-Word Picker Grid */}
+              {colorMode === 'word' && (
+                <div className="space-y-2 pt-1">
+                  <div className="flex flex-wrap gap-2">
+                    {headerWords.map((word, wIdx) => {
+                      const wordHex = resolvedWordColors[wIdx] || '#171717';
+                      const safeInputHex = normalizeHexColor(wordHex, '#171717');
+                      return (
+                        <div
+                          key={`word-chip-${wIdx}`}
+                          data-testid={`header-word-color-card-${wIdx}`}
+                          className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white shadow-2xs"
+                        >
+                          <span
+                            className="text-xs font-extrabold tracking-tight"
+                            style={{ color: safeInputHex }}
+                          >
+                            {word}
+                          </span>
+                          <div className="h-4 w-px bg-slate-200" aria-hidden="true" />
+                          <input
+                            type="color"
+                            aria-label={`Color for word ${word}`}
+                            data-testid={`header-word-color-picker-${wIdx}`}
+                            value={safeInputHex}
+                            onChange={e => {
+                              const nextVal = e.target.value.toUpperCase();
+                              setSettingsForm(prev => {
+                                const list = buildWordColorsList(
+                                  rawName,
+                                  prev.headerWordColors,
+                                  c1,
+                                  c2
+                                );
+                                list[wIdx] = nextVal;
+                                return {
+                                  ...prev,
+                                  headerBrandColorMode: 'word',
+                                  headerWordColors: list,
+                                };
+                              });
+                            }}
+                            className="w-5 h-5 rounded cursor-pointer border-0 bg-transparent p-0 shrink-0"
+                          />
+                          <input
+                            type="text"
+                            aria-label={`Hex color for word ${word}`}
+                            data-testid={`header-word-color-hex-${wIdx}`}
+                            value={wordHex}
+                            onChange={e => {
+                              const nextVal = e.target.value.toUpperCase();
+                              setSettingsForm(prev => {
+                                const list = buildWordColorsList(
+                                  rawName,
+                                  prev.headerWordColors,
+                                  c1,
+                                  c2
+                                );
+                                list[wIdx] = nextVal;
+                                return {
+                                  ...prev,
+                                  headerBrandColorMode: 'word',
+                                  headerWordColors: list,
+                                };
+                              });
+                            }}
+                            className="w-[62px] text-[11px] font-mono text-slate-700 focus:outline-none uppercase"
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Per-Letter Interactive Character Strip & Inspector */}
+              {colorMode === 'letter' && (
+                <div className="space-y-2.5 pt-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {headerCharTokens.map((token, tIdx) => {
+                      if (token.isWhitespace) {
+                        return <div key={`gap-${tIdx}`} className="w-2.5" aria-hidden="true" />;
+                      }
+                      const lIdx = token.letterIndex;
+                      const letterColor = normalizeHexColor(
+                        resolvedLetterColors[lIdx],
+                        c1
+                      );
+                      const isSelected = lIdx === safeSelectedLetterIdx;
+                      return (
+                        <button
+                          key={`char-tile-${lIdx}`}
+                          type="button"
+                          data-testid={`header-letter-tile-${lIdx}`}
+                          aria-label={`Select character '${token.char}' (${letterColor})`}
+                          aria-pressed={isSelected}
+                          onClick={() => setSelectedLetterIdx(lIdx)}
+                          className={`min-w-[34px] h-11 px-1.5 rounded-lg border bg-white flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+                            isSelected
+                              ? 'border-[#D71920] ring-2 ring-[#D71920]/20 shadow-xs -translate-y-0.5'
+                              : 'border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          <span
+                            className="text-sm font-black leading-none"
+                            style={{ color: letterColor }}
+                          >
+                            {token.char}
+                          </span>
+                          <span
+                            className="w-5 h-1.5 rounded-full border border-black/10"
+                            style={{ backgroundColor: letterColor }}
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {activeLetterToken && (
+                    <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 py-2 rounded-lg bg-white border border-slate-200">
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <span className="text-[11px] font-medium text-slate-600">
+                          Selected{' '}
+                          <span
+                            className="inline-flex items-center justify-center min-w-[22px] h-5 px-1.5 rounded bg-slate-100 font-black text-xs mx-0.5"
+                            style={{ color: activeLetterColor }}
+                          >
+                            {activeLetterToken.char}
+                          </span>
+                        </span>
+
+                        <div className="flex items-center gap-1.5 h-7 px-2 rounded-md border border-slate-200 bg-slate-50/50">
+                          <input
+                            type="color"
+                            aria-label={`Color picker for character ${activeLetterToken.char}`}
+                            data-testid="selected-letter-color-picker"
+                            value={activeLetterColor}
+                            onChange={e => {
+                              const nextHex = e.target.value.toUpperCase();
+                              setSettingsForm(prev => {
+                                const list = buildLetterColorsList(
+                                  rawName,
+                                  prev.headerLetterColors,
+                                  c1,
+                                  c2
+                                );
+                                list[safeSelectedLetterIdx] = nextHex;
+                                return {
+                                  ...prev,
+                                  headerBrandColorMode: 'letter',
+                                  headerLetterColors: list,
+                                };
+                              });
+                            }}
+                            className="w-4 h-4 rounded cursor-pointer border-0 bg-transparent p-0 shrink-0"
+                          />
+                          <input
+                            type="text"
+                            aria-label={`Hex color for character ${activeLetterToken.char}`}
+                            data-testid="selected-letter-color-hex"
+                            value={
+                              (settingsForm.headerLetterColors?.[safeSelectedLetterIdx] ??
+                                activeLetterColor)
+                            }
+                            onChange={e => {
+                              const nextHex = e.target.value.toUpperCase();
+                              setSettingsForm(prev => {
+                                const list = buildLetterColorsList(
+                                  rawName,
+                                  prev.headerLetterColors,
+                                  c1,
+                                  c2
+                                );
+                                list[safeSelectedLetterIdx] = nextHex;
+                                return {
+                                  ...prev,
+                                  headerBrandColorMode: 'letter',
+                                  headerLetterColors: list,
+                                };
+                              });
+                            }}
+                            className="w-[64px] text-[11px] font-mono text-slate-800 bg-transparent focus:outline-none uppercase"
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          {HEADER_COLOR_QUICK_PALETTE.map(hex => {
+                            const selected = activeLetterColor === hex;
+                            return (
+                              <button
+                                key={hex}
+                                type="button"
+                                title={`Set ${activeLetterToken.char} to ${hex}`}
+                                aria-label={`Set character color to ${hex}`}
+                                onClick={() => {
+                                  setSettingsForm(prev => {
+                                    const list = buildLetterColorsList(
+                                      rawName,
+                                      prev.headerLetterColors,
+                                      c1,
+                                      c2
+                                    );
+                                    list[safeSelectedLetterIdx] = hex;
+                                    return {
+                                      ...prev,
+                                      headerBrandColorMode: 'letter',
+                                      headerLetterColors: list,
+                                    };
+                                  });
+                                }}
+                                className={`w-4 h-4 rounded-full border cursor-pointer transition-transform ${
+                                  selected
+                                    ? 'ring-2 ring-offset-1 ring-slate-900 scale-110 border-slate-400'
+                                    : 'border-slate-300 hover:scale-110'
+                                }`}
+                                style={{ backgroundColor: hex }}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        {activeLetterWord && headerWords.length > 1 && (
+                          <button
+                            type="button"
+                            data-testid="apply-color-to-word-btn"
+                            onClick={() => {
+                              setSettingsForm(prev => ({
+                                ...prev,
+                                headerBrandColorMode: 'letter',
+                                headerLetterColors: applyColorToWordInLetterList(
+                                  rawName,
+                                  prev.headerLetterColors,
+                                  activeLetterToken.wordIndex,
+                                  activeLetterColor,
+                                  c1,
+                                  c2
+                                ),
+                              }));
+                            }}
+                            className="h-6 px-2 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-[10px] font-medium text-slate-700 cursor-pointer transition-colors"
+                          >
+                            Apply to "{activeLetterWord}"
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          data-testid="reset-letter-colors-btn"
+                          onClick={() => {
+                            setSettingsForm(prev => ({
+                              ...prev,
+                              headerLetterColors: buildLetterColorsList(rawName, [], c1, c2),
+                            }));
+                          }}
+                          className="h-6 px-2 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-[10px] font-medium text-slate-600 inline-flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <RotateCcw size={10} />
+                          <span>Reset</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
