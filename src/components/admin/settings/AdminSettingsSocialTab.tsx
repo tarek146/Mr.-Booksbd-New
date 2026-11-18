@@ -140,12 +140,13 @@ export const AdminSettingsSocialTab: React.FC<SettingsFormTabProps> = ({
             />
           </div>
           <div>
-            <label className={S_LABEL}>Telegram URL</label>
+            <label className={S_LABEL}>Instagram URL</label>
             <input
               type="text"
-              placeholder="https://t.me/mrbooksbd"
-              value={settingsForm.telegramUrl || ''}
-              onChange={e => setSettingsForm(prev => ({ ...prev, telegramUrl: e.target.value }))}
+              data-testid="settings-instagram-url-input"
+              placeholder="https://instagram.com/mrbooksbd"
+              value={settingsForm.instagramUrl || ''}
+              onChange={e => setSettingsForm(prev => ({ ...prev, instagramUrl: e.target.value }))}
               className={S_INPUT}
             />
           </div>
