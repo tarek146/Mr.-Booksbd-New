@@ -58,17 +58,18 @@ describe('categoryHomeHelpers', () => {
     );
   });
 
-  it('returns all categories sorted by serial below the banner without hiding or limiting any category', () => {
+  it('filters Browse Categories slider items by showOnHome (hides false, keeps true and undefined visible) sorted by serial', () => {
     const cats = [
       makeCat('c1', { name: 'Visible Both', showOnHome: true, showProductsOnHome: true, displayOrder: 2 }),
       makeCat('c2', { name: 'Slider Only', showOnHome: true, showProductsOnHome: false, displayOrder: 1 }),
-      makeCat('c3', { name: 'Previously Hidden Flag', showOnHome: false, showProductsOnHome: false, displayOrder: 0 }),
+      makeCat('c3', { name: 'Hidden From Slider', showOnHome: false, showProductsOnHome: false, displayOrder: 0 }),
+      makeCat('c4', { name: 'Legacy Undefined Flag', showOnHome: undefined, showProductsOnHome: false, displayOrder: 3 }),
     ];
 
     const sliderItems = getHomeVisibleCategorySliderItems(cats);
     assert.deepEqual(
       sliderItems.map(c => c.name),
-      ['Previously Hidden Flag', 'Slider Only', 'Visible Both']
+      ['Slider Only', 'Visible Both', 'Legacy Undefined Flag']
     );
   });
 

@@ -1996,7 +1996,7 @@ export function AdminDashboard() {
           type: catType,
           slug,
           image: catImage,
-          showOnHome: true,
+          showOnHome: catShowOnHome,
           showProductsOnHome: catShowProductsOnHome,
           homeProductLimit: safeLimit,
           homeFeaturedProductIds: compatibleFeaturedIds,
@@ -2010,7 +2010,7 @@ export function AdminDashboard() {
           type: catType,
           slug,
           image: catImage,
-          showOnHome: true,
+          showOnHome: catShowOnHome,
           showProductsOnHome: catShowProductsOnHome,
           homeProductLimit: safeLimit,
           homeFeaturedProductIds: compatibleFeaturedIds,
@@ -8138,6 +8138,7 @@ export function AdminDashboard() {
                     <th className="py-3 px-4">Products</th>
                     <th className="py-3 px-4">Type</th>
                     <th className="py-3 px-4">Serial</th>
+                    <th className="py-3 px-4">Browse Slider</th>
                     <th className="py-3 px-4">Home Products</th>
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
@@ -8149,6 +8150,7 @@ export function AdminDashboard() {
                     );
                     return orderedCats.map((cat, idx) => {
                       const itemCount = products.filter(p => p.type === cat.type && productHasCategory(p, cat.name)).length;
+                      const isShownInSlider = cat.showOnHome !== false;
                       const showProdsOnHome = cat.showProductsOnHome === true;
                       const catLimit = clampCategoryHomeLimit(cat.homeProductLimit);
 
@@ -8205,6 +8207,41 @@ export function AdminDashboard() {
                                 <ArrowDown size={12} />
                               </button>
                             </div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <button
+                              type="button"
+                              data-testid={`admin-toggle-cat-home-${cat.id}`}
+                              aria-label={`${isShownInSlider ? 'Hide' : 'Show'} ${cat.name} in Homepage Browse Categories`}
+                              onClick={async () => {
+                                const nextVisible = !isShownInSlider;
+                                try {
+                                  await updateCategory(cat.id, { showOnHome: nextVisible });
+                                  setToast({
+                                    show: true,
+                                    type: 'success',
+                                    message: nextVisible
+                                      ? `"${cat.name}" is now visible in Homepage Browse Categories.`
+                                      : `"${cat.name}" hidden from Homepage Browse Categories.`,
+                                  });
+                                } catch (err: any) {
+                                  setToast({
+                                    show: true,
+                                    type: 'error',
+                                    message: 'Failed to update category visibility: ' + (err?.message || 'Unknown error'),
+                                  });
+                                }
+                              }}
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition-colors ${
+                                isShownInSlider
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+                                  : 'bg-neutral-100 text-neutral-500 border border-neutral-200 hover:bg-neutral-200'
+                              }`}
+                              title={isShownInSlider ? 'Visible in Homepage Browse Categories (Click to Hide)' : 'Hidden from Homepage Browse Categories (Click to Show)'}
+                            >
+                              {isShownInSlider ? <Eye size={12} /> : <EyeOff size={12} />}
+                              <span>{isShownInSlider ? 'Shown' : 'Hidden'}</span>
+                            </button>
                           </td>
                           <td className="py-3.5 px-4">
                             <button
@@ -8274,6 +8311,8 @@ export function AdminDashboard() {
               setCatType={setCatType}
               catImage={catImage}
               setCatImage={setCatImage}
+              catShowOnHome={catShowOnHome}
+              setCatShowOnHome={setCatShowOnHome}
               catShowProductsOnHome={catShowProductsOnHome}
               setCatShowProductsOnHome={setCatShowProductsOnHome}
               catHomeProductLimit={catHomeProductLimit}

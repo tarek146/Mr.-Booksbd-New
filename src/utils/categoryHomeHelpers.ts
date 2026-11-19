@@ -40,8 +40,14 @@ export function sortCategoriesBySerial(categories: Category[]): Category[] {
     .map(entry => entry.cat);
 }
 
+export function isCategoryVisibleInHomeSlider(
+  category: Pick<Category, 'showOnHome'>
+): boolean {
+  return category.showOnHome !== false;
+}
+
 export function getHomeVisibleCategorySliderItems(categories: Category[]): Category[] {
-  return sortCategoriesBySerial(categories);
+  return sortCategoriesBySerial(categories).filter(isCategoryVisibleInHomeSlider);
 }
 
 export function getProductsEligibleForCategoryModal(
