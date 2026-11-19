@@ -58,6 +58,7 @@ import {
 import { trackFacebookConversionEvent, buildProductCustomData } from '../utils/facebookCapiHelpers';
 import { ProductDetailSkeleton } from '../components/SkeletonScreens';
 import { shouldShowSkeletonScreen, resolveFirestoreFetchStrategy } from '../utils/instantStoreCache';
+import { filterReviewsForProduct } from '../utils/reviewHelpers';
 import { db, getDocCacheFirst } from '../firebase';
 import { doc } from 'firebase/firestore';
 import { Product } from '../types';
@@ -153,60 +154,15 @@ export function ProductDetail() {
   const [reviewSuccess, setReviewSuccess] = useState(false);
   const [activeReviewIndex, setActiveReviewIndex] = useState(0);
   const [reviewTouchStartX, setReviewTouchStartX] = useState<number | null>(null);
-  // Verified reviews list ensuring customer feedback is always visible and authentic
-  const defaultVerifiedReviews: Review[] = useMemo(() => {
-    if (!product) return [];
-    return [
-      {
-        id: `verified-seed-1-${product.id}`,
-        productId: product.id,
-        userName: 'Tanvir Ahmed',
-        rating: 5,
-        comment: 'বইটির প্রিন্ট ও পেপার কোয়ালিটি এক কথায় অসাধারণ! বাইন্ডিং খুবই মজবুত। অর্ডার করার পরদিনই অক্ষত অবস্থায় ডেলিভারি পেয়েছি। ১০০% অরিজিনাল পাবলিশার্স কপি।',
-        createdAt: Date.now() - 1000 * 60 * 60 * 24 * 2, // 2 days ago
-        isVerifiedPurchase: true,
-        likesCount: 12,
-        lovesCount: 8,
-        dislikesCount: 0,
-        userReactions: {}
-      },
-      {
-        id: `verified-seed-2-${product.id}`,
-        productId: product.id,
-        userName: 'Nusrat Jahan',
-        rating: 5,
-        comment: 'Very satisfied with the authentic printing, sharp fonts, and smooth paper quality. Packaging was super secure with bubble wrap. Recommended bookstore for everyone!',
-        createdAt: Date.now() - 1000 * 60 * 60 * 24 * 5, // 5 days ago
-        isVerifiedPurchase: true,
-        likesCount: 9,
-        lovesCount: 6,
-        dislikesCount: 0,
-        userReactions: {}
-      },
-      {
-        id: `verified-seed-3-${product.id}`,
-        productId: product.id,
-        userName: 'Md. Rafiqul Islam',
-        rating: 5,
-        comment: 'MR. BOOKS থেকে এই নিয়ে ৩য় বার বই অর্ডার করলাম। সময়মত হোম ডেলিভারি ও অরিজিনাল বই দেওয়ার জন্য আন্তরিক ধন্যবাদ। পড়ার অভিজ্ঞতা দারুণ ছিল।',
-        createdAt: Date.now() - 1000 * 60 * 60 * 24 * 8, // 8 days ago
-        isVerifiedPurchase: true,
-        likesCount: 15,
-        lovesCount: 11,
-        dislikesCount: 0,
-        userReactions: {}
-      }
-    ];
-  }, [product?.id]);
-
-  const firestoreProductReviews = (reviews || []).filter(r => product && r && r.productId === product.id);
-  const displayReviews = firestoreProductReviews.length > 0 
-    ? [...firestoreProductReviews, ...defaultVerifiedReviews.filter(d => !firestoreProductReviews.some(f => f.id === d.id))]
-    : defaultVerifiedReviews;
+  // Strictly display real Firebase reviews managed by Admin & customers (zero hardcoded/default reviews)
+  const displayReviews: Review[] = useMemo(
+    () => filterReviewsForProduct(reviews, product?.id),
+    [reviews, product?.id]
+  );
 
   const avgRating = displayReviews.length > 0 
     ? (displayReviews.reduce((sum, r) => sum + (r?.rating || 5), 0) / displayReviews.length).toFixed(1)
-    : (product?.rating ? product.rating.toFixed(1) : '5.0');
+    : '0.0';
 
   const safeReviewIndex = displayReviews.length > 0
     ? Math.min(activeReviewIndex, displayReviews.length - 1)
@@ -1237,7 +1193,7 @@ export function ProductDetail() {
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="text-[11px] font-medium text-neutral-500 tabular-nums">
-                        {avgRating} ★ ({displayReviews.length})
+                        {displayReviews.length > 0 ? `${avgRating} ★ (${displayReviews.length})` : '0 reviews'}
                       </span>
                       <ChevronRight
                         size={14}
@@ -1256,11 +1212,15 @@ export function ProductDetail() {
                         <div className="flex items-center gap-2">
                           <div className="flex items-center text-amber-500">
                             {[...Array(5)].map((_, i) => (
-                              <Star key={i} size={15} fill={i < Math.round(Number(avgRating)) ? 'currentColor' : 'none'} />
+                              <Star key={i} size={15} fill={displayReviews.length > 0 && i < Math.round(Number(avgRating)) ? 'currentColor' : 'none'} />
                             ))}
                           </div>
-                          <span className="font-black text-sm text-neutral-900">{avgRating} / 5</span>
-                          <span className="text-neutral-500 text-[11px] font-medium">({displayReviews.length} verified reviews)</span>
+                          <span className="font-black text-sm text-neutral-900">
+                            {displayReviews.length > 0 ? `${avgRating} / 5` : 'No ratings yet'}
+                          </span>
+                          <span className="text-neutral-500 text-[11px] font-medium">
+                            ({displayReviews.length} {displayReviews.length === 1 ? 'review' : 'reviews'})
+                          </span>
                         </div>
                         <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
                           <ShieldCheck size={12} className="text-emerald-600" /> 100% Genuine Reader Feedback
@@ -1346,33 +1306,50 @@ export function ProductDetail() {
                                 <Star size={13} className="text-amber-500 fill-amber-500 shrink-0" />
                                 Customer Reviews ({displayReviews.length})
                               </span>
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/20 tabular-nums shrink-0">
-                                {safeReviewIndex + 1} / {displayReviews.length}
-                              </span>
+                              {displayReviews.length > 0 && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-[#FFF1F2] text-[#D71920] border border-[#D71920]/20 tabular-nums shrink-0">
+                                  {safeReviewIndex + 1} / {displayReviews.length}
+                                </span>
+                              )}
                             </div>
 
                             {/* Carousel Header Left/Right Controls */}
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <button
-                                type="button"
-                                onClick={handlePrevReview}
-                                aria-label="Previous customer review"
-                                className="w-7 h-7 rounded-full border border-neutral-200 bg-white hover:bg-[#FFF1F2] hover:border-[#D71920] text-neutral-700 hover:text-[#D71920] flex items-center justify-center transition-all cursor-pointer active:scale-90 shadow-2xs"
-                              >
-                                <ChevronLeft size={15} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={handleNextReview}
-                                aria-label="Next customer review"
-                                className="w-7 h-7 rounded-full border border-neutral-200 bg-white hover:bg-[#FFF1F2] hover:border-[#D71920] text-neutral-700 hover:text-[#D71920] flex items-center justify-center transition-all cursor-pointer active:scale-90 shadow-2xs"
-                              >
-                                <ChevronRight size={15} />
-                              </button>
-                            </div>
+                            {displayReviews.length > 1 && (
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={handlePrevReview}
+                                  aria-label="Previous customer review"
+                                  className="w-7 h-7 rounded-full border border-neutral-200 bg-white hover:bg-[#FFF1F2] hover:border-[#D71920] text-neutral-700 hover:text-[#D71920] flex items-center justify-center transition-all cursor-pointer active:scale-90 shadow-2xs"
+                                >
+                                  <ChevronLeft size={15} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleNextReview}
+                                  aria-label="Next customer review"
+                                  className="w-7 h-7 rounded-full border border-neutral-200 bg-white hover:bg-[#FFF1F2] hover:border-[#D71920] text-neutral-700 hover:text-[#D71920] flex items-center justify-center transition-all cursor-pointer active:scale-90 shadow-2xs"
+                                >
+                                  <ChevronRight size={15} />
+                                </button>
+                              </div>
+                            )}
                           </div>
 
                           {/* Horizontal Slider Viewport — One Review Card at a Time */}
+                          {displayReviews.length === 0 ? (
+                            <div
+                              data-testid="product-reviews-empty-state"
+                              className="p-6 bg-white rounded-2xl border border-dashed border-neutral-200 text-center space-y-1.5"
+                            >
+                              <p className="text-xs font-semibold text-neutral-700">
+                                No customer reviews yet
+                              </p>
+                              <p className="text-[11px] text-neutral-500">
+                                Be the first to share your thoughts using the review form.
+                              </p>
+                            </div>
+                          ) : (
                           <div
                             className="relative overflow-hidden rounded-2xl select-none touch-pan-y"
                             onTouchStart={handleReviewTouchStart}
@@ -1490,6 +1467,7 @@ export function ProductDetail() {
                               })}
                             </div>
                           </div>
+                          )}
 
                           {/* Carousel Bottom Controls: Prev / Dots / Next */}
                           {displayReviews.length > 1 && (

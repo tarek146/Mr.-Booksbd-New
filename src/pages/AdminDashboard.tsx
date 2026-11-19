@@ -128,6 +128,10 @@ import {
   getPaymentMethodDisplayMeta,
   getPaymentMethodSubOptions,
   getDefaultMerchantPaymentInstruction,
+  GENERAL_TESTIMONIAL_PRODUCT_ID,
+  isGeneralTestimonial,
+  filterAdminReviews,
+  normalizeReviewsList,
 } from '../utils/reviewHelpers';
 import { PaymentBrandIcon } from '../components/PaymentInstructions';
 import {
@@ -466,10 +470,17 @@ export function AdminDashboard() {
   const [isSubmittingStaff, setIsSubmittingStaff] = useState(false);
 
   // Admin Review Management state
-  const [adminRevProdId, setAdminRevProdId] = useState('');
+  const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
+  const [adminRevProdId, setAdminRevProdId] = useState(GENERAL_TESTIMONIAL_PRODUCT_ID);
   const [adminRevUserName, setAdminRevUserName] = useState('');
   const [adminRevRating, setAdminRevRating] = useState(5);
   const [adminRevComment, setAdminRevComment] = useState('');
+  const [adminRevVerified, setAdminRevVerified] = useState(true);
+  const [adminRevLikes, setAdminRevLikes] = useState(0);
+  const [adminRevLoves, setAdminRevLoves] = useState(0);
+  const [isSavingAdminReview, setIsSavingAdminReview] = useState(false);
+  const [reviewSearchQuery, setReviewSearchQuery] = useState('');
+  const [reviewTargetFilter, setReviewTargetFilter] = useState<'all' | 'general' | 'product'>('all');
   const [showAddAdminRevModal, setShowAddAdminRevModal] = useState(false);
 
   // Reels management state
@@ -4849,30 +4860,75 @@ export function AdminDashboard() {
         )}
 
         {/* TAB: CUSTOMER REVIEWS & REACTIONS MANAGER */}
-        {activeTab === 'reviews' && (
+        {activeTab === 'reviews' && (() => {
+          const isReviewsActive =
+            siteSettings.reviewDisplay !== false &&
+            homeConfig.showReviews !== false &&
+            homeConfig.reviewsSlotReplacement !== 'off';
+          const currentReviewSlotMode = !isReviewsActive
+            ? 'off'
+            : homeConfig.reviewsSlotReplacement && homeConfig.reviewsSlotReplacement !== 'off'
+              ? homeConfig.reviewsSlotReplacement
+              : 'reviews';
+          const activeReviewIconStyle =
+            homeConfig.reviewIconStyle || settings.homeReviewIconStyle || 'heart';
+          const normalizedAdminReviews = normalizeReviewsList(reviews);
+          const productTitleMap: Record<string, string> = {};
+          for (const p of products) {
+            productTitleMap[p.id] = p.title;
+          }
+          const filteredAdminReviews = filterAdminReviews(
+            normalizedAdminReviews,
+            reviewSearchQuery,
+            reviewTargetFilter,
+            productTitleMap
+          );
+
+          const openAddReviewModal = () => {
+            setEditingReviewId(null);
+            setAdminRevProdId(GENERAL_TESTIMONIAL_PRODUCT_ID);
+            setAdminRevUserName('');
+            setAdminRevRating(5);
+            setAdminRevComment('');
+            setAdminRevVerified(true);
+            setAdminRevLikes(0);
+            setAdminRevLoves(0);
+            setShowAddAdminRevModal(true);
+          };
+
+          const openEditReviewModal = (rev: Review) => {
+            setEditingReviewId(rev.id);
+            setAdminRevProdId(
+              isGeneralTestimonial(rev) ? GENERAL_TESTIMONIAL_PRODUCT_ID : rev.productId
+            );
+            setAdminRevUserName(rev.userName || '');
+            setAdminRevRating(Math.max(1, Math.min(5, Number(rev.rating) || 5)));
+            setAdminRevComment(rev.comment || '');
+            setAdminRevVerified(rev.isVerifiedPurchase !== false);
+            setAdminRevLikes(Math.max(0, Number(rev.likesCount ?? 0)));
+            setAdminRevLoves(Math.max(0, Number(rev.lovesCount ?? 0)));
+            setShowAddAdminRevModal(true);
+          };
+
+          return (
           <div className="space-y-5">
             {/* Clean Page Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
               <div className="space-y-1">
                 <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
-                  Customer Reviews &amp; Reactions
+                  Customer Reviews &amp; Testimonials
                 </h2>
                 <p className="text-xs sm:text-[13px] text-slate-500">
-                  Manage verified product reviews, homepage visibility slots, and reaction counts synced with Firebase
+                  Full control over customer reviews and testimonials — add, edit, or delete anytime with instant Firebase sync
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  setAdminRevProdId(products[0]?.id || '');
-                  setAdminRevUserName('');
-                  setAdminRevRating(5);
-                  setAdminRevComment('');
-                  setShowAddAdminRevModal(true);
-                }}
+                data-testid="admin-add-review-btn"
+                onClick={openAddReviewModal}
                 className="px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-semibold rounded-lg text-xs flex items-center gap-1.5 cursor-pointer shrink-0 self-start sm:self-auto"
               >
-                <Plus size={14} /> Add Verified Review
+                <Plus size={14} /> Add Review / Testimonial
               </button>
             </div>
 
@@ -4883,8 +4939,8 @@ export function AdminDashboard() {
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
                 <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
-                    {renderGreenReviewIcon(settings.homeReviewIconStyle, 17)}
+                  <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center shrink-0">
+                    {renderGreenReviewIcon(activeReviewIconStyle, 17)}
                   </div>
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
@@ -4892,19 +4948,17 @@ export function AdminDashboard() {
                         Homepage Review Display &amp; Icon Controls
                       </h3>
                       <span
+                        data-testid="admin-reviews-status-badge"
                         className={`px-2 py-0.5 rounded-md text-[11px] font-semibold border ${
-                          settings.showHomeReviewsSection !== false &&
-                          settings.homeReviewsSlotReplacement !== 'off'
+                          isReviewsActive
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             : 'bg-slate-100 text-slate-600 border-slate-200'
                         }`}
                       >
-                        {settings.showHomeReviewsSection === false ||
-                        settings.homeReviewsSlotReplacement === 'off'
+                        {!isReviewsActive
                           ? 'Reviews: OFF'
-                          : settings.homeReviewsSlotReplacement &&
-                              settings.homeReviewsSlotReplacement !== 'reviews'
-                            ? `Slot: ${settings.homeReviewsSlotReplacement.replace('_', ' ')}`
+                          : currentReviewSlotMode !== 'reviews'
+                            ? `Slot: ${currentReviewSlotMode.replace('_', ' ')}`
                             : 'Reviews: Active'}
                       </span>
                     </div>
@@ -4928,11 +4982,10 @@ export function AdminDashboard() {
                         showReviews: true,
                         reviewsSlotReplacement: nextSlot,
                       });
-                      setToast({ show: true, type: 'success', message: 'Homepage Reviews enabled in homeConfig!' });
+                      setToast({ show: true, type: 'success', message: 'Homepage Reviews turned ON and saved!' });
                     }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer transition-colors flex items-center gap-1.5 ${
-                      homeConfig.showReviews !== false &&
-                      homeConfig.reviewsSlotReplacement !== 'off'
+                      isReviewsActive
                         ? 'bg-emerald-600 text-white border-emerald-600'
                         : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                     }`}
@@ -4948,11 +5001,10 @@ export function AdminDashboard() {
                         showReviews: false,
                         reviewsSlotReplacement: 'off',
                       });
-                      setToast({ show: true, type: 'success', message: 'Homepage Reviews turned OFF in homeConfig!' });
+                      setToast({ show: true, type: 'success', message: 'Homepage Reviews turned OFF and saved!' });
                     }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer transition-colors flex items-center gap-1.5 ${
-                      homeConfig.showReviews === false ||
-                      homeConfig.reviewsSlotReplacement === 'off'
+                      !isReviewsActive
                         ? 'bg-red-600 text-white border-red-600'
                         : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                     }`}
@@ -4971,13 +5023,7 @@ export function AdminDashboard() {
                   </label>
                   <select
                     data-testid="home-reviews-slot-select"
-                    value={
-                      settings.showHomeReviewsSection === false &&
-                      (!settings.homeReviewsSlotReplacement ||
-                        settings.homeReviewsSlotReplacement === 'reviews')
-                        ? 'off'
-                        : settings.homeReviewsSlotReplacement || 'reviews'
-                    }
+                    value={currentReviewSlotMode}
                     onChange={async e => {
                       const val = e.target.value as
                         | 'reviews'
@@ -4985,16 +5031,16 @@ export function AdminDashboard() {
                         | 'publishers_spotlight'
                         | 'reading_benefits'
                         | 'off';
-                      await updateSettings({
-                        showHomeReviewsSection: val !== 'off',
-                        homeReviewsSlotReplacement: val,
+                      await updateHomeConfig({
+                        showReviews: val !== 'off',
+                        reviewsSlotReplacement: val,
                       });
                       setToast({
                         show: true,
                         type: 'success',
                         message:
                           val === 'off'
-                            ? 'Homepage review slot hidden (Off)'
+                            ? 'Homepage review slot turned OFF'
                             : `Homepage slot updated to: ${val.replace('_', ' ')}`,
                       });
                     }}
@@ -5007,7 +5053,7 @@ export function AdminDashboard() {
                     <option value="off">Turn Off (Keep Slot Hidden)</option>
                   </select>
                   <p className="text-[11px] text-slate-500">
-                    Display Customer Reviews, swap with another feature, or hide the section.
+                    Display Customer Reviews, swap with another feature, or hide the section permanently.
                   </p>
                 </div>
 
@@ -5018,7 +5064,7 @@ export function AdminDashboard() {
                   </label>
                   <select
                     data-testid="product-card-review-slot-select"
-                    value={settings.productCardReviewSlotMode || 'green_rating'}
+                    value={homeConfig.productCardReviewSlotMode || settings.productCardReviewSlotMode || 'green_rating'}
                     onChange={async e => {
                       const val = e.target.value as
                         | 'green_rating'
@@ -5026,7 +5072,7 @@ export function AdminDashboard() {
                         | 'verified_badge'
                         | 'stock_status'
                         | 'off';
-                      await updateSettings({ productCardReviewSlotMode: val });
+                      await updateHomeConfig({ productCardReviewSlotMode: val });
                       setToast({ show: true, type: 'success', message: 'Product card review slot updated!' });
                     }}
                     className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:border-emerald-600"
@@ -5056,15 +5102,15 @@ export function AdminDashboard() {
                       { id: 'sparkles', label: 'Sparkles' },
                       { id: 'book_love', label: 'Book Icon' },
                     ].map(opt => {
-                      const activeIcon = (settings.homeReviewIconStyle || 'heart') === opt.id;
+                      const activeIcon = activeReviewIconStyle === opt.id;
                       return (
                         <button
                           key={opt.id}
                           type="button"
                           data-testid={`review-icon-option-${opt.id}`}
                           onClick={async () => {
-                            await updateSettings({
-                              homeReviewIconStyle: opt.id as any,
+                            await updateHomeConfig({
+                              reviewIconStyle: opt.id as any,
                             });
                             setToast({
                               show: true,
@@ -5091,7 +5137,7 @@ export function AdminDashboard() {
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-600 tabular-nums">
                       {[...Array(5)].map((_, i) => (
                         <span key={i} className="inline-flex">
-                          {renderGreenReviewIcon(settings.homeReviewIconStyle, 12)}
+                          {renderGreenReviewIcon(activeReviewIconStyle, 12)}
                         </span>
                       ))}
                       <span className="ml-1 text-emerald-800 font-bold">5.0</span>
@@ -5113,18 +5159,18 @@ export function AdminDashboard() {
                       </span>
                       <span
                         className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border ${
-                          settings.showHomeWritersSection !== false &&
-                          settings.homeWritersSlotReplacement !== 'off'
+                          homeConfig.showAuthors !== false &&
+                          homeConfig.authorsSlotReplacement !== 'off'
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             : 'bg-red-50 text-red-700 border-red-200'
                         }`}
                       >
-                        {settings.showHomeWritersSection === false ||
-                        settings.homeWritersSlotReplacement === 'off'
+                        {homeConfig.showAuthors === false ||
+                        homeConfig.authorsSlotReplacement === 'off'
                           ? 'Writers: OFF'
-                          : settings.homeWritersSlotReplacement &&
-                              settings.homeWritersSlotReplacement !== 'writers'
-                            ? `Writers Slot: ${settings.homeWritersSlotReplacement.replace('_', ' ')}`
+                          : homeConfig.authorsSlotReplacement &&
+                              homeConfig.authorsSlotReplacement !== 'writers'
+                            ? `Writers Slot: ${homeConfig.authorsSlotReplacement.replace('_', ' ')}`
                             : 'Writers: ON'}
                       </span>
                     </div>
@@ -5137,11 +5183,10 @@ export function AdminDashboard() {
                 <div className="flex flex-wrap items-center gap-2">
                   <select
                     value={
-                      settings.showHomeWritersSection === false &&
-                      (!settings.homeWritersSlotReplacement ||
-                        settings.homeWritersSlotReplacement === 'writers')
+                      homeConfig.showAuthors === false ||
+                      homeConfig.authorsSlotReplacement === 'off'
                         ? 'off'
-                        : settings.homeWritersSlotReplacement || 'writers'
+                        : homeConfig.authorsSlotReplacement || 'writers'
                     }
                     onChange={async e => {
                       const val = e.target.value as
@@ -5151,9 +5196,9 @@ export function AdminDashboard() {
                         | 'trust_features'
                         | 'reading_benefits'
                         | 'off';
-                      await updateSettings({
-                        showHomeWritersSection: val !== 'off',
-                        homeWritersSlotReplacement: val,
+                      await updateHomeConfig({
+                        showAuthors: val !== 'off',
+                        authorsSlotReplacement: val,
                       });
                       setToast({
                         show: true,
@@ -5175,7 +5220,7 @@ export function AdminDashboard() {
                   </select>
 
                   <select
-                    value={settings.productCardWriterSlotMode || 'writer_name'}
+                    value={homeConfig.productCardWriterSlotMode || settings.productCardWriterSlotMode || 'writer_name'}
                     onChange={async e => {
                       const val = e.target.value as
                         | 'writer_name'
@@ -5184,7 +5229,7 @@ export function AdminDashboard() {
                         | 'edition_info'
                         | 'delivery_badge'
                         | 'off';
-                      await updateSettings({ productCardWriterSlotMode: val });
+                      await updateHomeConfig({ productCardWriterSlotMode: val });
                       setToast({
                         show: true,
                         type: 'success',
@@ -5207,15 +5252,20 @@ export function AdminDashboard() {
             {/* Reaction Summary KPIs */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
               <div className="p-4 rounded-xl bg-white border border-slate-200">
-                <div className="text-xs font-medium text-slate-500">Total Synced Reviews</div>
-                <div className="text-2xl font-bold text-slate-900 mt-1 tabular-nums">{reviews.length}</div>
+                <div className="text-xs font-medium text-slate-500">Total Live Reviews</div>
+                <div
+                  data-testid="admin-reviews-total-count"
+                  className="text-2xl font-bold text-slate-900 mt-1 tabular-nums"
+                >
+                  {normalizedAdminReviews.length}
+                </div>
               </div>
               <div className="p-4 rounded-xl bg-white border border-slate-200">
                 <div className="text-xs font-medium text-slate-500 flex items-center gap-1.5">
                   <ThumbsUp size={13} className="text-blue-600" /> Total Likes
                 </div>
                 <div className="text-2xl font-bold text-slate-900 mt-1 tabular-nums">
-                  {reviews.reduce((sum, r) => sum + (r.likesCount || 0), 0)}
+                  {normalizedAdminReviews.reduce((sum, r) => sum + (r.likesCount || 0), 0)}
                 </div>
               </div>
               <div className="p-4 rounded-xl bg-white border border-slate-200">
@@ -5223,27 +5273,91 @@ export function AdminDashboard() {
                   <Heart size={13} className="text-[#D71920]" /> Total Loves
                 </div>
                 <div className="text-2xl font-bold text-slate-900 mt-1 tabular-nums">
-                  {reviews.reduce((sum, r) => sum + (r.lovesCount || 0), 0)}
+                  {normalizedAdminReviews.reduce((sum, r) => sum + (r.lovesCount || 0), 0)}
                 </div>
               </div>
             </div>
 
+            {/* Search & Target Filter Bar */}
+            {normalizedAdminReviews.length > 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-slate-200 rounded-xl p-3">
+                <div className="relative flex-1">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={reviewSearchQuery}
+                    onChange={e => setReviewSearchQuery(e.target.value)}
+                    placeholder="Search reviews by customer name, text, or book title..."
+                    aria-label="Search reviews"
+                    className="w-full pl-9 pr-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-[#D71920]"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {([
+                    { id: 'all', label: `All (${normalizedAdminReviews.length})` },
+                    {
+                      id: 'general',
+                      label: `Store Testimonials (${normalizedAdminReviews.filter(r => isGeneralTestimonial(r)).length})`,
+                    },
+                    {
+                      id: 'product',
+                      label: `Product Reviews (${normalizedAdminReviews.filter(r => !isGeneralTestimonial(r)).length})`,
+                    },
+                  ] as const).map(tab => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setReviewTargetFilter(tab.id)}
+                      className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border cursor-pointer transition-colors ${
+                        reviewTargetFilter === tab.id
+                          ? 'bg-slate-900 text-white border-slate-900'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Reviews List */}
-            {reviews.length > 0 ? (
-              <div className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100">
-                {reviews.map(rev => {
-                  const prod = products.find(p => p.id === rev.productId);
+            {filteredAdminReviews.length > 0 ? (
+              <div
+                data-testid="admin-reviews-list"
+                className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100"
+              >
+                {filteredAdminReviews.map(rev => {
+                  const isGen = isGeneralTestimonial(rev);
+                  const prod = !isGen ? products.find(p => p.id === rev.productId) : undefined;
                   return (
-                    <div key={rev.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div
+                      key={rev.id}
+                      data-testid={`admin-review-row-${rev.id}`}
+                      className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4"
+                    >
                       <div className="space-y-1 flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-semibold text-xs text-slate-900">{rev.userName}</span>
-                          <span className="text-amber-500 font-bold text-xs">{'★'.repeat(rev.rating || 5)}</span>
-                          <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 truncate max-w-[260px]">
-                            {prod?.title || rev.productId}
+                          <span className="text-amber-500 font-bold text-xs">
+                            {'★'.repeat(Math.max(1, Math.min(5, Number(rev.rating) || 5)))}
                           </span>
+                          <span
+                            className={`text-[11px] font-medium px-2 py-0.5 rounded truncate max-w-[260px] ${
+                              isGen
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/70'
+                                : 'bg-slate-100 text-slate-600'
+                            }`}
+                          >
+                            {isGen ? 'Store Testimonial' : prod?.title || rev.productId}
+                          </span>
+                          {rev.isVerifiedPurchase !== false && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200/70">
+                              Verified
+                            </span>
+                          )}
                         </div>
-                        <p className="text-xs text-slate-600">"{rev.comment}"</p>
+                        <p className="text-xs text-slate-600 leading-relaxed">"{rev.comment}"</p>
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -5253,8 +5367,13 @@ export function AdminDashboard() {
                           <input
                             type="number"
                             min="0"
+                            aria-label={`Like count for ${rev.userName}`}
                             value={rev.likesCount ?? 0}
-                            onChange={e => updateProductReview(rev.id, { likesCount: Math.max(0, Number(e.target.value) || 0) })}
+                            onChange={e =>
+                              updateProductReview(rev.id, {
+                                likesCount: Math.max(0, Number(e.target.value) || 0),
+                              })
+                            }
                             className="w-12 text-center font-semibold text-slate-900 bg-white border border-slate-200 rounded px-1 py-0.5 tabular-nums"
                           />
                         </div>
@@ -5265,15 +5384,39 @@ export function AdminDashboard() {
                           <input
                             type="number"
                             min="0"
+                            aria-label={`Love count for ${rev.userName}`}
                             value={rev.lovesCount ?? 0}
-                            onChange={e => updateProductReview(rev.id, { lovesCount: Math.max(0, Number(e.target.value) || 0) })}
+                            onChange={e =>
+                              updateProductReview(rev.id, {
+                                lovesCount: Math.max(0, Number(e.target.value) || 0),
+                              })
+                            }
                             className="w-12 text-center font-semibold text-slate-900 bg-white border border-slate-200 rounded px-1 py-0.5 tabular-nums"
                           />
                         </div>
 
                         <button
                           type="button"
-                          onClick={() => deleteProductReview(rev.id)}
+                          onClick={() => openEditReviewModal(rev)}
+                          aria-label={`Edit review by ${rev.userName}`}
+                          title="Edit Review"
+                          className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg border border-transparent hover:border-slate-200 cursor-pointer"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+
+                        <button
+                          type="button"
+                          data-testid={`delete-review-btn-${rev.id}`}
+                          onClick={async () => {
+                            await deleteProductReview(rev.id);
+                            setToast({
+                              show: true,
+                              type: 'success',
+                              message: `Review by ${rev.userName} deleted immediately!`,
+                            });
+                          }}
+                          aria-label={`Delete review by ${rev.userName}`}
                           className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-200 cursor-pointer"
                           title="Delete Review"
                         >
@@ -5284,56 +5427,136 @@ export function AdminDashboard() {
                   );
                 })}
               </div>
+            ) : normalizedAdminReviews.length > 0 ? (
+              <div className="p-8 text-center bg-white rounded-xl border border-slate-200 text-xs text-slate-500 space-y-2">
+                <p>No reviews match your current search or filter.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReviewSearchQuery('');
+                    setReviewTargetFilter('all');
+                  }}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs cursor-pointer"
+                >
+                  Clear Filter
+                </button>
+              </div>
             ) : (
-              <div className="p-8 text-center bg-white rounded-xl border border-slate-200 text-xs text-slate-500">
-                No custom reviews or reactions recorded in Firestore yet. When customers post reviews or react on any product page, they appear here in real time.
+              <div
+                data-testid="admin-reviews-empty-state"
+                className="p-8 text-center bg-white rounded-xl border border-slate-200 text-xs text-slate-500 space-y-3"
+              >
+                <p>
+                  No customer reviews or testimonials yet. Add your own review or testimonial and it will automatically appear on the storefront.
+                </p>
+                <button
+                  type="button"
+                  onClick={openAddReviewModal}
+                  className="px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] text-white font-semibold rounded-lg text-xs inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Plus size={14} /> Add First Review / Testimonial
+                </button>
               </div>
             )}
 
             {showAddAdminRevModal && (
               <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
-                <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-neutral-200 space-y-4">
+                <div
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label={editingReviewId ? 'Edit Customer Review' : 'Add Customer Review or Testimonial'}
+                  className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-neutral-200 space-y-4"
+                >
                   <div className="flex items-center justify-between pb-3 border-b border-neutral-200">
-                    <h3 className="font-black text-neutral-900 text-base">Add Verified Customer Review</h3>
-                    <button onClick={() => setShowAddAdminRevModal(false)} className="p-1.5 rounded-xl hover:bg-neutral-100 text-neutral-400 cursor-pointer">
+                    <h3 className="font-bold text-neutral-900 text-base">
+                      {editingReviewId ? 'Edit Review / Testimonial' : 'Add Customer Review / Testimonial'}
+                    </h3>
+                    <button
+                      type="button"
+                      aria-label="Close review modal"
+                      onClick={() => {
+                        setShowAddAdminRevModal(false);
+                        setEditingReviewId(null);
+                      }}
+                      className="p-1.5 rounded-xl hover:bg-neutral-100 text-neutral-400 cursor-pointer"
+                    >
                       <X size={18} />
                     </button>
                   </div>
                   <form
                     onSubmit={async e => {
                       e.preventDefault();
-                      if (!adminRevProdId || !adminRevUserName.trim() || !adminRevComment.trim()) return;
-                      await addProductReview({
-                        productId: adminRevProdId,
-                        userName: adminRevUserName.trim(),
-                        rating: adminRevRating,
-                        comment: adminRevComment.trim(),
-                        isVerifiedPurchase: true,
-                        likesCount: 5,
-                        lovesCount: 3,
-                        dislikesCount: 0,
-                        userReactions: {}
-                      });
-                      setShowAddAdminRevModal(false);
-                      setToast({ show: true, type: 'success', message: 'Verified review added and synced to Firebase!' });
+                      if (!adminRevUserName.trim() || !adminRevComment.trim() || isSavingAdminReview) return;
+                      setIsSavingAdminReview(true);
+                      try {
+                        const targetProductId = adminRevProdId || GENERAL_TESTIMONIAL_PRODUCT_ID;
+                        if (editingReviewId) {
+                          await updateProductReview(editingReviewId, {
+                            productId: targetProductId,
+                            userName: adminRevUserName.trim(),
+                            rating: adminRevRating,
+                            comment: adminRevComment.trim(),
+                            isVerifiedPurchase: adminRevVerified,
+                            likesCount: Math.max(0, Number(adminRevLikes) || 0),
+                            lovesCount: Math.max(0, Number(adminRevLoves) || 0),
+                          });
+                          setToast({
+                            show: true,
+                            type: 'success',
+                            message: 'Review updated and synced immediately!',
+                          });
+                        } else {
+                          await addProductReview({
+                            productId: targetProductId,
+                            userName: adminRevUserName.trim(),
+                            rating: adminRevRating,
+                            comment: adminRevComment.trim(),
+                            isVerifiedPurchase: adminRevVerified,
+                            likesCount: Math.max(0, Number(adminRevLikes) || 0),
+                            lovesCount: Math.max(0, Number(adminRevLoves) || 0),
+                            dislikesCount: 0,
+                            userReactions: {},
+                          });
+                          setToast({
+                            show: true,
+                            type: 'success',
+                            message: 'New review added and displayed automatically!',
+                          });
+                        }
+                        setShowAddAdminRevModal(false);
+                        setEditingReviewId(null);
+                      } finally {
+                        setIsSavingAdminReview(false);
+                      }
                     }}
                     className="space-y-3 text-xs"
                   >
                     <div>
-                      <label className="block font-bold text-neutral-700 mb-1">Select Product</label>
+                      <label htmlFor="admin-rev-target" className="block font-bold text-neutral-700 mb-1">
+                        Display Target
+                      </label>
                       <select
+                        id="admin-rev-target"
                         value={adminRevProdId}
                         onChange={e => setAdminRevProdId(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white font-bold text-neutral-900"
+                        className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white font-semibold text-neutral-900"
                       >
+                        <option value={GENERAL_TESTIMONIAL_PRODUCT_ID}>
+                          General Store Testimonial (Homepage)
+                        </option>
                         {products.map(p => (
-                          <option key={p.id} value={p.id}>{p.title}</option>
+                          <option key={p.id} value={p.id}>
+                            Book/Product: {p.title}
+                          </option>
                         ))}
                       </select>
                     </div>
                     <div>
-                      <label className="block font-bold text-neutral-700 mb-1">Customer Name</label>
+                      <label htmlFor="admin-rev-name" className="block font-bold text-neutral-700 mb-1">
+                        Customer Name *
+                      </label>
                       <input
+                        id="admin-rev-name"
                         type="text"
                         required
                         value={adminRevUserName}
@@ -5343,8 +5566,11 @@ export function AdminDashboard() {
                       />
                     </div>
                     <div>
-                      <label className="block font-bold text-neutral-700 mb-1">Rating (1-5)</label>
+                      <label htmlFor="admin-rev-rating" className="block font-bold text-neutral-700 mb-1">
+                        Rating (1-5)
+                      </label>
                       <select
+                        id="admin-rev-rating"
                         value={adminRevRating}
                         onChange={e => setAdminRevRating(Number(e.target.value))}
                         className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white font-bold text-neutral-900"
@@ -5357,26 +5583,87 @@ export function AdminDashboard() {
                       </select>
                     </div>
                     <div>
-                      <label className="block font-bold text-neutral-700 mb-1">Review Comment</label>
+                      <label htmlFor="admin-rev-comment" className="block font-bold text-neutral-700 mb-1">
+                        Review / Testimonial Comment *
+                      </label>
                       <textarea
+                        id="admin-rev-comment"
                         rows={3}
                         required
                         value={adminRevComment}
                         onChange={e => setAdminRevComment(e.target.value)}
-                        placeholder="Write verified customer feedback..."
+                        placeholder="Write customer feedback..."
                         className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-neutral-900"
                       />
                     </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label htmlFor="admin-rev-likes" className="block font-bold text-neutral-700 mb-1">
+                          Likes Count
+                        </label>
+                        <input
+                          id="admin-rev-likes"
+                          type="number"
+                          min="0"
+                          value={adminRevLikes}
+                          onChange={e => setAdminRevLikes(Math.max(0, Number(e.target.value) || 0))}
+                          className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-neutral-900 tabular-nums"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="admin-rev-loves" className="block font-bold text-neutral-700 mb-1">
+                          Loves Count
+                        </label>
+                        <input
+                          id="admin-rev-loves"
+                          type="number"
+                          min="0"
+                          value={adminRevLoves}
+                          onChange={e => setAdminRevLoves(Math.max(0, Number(e.target.value) || 0))}
+                          className="w-full px-3 py-2 rounded-xl border border-neutral-300 bg-white text-neutral-900 tabular-nums"
+                        />
+                      </div>
+                    </div>
+                    <label className="inline-flex items-center gap-2 cursor-pointer select-none pt-1">
+                      <input
+                        type="checkbox"
+                        checked={adminRevVerified}
+                        onChange={e => setAdminRevVerified(e.target.checked)}
+                        className="w-4 h-4 accent-[#D71920] rounded cursor-pointer"
+                      />
+                      <span className="font-semibold text-neutral-700">Show Verified Purchase Badge</span>
+                    </label>
                     <div className="flex justify-end gap-2 pt-2">
-                      <button type="button" onClick={() => setShowAddAdminRevModal(false)} className="px-4 py-2 bg-neutral-100 font-bold rounded-xl text-neutral-700 cursor-pointer">Cancel</button>
-                      <button type="submit" className="px-4 py-2 bg-[#D71920] text-white font-bold rounded-xl shadow-sm cursor-pointer">Save Review</button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowAddAdminRevModal(false);
+                          setEditingReviewId(null);
+                        }}
+                        className="px-4 py-2 bg-neutral-100 font-bold rounded-xl text-neutral-700 cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isSavingAdminReview}
+                        data-testid="admin-save-review-submit-btn"
+                        className="px-4 py-2 bg-[#D71920] hover:bg-[#B9151B] disabled:opacity-50 text-white font-bold rounded-xl shadow-sm cursor-pointer"
+                      >
+                        {isSavingAdminReview
+                          ? 'Saving...'
+                          : editingReviewId
+                            ? 'Update Review'
+                            : 'Save Review'}
+                      </button>
                     </div>
                   </form>
                 </div>
               </div>
             )}
           </div>
-        )}
+          );
+        })()}
 
         {/* TAB 4: ORDERS FULFILLMENT */}
         {activeTab === 'orders' && (

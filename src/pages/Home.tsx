@@ -31,6 +31,10 @@ import {
   computeDirectionalCategorySlideOffset,
 } from '../utils/categorySliderHelpers';
 import {
+  normalizeReviewsList,
+  isGeneralTestimonial,
+} from '../utils/reviewHelpers';
+import {
   ArrowRight,
   ChevronRight,
   ChevronLeft,
@@ -883,7 +887,8 @@ export function Home() {
           );
         }
 
-        if (reviews.length === 0) return null;
+        const visibleReviews = normalizeReviewsList(reviews);
+        if (visibleReviews.length === 0) return null;
 
         return (
           <section
@@ -892,7 +897,7 @@ export function Home() {
           >
             <div className="flex items-baseline justify-between mb-3.5 pb-2 border-b border-neutral-200/80">
               <h2 className="text-lg sm:text-xl font-bold text-[#171717] tracking-tight">
-                What Book Lovers Say About MR. BOOKS
+                What Book Lovers Say About {settings.storeName || 'MR. BOOKS'}
               </h2>
             </div>
 
@@ -920,35 +925,48 @@ export function Home() {
                 className="flex items-stretch gap-3 sm:gap-4 overflow-x-auto scrollbar-none scroll-smooth snap-x snap-mandatory py-1 px-0.5"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
-                {reviews.map(rev => (
-                  <div
-                    key={rev.id}
-                    className="w-[calc(85%-8px)] sm:w-[calc(50%-8px)] md:w-[calc(33.333%-10px)] shrink-0 snap-start p-4 rounded-xl bg-white border border-neutral-200 space-y-2 flex flex-col justify-between"
-                  >
-                    <div className="space-y-2">
-                      <div
-                        data-testid="home-review-green-icons"
-                        className="flex items-center gap-1 text-emerald-600"
-                      >
-                        {[...Array(rev.rating || 5)].map((_, i) => (
-                          <span key={i} className="inline-flex">
-                            {renderGreenReviewIcon(
-                              homeConfig.reviewIconStyle || settings.homeReviewIconStyle,
-                              13
-                            )}
-                          </span>
-                        ))}
+                {visibleReviews.map(rev => {
+                  const linkedProduct = !isGeneralTestimonial(rev)
+                    ? products.find(p => p.id === rev.productId)
+                    : undefined;
+                  return (
+                    <div
+                      key={rev.id}
+                      data-testid={`home-review-card-${rev.id}`}
+                      className="w-[calc(85%-8px)] sm:w-[calc(50%-8px)] md:w-[calc(33.333%-10px)] shrink-0 snap-start p-4 rounded-xl bg-white border border-neutral-200 space-y-2 flex flex-col justify-between"
+                    >
+                      <div className="space-y-2">
+                        <div
+                          data-testid="home-review-green-icons"
+                          className="flex items-center gap-1 text-emerald-600"
+                        >
+                          {[...Array(Math.max(1, Math.min(5, Number(rev.rating) || 5)))].map((_, i) => (
+                            <span key={i} className="inline-flex">
+                              {renderGreenReviewIcon(
+                                homeConfig.reviewIconStyle || settings.homeReviewIconStyle,
+                                13
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                        <p className="text-xs text-[#171717] leading-relaxed">"{rev.comment}"</p>
                       </div>
-                      <p className="text-xs text-[#171717] leading-relaxed">"{rev.comment}"</p>
+                      <div className="pt-2 border-t border-neutral-100 flex items-center justify-between gap-2 text-xs">
+                        <div className="min-w-0">
+                          <span className="font-semibold text-[#171717] block truncate">{rev.userName}</span>
+                          {linkedProduct?.title && (
+                            <span className="text-[10px] text-[#5F6368] block truncate">
+                              {linkedProduct.title}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[11px] text-[#5F6368] shrink-0">
+                          {rev.isVerifiedPurchase ? 'Verified Purchase' : 'Customer Review'}
+                        </span>
+                      </div>
                     </div>
-                    <div className="pt-2 border-t border-neutral-100 flex items-center justify-between text-xs">
-                      <span className="font-semibold text-[#171717]">{rev.userName}</span>
-                      <span className="text-[11px] text-[#5F6368]">
-                        {rev.isVerifiedPurchase ? 'Verified Purchase' : 'Customer Review'}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </section>

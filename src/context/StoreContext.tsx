@@ -106,7 +106,12 @@ import {
   decodeFirestoreRestDocument,
   getEarlyPrefetchPromise
 } from '../utils/firestoreRestPrefetch';
-import { applyReviewReaction, ReactionType } from '../utils/reviewHelpers';
+import {
+  applyReviewReaction,
+  ReactionType,
+  normalizeReviewsList,
+  reconcileIncomingReviews,
+} from '../utils/reviewHelpers';
 import { dedupeById } from '../utils/videoReelHelpers';
 import { getInitialTheme, persistThemeChoice, applyThemeToDom, toggleTheme as toggleThemeHelper } from '../utils/themeHelpers';
 import { mergeLiveChatMessages } from '../utils/chatSoundAndValidation';
@@ -678,8 +683,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [paymentSubmissions, setPaymentSubmissions] = useState<PaymentSubmission[]>([]);
   const [reviews, setReviews] = useState<Review[]>(() =>
-    readCachedSlice<Review[]>('reviews', [])
+    normalizeReviewsList(readCachedSlice<Review[]>('reviews', []))
   );
+  const deletedReviewIdsRef = useRef<Set<string>>(new Set());
+  const pendingReviewUpsertsRef = useRef<Map<string, Review>>(new Map());
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [reels, setReels] = useState<Reel[]>(() =>
     readCachedSlice<Reel[]>('reels', [])
@@ -732,7 +739,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   });
 
   const addProductReview = async (reviewData: Omit<Review, 'id' | 'createdAt'>) => {
-    const id = 'rev-' + Date.now();
+    const id = 'rev-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
     const newRev: Review = {
       likesCount: 0,
       lovesCount: 0,
@@ -740,16 +747,34 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       userReactions: {},
       ...reviewData,
       id,
-      createdAt: Date.now()
+      createdAt: Date.now(),
     };
-    try {
-      const cleaned = cleanForFirestore(newRev);
-      await setDoc(doc(db, 'reviews', id), cleaned);
-      setReviews(prev => dedupeById([newRev, ...prev.filter(r => r.id !== id)]));
-    } catch (err: any) {
-      console.error('Error adding review to Firebase:', err);
-      setReviews(prev => dedupeById([newRev, ...prev.filter(r => r.id !== id)]));
-    }
+    deletedReviewIdsRef.current.delete(id);
+    pendingReviewUpsertsRef.current.set(id, newRev);
+
+    // Optimistic state + local cache update so newly added review appears immediately everywhere
+    setReviews(prev => {
+      const next = normalizeReviewsList([newRev, ...prev.filter(r => r.id !== id)], deletedReviewIdsRef.current);
+      writeCachedSlice('reviews', next);
+      return next;
+    });
+
+    const writeTask = (async () => {
+      try {
+        const cleaned = cleanForFirestore(newRev);
+        await setDoc(doc(db, 'reviews', id), cleaned);
+        await logAdminAction('review_created', id, `Added review by ${newRev.userName}`);
+      } catch (err: any) {
+        console.error('Error adding review to Firebase:', err);
+      } finally {
+        pendingReviewUpsertsRef.current.delete(id);
+      }
+    })();
+
+    await Promise.race([
+      writeTask,
+      new Promise<void>(resolve => setTimeout(resolve, 350)),
+    ]);
   };
 
   const reviewReactionQueueRef = useRef<Record<string, Promise<void>>>({});
@@ -852,24 +877,70 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateProductReview = async (id: string, data: Partial<Review>) => {
-    try {
-      const cleaned = cleanForFirestore(data);
-      await setDoc(doc(db, 'reviews', id), cleaned, { merge: true });
-      await logAdminAction('review_updated', id, `Updated review ${id}`);
-    } catch (err) {
-      console.error('Error updating review:', err);
-    }
-    setReviews(prev => prev.map(r => (r.id === id ? { ...r, ...data } : r)));
+    if (!id) return;
+    deletedReviewIdsRef.current.delete(id);
+
+    setReviews(prev => {
+      const existing = prev.find(r => r.id === id);
+      const updatedItem = existing ? { ...existing, ...data, id } : null;
+      if (updatedItem) {
+        pendingReviewUpsertsRef.current.set(id, updatedItem);
+      }
+      const next = normalizeReviewsList(
+        prev.map(r => (r.id === id ? { ...r, ...data } : r)),
+        deletedReviewIdsRef.current
+      );
+      writeCachedSlice('reviews', next);
+      return next;
+    });
+
+    const writeTask = (async () => {
+      try {
+        const cleaned = cleanForFirestore(data);
+        await setDoc(doc(db, 'reviews', id), cleaned, { merge: true });
+        await logAdminAction('review_updated', id, `Updated review ${id}`);
+      } catch (err) {
+        console.error('Error updating review:', err);
+      } finally {
+        pendingReviewUpsertsRef.current.delete(id);
+      }
+    })();
+
+    await Promise.race([
+      writeTask,
+      new Promise<void>(resolve => setTimeout(resolve, 350)),
+    ]);
   };
 
   const deleteProductReview = async (id: string) => {
-    try {
-      await deleteDoc(doc(db, 'reviews', id));
-      await logAdminAction('review_deleted', id, `Deleted review ${id}`);
-    } catch (err) {
-      console.error('Error deleting review:', err);
-    }
-    setReviews(prev => prev.filter(r => r.id !== id));
+    if (!id) return;
+    // Immediately tombstone & remove from state + local cache so deleted review disappears instantly and never flashes back
+    deletedReviewIdsRef.current.add(id);
+    pendingReviewUpsertsRef.current.delete(id);
+    delete pendingReviewReactionsRef.current[id];
+
+    setReviews(prev => {
+      const next = normalizeReviewsList(
+        prev.filter(r => r.id !== id),
+        deletedReviewIdsRef.current
+      );
+      writeCachedSlice('reviews', next);
+      return next;
+    });
+
+    const deleteTask = (async () => {
+      try {
+        await deleteDoc(doc(db, 'reviews', id));
+        await logAdminAction('review_deleted', id, `Deleted review ${id}`);
+      } catch (err) {
+        console.error('Error deleting review:', err);
+      }
+    })();
+
+    await Promise.race([
+      deleteTask,
+      new Promise<void>(resolve => setTimeout(resolve, 350)),
+    ]);
   };
   
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -1360,8 +1431,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         writeCachedSlice('siteSettings', resolvedSite);
         markSliceHydrated('siteSettings');
       } else if (siteSettingsRes.source === 'server') {
-        const resolvedSite = resolveSiteSettings(DEFAULT_SITE_SETTINGS, homeConfigRes.data);
+        const resolvedSite = resolveSiteSettings(undefined, homeConfigRes.data);
         setSiteSettings(resolvedSite);
+        writeCachedSlice('siteSettings', resolvedSite);
         markSliceHydrated('siteSettings');
       }
 
@@ -1451,27 +1523,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
       if (reviewsRes.items.length > 0 || reviewsRes.source === 'server') {
         recordSource(reviewsRes.source);
+        if (reviewsRes.source === 'server') {
+          const incomingIds = new Set(reviewsRes.items.map(r => r.id));
+          for (const deletedId of Array.from(deletedReviewIdsRef.current)) {
+            if (!incomingIds.has(deletedId)) {
+              deletedReviewIdsRef.current.delete(deletedId);
+            }
+          }
+        }
         setReviews(prev => {
           const pendingIds = Object.keys(pendingReviewReactionsRef.current).filter(
             id => (pendingReviewReactionsRef.current[id] || 0) > 0
           );
-          if (pendingIds.length === 0) {
-            writeCachedSlice('reviews', reviewsRes.items);
-            return reviewsRes.items;
-          }
-          const merged = reviewsRes.items.map(item => {
-            if (pendingIds.includes(item.id)) {
-              const inFlight = prev.find(r => r.id === item.id);
-              if (inFlight) return inFlight;
-            }
-            return item;
+          const merged = reconcileIncomingReviews({
+            incoming: reviewsRes.items,
+            current: prev,
+            pendingReactionIds: pendingIds,
+            deletedIds: deletedReviewIdsRef.current,
+            pendingUpserts: pendingReviewUpsertsRef.current,
           });
-          for (const pid of pendingIds) {
-            if (!merged.some(r => r.id === pid)) {
-              const inFlight = prev.find(r => r.id === pid);
-              if (inFlight) merged.unshift(inFlight);
-            }
-          }
           writeCachedSlice('reviews', merged);
           return merged;
         });
@@ -1590,7 +1660,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             const siteSettingsDoc = docs.find(d => d.id === 'siteSettings') as (Partial<SiteSettings> & { id: string }) | undefined;
             if (!serverConfirmed.siteSettings) {
               serverConfirmed.siteSettings = true;
-              const resolved = resolveSiteSettings(siteSettingsDoc || DEFAULT_SITE_SETTINGS, homeCfgDoc);
+              const resolved = resolveSiteSettings(siteSettingsDoc, homeCfgDoc);
               setSiteSettings(resolved);
               writeCachedSlice('siteSettings', resolved);
               markSliceHydrated('siteSettings');
@@ -2079,42 +2149,33 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (!fromCache) {
           serverConfirmed.reviews = true;
         }
-        if (!snapshot.empty) {
-          const nextReviews = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Review));
+        const incomingReviews = snapshot.empty
+          ? []
+          : snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Review));
+
+        if (!fromCache) {
+          const incomingIds = new Set(incomingReviews.map(r => r.id));
+          for (const deletedId of Array.from(deletedReviewIdsRef.current)) {
+            if (!incomingIds.has(deletedId)) {
+              deletedReviewIdsRef.current.delete(deletedId);
+            }
+          }
+        }
+
+        if (!snapshot.empty || !fromCache) {
           setReviews(prev => {
             const pendingIds = Object.keys(pendingReviewReactionsRef.current).filter(
               id => (pendingReviewReactionsRef.current[id] || 0) > 0
             );
-            if (pendingIds.length === 0) {
-              writeCachedSlice('reviews', nextReviews);
-              return nextReviews;
-            }
-            const merged = nextReviews.map(item => {
-              if (pendingIds.includes(item.id)) {
-                const inFlight = prev.find(r => r.id === item.id);
-                if (inFlight) return inFlight;
-              }
-              return item;
+            const merged = reconcileIncomingReviews({
+              incoming: incomingReviews,
+              current: prev,
+              pendingReactionIds: pendingIds,
+              deletedIds: deletedReviewIdsRef.current,
+              pendingUpserts: pendingReviewUpsertsRef.current,
             });
-            for (const pid of pendingIds) {
-              if (!merged.some(r => r.id === pid)) {
-                const inFlight = prev.find(r => r.id === pid);
-                if (inFlight) merged.unshift(inFlight);
-              }
-            }
             writeCachedSlice('reviews', merged);
             return merged;
-          });
-        } else if (!fromCache) {
-          setReviews(prev => {
-            const pendingIds = Object.keys(pendingReviewReactionsRef.current).filter(
-              id => (pendingReviewReactionsRef.current[id] || 0) > 0
-            );
-            if (pendingIds.length === 0) {
-              writeCachedSlice('reviews', []);
-              return [];
-            }
-            return prev.filter(r => pendingIds.includes(r.id));
           });
         }
       },
@@ -3854,6 +3915,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const updateSettings = async (newSettings: Partial<StoreSettings>) => {
     const sanitized = sanitizeStoreSettings(newSettings);
     const homeConfigMirror = buildHomeConfigMirrorFromSettings(sanitized);
+    const siteSettingsPatch: Partial<SiteSettings> = {};
+    if (homeConfigMirror && typeof homeConfigMirror.showReviews === 'boolean') {
+      siteSettingsPatch.reviewDisplay = homeConfigMirror.showReviews;
+    }
+    if (homeConfigMirror && typeof homeConfigMirror.showAuthors === 'boolean') {
+      siteSettingsPatch.authorInfo = homeConfigMirror.showAuthors;
+    }
 
     // Optimistic state & local cache update for zero-latency UI response
     setSettings(prev => {
@@ -3868,6 +3936,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         return next;
       });
     }
+    if (Object.keys(siteSettingsPatch).length > 0) {
+      setSiteSettings(prev => {
+        const nextSite: SiteSettings = {
+          ...prev,
+          ...siteSettingsPatch,
+          updatedAt: Date.now(),
+        };
+        writeCachedSlice('siteSettings', nextSite);
+        return nextSite;
+      });
+    }
 
     try {
       const cleaned = cleanForFirestore(sanitized);
@@ -3876,6 +3955,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         await setDoc(
           doc(db, 'settings', 'homeConfig'),
           cleanForFirestore({ ...homeConfigMirror, updatedAt: Date.now() }),
+          { merge: true }
+        );
+      }
+      if (Object.keys(siteSettingsPatch).length > 0) {
+        await setDoc(
+          doc(db, 'settings', 'siteSettings'),
+          cleanForFirestore({ ...siteSettingsPatch, updatedAt: Date.now() }),
           { merge: true }
         );
       }
@@ -3902,7 +3988,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setSiteSettings(nextSite);
     writeCachedSlice('siteSettings', nextSite);
 
-    // Synchronize with homeConfig & general settings so all UI sections update together seamlessly
+    // Synchronize with homeConfig & general settings so all UI sections stay strictly in sync
     const homePatch: Partial<HomeConfig> = {};
     if (newSiteSettings.reviewDisplay !== undefined) {
       homePatch.showReviews = newSiteSettings.reviewDisplay;
@@ -3912,11 +3998,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       homePatch.showAuthors = newSiteSettings.authorInfo;
       homePatch.authorsSlotReplacement = newSiteSettings.authorInfo ? 'writers' : 'off';
     }
+    const settingsMirror = buildSettingsMirrorFromHomeConfig(homePatch);
+
     if (Object.keys(homePatch).length > 0) {
       setHomeConfig(prev => {
         const merged = resolveHomeConfig({ ...prev, ...homePatch });
         writeCachedSlice('homeConfig', merged);
         return merged;
+      });
+    }
+    if (Object.keys(settingsMirror).length > 0) {
+      setSettings(prev => {
+        const next = { ...prev, ...settingsMirror };
+        writeCachedSlice('settings', next);
+        return next;
       });
     }
 
@@ -3926,6 +4021,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         await setDoc(
           doc(db, 'settings', 'homeConfig'),
           cleanForFirestore({ ...homePatch, updatedAt: Date.now() }),
+          { merge: true }
+        );
+      }
+      if (Object.keys(settingsMirror).length > 0) {
+        await setDoc(
+          doc(db, 'settings', 'general'),
+          cleanForFirestore(settingsMirror),
           { merge: true }
         );
       }

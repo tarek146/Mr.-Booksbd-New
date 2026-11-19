@@ -57,6 +57,169 @@ export function applyReviewReaction(
   };
 }
 
+export const GENERAL_TESTIMONIAL_PRODUCT_ID = 'general-testimonial';
+
+/**
+ * Returns true if the review is a general store testimonial (not tied to a single book/product).
+ */
+export function isGeneralTestimonial(review?: Pick<Review, 'productId'> | null): boolean {
+  const pid = (review?.productId || '').trim();
+  return !pid || pid === GENERAL_TESTIMONIAL_PRODUCT_ID;
+}
+
+/**
+ * Deduplicates reviews by ID, filters out tombstoned/deleted IDs and malformed records,
+ * and sorts deterministically newest-first (`createdAt` descending).
+ * Never injects default, mock, or fallback reviews.
+ */
+export function normalizeReviewsList(
+  items: Review[] | null | undefined,
+  deletedIds?: Iterable<string>
+): Review[] {
+  if (!Array.isArray(items) || items.length === 0) return [];
+  const deletedSet = deletedIds ? new Set(deletedIds) : null;
+  const byId = new Map<string, Review>();
+
+  for (const item of items) {
+    if (!item || typeof item.id !== 'string' || !item.id.trim()) continue;
+    if (deletedSet && deletedSet.has(item.id)) continue;
+    const existing = byId.get(item.id);
+    if (!existing || (item.createdAt || 0) >= (existing.createdAt || 0)) {
+      byId.set(item.id, item);
+    }
+  }
+
+  return Array.from(byId.values()).sort((a, b) => {
+    const diff = (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0);
+    if (diff !== 0) return diff;
+    return b.id.localeCompare(a.id);
+  });
+}
+
+/**
+ * Reconciles incoming Firestore/cache review snapshots with in-flight local mutations:
+ * - Never resurrects locally deleted review IDs (prevents stale cache ghosts).
+ * - Preserves optimistic local adds/edits until confirmed by Firestore.
+ * - Preserves in-flight customer reactions until their transaction completes.
+ */
+export function reconcileIncomingReviews({
+  incoming,
+  current,
+  pendingReactionIds = [],
+  deletedIds,
+  pendingUpserts,
+}: {
+  incoming: Review[];
+  current: Review[];
+  pendingReactionIds?: string[];
+  deletedIds?: Iterable<string>;
+  pendingUpserts?: Map<string, Review> | Record<string, Review>;
+}): Review[] {
+  const deletedSet = new Set(deletedIds || []);
+  const pendingReactionSet = new Set(pendingReactionIds);
+  const upsertEntries: Review[] = pendingUpserts
+    ? pendingUpserts instanceof Map
+      ? Array.from(pendingUpserts.values())
+      : Object.values(pendingUpserts)
+    : [];
+  const upsertMap = new Map<string, Review>();
+  for (const rev of upsertEntries) {
+    if (rev && rev.id && !deletedSet.has(rev.id)) {
+      upsertMap.set(rev.id, rev);
+    }
+  }
+
+  const currentById = new Map<string, Review>();
+  for (const rev of current || []) {
+    if (rev && rev.id) currentById.set(rev.id, rev);
+  }
+
+  const merged: Review[] = [];
+  const seen = new Set<string>();
+
+  for (const item of incoming || []) {
+    if (!item || !item.id || deletedSet.has(item.id)) continue;
+    seen.add(item.id);
+
+    if (upsertMap.has(item.id)) {
+      merged.push(upsertMap.get(item.id)!);
+      continue;
+    }
+    if (pendingReactionSet.has(item.id)) {
+      const inFlight = currentById.get(item.id);
+      if (inFlight) {
+        merged.push(inFlight);
+        continue;
+      }
+    }
+    merged.push(item);
+  }
+
+  for (const [uid, rev] of upsertMap.entries()) {
+    if (!seen.has(uid) && !deletedSet.has(uid)) {
+      merged.push(rev);
+      seen.add(uid);
+    }
+  }
+
+  for (const pid of pendingReactionSet) {
+    if (!seen.has(pid) && !deletedSet.has(pid)) {
+      const inFlight = currentById.get(pid);
+      if (inFlight) {
+        merged.push(inFlight);
+        seen.add(pid);
+      }
+    }
+  }
+
+  return normalizeReviewsList(merged, deletedSet);
+}
+
+/**
+ * Returns strictly real reviews belonging to a specific product, sorted newest first.
+ * Zero hardcoded or fallback reviews are ever returned.
+ */
+export function filterReviewsForProduct(
+  reviews: Review[] | null | undefined,
+  productId?: string | null
+): Review[] {
+  const pid = (productId || '').trim();
+  if (!pid || !Array.isArray(reviews)) return [];
+  return normalizeReviewsList(reviews.filter(r => r && r.productId === pid));
+}
+
+/**
+ * Filters reviews for the Admin Reviews Manager by search text and target type.
+ */
+export function filterAdminReviews(
+  reviews: Review[] | null | undefined,
+  query = '',
+  targetFilter: 'all' | 'general' | 'product' = 'all',
+  productTitleMap: Record<string, string> = {}
+): Review[] {
+  const normalized = normalizeReviewsList(reviews);
+  const q = query.trim().toLowerCase();
+
+  return normalized.filter(rev => {
+    const isGen = isGeneralTestimonial(rev);
+    if (targetFilter === 'general' && !isGen) return false;
+    if (targetFilter === 'product' && isGen) return false;
+
+    if (!q) return true;
+    const prodTitle = productTitleMap[rev.productId] || '';
+    const hay = [
+      rev.userName,
+      rev.comment,
+      prodTitle,
+      isGen ? 'general store testimonial' : rev.productId,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    return hay.includes(q);
+  });
+}
+
 /**
  * Validates primary or optional Bangladesh phone numbers.
  */

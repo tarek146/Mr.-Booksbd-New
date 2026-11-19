@@ -134,4 +134,19 @@ describe('homeConfigHelpers', () => {
     const overCap = resolveHomeConfig({ allBooksLimit: 80 });
     assert.equal(overCap.allBooksLimit, 25);
   });
+
+  it('keeps reviews OFF across homeConfig and settings mirrors when turned off', () => {
+    const offMirror = buildSettingsMirrorFromHomeConfig({
+      showReviews: false,
+      reviewsSlotReplacement: 'off',
+    });
+    assert.equal(offMirror.showHomeReviewsSection, false);
+    assert.equal(offMirror.homeReviewsSlotReplacement, 'off');
+
+    const resolvedFromOffSettings = resolveHomeConfig({}, offMirror);
+    assert.equal(resolvedFromOffSettings.showReviews, false);
+    assert.equal(resolvedFromOffSettings.reviewsSlotReplacement, 'off');
+    assert.equal(shouldRenderHomeReviewsSection(resolvedFromOffSettings, offMirror), false);
+  });
 });
+

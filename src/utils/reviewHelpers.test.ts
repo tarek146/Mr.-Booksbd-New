@@ -7,6 +7,12 @@ import {
   getPaymentMethodDisplayMeta,
   getActiveOnlinePaymentMethods,
   validatePaymentTransactionPopup,
+  GENERAL_TESTIMONIAL_PRODUCT_ID,
+  isGeneralTestimonial,
+  normalizeReviewsList,
+  reconcileIncomingReviews,
+  filterReviewsForProduct,
+  filterAdminReviews,
 } from './reviewHelpers';
 import { isValidImageUrl, sanitizeImageUrl } from './imageCompressor';
 import { Review, PaymentMethodConfig } from '../types';
@@ -169,4 +175,63 @@ test('validatePaymentTransactionPopup validates sender number and TrxID on popup
   assert.equal(ok.cleanSender, '01712345678');
   assert.equal(ok.cleanTrxId, '9X7D892K');
 });
+
+
+
+test('normalizeReviewsList deduplicates, filters deleted IDs, sorts newest first, and never adds default reviews', () => {
+  assert.deepEqual(normalizeReviewsList([]), []);
+  assert.deepEqual(normalizeReviewsList(undefined), []);
+
+  const r1: Review = { ...baseReview, id: 'rev-1', createdAt: 1000 };
+  const r2: Review = { ...baseReview, id: 'rev-2', createdAt: 3000 };
+  const r3: Review = { ...baseReview, id: 'rev-3', createdAt: 2000 };
+  const r1Newer: Review = { ...baseReview, id: 'rev-1', createdAt: 4000, comment: 'Updated' };
+
+  const result = normalizeReviewsList([r1, r2, r3, r1Newer], ['rev-2']);
+  assert.deepEqual(result.map(r => r.id), ['rev-1', 'rev-3']);
+  assert.equal(result[0].comment, 'Updated');
+});
+
+test('reconcileIncomingReviews prevents stale cache snapshots from resurrecting deleted reviews and preserves new local adds', () => {
+  const existingOld: Review = { ...baseReview, id: 'rev-old', createdAt: 1000 };
+  const deletedRev: Review = { ...baseReview, id: 'rev-deleted', createdAt: 2000 };
+  const newlyAdded: Review = { ...baseReview, id: 'rev-new', createdAt: 5000, userName: 'New Reviewer' };
+
+  const pendingUpserts = new Map<string, Review>([[newlyAdded.id, newlyAdded]]);
+  const deletedIds = new Set<string>(['rev-deleted']);
+
+  // Stale cache snapshot still contains deletedRev and doesn't yet have newlyAdded
+  const reconciled = reconcileIncomingReviews({
+    incoming: [existingOld, deletedRev],
+    current: [newlyAdded, existingOld],
+    deletedIds,
+    pendingUpserts,
+  });
+
+  assert.deepEqual(reconciled.map(r => r.id), ['rev-new', 'rev-old']);
+  assert.equal(reconciled.some(r => r.id === 'rev-deleted'), false);
+});
+
+test('filterReviewsForProduct returns strictly matching product reviews with zero fake defaults', () => {
+  const prodRev: Review = { ...baseReview, id: 'rev-p1', productId: 'book-1', createdAt: 2000 };
+  const otherRev: Review = { ...baseReview, id: 'rev-p2', productId: 'book-2', createdAt: 3000 };
+  const generalRev: Review = { ...baseReview, id: 'rev-gen', productId: GENERAL_TESTIMONIAL_PRODUCT_ID, createdAt: 4000 };
+
+  assert.deepEqual(filterReviewsForProduct([prodRev, otherRev, generalRev], 'book-1').map(r => r.id), ['rev-p1']);
+  assert.deepEqual(filterReviewsForProduct([prodRev, otherRev, generalRev], 'book-999'), []);
+  assert.equal(isGeneralTestimonial(generalRev), true);
+  assert.equal(isGeneralTestimonial(prodRev), false);
+});
+
+test('filterAdminReviews filters by target type and search query across customer name, comment, and product title', () => {
+  const prodRev: Review = { ...baseReview, id: 'rev-p1', productId: 'book-1', userName: 'Karim', comment: 'Loved the print', createdAt: 2000 };
+  const generalRev: Review = { ...baseReview, id: 'rev-gen', productId: GENERAL_TESTIMONIAL_PRODUCT_ID, userName: 'Farhana', comment: 'Fast delivery from store', createdAt: 3000 };
+  const all = [prodRev, generalRev];
+
+  assert.deepEqual(filterAdminReviews(all, '', 'general').map(r => r.id), ['rev-gen']);
+  assert.deepEqual(filterAdminReviews(all, '', 'product').map(r => r.id), ['rev-p1']);
+  assert.deepEqual(filterAdminReviews(all, 'atomic', 'all', { 'book-1': 'Atomic Habits' }).map(r => r.id), ['rev-p1']);
+  assert.deepEqual(filterAdminReviews(all, 'farhana', 'all').map(r => r.id), ['rev-gen']);
+});
+
 
