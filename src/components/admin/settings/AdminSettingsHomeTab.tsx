@@ -8,6 +8,10 @@ import {
   resolveNewArrivalsTitle,
 } from '../../../utils/homeConfigHelpers';
 import {
+  type ProductImageAspectRatio,
+  resolveProductImageAspectRatio,
+} from '../../../utils/productImageLayoutHelpers';
+import {
   type HomeVisibilityTabProps,
   SettingsSectionHeader,
   SettingsSwitch,
@@ -752,7 +756,34 @@ export const AdminSettingsHomeTab: React.FC<HomeVisibilityTabProps> = ({
           </div>
 
           <div>
-            <label className={S_LABEL}>Product Image Display Ratio</label>
+            <label className={S_LABEL}>Product Image Aspect Ratio</label>
+            <select
+              data-testid="home-config-image-aspect-select"
+              value={resolveProductImageAspectRatio(settings, homeConfig)}
+              onChange={async e => {
+                const ratio = e.target.value as ProductImageAspectRatio;
+                await updateHomeConfig({ productImageAspectRatio: ratio });
+                setToast({
+                  show: true,
+                  type: 'success',
+                  message:
+                    ratio === 'auto'
+                      ? 'Product image ratio set to Auto (matches each uploaded photo, 3:4 base).'
+                      : `Updated product image aspect ratio to ${ratio}.`,
+                });
+              }}
+              className={S_SELECT}
+            >
+              <option value="auto">Auto — Match Photo Ratio (3:4 Base)</option>
+              <option value="3:4">3:4 Portrait (Standard Book Cover)</option>
+              <option value="4:5">4:5 Editorial Portrait</option>
+              <option value="2:3">2:3 Tall Classic Book</option>
+              <option value="1:1">1:1 Square</option>
+            </select>
+          </div>
+
+          <div>
+            <label className={S_LABEL}>Product Image Fit Mode</label>
             <select
               data-testid="home-config-image-fit-select"
               value={homeConfig.productImageFitMode || settings.productImageFitMode || 'cover'}
@@ -762,14 +793,14 @@ export const AdminSettingsHomeTab: React.FC<HomeVisibilityTabProps> = ({
                 setToast({
                   show: true,
                   type: 'success',
-                  message: `Updated product image mode to ${
-                    mode === 'cover' ? 'Square Full-Bleed' : 'Uncropped Fit'
+                  message: `Updated product image fit mode to ${
+                    mode === 'cover' ? 'Full-Bleed Edge-to-Edge' : 'Padded Uncropped Fit'
                   }.`,
                 });
               }}
               className={S_SELECT}
             >
-              <option value="cover">1:1 Square Full-Bleed Zoom (Default)</option>
+              <option value="cover">Full-Bleed Edge-to-Edge (Default)</option>
               <option value="contain">Padded Uncropped Fit (Letterboxed)</option>
             </select>
           </div>

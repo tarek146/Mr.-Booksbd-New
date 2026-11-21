@@ -24,6 +24,7 @@ export const DEFAULT_HOME_CONFIG: HomeConfig = {
   productCardReviewSlotMode: 'green_rating',
   productCardWriterSlotMode: 'writer_name',
   productImageFitMode: 'cover',
+  productImageAspectRatio: 'auto',
 };
 
 export function resolveNewArrivalsTitle(
@@ -169,6 +170,10 @@ export function resolveHomeConfig(
       rawConfig?.productImageFitMode ||
       fallbackSettings?.productImageFitMode ||
       DEFAULT_HOME_CONFIG.productImageFitMode,
+    productImageAspectRatio:
+      rawConfig?.productImageAspectRatio ||
+      fallbackSettings?.productImageAspectRatio ||
+      DEFAULT_HOME_CONFIG.productImageAspectRatio,
     updatedAt: rawConfig?.updatedAt,
   };
 }
@@ -272,6 +277,9 @@ export function buildSettingsMirrorFromHomeConfig(
   if (configPatch.productImageFitMode !== undefined) {
     mirror.productImageFitMode = configPatch.productImageFitMode;
   }
+  if (configPatch.productImageAspectRatio !== undefined) {
+    mirror.productImageAspectRatio = configPatch.productImageAspectRatio;
+  }
 
   return mirror;
 }
@@ -326,6 +334,10 @@ export function buildHomeConfigMirrorFromSettings(
   }
   if (settingsPatch.productImageFitMode !== undefined) {
     patch.productImageFitMode = settingsPatch.productImageFitMode;
+    hasChanges = true;
+  }
+  if (settingsPatch.productImageAspectRatio !== undefined) {
+    patch.productImageAspectRatio = settingsPatch.productImageAspectRatio;
     hasChanges = true;
   }
 

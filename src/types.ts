@@ -42,6 +42,7 @@ export interface Product {
   dimensions?: string;
   colorModel?: string;
   images: string[];
+  imageAspectRatio?: number; // Natural width/height ratio captured on upload (e.g. 0.75 for 3:4 portrait book cover)
   price: number; // base or default variant price
   previousPrice?: number;
   stock: number;
@@ -423,6 +424,7 @@ export interface StoreSettings {
   homeWritersSlotReplacement?: 'writers' | 'publishers_spotlight' | 'bestsellers_showcase' | 'trust_features' | 'reading_benefits' | 'off';
   productCardWriterSlotMode?: 'writer_name' | 'publisher_name' | 'category_name' | 'edition_info' | 'delivery_badge' | 'off';
   productImageFitMode?: 'cover' | 'contain';
+  productImageAspectRatio?: 'auto' | '3:4' | '4:5' | '2:3' | '1:1';
   gaMeasurementId?: string;
   tiktokPixelId?: string;
   // Footer Customizations
@@ -459,6 +461,7 @@ export interface StoreSettings {
   couponsBadge?: string;
   showFooterPolicy?: boolean;
   policyTitle?: string;
+  policySubtitle?: string;
   policyBadge?: string;
   cancelExchangePolicyText?: string;
   // Live Chat Widget Settings
@@ -654,6 +657,7 @@ export interface HomeConfig {
   productCardReviewSlotMode?: 'green_rating' | 'publisher_tag' | 'verified_badge' | 'stock_status' | 'off';
   productCardWriterSlotMode?: 'writer_name' | 'publisher_name' | 'category_name' | 'edition_info' | 'delivery_badge' | 'off';
   productImageFitMode?: 'cover' | 'contain';
+  productImageAspectRatio?: 'auto' | '3:4' | '4:5' | '2:3' | '1:1';
   updatedAt?: number;
 }
 

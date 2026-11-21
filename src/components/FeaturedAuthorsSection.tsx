@@ -5,13 +5,15 @@ import { Author } from '../types';
 import { countBooksForAuthor } from '../utils/publisherAndDeliveryHelpers';
 import {
   resolveProductImageFitMode,
+  resolveProductImageAspectRatio,
   getProductImageLayoutClasses,
 } from '../utils/productImageLayoutHelpers';
 
 export function FeaturedAuthorsSection() {
   const { authors, products, settings, homeConfig, setActivePage, setSelectedCategoryFilter, setSearchQuery, startDirectCheckout } = useStore();
   const imageLayout = getProductImageLayoutClasses(
-    resolveProductImageFitMode(settings, homeConfig)
+    resolveProductImageFitMode(settings, homeConfig),
+    resolveProductImageAspectRatio(settings, homeConfig)
   );
   const [authorImgErrors, setAuthorImgErrors] = useState<Record<string, boolean>>({});
   const [selectedModalAuthor, setSelectedModalAuthor] = useState<Author | null>(null);

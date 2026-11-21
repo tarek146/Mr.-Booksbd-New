@@ -53,6 +53,8 @@ import {
 } from '../utils/bookSeriesHelpers';
 import {
   resolveProductImageFitMode,
+  resolveProductImageAspectRatio,
+  resolveContainerAspectRatio,
   getProductImageLayoutClasses,
 } from '../utils/productImageLayoutHelpers';
 import { trackFacebookConversionEvent, buildProductCustomData } from '../utils/facebookCapiHelpers';
@@ -89,9 +91,10 @@ function MessengerIcon({ className = "w-4 h-4 shrink-0" }: { className?: string 
 
 export function ProductDetail() {
   const { products, authors, publishers, isLoading, isStoreHydrated, selectedProductId, setActivePage, addToCart, startDirectCheckout, wishlist, toggleWishlist, setSelectedCategoryFilter, setSelectedSeriesFilter, setSearchQuery, settings, homeConfig, siteSettings, reviews, visitorId, addProductReview, reactToReview } = useStore();
-  const imageLayout = getProductImageLayoutClasses(
-    resolveProductImageFitMode(settings, homeConfig)
-  );
+  const imageFitMode = resolveProductImageFitMode(settings, homeConfig);
+  const imageAspectMode = resolveProductImageAspectRatio(settings, homeConfig);
+  const imageLayout = getProductImageLayoutClasses(imageFitMode, imageAspectMode);
+  const [detectedDetailDims, setDetectedDetailDims] = useState<{ src: string; width: number; height: number } | null>(null);
   
   const [directFetchedProduct, setDirectFetchedProduct] = useState<Product | null>(null);
   const inMemoryProduct = products.find(p => p.id === selectedProductId || p.slug === selectedProductId);
@@ -356,44 +359,68 @@ export function ProductDetail() {
 
           {/* Left Column (5 cols): Clean Photo Gallery */}
           <div className="lg:col-span-5 space-y-3">
-            <div className={imageLayout.detailFrameClass}>
+            {(() => {
+              const activeDetailSrc = productImages[activeImageIndex] || productImages[0];
+              const resolvedDetailAspect = resolveContainerAspectRatio({
+                mode: imageAspectMode,
+                naturalWidth: detectedDetailDims?.src === activeDetailSrc ? detectedDetailDims.width : null,
+                naturalHeight: detectedDetailDims?.src === activeDetailSrc ? detectedDetailDims.height : null,
+                savedRatio: product.imageAspectRatio,
+                minRatio: 0.6,
+                maxRatio: 1.5,
+              });
+              return (
+                <div
+                  data-testid="product-detail-image-frame"
+                  data-aspect-mode={imageAspectMode}
+                  className={`${imageLayout.detailFrameClass} ${resolvedDetailAspect.aspectClass} transition-[aspect-ratio] duration-200`.trim()}
+                  style={resolvedDetailAspect.aspectStyle ? { aspectRatio: resolvedDetailAspect.aspectStyle } : undefined}
+                >
+                  <img
+                    src={activeDetailSrc}
+                    alt={product.title}
+                    referrerPolicy="no-referrer"
+                    onLoad={(e) => {
+                      const nw = e.currentTarget.naturalWidth;
+                      const nh = e.currentTarget.naturalHeight;
+                      if (nw > 0 && nh > 0) {
+                        setDetectedDetailDims({ src: activeDetailSrc, width: nw, height: nh });
+                      }
+                    }}
+                    className={imageLayout.detailImgClass}
+                  />
 
-              <img
-                src={productImages[activeImageIndex] || productImages[0]}
-                alt={product.title}
-                referrerPolicy="no-referrer"
-                className={imageLayout.detailImgClass}
-              />
+                  {/* Minimal Photo Counter if multiple images exist */}
+                  {productImages.length > 1 && (
+                    <div className="absolute top-3 right-3 bg-neutral-900/70 text-white text-[11px] font-medium px-2 py-0.5 rounded-md tabular-nums">
+                      {activeImageIndex + 1} / {productImages.length}
+                    </div>
+                  )}
 
-              {/* Minimal Photo Counter if multiple images exist */}
-              {productImages.length > 1 && (
-                <div className="absolute top-3 right-3 bg-neutral-900/70 text-white text-[11px] font-medium px-2 py-0.5 rounded-md tabular-nums">
-                  {activeImageIndex + 1} / {productImages.length}
+                  {/* Prev / Next Chevron Arrows */}
+                  {productImages.length > 1 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={prevImage}
+                        className="absolute left-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/95 hover:bg-white border border-neutral-200 shadow-xs flex items-center justify-center text-neutral-700 hover:text-[#D71920] transition-colors cursor-pointer"
+                        aria-label="Previous Image"
+                      >
+                        <ChevronLeft size={17} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={nextImage}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/95 hover:bg-white border border-neutral-200 shadow-xs flex items-center justify-center text-neutral-700 hover:text-[#D71920] transition-colors cursor-pointer"
+                        aria-label="Next Image"
+                      >
+                        <ChevronRight size={17} />
+                      </button>
+                    </>
+                  )}
                 </div>
-              )}
-
-              {/* Prev / Next Chevron Arrows */}
-              {productImages.length > 1 && (
-                <>
-                  <button
-                    type="button"
-                    onClick={prevImage}
-                    className="absolute left-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/95 hover:bg-white border border-neutral-200 shadow-xs flex items-center justify-center text-neutral-700 hover:text-[#D71920] transition-colors cursor-pointer"
-                    aria-label="Previous Image"
-                  >
-                    <ChevronLeft size={17} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={nextImage}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/95 hover:bg-white border border-neutral-200 shadow-xs flex items-center justify-center text-neutral-700 hover:text-[#D71920] transition-colors cursor-pointer"
-                    aria-label="Next Image"
-                  >
-                    <ChevronRight size={17} />
-                  </button>
-                </>
-              )}
-            </div>
+              );
+            })()}
 
             {/* Thumbnail Strip */}
             {productImages.length > 1 && (
@@ -405,7 +432,7 @@ export function ProductDetail() {
                       key={idx}
                       type="button"
                       onClick={() => setActiveImageIndex(idx)}
-                      className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-lg border overflow-hidden transition-all shrink-0 cursor-pointer ${imageLayout.thumbFrameClass} ${
+                      className={`relative ${imageAspectMode === '1:1' ? 'w-14 h-14 sm:w-16 sm:h-16' : 'w-12 aspect-[3/4] sm:w-14'} rounded-lg border overflow-hidden transition-all shrink-0 cursor-pointer ${imageLayout.thumbFrameClass} ${
                         isSelected
                           ? 'border-[#D71920] ring-1 ring-[#D71920]/40'
                           : 'border-neutral-200 opacity-70 hover:opacity-100 hover:border-neutral-400'

@@ -54,6 +54,7 @@ import { getUnincludedCartItems } from '../utils/directCheckoutHelpers';
 import { calculateCheckoutOnlinePaymentSummary } from '../utils/onlinePaymentPolicyHelpers';
 import {
   resolveProductImageFitMode,
+  resolveProductImageAspectRatio,
   getProductImageLayoutClasses,
 } from '../utils/productImageLayoutHelpers';
 
@@ -96,7 +97,8 @@ export function CheckoutPage() {
   } = useStore();
   const { currentUser } = useAuth();
   const imageLayout = getProductImageLayoutClasses(
-    resolveProductImageFitMode(settings, homeConfig)
+    resolveProductImageFitMode(settings, homeConfig),
+    resolveProductImageAspectRatio(settings, homeConfig)
   );
 
   const isDirectCheckout =

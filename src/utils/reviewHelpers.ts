@@ -591,7 +591,7 @@ export function getPaymentMethodSubOptions(method: PaymentMethodConfig): {
     englishLabel: (rawSm?.englishLabel || '').trim() || 'Send Money',
     subtitle: (rawSm?.subtitle || '').trim() || 'পার্সোনাল নাম্বারে সেন্ড মানি করুন',
     accountType: rawSm?.accountType || (method.accountType && method.accountType !== 'None' ? method.accountType : 'Personal'),
-    accountName: (rawSm?.accountName || '').trim() || method.accountName || 'MR. BOOKS Official',
+    accountName: '',
     accountNumber: (rawSm?.accountNumber || '').trim() || method.accountNumber || '01712345678',
     instructions: (rawSm?.instructions || '').trim() || meta.instructionText,
     qrCodeUrl: smQr,
@@ -707,7 +707,10 @@ export function resolveSinglePaymentQrInfo({
     fallbackBanglaQr;
 
   const accountNumber = (subOption?.accountNumber || method.accountNumber || '').trim();
-  const accountName = (subOption?.accountName || method.accountName || '').trim();
+  const accountName =
+    subOption?.id === 'send_money'
+      ? ''
+      : (subOption?.accountName || method.accountName || '').trim();
   const accountType = (subOption?.accountType || meta.accountType || 'Personal').trim();
   const subLabel = (subOption?.label || '').trim();
   const subtitle = [subLabel, accountType !== 'None' ? accountType : '']

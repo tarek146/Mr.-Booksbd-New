@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import {
   resolveProductImageFitMode,
+  resolveProductImageAspectRatio,
   getProductImageLayoutClasses,
 } from '../utils/productImageLayoutHelpers';
 
@@ -130,7 +131,8 @@ export function MyOrdersPage() {
   const { orders, products, wishlist, isLoading, settings, homeConfig, submitPaymentProof, setActivePage } = useStore();
   const { currentUser } = useAuth();
   const imageLayout = getProductImageLayoutClasses(
-    resolveProductImageFitMode(settings, homeConfig)
+    resolveProductImageFitMode(settings, homeConfig),
+    resolveProductImageAspectRatio(settings, homeConfig)
   );
 
   const [activeTab, setActiveTab] = useState<'orders' | 'wishlist'>(wishlist.length > 0 && orders.length === 0 ? 'wishlist' : 'orders');

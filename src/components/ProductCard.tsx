@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Product } from '../types';
 import { useStore } from '../context/StoreContext';
 import {
@@ -20,6 +20,8 @@ import {
 import { resolveProductSeriesInfo } from '../utils/bookSeriesHelpers';
 import {
   resolveProductImageFitMode,
+  resolveProductImageAspectRatio,
+  resolveContainerAspectRatio,
   getProductImageLayoutClasses,
 } from '../utils/productImageLayoutHelpers';
 
@@ -57,6 +59,13 @@ export function ProductCard({ product }: ProductCardProps) {
   const [currentImgIdx, setCurrentImgIdx] = useState(0);
   const [variantIdx, setVariantIdx] = useState(0);
   const [imgLoaded, setImgLoaded] = useState(false);
+  const [detectedDims, setDetectedDims] = useState<{ src: string; width: number; height: number } | null>(null);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+
+  const activeImgSrc =
+    product.images[currentImgIdx] ||
+    product.images[0] ||
+    'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400';
 
   // Auto slideshow rotation between product images if multiple
   useEffect(() => {
@@ -66,6 +75,15 @@ export function ProductCard({ product }: ProductCardProps) {
     }, 4000);
     return () => clearInterval(timer);
   }, [product.images]);
+
+  // Capture dimensions immediately if image is already cached in browser memory
+  useEffect(() => {
+    const imgEl = imgRef.current;
+    if (imgEl && imgEl.complete && imgEl.naturalWidth > 0 && imgEl.naturalHeight > 0) {
+      setImgLoaded(true);
+      setDetectedDims({ src: activeImgSrc, width: imgEl.naturalWidth, height: imgEl.naturalHeight });
+    }
+  }, [activeImgSrc]);
 
   // Auto rotation between print variants (Paperback / Hardcover / Premium Print) every 3.5 seconds
   useEffect(() => {
@@ -86,9 +104,15 @@ export function ProductCard({ product }: ProductCardProps) {
   const isOutOfStock = product.stock <= 0;
   const isLowStock = product.stock > 0 && product.stock <= 15;
   const skeletonAnimClass = settings.skeletonAnimationStyle === 'pulse' ? 'skeleton-pulse' : 'skeleton-shimmer';
-  const imageLayout = getProductImageLayoutClasses(
-    resolveProductImageFitMode(settings, homeConfig)
-  );
+  const fitMode = resolveProductImageFitMode(settings, homeConfig);
+  const aspectMode = resolveProductImageAspectRatio(settings, homeConfig);
+  const imageLayout = getProductImageLayoutClasses(fitMode, aspectMode);
+  const resolvedAspect = resolveContainerAspectRatio({
+    mode: aspectMode,
+    naturalWidth: detectedDims?.src === activeImgSrc ? detectedDims.width : null,
+    naturalHeight: detectedDims?.src === activeImgSrc ? detectedDims.height : null,
+    savedRatio: product.imageAspectRatio,
+  });
 
   const handleOrderNow = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -108,21 +132,34 @@ export function ProductCard({ product }: ProductCardProps) {
       onClick={() => setActivePage('product-detail', product.id)}
       className="bg-white rounded-2xl border border-neutral-200/90 hover:border-[#D71920]/40 shadow-2xs hover:shadow-md transition-all duration-200 flex flex-col justify-between overflow-hidden group h-full select-none cursor-pointer active:scale-[0.98]"
     >
-      {/* 1:1 Perfectly Square-Rounded Image Thumbnail Box */}
+      {/* Dynamic Auto-Ratio / Admin-Configured Image Frame */}
       <div className="p-2 sm:p-2.5 shrink-0">
-        <div className={imageLayout.cardFrameClass}>
+        <div
+          data-testid="product-card-image-frame"
+          data-aspect-mode={aspectMode}
+          className={`${imageLayout.cardFrameClass} ${resolvedAspect.aspectClass} transition-[aspect-ratio] duration-200`.trim()}
+          style={resolvedAspect.aspectStyle ? { aspectRatio: resolvedAspect.aspectStyle } : undefined}
+        >
           {!imgLoaded && settings.enableSkeletonLoading !== false && (
             <div
               aria-hidden="true"
               className={`absolute inset-0 ${skeletonAnimClass} z-0`}
             />
           )}
-          <img 
-            src={product.images[currentImgIdx] || product.images[0] || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400'} 
+          <img
+            ref={imgRef}
+            src={activeImgSrc}
             alt={product.title || 'Product'}
             loading="lazy"
             decoding="async"
-            onLoad={() => setImgLoaded(true)}
+            onLoad={(e) => {
+              setImgLoaded(true);
+              const nw = e.currentTarget.naturalWidth;
+              const nh = e.currentTarget.naturalHeight;
+              if (nw > 0 && nh > 0) {
+                setDetectedDims({ src: activeImgSrc, width: nw, height: nh });
+              }
+            }}
             onError={(e) => {
               setImgLoaded(true);
               (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400';

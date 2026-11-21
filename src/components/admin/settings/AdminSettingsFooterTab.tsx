@@ -751,6 +751,17 @@ export const AdminSettingsFooterTab: React.FC<SettingsFormTabProps> = ({
             />
           </div>
           <div className="sm:col-span-2">
+            <label className={S_LABEL}>Policy Card Subtitle</label>
+            <input
+              type="text"
+              data-testid="admin-policy-subtitle-input"
+              value={settingsForm.policySubtitle ?? '7-day easy replacement policy'}
+              onChange={e => setSettingsForm(prev => ({ ...prev, policySubtitle: e.target.value }))}
+              placeholder="e.g. 7-day easy replacement policy or 14-day easy replacement policy"
+              className={S_INPUT}
+            />
+          </div>
+          <div className="sm:col-span-2">
             <label className={S_LABEL}>Policy Popup Content</label>
             <textarea
               rows={2}

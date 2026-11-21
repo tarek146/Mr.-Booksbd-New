@@ -323,13 +323,18 @@ export function Footer() {
                         <span className="sm:hidden">Policy</span>
                         <span className="hidden sm:inline">{settings.policyTitle || 'Cancel & Exchange'}</span>
                       </h3>
-                      <p className={`hidden sm:block text-[10px] truncate mt-0.5 ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>
-                        7-day easy replacement policy
+                      <p
+                        data-testid="footer-policy-subtitle"
+                        className={`hidden sm:block text-[10px] truncate mt-0.5 ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}
+                      >
+                        {settings.policySubtitle !== undefined
+                          ? settings.policySubtitle
+                          : '7-day easy replacement policy'}
                       </p>
                     </div>
                   </div>
                   <span className="inline-flex items-center gap-0.5 text-[8.5px] sm:text-[10px] font-bold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-200/70 px-1.5 sm:px-2 py-0.5 rounded-full shrink-0 whitespace-nowrap">
-                    <span className="sm:hidden">7-Day</span>
+                    <span className="sm:hidden">{settings.policyBadge || 'Policy'}</span>
                     <span className="hidden sm:inline">{settings.policyBadge || 'Policy'}</span>
                   </span>
                 </button>

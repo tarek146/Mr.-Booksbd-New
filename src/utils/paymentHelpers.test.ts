@@ -220,8 +220,10 @@ describe('Payment Methods & Bangla QR Helpers', () => {
     assert.strictEqual(smInfo.customQrUrl, 'https://example.com/bkash-custom.png');
     assert.strictEqual(smInfo.title, 'বিকাশ কিউআর কোড');
     assert.strictEqual(smInfo.subtitle, 'সেন্ড মানি · Personal');
+    assert.strictEqual(subs.sendMoneyOption.accountName, '');
+    assert.strictEqual(smInfo.accountName, '');
 
-    // Payment sub-option has empty qrCodeUrl -> must NOT leak Send Money QR or global Bangla QR
+    // Payment sub-option has empty qrCodeUrl -> must NOT leak Send Money QR or global Bangla QR, and keeps Merchant accountName
     const payInfo = resolveSinglePaymentQrInfo({
       method: bkashWithSingleQr,
       subOption: subs.paymentOption,
@@ -229,6 +231,7 @@ describe('Payment Methods & Bangla QR Helpers', () => {
     });
     assert.strictEqual(payInfo.customQrUrl, '');
     assert.strictEqual(payInfo.title, 'বিকাশ কিউআর কোড');
+    assert.strictEqual(payInfo.accountName, 'MR. BOOKS Merchant');
 
     // Legacy method that only saved bengaliQrCodeUrl still displays its uploaded image cleanly
     const legacyNagad: PaymentMethodConfig = {

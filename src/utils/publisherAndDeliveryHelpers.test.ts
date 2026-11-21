@@ -8,6 +8,7 @@ import {
   buildManageableAuthorOptions,
   buildManageablePublisherOptions,
   resolveAuthoritativePublishersList,
+  reconcileIncomingPublishers,
   resolveProductPublisherInfo,
   resolveBookBylineParts,
   resolveProductDeliveryTiming,
@@ -147,8 +148,9 @@ test('countBooksForPublisher and buildEnrichedPublishersList dynamically count b
     0
   );
 
+  // Strictly mirrors stored Firebase publishers without synthesizing deleted/ghost publishers from products
   const enriched = buildEnrichedPublishersList(stored, products);
-  assert.equal(enriched.length, 3);
+  assert.equal(enriched.length, 2);
 
   const guardian = enriched.find(p => p.name === 'Guardian Publications');
   assert.ok(guardian);
@@ -162,10 +164,11 @@ test('countBooksForPublisher and buildEnrichedPublishersList dynamically count b
   assert.equal(emptyHouse.displayBooksCount, 0);
   assert.equal(emptyHouse.booksCount, 0);
 
-  const mowla = enriched.find(p => p.name === 'Mowla Brothers');
-  assert.ok(mowla);
-  assert.equal(mowla.liveBooksCount, 1);
-  assert.equal(mowla.displayBooksCount, 1);
+  // Deleted / unmanaged publisher on a book must NOT resurrect in the publishers directory
+  assert.equal(enriched.find(p => p.name === 'Mowla Brothers'), undefined);
+
+  // When Admin deletes all publishers, directory MUST remain empty (never resurrect DEFAULT_PUBLISHERS_LIST)
+  assert.deepEqual(buildEnrichedPublishersList([], products), []);
 
   const resolvedPub = resolveProductPublisherInfo(products[0], stored, products);
   assert.ok(resolvedPub);
@@ -408,6 +411,24 @@ test('resolveAuthoritativePublishersList honors initialized empty directory and 
     { received: false, fromServer: false, exists: false, initialized: false, items: [] }
   );
   assert.equal(cacheEmpty, null);
+});
+
+test('reconcileIncomingPublishers prevents deleted publishers from bouncing back and retains pending additions', () => {
+  const pubA: Publisher = { id: 'pub-1', name: 'Prothoma', booksCount: 2 };
+  const pubB: Publisher = { id: 'pub-2', name: 'Batighar', booksCount: 1 };
+  const pubNew: Publisher = { id: 'pub-3', name: 'New House', booksCount: 0 };
+
+  // Stale snapshot still includes pub-1 after Admin deleted it, and doesn't yet include pub-3
+  const reconciled = reconcileIncomingPublishers({
+    incoming: [pubA, pubB],
+    deletedIds: new Set(['pub-1']),
+    pendingUpserts: new Map([['pub-3', pubNew]]),
+  });
+
+  assert.deepEqual(
+    reconciled.map(p => p.id),
+    ['pub-2', 'pub-3']
+  );
 });
 
 test('resolveBookBylineParts strictly reflects only explicitly set writer and publisher without fallbacks', () => {

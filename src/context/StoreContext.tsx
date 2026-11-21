@@ -51,6 +51,7 @@ import {
   countBooksForAuthor,
   countBooksForPublisher,
   resolveAuthoritativePublishersList,
+  reconcileIncomingPublishers,
   PublishersPrimaryState,
   PublishersBackupDocState,
 } from '../utils/publisherAndDeliveryHelpers';
@@ -165,6 +166,7 @@ const DEFAULT_SETTINGS_TEMPLATE: StoreSettings = {
   firestoreQueryLimit: 250,
   enableIndexedQuerySnapshots: true,
   productImageFitMode: 'cover',
+  productImageAspectRatio: 'auto',
   showAnnouncementBar: true,
   announcementItems: [],
   facebookPixelId: '',
@@ -206,6 +208,7 @@ const DEFAULT_SETTINGS_TEMPLATE: StoreSettings = {
   couponsBadge: '',
   showFooterPolicy: true,
   policyTitle: 'Cancel & Exchange',
+  policySubtitle: '7-day easy replacement policy',
   policyBadge: '7-Day Easy',
   cancelExchangePolicyText: DEFAULT_CANCEL_EXCHANGE_POLICY,
   enableLiveChat: true,
@@ -661,6 +664,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     initialized: false,
     items: [],
   });
+  const deletedPublisherIdsRef = useRef<Set<string>>(new Set());
+  const pendingPublisherUpsertsRef = useRef<Map<string, Publisher>>(new Map());
 
   useEffect(() => {
     productsRef.current = products;
@@ -1496,9 +1501,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         recordSource(
           publishersRes.source === 'server' || pubDirRes.source === 'server' ? 'server' : 'cache'
         );
-        publishersRef.current = reconciledPubs.items;
-        setPublishers(reconciledPubs.items);
-        writeCachedSlice('publishers', reconciledPubs.items);
+        const safeItems = reconcileIncomingPublishers({
+          incoming: reconciledPubs.items,
+          deletedIds: deletedPublisherIdsRef.current,
+          pendingUpserts: pendingPublisherUpsertsRef.current,
+        });
+        publishersRef.current = safeItems;
+        setPublishers(safeItems);
+        writeCachedSlice('publishers', safeItems);
         if (reconciledPubs.markInitialized) {
           markSliceInitialized(PUBLISHERS_INITIALIZED_KEY);
         }
@@ -1603,9 +1613,31 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         backupPublishersDocRef.current
       );
       if (!reconciled) return;
-      publishersRef.current = reconciled.items;
-      setPublishers(reconciled.items);
-      writeCachedSlice('publishers', reconciled.items);
+
+      const primaryConfirmed = primaryPublishersSnapshotRef.current.fromServer;
+      const backupConfirmed = backupPublishersDocRef.current.fromServer;
+      if (primaryConfirmed && backupConfirmed) {
+        const incomingIds = new Set(reconciled.items.map(p => p.id));
+        for (const deletedId of Array.from(deletedPublisherIdsRef.current)) {
+          if (!incomingIds.has(deletedId)) {
+            deletedPublisherIdsRef.current.delete(deletedId);
+          }
+        }
+        for (const pendingId of Array.from(pendingPublisherUpsertsRef.current.keys())) {
+          if (incomingIds.has(pendingId)) {
+            pendingPublisherUpsertsRef.current.delete(pendingId);
+          }
+        }
+      }
+
+      const safeItems = reconcileIncomingPublishers({
+        incoming: reconciled.items,
+        deletedIds: deletedPublisherIdsRef.current,
+        pendingUpserts: pendingPublisherUpsertsRef.current,
+      });
+      publishersRef.current = safeItems;
+      setPublishers(safeItems);
+      writeCachedSlice('publishers', safeItems);
       if (reconciled.markInitialized) {
         markSliceInitialized(PUBLISHERS_INITIALIZED_KEY);
       }
@@ -1669,14 +1701,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             const pubDirDoc = docs.find(d => d.id === 'publishers_directory') as
               | { id: string; items?: Publisher[]; initialized?: boolean }
               | undefined;
-            backupPublishersDocRef.current = {
-              received: true,
-              fromServer: true,
-              exists: Boolean(pubDirDoc),
-              initialized: Boolean(pubDirDoc?.initialized),
-              items: Array.isArray(pubDirDoc?.items) ? pubDirDoc.items : [],
-            };
-            applyResolvedPublishersFromListeners();
+            if (!serverConfirmed.publishers && Date.now() - lastPublisherMutationAtRef.current >= 2500) {
+              backupPublishersDocRef.current = {
+                received: true,
+                fromServer: true,
+                exists: Boolean(pubDirDoc),
+                initialized: Boolean(pubDirDoc?.initialized),
+                items: Array.isArray(pubDirDoc?.items) ? pubDirDoc.items : [],
+              };
+              applyResolvedPublishersFromListeners();
+            }
           })
           .catch(() => {});
       }
@@ -3368,35 +3402,34 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const prevList = publishersRef.current;
     const autoCount = countBooksForPublisher(publisher, productsRef.current);
     const syncedPublisher: Publisher = { ...publisher, booksCount: autoCount };
+    deletedPublisherIdsRef.current.delete(syncedPublisher.id);
+    pendingPublisherUpsertsRef.current.set(syncedPublisher.id, syncedPublisher);
     const nextList = persistOptimisticPublishers([
       ...prevList.filter(p => p.id !== syncedPublisher.id),
       syncedPublisher,
     ]);
 
     const cleaned = cleanForFirestore(syncedPublisher);
-    let primaryOk = false;
-    let backupOk = false;
-    let lastError: any = null;
+    const [primaryRes, backupRes] = await Promise.allSettled([
+      setDoc(doc(db, 'publishers', syncedPublisher.id), cleaned),
+      syncPublishersToSettingsDoc(nextList),
+    ]);
 
-    try {
-      await setDoc(doc(db, 'publishers', syncedPublisher.id), cleaned);
-      primaryOk = true;
-    } catch (err) {
-      lastError = err;
-      console.warn('Primary publishers collection write notice, syncing via settings/publishers_directory:', err);
+    const primaryOk = primaryRes.status === 'fulfilled';
+    const backupOk = backupRes.status === 'fulfilled';
+    if (!primaryOk) {
+      console.warn('Primary publishers collection write notice, syncing via settings/publishers_directory:', primaryRes.reason);
     }
-
-    try {
-      await syncPublishersToSettingsDoc(nextList);
-      backupOk = true;
-    } catch (err) {
-      lastError = err;
-      console.warn('Publishers settings doc sync notice:', err);
+    if (!backupOk) {
+      console.warn('Publishers settings doc sync notice:', backupRes.reason);
     }
 
     if (!primaryOk && !backupOk && !isDevAdminBypassActive()) {
+      pendingPublisherUpsertsRef.current.delete(syncedPublisher.id);
       persistOptimisticPublishers(prevList);
-      throw lastError || new Error('Failed to save publisher');
+      throw (primaryRes.status === 'rejected' ? primaryRes.reason : null) ||
+        (backupRes.status === 'rejected' ? backupRes.reason : null) ||
+        new Error('Failed to save publisher');
     }
 
     try {
@@ -3413,34 +3446,35 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const targetBangla = data.banglaName ?? existing?.banglaName ?? '';
     const autoCount = countBooksForPublisher({ name: targetName, banglaName: targetBangla }, productsRef.current);
     const syncedData: Partial<Publisher> = { ...data, booksCount: autoCount };
-    const nextList = persistOptimisticPublishers(
-      prevList.map(p => (p.id === id ? { ...p, ...syncedData } : p))
-    );
-
-    let primaryOk = false;
-    let backupOk = false;
-    let lastError: any = null;
-
-    try {
-      const cleaned = cleanForFirestore(syncedData);
-      await setDoc(doc(db, 'publishers', id), cleaned, { merge: true });
-      primaryOk = true;
-    } catch (err) {
-      lastError = err;
-      console.warn('Primary publishers collection update notice, syncing via settings/publishers_directory:', err);
+    const updatedList = prevList.map(p => (p.id === id ? { ...p, ...syncedData } : p));
+    const updatedItem = updatedList.find(p => p.id === id);
+    if (updatedItem) {
+      deletedPublisherIdsRef.current.delete(id);
+      pendingPublisherUpsertsRef.current.set(id, updatedItem);
     }
+    const nextList = persistOptimisticPublishers(updatedList);
 
-    try {
-      await syncPublishersToSettingsDoc(nextList);
-      backupOk = true;
-    } catch (err) {
-      lastError = err;
-      console.warn('Publishers settings doc sync notice:', err);
+    const cleaned = cleanForFirestore(syncedData);
+    const [primaryRes, backupRes] = await Promise.allSettled([
+      setDoc(doc(db, 'publishers', id), cleaned, { merge: true }),
+      syncPublishersToSettingsDoc(nextList),
+    ]);
+
+    const primaryOk = primaryRes.status === 'fulfilled';
+    const backupOk = backupRes.status === 'fulfilled';
+    if (!primaryOk) {
+      console.warn('Primary publishers collection update notice, syncing via settings/publishers_directory:', primaryRes.reason);
+    }
+    if (!backupOk) {
+      console.warn('Publishers settings doc sync notice:', backupRes.reason);
     }
 
     if (!primaryOk && !backupOk && !isDevAdminBypassActive()) {
+      pendingPublisherUpsertsRef.current.delete(id);
       persistOptimisticPublishers(prevList);
-      throw lastError || new Error('Failed to update publisher');
+      throw (primaryRes.status === 'rejected' ? primaryRes.reason : null) ||
+        (backupRes.status === 'rejected' ? backupRes.reason : null) ||
+        new Error('Failed to update publisher');
     }
 
     try {
@@ -3452,31 +3486,31 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const deletePublisher = async (id: string) => {
     const prevList = publishersRef.current;
+    deletedPublisherIdsRef.current.add(id);
+    pendingPublisherUpsertsRef.current.delete(id);
     const nextList = persistOptimisticPublishers(prevList.filter(p => p.id !== id));
 
-    let primaryOk = false;
-    let backupOk = false;
-    let lastError: any = null;
+    // Delete from primary `publishers` collection AND update `settings/publishers_directory` simultaneously in real time
+    const [primaryRes, backupRes] = await Promise.allSettled([
+      deleteDoc(doc(db, 'publishers', id)),
+      syncPublishersToSettingsDoc(nextList),
+    ]);
 
-    try {
-      await deleteDoc(doc(db, 'publishers', id));
-      primaryOk = true;
-    } catch (err) {
-      lastError = err;
-      console.warn('Primary publishers collection delete notice, syncing via settings/publishers_directory:', err);
+    const primaryOk = primaryRes.status === 'fulfilled';
+    const backupOk = backupRes.status === 'fulfilled';
+    if (!primaryOk) {
+      console.warn('Primary publishers collection delete notice, syncing via settings/publishers_directory:', primaryRes.reason);
     }
-
-    try {
-      await syncPublishersToSettingsDoc(nextList);
-      backupOk = true;
-    } catch (err) {
-      lastError = err;
-      console.warn('Publishers settings doc sync notice:', err);
+    if (!backupOk) {
+      console.warn('Publishers settings doc sync notice:', backupRes.reason);
     }
 
     if (!primaryOk && !backupOk && !isDevAdminBypassActive()) {
+      deletedPublisherIdsRef.current.delete(id);
       persistOptimisticPublishers(prevList);
-      throw lastError || new Error('Failed to delete publisher');
+      throw (primaryRes.status === 'rejected' ? primaryRes.reason : null) ||
+        (backupRes.status === 'rejected' ? backupRes.reason : null) ||
+        new Error('Failed to delete publisher');
     }
 
     try {

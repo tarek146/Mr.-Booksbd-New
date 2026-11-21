@@ -148,5 +148,21 @@ describe('homeConfigHelpers', () => {
     assert.equal(resolvedFromOffSettings.reviewsSlotReplacement, 'off');
     assert.equal(shouldRenderHomeReviewsSection(resolvedFromOffSettings, offMirror), false);
   });
+
+  it('defaults productImageAspectRatio to auto and mirrors changes between HomeConfig and StoreSettings', () => {
+    const defaultCfg = resolveHomeConfig(undefined, undefined);
+    assert.equal(defaultCfg.productImageAspectRatio, 'auto');
+
+    const settingsMirror = buildSettingsMirrorFromHomeConfig({
+      productImageAspectRatio: '3:4',
+    });
+    assert.equal(settingsMirror.productImageAspectRatio, '3:4');
+
+    const homeConfigMirror = buildHomeConfigMirrorFromSettings({
+      productImageAspectRatio: '4:5',
+    });
+    assert.ok(homeConfigMirror);
+    assert.equal(homeConfigMirror.productImageAspectRatio, '4:5');
+  });
 });
 

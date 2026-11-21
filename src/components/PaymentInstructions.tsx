@@ -191,7 +191,7 @@ function generateFallbackPaymentQrDataUrl(
     ctx.fillStyle = brandColor;
     ctx.font = '700 16px Hind Siliguri, Inter, system-ui, sans-serif';
     ctx.fillText(
-      `${effectiveAccName || 'MR. BOOKS'} • স্ক্যান করে পেমেন্ট করুন`,
+      effectiveAccName ? `${effectiveAccName} • স্ক্যান করে পেমেন্ট করুন` : 'স্ক্যান করে পেমেন্ট করুন',
       canvas.width / 2,
       682
     );
@@ -885,7 +885,10 @@ export function PaymentInstructions({
         const isCopied = copiedKey === copyId;
 
         const effectiveAccountNumber = activeSubOption?.accountNumber || currentActiveMethod.accountNumber;
-        const effectiveAccountName = activeSubOption?.accountName || currentActiveMethod.accountName;
+        const effectiveAccountName =
+          activeSubOption?.id === 'send_money'
+            ? ''
+            : (activeSubOption?.accountName || currentActiveMethod.accountName);
         const effectiveAccountType = activeSubOption?.accountType || activeMeta.accountType;
         const effectiveInstructions = activeSubOption?.instructions || activeMeta.instructionText;
         const activeQrLabel = activeQrInfo.title;
@@ -1030,7 +1033,10 @@ export function PaymentInstructions({
                       </div>
 
                       {effectiveAccountName && (
-                        <div className="text-[11px] text-neutral-500 dark:text-slate-400 truncate">
+                        <div
+                          data-testid="popup-account-holder-name"
+                          className="text-[11px] text-neutral-500 dark:text-slate-400 truncate"
+                        >
                           Account: <span className="font-medium text-neutral-700 dark:text-slate-300">{effectiveAccountName}</span>
                         </div>
                       )}

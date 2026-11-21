@@ -70,7 +70,6 @@ import {
 import { BulkProductImportModal } from '../components/BulkProductImportModal';
 import { Product, Author, Publisher, Banner, BookPreviewPage, Order, PaymentMethodConfig, PaymentSubOptionConfig, AdminStaffMember, AdminStaffRole, AdminProfile, Review, LiveChatSession, StoreSettings } from '../types';
 import {
-  DEFAULT_PUBLISHERS_LIST,
   countBooksForAuthor,
   countBooksForPublisher,
   buildManageableAuthorOptions,
@@ -118,6 +117,12 @@ import {
 import { detectAdminNewCustomerActivity, playAdminIncomingRingtone, unlockChatAudioContext } from '../utils/chatSoundAndValidation';
 import { resolveDashboardHeaderCapiStatus } from '../utils/facebookCapiHelpers';
 import { renderGreenReviewIcon } from '../components/ProductCard';
+import {
+  type ProductImageAspectRatio,
+  resolveProductImageAspectRatio,
+  computeSafeAutoAspectRatio,
+  formatAspectRatioBadge,
+} from '../utils/productImageLayoutHelpers';
 import { compressImageFile, isValidImageUrl, sanitizeImageUrl } from '../utils/imageCompressor';
 import {
   DEFAULT_ADMIN_BRAND_NAME,
@@ -586,7 +591,7 @@ export function AdminDashboard() {
     englishLabel: 'Send Money',
     subtitle: 'Personal নম্বরে সেন্ড মানি করুন',
     accountType: 'Personal',
-    accountName: 'MR. BOOKS Official',
+    accountName: '',
     accountNumber: '01712345678',
     instructions: 'বিকাশ অ্যাপ অথবা *247# ডায়াল করে নির্ধারিত নম্বরে Send Money করুন এবং ট্রানজেকশন আইডি (TrxID) নিচে দিন।',
     qrCodeUrl: '',
@@ -734,6 +739,7 @@ export function AdminDashboard() {
   const [prodRequireOnlinePayment, setProdRequireOnlinePayment] = useState<boolean>(false);
   const [prodOnlinePaymentPercent, setProdOnlinePaymentPercent] = useState<number>(100);
   const [prodGalleryUrls, setProdGalleryUrls] = useState<string[]>([]);
+  const [prodImageAspectRatio, setProdImageAspectRatio] = useState<number | undefined>(undefined);
   const [galleryUrlInput, setGalleryUrlInput] = useState('');
   const [customVariants, setCustomVariants] = useState<{ id: string; name: string; price: number; regularPrice?: number; stock: number; sku: string; pages?: number; description?: string }[]>([]);
   const [newVariantName, setNewVariantName] = useState('');
@@ -1024,7 +1030,7 @@ export function AdminDashboard() {
         label: pmSendMoneyOption.label.trim() || 'সেন্ড মানি',
         englishLabel: (pmSendMoneyOption.englishLabel || 'Send Money').trim(),
         subtitle: (pmSendMoneyOption.subtitle || '').trim(),
-        accountName: (pmSendMoneyOption.accountName || pmAccName || 'MR. BOOKS').trim(),
+        accountName: '',
         accountNumber: (pmSendMoneyOption.accountNumber || pmAccNum).trim(),
         instructions: (pmSendMoneyOption.instructions || pmInst).trim(),
         qrCodeUrl: smSingleQr,
@@ -1349,6 +1355,7 @@ export function AdminDashboard() {
     setProdImage('');
     setProdExtraImages('');
     setProdGalleryUrls([]);
+    setProdImageAspectRatio(undefined);
     setGalleryUrlInput('');
     setProdIsActive(true);
     setProdIsFeatured(false);
@@ -1514,6 +1521,7 @@ export function AdminDashboard() {
     setProdImage(p.images?.[0] || '');
     setProdExtraImages(p.images?.slice(1).join(', ') || '');
     setProdGalleryUrls(p.images || []);
+    setProdImageAspectRatio(p.imageAspectRatio);
     setGalleryUrlInput('');
     setProdIsOriginal(p.isOriginalBadge !== false);
     setProdPrintVariants(p.variants ? p.variants.map((v: any) => v.name).join(', ') : 'Paperback, Hardcover');
@@ -1652,6 +1660,9 @@ export function AdminDashboard() {
       dimensions: prodType === 'stationery' ? prodDimensions : undefined,
       colorModel: prodType === 'stationery' ? prodColorModel : undefined,
       images: allImages.length > 0 ? allImages : ['https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600'],
+      ...(typeof prodImageAspectRatio === 'number' && Number.isFinite(prodImageAspectRatio) && prodImageAspectRatio > 0
+        ? { imageAspectRatio: prodImageAspectRatio }
+        : {}),
       price: Number(prodPrice) || 350,
       previousPrice: Number(prodRegularPrice) > Number(prodPrice) ? Number(prodRegularPrice) : Number(prodPrice) + 100,
       stock: 100,
@@ -3405,8 +3416,14 @@ export function AdminDashboard() {
                               </div>
                             </div>
 
-                            {/* Account Number & Account Holder Name */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {/* Account Number (and Account Holder Name for Payment only — omitted for Send Money) */}
+                            <div
+                              className={
+                                pmEditingSubTab === 'send_money'
+                                  ? 'grid grid-cols-1 gap-3'
+                                  : 'grid grid-cols-1 sm:grid-cols-2 gap-3'
+                              }
+                            >
                               <div>
                                 <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
                                   {activeSub.label} নাম্বার (Account / Wallet Number) *
@@ -3421,18 +3438,20 @@ export function AdminDashboard() {
                                 />
                               </div>
 
-                              <div>
-                                <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
-                                  Account Holder Name (একাউন্টের নাম)
-                                </label>
-                                <input
-                                  type="text"
-                                  value={activeSub.accountName}
-                                  onChange={e => updateActiveSub({ accountName: e.target.value })}
-                                  placeholder="MR. BOOKS Official"
-                                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-white font-bold text-[#171717] focus:outline-none focus:border-[#E2136E]"
-                                />
-                              </div>
+                              {pmEditingSubTab !== 'send_money' && (
+                                <div data-testid="subopt-account-holder-field">
+                                  <label className="block font-bold text-[#171717] uppercase tracking-wider text-[10px] mb-1">
+                                    Account Holder Name (একাউন্টের নাম)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={activeSub.accountName}
+                                    onChange={e => updateActiveSub({ accountName: e.target.value })}
+                                    placeholder="MR. BOOKS Official"
+                                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E5E5] bg-white font-bold text-[#171717] focus:outline-none focus:border-[#E2136E]"
+                                  />
+                                </div>
+                              )}
                             </div>
 
                             {/* Custom Instructions for this Sub-Option */}
@@ -7497,9 +7516,10 @@ export function AdminDashboard() {
                           Click to upload images
                         </span>
                         <span className="text-[10px] text-slate-400 mt-0.5">
-                          PNG, JPG, WEBP up to 5MB
+                          PNG, JPG, WEBP up to 5MB · Auto-matches photo ratio
                         </span>
                         <input
+                          data-testid="admin-product-gallery-file-input"
                           type="file"
                           accept="image/*"
                           multiple
@@ -7508,13 +7528,31 @@ export function AdminDashboard() {
                             if (files.length > 0) {
                               try {
                                 const compressedList = await Promise.all(
-                                  files.map(f => compressImageFile(f, 800, 1100, 0.84))
+                                  files.map(f => compressImageFile(f, 900, 1200, 0.85))
                                 );
+                                // Automatically measure cover image's natural aspect ratio
+                                if (compressedList.length > 0 && (prodGalleryUrls.length === 0 || !prodImage)) {
+                                  const measuredRatio = await new Promise<number | undefined>((resolve) => {
+                                    const probe = new Image();
+                                    probe.onload = () => {
+                                      if (probe.naturalWidth > 0 && probe.naturalHeight > 0) {
+                                        resolve(computeSafeAutoAspectRatio(probe.naturalWidth, probe.naturalHeight));
+                                      } else {
+                                        resolve(undefined);
+                                      }
+                                    };
+                                    probe.onerror = () => resolve(undefined);
+                                    probe.src = compressedList[0];
+                                  });
+                                  if (measuredRatio) {
+                                    setProdImageAspectRatio(measuredRatio);
+                                  }
+                                }
                                 setProdGalleryUrls(prev => Array.from(new Set([...prev, ...compressedList])));
                                 if (!prodImage && compressedList.length > 0) {
                                   setProdImage(compressedList[0]);
                                 }
-                                setToast({ show: true, type: 'success', message: `${files.length} image(s) uploaded!` });
+                                setToast({ show: true, type: 'success', message: `${files.length} image(s) uploaded with auto-matched ratio!` });
                               } catch (err: any) {
                                 setToast({ show: true, type: 'error', message: err.message || 'Upload failed' });
                               }
@@ -7558,21 +7596,56 @@ export function AdminDashboard() {
                       </div>
 
                       {prodGalleryUrls.length > 0 && (
-                        <div className="grid grid-cols-3 gap-2 pt-1">
+                        <div className="grid grid-cols-3 gap-2 pt-1 items-start">
                           {prodGalleryUrls.map((url, idx) => (
-                            <div key={idx} className="relative group rounded-lg overflow-hidden border border-slate-200 bg-white aspect-square p-1">
-                              <img src={url} alt={`Gallery ${idx + 1}`} className="w-full h-full object-contain rounded" />
+                            <div
+                              key={idx}
+                              data-testid={idx === 0 ? 'admin-gallery-cover-preview' : undefined}
+                              className="relative group rounded-lg overflow-hidden border border-slate-200 bg-slate-50"
+                              style={{
+                                aspectRatio:
+                                  idx === 0 && prodImageAspectRatio
+                                    ? String(prodImageAspectRatio)
+                                    : '3 / 4',
+                              }}
+                            >
+                              <img
+                                src={url}
+                                alt={`Gallery ${idx + 1}`}
+                                onLoad={(e) => {
+                                  if (idx === 0) {
+                                    const nw = e.currentTarget.naturalWidth;
+                                    const nh = e.currentTarget.naturalHeight;
+                                    if (nw > 0 && nh > 0) {
+                                      setProdImageAspectRatio(computeSafeAutoAspectRatio(nw, nh));
+                                    }
+                                  }
+                                }}
+                                className="w-full h-full object-cover object-center"
+                              />
                               {idx === 0 && (
-                                <span className="absolute top-1 left-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-900 text-white">
+                                <span className="absolute top-1 left-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-900/90 text-white">
                                   Cover
+                                </span>
+                              )}
+                              {idx === 0 && prodImageAspectRatio && (
+                                <span
+                                  data-testid="admin-cover-ratio-badge"
+                                  className="absolute bottom-1 left-1 text-[9px] font-semibold px-1.5 py-0.5 rounded bg-white/95 text-slate-800 border border-slate-200 shadow-2xs"
+                                >
+                                  {formatAspectRatioBadge(prodImageAspectRatio)}
                                 </span>
                               )}
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setProdGalleryUrls(prev => prev.filter((_, i) => i !== idx));
+                                  const nextList = prodGalleryUrls.filter((_, i) => i !== idx);
+                                  setProdGalleryUrls(nextList);
+                                  if (idx === 0) {
+                                    setProdImageAspectRatio(undefined);
+                                  }
                                   if (prodImage === url) {
-                                    setProdImage(prodGalleryUrls.find(u => u !== url) || '');
+                                    setProdImage(nextList[0] || '');
                                   }
                                 }}
                                 className="absolute top-1 right-1 p-1 rounded bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
@@ -9095,7 +9168,7 @@ export function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-200">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 lg:divide-x divide-slate-200">
                 <div className="p-3.5 space-y-1.5">
                   <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600">
                     Homepage Writer Slot
@@ -9176,7 +9249,36 @@ export function AdminDashboard() {
 
                 <div className="p-3.5 space-y-1.5">
                   <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600">
-                    Product Image Ratio &amp; Fit
+                    Product Image Ratio
+                  </label>
+                  <select
+                    data-testid="admin-product-image-aspect-select"
+                    value={resolveProductImageAspectRatio(settings, homeConfig)}
+                    onChange={async e => {
+                      const val = e.target.value as ProductImageAspectRatio;
+                      await updateHomeConfig({ productImageAspectRatio: val });
+                      setToast({
+                        show: true,
+                        type: 'success',
+                        message:
+                          val === 'auto'
+                            ? 'Product image ratio set to Auto (matches uploaded photo, 3:4 base)!'
+                            : `Product image ratio updated to ${val}!`,
+                      });
+                    }}
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
+                  >
+                    <option value="auto">Auto — Match Photo (3:4 Base)</option>
+                    <option value="3:4">3:4 Portrait (Book Cover)</option>
+                    <option value="4:5">4:5 Editorial Portrait</option>
+                    <option value="2:3">2:3 Tall Book</option>
+                    <option value="1:1">1:1 Square</option>
+                  </select>
+                </div>
+
+                <div className="p-3.5 space-y-1.5">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600">
+                    Product Image Fit Mode
                   </label>
                   <select
                     data-testid="product-image-fit-mode-select"
@@ -9187,12 +9289,12 @@ export function AdminDashboard() {
                       setToast({
                         show: true,
                         type: 'success',
-                        message: `Product image layout updated to ${val === 'cover' ? '1:1 Square Full-Bleed Zoom' : 'Padded Uncropped Fit'}!`,
+                        message: `Product image fit updated to ${val === 'cover' ? 'Full-Bleed Edge-to-Edge' : 'Padded Uncropped Fit'}!`,
                       });
                     }}
                     className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:border-[#D71920]"
                   >
-                    <option value="cover">1:1 Square Full-Bleed (Default)</option>
+                    <option value="cover">Full-Bleed Edge-to-Edge (Default)</option>
                     <option value="contain">Padded Uncropped Fit</option>
                   </select>
                 </div>
@@ -9455,31 +9557,10 @@ export function AdminDashboard() {
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">No Publishers Added Yet</h3>
                   <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
-                    Add a custom publishing house or import default Bangladeshi publishers into your directory.
+                    Add a publishing house below to display it immediately across your store and book forms.
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-                  <button
-                    onClick={async () => {
-                      for (const defPub of DEFAULT_PUBLISHERS_LIST) {
-                        const liveMatches = countBooksForPublisher(defPub, products);
-                        await addPublisher({
-                          id: defPub.id || 'pub-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
-                          name: defPub.name,
-                          banglaName: defPub.banglaName,
-                          logoUrl: defPub.logoUrl,
-                          booksCount: liveMatches,
-                          description: defPub.description,
-                          establishedYear: defPub.establishedYear,
-                          isFeatured: true,
-                        });
-                      }
-                      setToast({ show: true, type: 'success', message: 'Default publishers imported!' });
-                    }}
-                    className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
-                  >
-                    Import Defaults ({DEFAULT_PUBLISHERS_LIST.length})
-                  </button>
                   <button
                     onClick={() => {
                       setEditingPublisherId(null);

@@ -19,6 +19,7 @@ import {
 import { resolveProductDetailsPresentation } from '../utils/storeEnhancementsHelpers';
 import {
   resolveProductImageFitMode,
+  resolveProductImageAspectRatio,
   getProductImageLayoutClasses,
 } from '../utils/productImageLayoutHelpers';
 import {
@@ -30,7 +31,8 @@ import { sortCategoriesBySerial } from '../utils/categoryHomeHelpers';
 export function StationeryPage() {
   const { products, categories, isLoading, isStoreHydrated, settings, homeConfig, searchQuery, setSearchQuery, selectedCategoryFilter, setSelectedCategoryFilter, setActivePage, addToCart, startDirectCheckout } = useStore();
   const imageLayout = getProductImageLayoutClasses(
-    resolveProductImageFitMode(settings, homeConfig)
+    resolveProductImageFitMode(settings, homeConfig),
+    resolveProductImageAspectRatio(settings, homeConfig)
   );
 
   // Local filter states for stationery page

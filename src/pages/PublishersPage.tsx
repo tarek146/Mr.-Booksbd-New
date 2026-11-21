@@ -73,10 +73,19 @@ export function PublishersPage() {
 
         {/* Publishers Grid */}
         {filteredPublishers.length === 0 ? (
-          <div className="p-10 text-center rounded-3xl border border-[#E5E5E5] bg-[#F7F7F8] space-y-3">
+          <div
+            data-testid="publishers-empty-state"
+            className="p-10 text-center rounded-3xl border border-[#E5E5E5] bg-[#F7F7F8] space-y-3"
+          >
             <Layers size={36} className="mx-auto text-neutral-400" />
-            <h3 className="text-base font-bold text-[#171717]">No Publishers Found</h3>
-            <p className="text-xs text-[#5F6368]">Try searching with a different publisher name.</p>
+            <h3 className="text-base font-bold text-[#171717]">
+              {enrichedPublishers.length === 0 ? 'No Publishers Added Yet' : 'No Publishers Found'}
+            </h3>
+            <p className="text-xs text-[#5F6368]">
+              {enrichedPublishers.length === 0
+                ? 'Publishers added from the Admin Panel will appear here automatically.'
+                : 'Try searching with a different publisher name.'}
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">

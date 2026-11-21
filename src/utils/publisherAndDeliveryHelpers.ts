@@ -190,41 +190,21 @@ export function buildEnrichedAuthorsList(
 }
 
 /**
- * Merges configured publishers from Firestore (or defaults if empty) with any custom publisher
- * names present on products in the catalog, computing real-time book counts automatically.
+ * Strictly enriches Admin-managed publishers from Firebase with real-time book counts.
+ * Never falls back to DEFAULT_PUBLISHERS_LIST or resurrects deleted publishers from catalog products.
  */
 export function buildEnrichedPublishersList(
   storedPublishers: Publisher[],
   products: Product[]
 ): EnrichedPublisher[] {
-  const baseList = storedPublishers.length > 0 ? storedPublishers : DEFAULT_PUBLISHERS_LIST;
-  const bookCountByNormalizedName = new Map<string, { rawName: string; count: number; sampleImage?: string }>();
-
-  for (const prod of products) {
-    if (prod.type !== 'book') continue;
-    const rawPub = (prod.publisher || '').trim();
-    if (!rawPub) continue;
-    const key = rawPub.toLowerCase();
-    const existing = bookCountByNormalizedName.get(key);
-    if (existing) {
-      existing.count += 1;
-    } else {
-      bookCountByNormalizedName.set(key, {
-        rawName: rawPub,
-        count: 1,
-        sampleImage: prod.images?.[0],
-      });
-    }
-  }
-
-  const seenKeys = new Set<string>();
+  const seenIds = new Set<string>();
   const result: EnrichedPublisher[] = [];
 
-  for (const pub of baseList) {
-    const key = pub.name.trim().toLowerCase();
-    const banglaKey = (pub.banglaName || '').trim().toLowerCase();
-    seenKeys.add(key);
-    if (banglaKey) seenKeys.add(banglaKey);
+  for (const pub of storedPublishers) {
+    if (!pub || !pub.id || seenIds.has(pub.id)) continue;
+    const cleanName = (pub.name || '').trim();
+    if (!cleanName) continue;
+    seenIds.add(pub.id);
 
     const liveCount = countBooksForPublisher(pub, products);
 
@@ -234,27 +214,6 @@ export function buildEnrichedPublishersList(
       liveBooksCount: liveCount,
       displayBooksCount: liveCount,
     });
-  }
-
-  // Also include any publisher entered directly on a book that isn't in baseList yet
-  let derivedIdx = 0;
-  for (const [key, info] of bookCountByNormalizedName.entries()) {
-    if (!seenKeys.has(key)) {
-      seenKeys.add(key);
-      derivedIdx += 1;
-      const slug = key.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || encodeURIComponent(key);
-      result.push({
-        id: `derived-pub-${slug}-${derivedIdx}`,
-        name: info.rawName,
-        banglaName: info.rawName,
-        description: `All original books published by ${info.rawName}.`,
-        logoUrl: info.sampleImage || '',
-        booksCount: info.count,
-        liveBooksCount: info.count,
-        displayBooksCount: info.count,
-        isFeatured: true,
-      });
-    }
   }
 
   return result;
@@ -395,6 +354,34 @@ export function resolveAuthoritativePublishersList(
   }
 
   return null;
+}
+
+/**
+ * Reconciles incoming Firestore publisher snapshots against in-flight Admin deletions and additions
+ * so a deleted publisher never bounces back from a stale cache/listener snapshot and newly added
+ * publishers stay immediately visible in real time.
+ */
+export function reconcileIncomingPublishers(params: {
+  incoming: Publisher[];
+  deletedIds?: ReadonlySet<string> | null;
+  pendingUpserts?: ReadonlyMap<string, Publisher> | null;
+}): Publisher[] {
+  const { incoming, deletedIds, pendingUpserts } = params;
+  const filtered = dedupePublishers(incoming).filter(p => !deletedIds?.has(p.id));
+  if (!pendingUpserts || pendingUpserts.size === 0) {
+    return filtered;
+  }
+
+  const byId = new Map<string, Publisher>();
+  for (const pub of filtered) {
+    byId.set(pub.id, pub);
+  }
+  for (const [id, pending] of pendingUpserts.entries()) {
+    if (!deletedIds?.has(id)) {
+      byId.set(id, pending);
+    }
+  }
+  return Array.from(byId.values());
 }
 
 

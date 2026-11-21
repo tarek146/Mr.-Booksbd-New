@@ -10,6 +10,7 @@ import {
 } from '../utils/storeEnhancementsHelpers';
 import {
   resolveProductImageFitMode,
+  resolveProductImageAspectRatio,
   getProductImageLayoutClasses,
 } from '../utils/productImageLayoutHelpers';
 
@@ -31,7 +32,8 @@ export function CartPage() {
   } = useStore();
   const { currentUser } = useAuth();
   const imageLayout = getProductImageLayoutClasses(
-    resolveProductImageFitMode(settings, homeConfig)
+    resolveProductImageFitMode(settings, homeConfig),
+    resolveProductImageAspectRatio(settings, homeConfig)
   );
   const [promoCode, setPromoCode] = useState(appliedCouponCode || '');
   const [promoStatus, setPromoStatus] = useState<{ valid: boolean; text: string } | null>(null);

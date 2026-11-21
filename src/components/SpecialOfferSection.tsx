@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Flame, ChevronLeft, ChevronRight, Zap, Clock } from 'lucide-react';
-import { resolveProductImageFitMode } from '../utils/productImageLayoutHelpers';
+import {
+  resolveProductImageFitMode,
+  resolveProductImageAspectRatio,
+  resolveContainerAspectRatio,
+} from '../utils/productImageLayoutHelpers';
 import {
   filterActiveSpecialOfferItems,
   resolveSectionTargetEndTime,
@@ -14,10 +18,12 @@ export function SpecialOfferSection() {
   const { products, settings, homeConfig, setActivePage, startDirectCheckout } = useStore();
   const specialOfferConfig = settings.specialOffer;
   const imageFitMode = resolveProductImageFitMode(settings, homeConfig);
+  const imageAspectMode = resolveProductImageAspectRatio(settings, homeConfig);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const sliderRef = useRef<HTMLDivElement>(null);
   const [now, setNow] = useState<number>(() => Date.now());
+  const [detectedOfferDims, setDetectedOfferDims] = useState<Record<string, { width: number; height: number }>>({});
 
   // Live 1-second tick so expired deals vanish immediately without page reload
   useEffect(() => {
@@ -178,7 +184,18 @@ export function SpecialOfferSection() {
             className="flex items-stretch gap-2.5 sm:gap-3 overflow-x-auto scrollbar-none scroll-smooth snap-x snap-mandatory py-0.5 px-0.5"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
-            {offerProducts.map((p, idx) => (
+            {offerProducts.map((p, idx) => {
+              const offerImgSrc =
+                p.images[0] ||
+                'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400';
+              const measured = detectedOfferDims[offerImgSrc];
+              const resolvedOfferAspect = resolveContainerAspectRatio({
+                mode: imageAspectMode,
+                naturalWidth: measured?.width ?? null,
+                naturalHeight: measured?.height ?? null,
+                savedRatio: p.imageAspectRatio,
+              });
+              return (
               <div
                 key={p.id + idx}
                 data-testid={`special-offer-card-${p.id}`}
@@ -188,16 +205,29 @@ export function SpecialOfferSection() {
                   {/* Image & Discount Badge */}
                   <div
                     onClick={() => setActivePage('product-detail', p.id)}
-                    className={`relative w-full aspect-square bg-neutral-100 overflow-hidden cursor-pointer flex items-center justify-center ${
+                    data-testid="special-offer-image-frame"
+                    className={`relative w-full ${resolvedOfferAspect.aspectClass} bg-neutral-100 overflow-hidden cursor-pointer flex items-center justify-center transition-[aspect-ratio] duration-200 ${
                       imageFitMode === 'contain' ? 'p-2' : ''
-                    }`}
+                    }`.trim()}
+                    style={
+                      resolvedOfferAspect.aspectStyle
+                        ? { aspectRatio: resolvedOfferAspect.aspectStyle }
+                        : undefined
+                    }
                   >
                     <img
-                      src={
-                        p.images[0] ||
-                        'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400'
-                      }
+                      src={offerImgSrc}
                       alt={p.title}
+                      onLoad={(e) => {
+                        const nw = e.currentTarget.naturalWidth;
+                        const nh = e.currentTarget.naturalHeight;
+                        if (nw > 0 && nh > 0) {
+                          setDetectedOfferDims(prev => {
+                            if (prev[offerImgSrc]?.width === nw && prev[offerImgSrc]?.height === nh) return prev;
+                            return { ...prev, [offerImgSrc]: { width: nw, height: nh } };
+                          });
+                        }
+                      }}
                       className={`w-full h-full ${
                         imageFitMode === 'contain'
                           ? 'object-contain'
@@ -280,7 +310,8 @@ export function SpecialOfferSection() {
                   </button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Dots Indicator */}

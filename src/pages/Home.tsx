@@ -796,6 +796,7 @@ export function Home() {
 
         if (slotMode === 'publishers_spotlight') {
           const enrichedPublishers = buildEnrichedPublishersList(publishers, products);
+          if (enrichedPublishers.length === 0) return null;
           return (
             <section
               data-testid="home-reviews-replacement-publishers"
@@ -986,6 +987,7 @@ export function Home() {
 
         if (writerSlotMode === 'publishers_spotlight') {
           const enrichedPublishers = buildEnrichedPublishersList(publishers, products);
+          if (enrichedPublishers.length === 0) return null;
           return (
             <section
               data-testid="home-writers-replacement-publishers"
